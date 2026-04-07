@@ -6,8 +6,7 @@ from app.agents.base import AgentResult, BaseAgent
 from app.core.database import async_session_maker
 from app.models.order import Order
 from app.models.refund import RefundReason
-from app.services.refund_service import RefundApplicationService
-
+from app.services.refund_service import RefundApplicationService, RefundEligibilityChecker
 
 ORDER_SYSTEM_PROMPT = """你是专业的电商订单处理助手。
 
@@ -112,7 +111,6 @@ class OrderAgent(BaseAgent):
                 )
 
             # 检查退货资格
-            from app.services.refund_service import RefundEligibilityChecker
             is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(
                 order, session
             )
@@ -183,25 +181,29 @@ class OrderAgent(BaseAgent):
         user_id: int
     ) -> dict | None:
         """查询订单"""
-        async with async_session_maker() as session:
-            if order_sn:
-                stmt = select(Order).where(
-                    Order.order_sn == order_sn,
-                    Order.user_id == user_id
-                )
-            else:
-                # 查询最近订单
-                stmt = (
-                    select(Order)
-                    .where(Order.user_id == user_id)
-                    .order_by(Order.created_at.desc())  # type: ignore
-                    .limit(1)
-                )
+        try:
+            async with async_session_maker() as session:
+                if order_sn:
+                    stmt = select(Order).where(
+                        Order.order_sn == order_sn,
+                        Order.user_id == user_id
+                    )
+                else:
+                    # 查询最近订单
+                    stmt = (
+                        select(Order)
+                        .where(Order.user_id == user_id)
+                        .order_by(Order.created_at.desc())  # type: ignore
+                        .limit(1)
+                    )
 
-            result = await session.exec(stmt)
-            order = result.first()
+                result = await session.exec(stmt)
+                order = result.first()
 
-            return order.model_dump() if order else None
+                return order.model_dump() if order else None
+        except Exception as e:
+            print(f"[OrderAgent] Database query failed: {e}")
+            return None
 
     def _format_order_response(self, order: dict) -> str:
         """格式化订单回复"""

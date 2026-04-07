@@ -1,5 +1,6 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.agents.order import OrderAgent, RefundReason
 
@@ -117,3 +118,73 @@ class TestOrderAgent:
 
         # 检查物流单号显示为 "暂无" 或 "None"
         assert "物流单号:" in response
+
+    @pytest.mark.asyncio
+    async def test_refund_success(self, order_agent):
+        """测试成功创建退货申请"""
+        mock_order = MagicMock()
+        mock_order.id = 1
+        mock_order.order_sn = "SN20240001"
+        mock_order.user_id = 1
+        mock_order.model_dump.return_value = {
+            "order_sn": "SN20240001",
+            "status": "DELIVERED",
+            "total_amount": 199.0
+        }
+
+        with patch("app.agents.order.async_session_maker") as mock_session:
+            mock_context = AsyncMock()
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_context)
+            mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            mock_result = MagicMock()
+            mock_result.first.return_value = mock_order
+            mock_context.exec.return_value = mock_result
+
+            with patch("app.agents.order.RefundEligibilityChecker.check_eligibility") as mock_check:
+                mock_check.return_value = (True, "符合退货条件")
+
+                with patch("app.agents.order.RefundApplicationService.create_refund_application") as mock_create:
+                    mock_refund = MagicMock()
+                    mock_refund.id = 100
+                    mock_refund.refund_amount = 199.0
+                    mock_create.return_value = (True, "退货申请已提交", mock_refund)
+
+                    result = await order_agent.process({
+                        "question": "我要退货 SN20240001，质量问题",
+                        "user_id": 1,
+                        "intent": "REFUND"
+                    })
+
+                    assert "✅" in result.response
+                    assert result.updated_state["refund_flow_active"] is True
+                    assert result.updated_state["refund_data"]["refund_id"] == 100
+
+    @pytest.mark.asyncio
+    async def test_refund_ineligible(self, order_agent):
+        """测试不符合退货条件的订单"""
+        mock_order = MagicMock()
+        mock_order.id = 1
+        mock_order.order_sn = "SN20240001"
+        mock_order.model_dump.return_value = {"order_sn": "SN20240001", "status": "SHIPPED"}
+
+        with patch("app.agents.order.async_session_maker") as mock_session:
+            mock_context = AsyncMock()
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_context)
+            mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            mock_result = MagicMock()
+            mock_result.first.return_value = mock_order
+            mock_context.exec.return_value = mock_result
+
+            with patch("app.agents.order.RefundEligibilityChecker.check_eligibility") as mock_check:
+                mock_check.return_value = (False, "订单已发货，不符合退货条件")
+
+                result = await order_agent.process({
+                    "question": "我要退货 SN20240001",
+                    "user_id": 1,
+                    "intent": "REFUND"
+                })
+
+                assert "不符合退货条件" in result.response
+                assert result.updated_state["refund_flow_active"] is False
