@@ -2,7 +2,6 @@
 测试 chat_utils.py 中的辅助函数
 """
 
-import pytest
 
 from app.api.v1.chat_utils import (
     create_confidence_message,

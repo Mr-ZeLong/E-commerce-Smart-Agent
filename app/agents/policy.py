@@ -1,11 +1,9 @@
-from langchain_core.messages import HumanMessage
 from sqlmodel import select
 
 from app.agents.base import AgentResult, BaseAgent
 from app.core.database import async_session_maker
 from app.models.knowledge import KnowledgeChunk
 from app.models.state import RetrievalResult  # 使用新的 RetrievalResult
-
 
 POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 

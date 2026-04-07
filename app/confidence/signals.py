@@ -1,4 +1,5 @@
 # app/confidence/signals.py
+# ruff: noqa: S101
 import asyncio
 import re
 from dataclasses import dataclass
@@ -62,9 +63,9 @@ class LLMSignal:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            model=settings.CONFIDENCE.EVALUATION_MODEL,
-            api_key=SecretStr(settings.OPENAI_API_KEY),
-            base_url=settings.OPENAI_BASE_URL,
+            model=settings.CONFIDENCE.EVALUATION_MODEL,  # type: ignore
+            api_key=SecretStr(settings.OPENAI_API_KEY),  # type: ignore
+            base_url=settings.OPENAI_BASE_URL,  # type: ignore
             temperature=0,
         )
 
@@ -130,7 +131,7 @@ class LLMSignal:
                 response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
                 raw_text = response.content if hasattr(response, 'content') else str(response)
 
-                score = self._parse_confidence_score(raw_text)
+                score = self._parse_confidence_score(str(raw_text))
 
                 if score is not None:
                     return SignalResult(
@@ -149,7 +150,7 @@ class LLMSignal:
 
         return SignalResult(
             score=0.5,
-            reason=f"解析失败，使用默认值",
+            reason="解析失败，使用默认值",
             metadata={"error": str(last_error) if last_error else "parse_failed"}
         )
 
@@ -303,7 +304,7 @@ class ConfidenceSignals:
                 self._calculate_with_timeout(generated_answer),
                 timeout=settings.CONFIDENCE.CALCULATION_TIMEOUT_SECONDS
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # 超时返回保守估计
             return {
                 "rag": SignalResult(score=0.5, reason="计算超时"),

@@ -308,7 +308,7 @@ class TestChatAPIEndpoints:
         """
         async def error_generator(*args, **kwargs):
             raise Exception("测试错误")
-            yield {}  # type: ignore
+            yield {}
 
         with patch(
             "app.graph.workflow.app_graph"

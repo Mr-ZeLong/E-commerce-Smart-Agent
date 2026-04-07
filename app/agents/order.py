@@ -110,6 +110,12 @@ class OrderAgent(BaseAgent):
                     updated_state={"refund_flow_active": False}
                 )
 
+            if order.id is None:
+                return AgentResult(
+                    response="订单数据异常，请稍后重试。",
+                    updated_state={"refund_flow_active": False}
+                )
+
             # 检查退货资格
             is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(
                 order, session

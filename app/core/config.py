@@ -144,4 +144,4 @@ class Settings(BaseSettings):
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 
-settings = Settings()
+settings = Settings()  # type: ignore

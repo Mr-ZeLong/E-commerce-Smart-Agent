@@ -19,7 +19,7 @@ async def supervisor_node(state: AgentState) -> dict:
     这个节点替代了原来的 intent_router + retrieve/query_order/handle_refund
     """
     try:
-        result = await supervisor.coordinate(state)
+        result = await supervisor.coordinate(state)  # type: ignore
         return result
     except Exception as e:
         print(f"[Workflow] Supervisor 节点错误: {e}")
@@ -46,7 +46,7 @@ def route_after_evaluation(state: AgentState):
 
 
 # 构建新的工作流
-workflow = StateGraph(AgentState)
+workflow = StateGraph(AgentState)  # type: ignore
 
 # 只保留 Supervisor 节点（它内部协调所有 Specialist Agents）
 workflow.add_node("supervisor", supervisor_node)

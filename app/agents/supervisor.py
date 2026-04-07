@@ -51,20 +51,39 @@ class SupervisorAgent(BaseAgent):
             if router_result.response:
                 return {
                     "answer": router_result.response,
-                    "intent": router_result.updated_state.get("intent"),
+                    "intent": router_result.updated_state.get("intent") if router_result.updated_state else None,
                     "confidence_score": 1.0,
                     "needs_human_transfer": False
+                }
+
+            if not router_result.updated_state:
+                return {
+                    "answer": "系统内部错误，请稍后重试。",
+                    "intent": None,
+                    "confidence_score": 0.0,
+                    "needs_human_transfer": True,
+                    "transfer_reason": "系统内部错误"
                 }
 
             intent = router_result.updated_state.get("intent")
             next_agent = router_result.updated_state.get("next_agent")
 
+            if not next_agent:
+                return {
+                    "answer": "无法确定处理该请求的专业代理，请尝试换一种方式描述您的问题。",
+                    "intent": intent,
+                    "confidence_score": 0.0,
+                    "needs_human_transfer": True,
+                    "transfer_reason": "无法路由到合适的代理"
+                }
+
             print(f"[Supervisor] 意图识别: {intent}, 路由到: {next_agent}")
 
             # Step 2: 调用 Specialist Agent
+            updated_state = router_result.updated_state or {}
             specialist_result = await self._call_specialist(
                 next_agent=next_agent,
-                state={**state, **router_result.updated_state}
+                state={**state, **updated_state}
             )
 
             # Step 3: 置信度评估
@@ -73,7 +92,6 @@ class SupervisorAgent(BaseAgent):
 
             # 使用新的信号计算模块
             from app.confidence.signals import ConfidenceSignals
-            from app.models.state import AgentState
 
             # 构建临时状态用于信号计算
             temp_state = {

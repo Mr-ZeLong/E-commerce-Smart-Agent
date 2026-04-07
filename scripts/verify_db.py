@@ -8,7 +8,8 @@ sys.path.append(os.getcwd())
 
 from sqlmodel import select, func
 from app.core.database import async_session_maker
-from app.models.order import Order, User
+from app.models.order import Order
+from app.models.user import User
 
 async def verify_database():
     async with async_session_maker() as session:

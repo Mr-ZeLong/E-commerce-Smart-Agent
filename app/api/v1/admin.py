@@ -68,21 +68,21 @@ async def get_pending_tasks(
     """
     async with async_session_maker() as session:
         # 构建查询
-        stmt = select(AuditLog).where(
+        stmt = select(AuditLog).where(  # type: ignore[var-annotated]
             AuditLog.action == AuditAction.PENDING
         ).order_by(desc(AuditLog.created_at))
 
         if risk_level:
             stmt = stmt.where(AuditLog.risk_level == risk_level)
 
-        result = await session.execute(stmt)  # ty:ignore[deprecated]
-        audit_logs = result.scalars().all()
+        result = await session.exec(stmt)
+        audit_logs = result.all()
 
         # 转换为响应格式
         tasks = []
         for log in audit_logs:
             tasks.append(AuditTask(
-                audit_log_id=log.id,
+                audit_log_id=log.id,  # type: ignore
                 thread_id=log.thread_id,
                 user_id=log.user_id,
                 refund_application_id=log.refund_application_id,
@@ -107,14 +107,14 @@ async def get_confidence_pending_tasks(
             AuditLog.trigger_type == AuditTriggerType.CONFIDENCE
         ).order_by(desc(AuditLog.created_at))
 
-        result = await session.execute(stmt)
-        audit_logs = result.scalars().all()
+        result = await session.exec(stmt)
+        audit_logs = result.all()
 
         tasks = []
         for log in audit_logs:
             confidence_meta = log.confidence_metadata or {}
             tasks.append(AuditTask(
-                audit_log_id=log.id,
+                audit_log_id=log.id,  # type: ignore
                 thread_id=log.thread_id,
                 user_id=log.user_id,
                 refund_application_id=log.refund_application_id,
@@ -133,23 +133,23 @@ async def get_all_pending_tasks(
 ):
     """获取所有待审核任务（风险 + 置信度 + 手动）"""
     async with async_session_maker() as session:
-        risk_stmt = select(func.count(AuditLog.id)).where(
+        risk_stmt = select(func.count()).select_from(AuditLog).where(
             AuditLog.action == AuditAction.PENDING,
             AuditLog.trigger_type == AuditTriggerType.RISK
         )
-        risk_count = (await session.execute(risk_stmt)).scalar()
+        risk_count = (await session.exec(risk_stmt)).one()
 
-        conf_stmt = select(func.count(AuditLog.id)).where(
+        conf_stmt = select(func.count()).select_from(AuditLog).where(
             AuditLog.action == AuditAction.PENDING,
             AuditLog.trigger_type == AuditTriggerType.CONFIDENCE
         )
-        conf_count = (await session.execute(conf_stmt)).scalar()
+        conf_count = (await session.exec(conf_stmt)).one()
 
-        manual_stmt = select(func.count(AuditLog.id)).where(
+        manual_stmt = select(func.count()).select_from(AuditLog).where(
             AuditLog.action == AuditAction.PENDING,
             AuditLog.trigger_type == AuditTriggerType.MANUAL
         )
-        manual_count = (await session.execute(manual_stmt)).scalar()
+        manual_count = (await session.exec(manual_stmt)).one()
 
         return TaskStatsResponse(
             risk_tasks=risk_count,
@@ -177,10 +177,10 @@ async def admin_decision(
     """
     async with async_session_maker() as session:
         # 1. 查询审计日志
-        result = await session.execute(  # ty:ignore[deprecated]
+        result = await session.exec(
             select(AuditLog).where(AuditLog.id == audit_log_id)
         )
-        audit_log = result.scalar_one_or_none()
+        audit_log = result.one_or_none()
 
         if not audit_log:
             raise HTTPException(
@@ -205,12 +205,12 @@ async def admin_decision(
 
         # 3. 更新退款申请状态
         if audit_log.refund_application_id:
-            refund_result = await session.execute(  # ty:ignore[deprecated]
+            refund_result = await session.exec(
                 select(RefundApplication).where(
                     RefundApplication.id == audit_log.refund_application_id
                 )
             )
-            refund = refund_result.scalar_one_or_none()
+            refund = refund_result.one_or_none()
 
             if refund:
                 if action_enum == AuditAction.APPROVE:

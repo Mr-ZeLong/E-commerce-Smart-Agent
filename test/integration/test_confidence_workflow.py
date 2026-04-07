@@ -475,7 +475,7 @@ class TestConfidenceSignalsIntegration:
 
         验证权重配置正确应用
         """
-        weights = settings.CONFIDENCE.default_weights  # type: ignore
+        weights = settings.CONFIDENCE.default_weights
 
         # 模拟信号分数
         rag_score = 0.9
@@ -508,7 +508,7 @@ class TestConfidenceSignalsIntegration:
 
         验证不同置信度分数对应正确的审核级别
         """
-        confidence_settings = settings.CONFIDENCE  # type: ignore
+        confidence_settings = settings.CONFIDENCE
 
         # 高置信度 -> none
         assert confidence_settings.get_audit_level(0.9) == "none"
