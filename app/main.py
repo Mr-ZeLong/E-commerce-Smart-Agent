@@ -1,6 +1,10 @@
 # app/main.py
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 import app.graph.workflow as workflow_module
 from app.api.v1.admin import router as admin_router
@@ -33,6 +37,26 @@ app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["Chat"])
 app.include_router(status_router, prefix=settings.API_V1_STR, tags=["Status"])
 app.include_router(admin_router, prefix=settings.API_V1_STR, tags=["Admin"])
 app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocket"])
+
+# 3. 静态文件托管
+frontend_dist_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist')
+
+if os.path.exists(frontend_dist_path):
+    @app.get('/app/{full_path:path}')
+    async def serve_customer_spa(full_path: str):
+        return FileResponse(os.path.join(frontend_dist_path, 'customer', 'index.html'))
+
+    app.mount('/app', StaticFiles(directory=os.path.join(frontend_dist_path, 'customer'), html=True), name='customer_app')
+
+    @app.get('/admin/{full_path:path}')
+    async def serve_admin_spa(full_path: str):
+        return FileResponse(os.path.join(frontend_dist_path, 'admin', 'index.html'))
+
+    app.mount('/admin', StaticFiles(directory=os.path.join(frontend_dist_path, 'admin'), html=True), name='admin_app')
+
+    @app.get('/')
+    async def root():
+        return RedirectResponse(url='/app')
 
 
 @app.on_event("startup")  # ty:ignore[deprecated]
