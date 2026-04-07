@@ -37,100 +37,104 @@ class SupervisorAgent(BaseAgent):
     async def coordinate(self, state: dict) -> dict:
         """
         协调多 Agent 工作流
-
-        执行流程：
-        1. RouterAgent: 识别意图 → 决定调用哪个 Agent
-        2. Specialist Agent: 执行业务逻辑
-        3. ConfidenceEvaluator: 评估结果置信度
-        4. 决定是否转人工或返回结果
         """
-        question = state.get("question", "")
-        user_id = state.get("user_id")
+        try:
+            question = state.get("question", "")
+            user_id = state.get("user_id")
 
-        print(f"[Supervisor] 开始协调: user={user_id}, question={question[:50]}...")
+            print(f"[Supervisor] 开始协调: user={user_id}, question={question[:50]}...")
 
-        # Step 1: 路由决策
-        router_result = await self.router.process(state)
+            # Step 1: 路由决策
+            router_result = await self.router.process(state)
 
-        # 如果 Router 直接返回了回复（如闲聊），直接返回
-        if router_result.response:
-            return {
-                "answer": router_result.response,
-                "intent": router_result.updated_state.get("intent"),
-                "confidence_score": 1.0,  # 闲聊直接回答，置信度设为1
-                "needs_human_transfer": False
+            # 如果 Router 直接返回了回复（如闲聊），直接返回
+            if router_result.response:
+                return {
+                    "answer": router_result.response,
+                    "intent": router_result.updated_state.get("intent"),
+                    "confidence_score": 1.0,
+                    "needs_human_transfer": False
+                }
+
+            intent = router_result.updated_state.get("intent")
+            next_agent = router_result.updated_state.get("next_agent")
+
+            print(f"[Supervisor] 意图识别: {intent}, 路由到: {next_agent}")
+
+            # Step 2: 调用 Specialist Agent
+            specialist_result = await self._call_specialist(
+                next_agent=next_agent,
+                state={**state, **router_result.updated_state}
+            )
+
+            # Step 3: 置信度评估
+            answer = specialist_result.response
+            retrieval_metadata = specialist_result.updated_state.get("retrieval_metadata") if specialist_result.updated_state else None
+
+            # 使用新的信号计算模块
+            from app.confidence.signals import ConfidenceSignals
+            from app.models.state import AgentState
+
+            # 构建临时状态用于信号计算
+            temp_state = {
+                "question": question,
+                "history": state.get("history", []),
+                "retrieval_result": retrieval_metadata,
             }
 
-        intent = router_result.updated_state.get("intent")
-        next_agent = router_result.updated_state.get("next_agent")
+            # 计算置信度信号
+            confidence_signals = ConfidenceSignals(temp_state)  # type: ignore
+            signals = await confidence_signals.calculate_all(answer)
 
-        print(f"[Supervisor] 意图识别: {intent}, 路由到: {next_agent}")
+            # 计算加权总分
+            from app.core.config import settings
+            weights = settings.CONFIDENCE.default_weights
+            overall_score = (
+                signals["rag"].score * weights["rag"] +
+                signals["llm"].score * weights["llm"] +
+                signals["emotion"].score * weights["emotion"]
+            )
 
-        # Step 2: 调用 Specialist Agent
-        specialist_result = await self._call_specialist(
-            next_agent=next_agent,
-            state={**state, **router_result.updated_state}
-        )
+            print(f"[Supervisor] 置信度评估: {overall_score:.3f}")
 
-        # Step 3: 置信度评估
-        # 收集所有必要信息
-        context = specialist_result.updated_state.get("context", []) if specialist_result.updated_state else []
-        answer = specialist_result.response
-        retrieval_result = specialist_result.updated_state.get("retrieval_result") if specialist_result.updated_state else None
+            # 确定审核级别
+            audit_level = settings.CONFIDENCE.get_audit_level(overall_score)
+            needs_transfer = audit_level == "manual"
 
-        # 使用新的信号计算模块
-        from app.confidence.signals import ConfidenceSignals
-        from app.models.state import AgentState
+            # Step 4: 构建最终状态
+            final_state = {
+                "answer": answer,
+                "intent": intent,
+                "confidence_score": overall_score,
+                "confidence_signals": {
+                    "rag": {"score": signals["rag"].score, "reason": signals["rag"].reason},
+                    "llm": {"score": signals["llm"].score, "reason": signals["llm"].reason},
+                    "emotion": {"score": signals["emotion"].score, "reason": signals["emotion"].reason},
+                },
+                "needs_human_transfer": needs_transfer,
+                "transfer_reason": "置信度不足" if needs_transfer else None,
+                "audit_level": audit_level,
+            }
 
-        # 构建临时状态用于信号计算
-        temp_state = {
-            "question": question,
-            "history": state.get("history", []),
-            "retrieval_result": retrieval_result,
-        }
+            # 合并 Specialist 返回的状态更新（但不覆盖关键字段）
+            if specialist_result.updated_state:
+                for key, value in specialist_result.updated_state.items():
+                    if key not in final_state:
+                        final_state[key] = value
 
-        # 计算置信度信号
-        confidence_signals = ConfidenceSignals(temp_state)  # type: ignore
-        signals = await confidence_signals.calculate_all(generated_answer=answer)
+            return final_state
 
-        # 计算综合置信度分数
-        rag_score = signals["rag"].score
-        llm_score = signals["llm"].score
-        emotion_score = signals["emotion"].score
-
-        # 使用配置的权重计算综合分数
-        from app.core.config import settings
-        weights = settings.CONFIDENCE.default_weights
-        overall_score = (
-            rag_score * weights["rag"] +
-            llm_score * weights["llm"] +
-            emotion_score * weights["emotion"]
-        )
-
-        # 判断是否转人工
-        needs_transfer = overall_score < settings.CONFIDENCE.THRESHOLD
-
-        print(f"[Supervisor] 置信度评估: {overall_score:.3f}, 转人工: {needs_transfer}")
-
-        # Step 4: 构建最终状态
-        final_state = {
-            "answer": answer,
-            "intent": intent,
-            "confidence_score": overall_score,
-            "confidence_signals": {
-                "rag": {"score": rag_score, "reason": signals["rag"].reason},
-                "llm": {"score": llm_score, "reason": signals["llm"].reason},
-                "emotion": {"score": emotion_score, "reason": signals["emotion"].reason},
-            },
-            "needs_human_transfer": needs_transfer,
-            "audit_level": settings.CONFIDENCE.get_audit_level(overall_score),
-        }
-
-        # 合并 Specialist 返回的状态更新
-        if specialist_result.updated_state:
-            final_state.update(specialist_result.updated_state)
-
-        return final_state
+        except Exception as e:
+            print(f"[Supervisor] 协调失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "answer": "抱歉，系统暂时无法处理您的请求。请稍后重试或联系人工客服。",
+                "intent": "ERROR",
+                "confidence_score": 0.0,
+                "needs_human_transfer": True,
+                "transfer_reason": f"system_error: {str(e)}",
+            }
 
     async def _call_specialist(
         self,
