@@ -18,8 +18,16 @@ async def supervisor_node(state: AgentState) -> dict:
 
     这个节点替代了原来的 intent_router + retrieve/query_order/handle_refund
     """
-    result = await supervisor.coordinate(state)
-    return result
+    try:
+        result = await supervisor.coordinate(state)
+        return result
+    except Exception as e:
+        print(f"[Workflow] Supervisor 节点错误: {e}")
+        return {
+            "answer": "抱歉，系统处理出现问题，请稍后重试或联系人工客服。",
+            "needs_human_transfer": True,
+            "transfer_reason": f"system_error: {str(e)}",
+        }
 
 
 def route_after_evaluation(state: AgentState):
