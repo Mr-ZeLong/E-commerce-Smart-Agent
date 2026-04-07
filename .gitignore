@@ -102,3 +102,6 @@ migrations/versions/*.bak
 # Local development scripts
 scripts/local_*.py
 scripts/dev_*.py
+
+# Git worktrees
+.worktrees/
