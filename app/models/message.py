@@ -18,6 +18,8 @@ class MessageType(str, Enum):
     ORDER_CARD = "order_card"        # 订单信息卡片
     REFUND_CARD = "refund_card"      # 退款进度卡片
     SYSTEM = "system"                # 系统通知
+    CONFIDENCE_CARD = "confidence_card"  # 置信度信息卡片 (v4.1新增)
+    TRANSFER_CARD = "transfer_card"      # 转人工信息卡片 (v4.1新增)
 
 
 class MessageStatus(str, Enum):
