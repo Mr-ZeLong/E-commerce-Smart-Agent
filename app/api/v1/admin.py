@@ -11,7 +11,7 @@ from sqlmodel import desc, select
 
 from app.core.database import async_session_maker
 from app.core.security import get_current_user_id
-from app.models.audit import AuditAction, AuditLog
+from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
 from app.tasks.refund_tasks import process_refund_payment, send_refund_sms
@@ -86,6 +86,64 @@ async def get_pending_tasks(
             ))
 
         return tasks
+
+
+@router.get("/admin/confidence-tasks", response_model=list[AuditTask])
+async def get_confidence_pending_tasks(
+    current_admin_id: int = Depends(get_current_user_id)
+):
+    """获取置信度触发的待审核任务"""
+    async with async_session_maker() as session:
+        stmt = select(AuditLog).where(
+            AuditLog.action == AuditAction.PENDING,
+            AuditLog.trigger_type == AuditTriggerType.CONFIDENCE
+        ).order_by(desc(AuditLog.created_at))
+
+        result = await session.execute(stmt)
+        audit_logs = result.scalars().all()
+
+        tasks = []
+        for log in audit_logs:
+            confidence_meta = log.confidence_metadata or {}
+            tasks.append(AuditTask(
+                audit_log_id=log.id,
+                thread_id=log.thread_id,
+                user_id=log.user_id,
+                refund_application_id=log.refund_application_id,
+                order_id=log.order_id,
+                trigger_reason=f"置信度不足: {confidence_meta.get('confidence_score', 0):.2f}",
+                risk_level="LOW",
+                context_snapshot=log.context_snapshot,
+                created_at=log.created_at.isoformat(),
+            ))
+        return tasks
+
+
+@router.get("/admin/tasks-all", response_model=dict)
+async def get_all_pending_tasks(
+    current_admin_id: int = Depends(get_current_user_id)
+):
+    """获取所有待审核任务（风险 + 置信度）"""
+    async with async_session_maker() as session:
+        risk_stmt = select(AuditLog).where(
+            AuditLog.action == AuditAction.PENDING,
+            AuditLog.trigger_type == AuditTriggerType.RISK
+        )
+        risk_result = await session.execute(risk_stmt)
+        risk_count = len(risk_result.scalars().all())
+
+        conf_stmt = select(AuditLog).where(
+            AuditLog.action == AuditAction.PENDING,
+            AuditLog.trigger_type == AuditTriggerType.CONFIDENCE
+        )
+        conf_result = await session.execute(conf_stmt)
+        conf_count = len(conf_result.scalars().all())
+
+        return {
+            "risk_tasks": risk_count,
+            "confidence_tasks": conf_count,
+            "total": risk_count + conf_count
+        }
 
 
 @router.post("/admin/resume/{audit_log_id}", response_model=AdminDecisionResponse)

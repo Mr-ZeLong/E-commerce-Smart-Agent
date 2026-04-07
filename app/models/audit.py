@@ -27,6 +27,13 @@ class AuditAction(str, Enum):
     PENDING = "PENDING"
 
 
+class AuditTriggerType(str, Enum):
+    """审核触发类型"""
+    RISK = "RISK"                    # 金额风险触发
+    CONFIDENCE = "CONFIDENCE"        # 置信度不足触发
+    MANUAL = "MANUAL"                # 用户主动要求
+
+
 class AuditLog(SQLModel, table=True):
     """审计日志表 - 记录所有需要人工介入的决策"""
     __tablename__ = "audit_logs"
@@ -59,6 +66,20 @@ class AuditLog(SQLModel, table=True):
     action: AuditAction = Field(
         default=AuditAction.PENDING,
         sa_column=Column(String, index=True, nullable=False)
+    )
+
+    # 触发类型
+    trigger_type: AuditTriggerType = Field(
+        default=AuditTriggerType.RISK,
+        sa_column=Column(String, index=True, nullable=False),
+        description="触发审核的类型"
+    )
+
+    # 置信度评估元数据
+    confidence_metadata: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="置信度评估元数据"
     )
 
     # 管理员信息
