@@ -6,6 +6,51 @@ v4.1 新增：聊天 API 工具函数
 
 from typing import Any
 
+# ========== 置信度阈值常量 ==========
+HIGH_CONFIDENCE_THRESHOLD = 0.8
+MEDIUM_CONFIDENCE_THRESHOLD = 0.6
+
+
+# ========== 转人工原因常量 ==========
+class TransferReason:
+    """转人工原因代码"""
+    CONFIDENCE_LOW = "confidence_low"
+    SYSTEM_ERROR = "system_error"
+    USER_REQUEST = "user_request"
+    RISK_DETECTED = "risk_detected"
+    COMPLEX_ISSUE = "complex_issue"
+
+
+# ========== 转人工原因映射 ==========
+TRANSFER_REASON_MAP: dict[str, str] = {
+    TransferReason.CONFIDENCE_LOW: "置信度不足",
+    TransferReason.SYSTEM_ERROR: "系统错误",
+    TransferReason.USER_REQUEST: "用户要求",
+    TransferReason.RISK_DETECTED: "检测到风险",
+    TransferReason.COMPLEX_ISSUE: "问题过于复杂",
+}
+
+
+def get_confidence_level(score: float) -> str:
+    """
+    根据置信度分数确定置信度等级
+
+    Args:
+        score: 置信度分数 (0-1)
+
+    Returns:
+        置信度等级: "high" | "medium" | "low"
+    """
+    # 确保分数在有效范围内
+    score = max(0.0, min(1.0, score))
+
+    if score >= HIGH_CONFIDENCE_THRESHOLD:
+        return "high"
+    elif score >= MEDIUM_CONFIDENCE_THRESHOLD:
+        return "medium"
+    else:
+        return "low"
+
 
 def create_confidence_message(
     confidence_score: float,
@@ -25,13 +70,11 @@ def create_confidence_message(
     Returns:
         置信度卡片内容字典
     """
+    # 确保分数在有效范围内
+    confidence_score = max(0.0, min(1.0, confidence_score))
+
     # 确定置信度等级
-    if confidence_score >= 0.8:
-        confidence_level = "high"
-    elif confidence_score >= 0.6:
-        confidence_level = "medium"
-    else:
-        confidence_level = "low"
+    confidence_level = get_confidence_level(confidence_score)
 
     # 构建信号详情
     signals = {}
@@ -81,33 +124,22 @@ def create_transfer_message(
     Returns:
         转人工卡片内容字典
     """
+    # 确保分数在有效范围内
+    confidence_score = max(0.0, min(1.0, confidence_score))
+
     # 确定置信度等级
-    if confidence_score >= 0.8:
-        confidence_level = "high"
-    elif confidence_score >= 0.6:
-        confidence_level = "medium"
-    else:
-        confidence_level = "low"
+    confidence_level = get_confidence_level(confidence_score)
 
     # 默认转人工消息
     if transfer_message is None:
         transfer_message = "系统置信度不足，已为您转接人工客服"
-
-    # 转人工原因映射
-    reason_map = {
-        "confidence_low": "置信度不足",
-        "system_error": "系统错误",
-        "user_request": "用户要求",
-        "risk_detected": "检测到风险",
-        "complex_issue": "问题过于复杂",
-    }
 
     return {
         "card_type": "human_transfer",
         "confidence_score": round(confidence_score, 2),
         "confidence_level": confidence_level,
         "transfer_reason": transfer_reason,
-        "transfer_reason_text": reason_map.get(transfer_reason, transfer_reason),
+        "transfer_reason_text": TRANSFER_REASON_MAP.get(transfer_reason, transfer_reason),
         "transfer_message": transfer_message,
         "estimated_wait_time": estimated_wait_time,
         "extra_info": extra_info or {},
@@ -141,15 +173,10 @@ def create_stream_metadata_message(
     }
 
     if confidence_score is not None:
+        # 确保分数在有效范围内
+        confidence_score = max(0.0, min(1.0, confidence_score))
         metadata["confidence_score"] = round(confidence_score, 2)
-
-        # 确定置信度等级
-        if confidence_score >= 0.8:
-            metadata["confidence_level"] = "high"
-        elif confidence_score >= 0.6:
-            metadata["confidence_level"] = "medium"
-        else:
-            metadata["confidence_level"] = "low"
+        metadata["confidence_level"] = get_confidence_level(confidence_score)
 
     if confidence_signals:
         metadata["confidence_signals"] = confidence_signals
