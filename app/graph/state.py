@@ -1,39 +1,28 @@
 # app/graph/state.py
-import operator
-from typing import Annotated, Any, TypedDict
+# v4.1 向后兼容层
+# 此文件保留以确保现有代码不中断，将在 v5.0 移除
 
+import warnings
 
-class AgentState(TypedDict):
-    # 基础信息
-    question: str
-    user_id: int
+from app.models.state import (
+    AgentState,
+    RetrievalResult,
+    get_audit_level_from_old,
+    get_audit_required,
+    normalize_state,
+)
 
-    # 意图标签:  "POLICY" 或 "ORDER" 或 "REFUND" 或 "OTHER"
-    intent: str | None
+__all__ = [
+    "AgentState",
+    "RetrievalResult",
+    "get_audit_required",
+    "get_audit_level_from_old",
+    "normalize_state",
+]
 
-    # 历史记录 (用于多轮对话)
-    history:  Annotated[list[dict], operator.add]
-
-    # 检索到的知识
-    context:  list[str]
-
-    # 查到的订单数据
-    order_data: dict | None
-
-    # v4.0 新增：会话 ID
-    thread_id: str
-
-    # v4.0 新增：审核状态
-    audit_required: bool  # 是否需要人工审核
-    audit_log_id: int | None  # 审计日志ID
-
-    # v4.0 新增：结构化消息列表
-    messages:  Annotated[list[dict[str, Any]], operator.add]
-
-    # v3.0 保留：退货流程状态
-    refund_flow_active: bool | None
-    refund_order_sn: str | None
-    refund_step: str | None
-
-    # 最终回复
-    answer: str
+# 向后兼容警告
+warnings.warn(
+    "app.graph.state is deprecated, use app.models.state instead",
+    DeprecationWarning,
+    stacklevel=2,
+)
