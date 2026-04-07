@@ -5,6 +5,8 @@
 包括高置信度直接回复、低置信度触发人工接管、负面情感检测等场景。
 """
 
+import asyncio
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -627,7 +629,3 @@ class TestConfidenceEdgeCases:
 
         result = llm_signal._parse_confidence_score(None)  # type: ignore
         assert result is None
-
-
-# 导入 asyncio 用于超时测试
-import asyncio
