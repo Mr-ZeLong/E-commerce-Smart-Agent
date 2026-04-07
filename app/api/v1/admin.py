@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlmodel import desc, select
+from sqlmodel import desc, func, select
 
 from app.core.database import async_session_maker
 from app.core.security import get_current_user_id
@@ -45,6 +45,14 @@ class AdminDecisionResponse(BaseModel):
     message: str
     audit_log_id: int
     action: str
+
+
+class TaskStatsResponse(BaseModel):
+    """任务统计响应"""
+    risk_tasks: int
+    confidence_tasks: int
+    manual_tasks: int
+    total: int
 
 
 @router.get("/admin/tasks", response_model=list[AuditTask])
@@ -112,38 +120,43 @@ async def get_confidence_pending_tasks(
                 refund_application_id=log.refund_application_id,
                 order_id=log.order_id,
                 trigger_reason=f"置信度不足: {confidence_meta.get('confidence_score', 0):.2f}",
-                risk_level="LOW",
+                risk_level=log.risk_level.value,
                 context_snapshot=log.context_snapshot,
                 created_at=log.created_at.isoformat(),
             ))
         return tasks
 
 
-@router.get("/admin/tasks-all", response_model=dict)
+@router.get("/admin/tasks-all", response_model=TaskStatsResponse)
 async def get_all_pending_tasks(
     current_admin_id: int = Depends(get_current_user_id)
 ):
-    """获取所有待审核任务（风险 + 置信度）"""
+    """获取所有待审核任务（风险 + 置信度 + 手动）"""
     async with async_session_maker() as session:
-        risk_stmt = select(AuditLog).where(
+        risk_stmt = select(func.count(AuditLog.id)).where(
             AuditLog.action == AuditAction.PENDING,
             AuditLog.trigger_type == AuditTriggerType.RISK
         )
-        risk_result = await session.execute(risk_stmt)
-        risk_count = len(risk_result.scalars().all())
+        risk_count = (await session.execute(risk_stmt)).scalar()
 
-        conf_stmt = select(AuditLog).where(
+        conf_stmt = select(func.count(AuditLog.id)).where(
             AuditLog.action == AuditAction.PENDING,
             AuditLog.trigger_type == AuditTriggerType.CONFIDENCE
         )
-        conf_result = await session.execute(conf_stmt)
-        conf_count = len(conf_result.scalars().all())
+        conf_count = (await session.execute(conf_stmt)).scalar()
 
-        return {
-            "risk_tasks": risk_count,
-            "confidence_tasks": conf_count,
-            "total": risk_count + conf_count
-        }
+        manual_stmt = select(func.count(AuditLog.id)).where(
+            AuditLog.action == AuditAction.PENDING,
+            AuditLog.trigger_type == AuditTriggerType.MANUAL
+        )
+        manual_count = (await session.execute(manual_stmt)).scalar()
+
+        return TaskStatsResponse(
+            risk_tasks=risk_count,
+            confidence_tasks=conf_count,
+            manual_tasks=manual_count,
+            total=risk_count + conf_count + manual_count
+        )
 
 
 @router.post("/admin/resume/{audit_log_id}", response_model=AdminDecisionResponse)
