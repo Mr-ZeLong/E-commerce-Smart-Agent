@@ -430,6 +430,7 @@ class TestAgentResultIntegration:
 
             assert isinstance(result, AgentResult)
             assert result.response == "测试回答"
+            assert result.updated_state is not None
             assert result.updated_state["confidence_score"] == 0.9
 
     @pytest.mark.asyncio

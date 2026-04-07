@@ -123,6 +123,7 @@ class TestConfidenceCalculation:
 
         assert result.score > 0.8
         assert "正面情绪" in result.reason
+        assert result.metadata is not None
         assert result.metadata["emotion_type"] == "positive"
 
     @pytest.mark.asyncio
@@ -162,6 +163,7 @@ class TestConfidenceCalculation:
 
         assert 0.6 <= result.score <= 0.8
         assert "无明显情绪" in result.reason
+        assert result.metadata is not None
         assert result.metadata["emotion_type"] == "neutral"
 
 
@@ -471,7 +473,7 @@ class TestConfidenceSignalsIntegration:
 
         验证权重配置正确应用
         """
-        weights = settings.CONFIDENCE.default_weights
+        weights = settings.CONFIDENCE.default_weights  # type: ignore
 
         # 模拟信号分数
         rag_score = 0.9
@@ -504,19 +506,21 @@ class TestConfidenceSignalsIntegration:
 
         验证不同置信度分数对应正确的审核级别
         """
+        confidence_settings = settings.CONFIDENCE  # type: ignore
+
         # 高置信度 -> none
-        assert settings.CONFIDENCE.get_audit_level(0.9) == "none"
-        assert settings.CONFIDENCE.get_audit_level(0.85) == "none"
+        assert confidence_settings.get_audit_level(0.9) == "none"
+        assert confidence_settings.get_audit_level(0.85) == "none"
 
         # 中等置信度 -> auto
-        assert settings.CONFIDENCE.get_audit_level(0.7) == "auto"
-        assert settings.CONFIDENCE.get_audit_level(0.6) == "auto"
-        assert settings.CONFIDENCE.get_audit_level(0.5) == "auto"
+        assert confidence_settings.get_audit_level(0.7) == "auto"
+        assert confidence_settings.get_audit_level(0.6) == "auto"
+        assert confidence_settings.get_audit_level(0.5) == "auto"
 
         # 低置信度 -> manual
-        assert settings.CONFIDENCE.get_audit_level(0.4) == "manual"
-        assert settings.CONFIDENCE.get_audit_level(0.3) == "manual"
-        assert settings.CONFIDENCE.get_audit_level(0.0) == "manual"
+        assert confidence_settings.get_audit_level(0.4) == "manual"
+        assert confidence_settings.get_audit_level(0.3) == "manual"
+        assert confidence_settings.get_audit_level(0.0) == "manual"
 
 
 class TestConfidenceEdgeCases:
@@ -569,7 +573,7 @@ class TestConfidenceEdgeCases:
             "retrieval_result": None,
         }
 
-        confidence_signals = ConfidenceSignals(state)
+        confidence_signals = ConfidenceSignals(state)  # type: ignore
         results = await confidence_signals.calculate_all("回答")
 
         # 没有检索结果时，RAG 信号应为 0

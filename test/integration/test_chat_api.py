@@ -492,7 +492,7 @@ class TestChatStreamingBehavior:
         验证 tokens 按正确顺序发送
         """
         tokens = ["订", "单", "已", "发", "货"]
-        mock_events = [
+        mock_events: list[dict] = [
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content=token)},

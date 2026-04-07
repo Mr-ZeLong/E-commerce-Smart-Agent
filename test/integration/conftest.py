@@ -102,6 +102,7 @@ def test_admin() -> User:
 @pytest.fixture
 def test_order(test_user: User) -> Order:
     """创建测试订单（不使用数据库）"""
+    assert test_user.id is not None
     order = Order(
         id=1,
         order_sn="SN20240001",
@@ -121,6 +122,7 @@ def test_order(test_user: User) -> Order:
 @pytest.fixture
 def test_delivered_order(test_user: User) -> Order:
     """创建已交付的测试订单（用于退货测试，不使用数据库）"""
+    assert test_user.id is not None
     order = Order(
         id=2,
         order_sn="SN20240002",
@@ -142,6 +144,8 @@ def test_refund_application(
     test_delivered_order: Order,
 ) -> RefundApplication:
     """创建测试退款申请（不使用数据库）"""
+    assert test_user.id is not None
+    assert test_delivered_order.id is not None
     refund = RefundApplication(
         id=1,
         order_id=test_delivered_order.id,
@@ -160,12 +164,14 @@ def test_refund_application(
 @pytest.fixture
 def auth_token(test_user: User) -> str:
     """生成普通用户的认证 Token"""
+    assert test_user.id is not None
     return create_access_token(user_id=test_user.id, is_admin=False)
 
 
 @pytest.fixture
 def admin_auth_token(test_admin: User) -> str:
     """生成管理员的认证 Token"""
+    assert test_admin.id is not None
     return create_access_token(user_id=test_admin.id, is_admin=True)
 
 
