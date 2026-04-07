@@ -1,11 +1,17 @@
 # app/graph/workflow.py
-import redis.asyncio as redis
-from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.redis import AsyncRedisSaver
-from app.graph.state import AgentState
-from app.graph.nodes import retrieve, generate, intent_router, query_order, handle_refund, check_refund_eligibility  
-from app.core.config import settings
+from langgraph.graph import END, START, StateGraph
 
+from app.core.config import settings
+from app.graph.nodes import (
+    check_refund_eligibility,
+    generate,
+    handle_refund,
+    intent_router,
+    query_order,
+    retrieve,
+)
+from app.graph.state import AgentState
 
 app_graph = None
 
@@ -14,11 +20,11 @@ app_graph = None
 def route_intent(state: AgentState):
     """意图路由"""
     intent = state.get("intent")
-    if intent == "ORDER": 
+    if intent == "ORDER":
         return "query_order"
     elif intent == "POLICY":
         return "retrieve"
-    elif intent == "REFUND":  
+    elif intent == "REFUND":
         return "handle_refund"
     return "generate"
 
@@ -38,13 +44,13 @@ def route_after_refund(state: AgentState):
 
 
 # 2. 构建图 (只定义结构，不编译)
-workflow = StateGraph(AgentState)
+workflow = StateGraph(AgentState)  # ty:ignore[invalid-argument-type]
 
 # 添加所有节点
 workflow.add_node("intent_router", intent_router)
 workflow.add_node("retrieve", retrieve)
 workflow.add_node("query_order", query_order)
-workflow.add_node("handle_refund", handle_refund)  
+workflow.add_node("handle_refund", handle_refund)
 workflow.add_node("check_refund_eligibility", check_refund_eligibility)  # v4.0 新增审核节点
 workflow.add_node("generate", generate)
 
@@ -91,12 +97,15 @@ async def compile_app_graph():
     编译 LangGraph，初始化 Redis checkpointer
     """
     print("🔧 Compiling LangGraph with Redis checkpointer...")
-    
+
     # 使用 Redis URL 创建 checkpointer（AsyncRedisSaver 接受 redis_url: str）
     checkpointer = AsyncRedisSaver(redis_url=settings.REDIS_URL)
-    
+
+    # 初始化 checkpointer（创建 RediSearch 索引）
+    await checkpointer.setup()
+
     # 编译图
     compiled_graph = workflow.compile(checkpointer=checkpointer)
-    
-    print(" LangGraph compiled successfully!")
+
+    print("✅ LangGraph compiled successfully!")
     return compiled_graph

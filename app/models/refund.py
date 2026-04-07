@@ -1,9 +1,10 @@
 # app/models/refund.py
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
-from sqlalchemy import Column, String, text, Numeric, Text
-from sqlmodel import SQLModel, Field, Relationship
+
+from sqlalchemy import Column, Numeric, String, Text, text
+from sqlmodel import Field, SQLModel
+
 
 # 1. 退货申请状态枚举
 class RefundStatus(str, Enum):
@@ -27,60 +28,60 @@ class RefundReason(str, Enum):
 class RefundApplication(SQLModel, table=True):
     """退货申请表"""
     __tablename__ = "refund_applications"
-    
-    id:  Optional[int] = Field(default=None, primary_key=True)
-    
+
+    id:  int | None = Field(default=None, primary_key=True)
+
     # 关联订单（外键）
     order_id: int = Field(foreign_key="orders.id", index=True, ondelete="RESTRICT")
-    
+
     # 申请用户（冗余字段，方便查询）
     user_id: int = Field(foreign_key="users.id", index=True, ondelete="RESTRICT")
-    
+
     # 退货状态
     status: RefundStatus = Field(
         default=RefundStatus.PENDING,
         sa_column=Column(String, index=True, nullable=False)
     )
-    
+
     # 退货原因分类
-    reason_category: Optional[RefundReason] = Field(
+    reason_category: RefundReason | None = Field(
         default=None,
         sa_column=Column(String, nullable=True)
     )
-    
+
     # 退货原因详细描述（用户填写）
     reason_detail: str = Field(
         sa_column=Column(Text, nullable=False),
         description="用户填写的退货原因"
     )
-    
+
     # 退款金额（可能部分退款）
     refund_amount: float = Field(
         sa_column=Column(Numeric(precision=10, scale=2)),
         description="退款金额"
     )
-    
+
     # 审核备注（管理员填写）
-    admin_note: Optional[str] = Field(
+    admin_note: str | None = Field(
         default=None,
         sa_column=Column(Text, nullable=True)
     )
-    
+
     # 审核人ID（预留字段）
-    reviewed_by: Optional[int] = Field(default=None)
-    
+    reviewed_by: int | None = Field(default=None)
+
     # 审核时间
-    reviewed_at:  Optional[datetime] = Field(default=None)
-    
+    reviewed_at:  datetime | None = Field(default=None)
+
     # 创建时间
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
-    
+
     # 更新时间
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")

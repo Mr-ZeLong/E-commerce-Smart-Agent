@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.graph.refund_subgraph import refund_subgraph
+from app.graph.refund_subgraph import refund_subgraph  # ty:ignore[unresolved-import]
 
 
 async def test_refund_subgraph():

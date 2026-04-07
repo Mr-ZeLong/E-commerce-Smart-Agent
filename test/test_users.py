@@ -65,8 +65,8 @@ async def init_test_data():
         for user_data in users_data:
             password = user_data.pop("password")
             user = User(
-                **user_data,
-                password_hash=User.hash_password(password)
+                **user_data,  # ty:ignore[invalid-argument-type]
+                password_hash=User.hash_password(password)  # ty:ignore[invalid-argument-type]
             )
             session.add(user)
             users.append(user)

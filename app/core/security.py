@@ -1,9 +1,10 @@
 # app/core/security.py
+from datetime import UTC, datetime, timedelta
+
 import jwt
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-from fastapi import HTTPException, status, Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+
 from app.core.config import settings
 
 # 设置 Token 获取的 URL
@@ -15,16 +16,16 @@ ALGORITHM = "HS256"
 def create_access_token(user_id: int, is_admin: bool = False) -> str:
     """
     生成 JWT Token
-    
-    Args: 
+
+    Args:
         user_id: 用户ID
         is_admin:  是否为管理员
     """
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {
-        "sub": str(user_id), 
+        "sub": str(user_id),
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "is_admin": is_admin,  # v4.0 新增：区分管理员权限
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
@@ -40,20 +41,20 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
             detail="Missing authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        
-        if user_id is None: 
+        user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
+
+        if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token:  missing user ID",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         return int(user_id)
-    
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,13 +72,13 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
 async def get_current_user_id_ws(token: str) -> int:
     """
     WebSocket Token 验证 (异步版本)
-    
+
     Args:
         token: JWT Token 字符串
-    
+
     Returns:
         user_id: 用户ID
-    
+
     Raises:
         HTTPException: Token 无效时抛出
     """
@@ -86,19 +87,19 @@ async def get_current_user_id_ws(token: str) -> int:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication token"
         )
-    
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        
-        if user_id is None: 
+        user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
+
+        if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token: missing user ID"
             )
-        
+
         return int(user_id)
-    
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -114,36 +115,36 @@ async def get_current_user_id_ws(token: str) -> int:
 def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
     """
     管理员认证依赖项
-    
+
     验证 Token 并检查管理员权限
     """
-    if not token: 
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
         is_admin: bool = payload.get("is_admin", False)
-        
+
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token: missing user ID",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         if not is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
             )
-        
+
         return int(user_id)
-    
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

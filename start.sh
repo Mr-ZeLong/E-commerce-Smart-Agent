@@ -6,11 +6,11 @@ export PYTHONPATH=$PWD
 
 # 检查依赖
 echo " 检查依赖..."
-poetry install
+uv sync
 
 # 启动 Redis 和 PostgreSQL
 echo " 启动基础设施..."
-docker-compose up -d postgres redis
+docker-compose up -d db redis
 
 # 等待数据库就绪
 echo " 等待数据库启动..."
@@ -18,25 +18,25 @@ sleep 5
 
 # 执行数据库迁移
 echo " 执行数据库迁移..."
-poetry run alembic upgrade head
+uv run alembic upgrade head
 
 # 启动服务（使用 tmux 或单独终端）
 echo " 启动 FastAPI 服务..."
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 FASTAPI_PID=$! 
 
 echo " 启动 Celery Worker..."
-poetry run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo &
+uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo &
 CELERY_PID=$!
 
 sleep 3
 
 echo " 启动用户界面..."
-poetry run python app/frontend/customer_ui.py &
+uv run python app/frontend/customer_ui.py &
 UI_PID=$!
 
 echo " 启动管理员工作台..."
-poetry run python app/frontend/admin_dashboard.py &
+uv run python app/frontend/admin_dashboard.py &
 ADMIN_PID=$!
 
 echo ""

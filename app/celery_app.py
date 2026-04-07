@@ -4,6 +4,7 @@ Celery 异步任务系统
 处理短信发送、退款网关调用等耗时操作
 """
 from celery import Celery
+
 from app.core.config import settings
 
 # 创建 Celery 实例

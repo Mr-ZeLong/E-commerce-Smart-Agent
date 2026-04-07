@@ -1,15 +1,16 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+import app.graph.workflow as workflow_module
+from app.api.v1.admin import router as admin_router
+from app.api.v1.auth import router as auth_router  # v4.0 新增
 from app.api.v1.chat import router as chat_router
 from app.api.v1.status import router as status_router
-from app.api.v1.admin import router as admin_router
 from app.api.v1.websocket import router as websocket_router
-from app.api.v1.auth import router as auth_router  # v4.0 新增
 from app.core.config import settings
 from app.core.database import init_db
 from app.graph.workflow import compile_app_graph
-import app.graph.workflow as workflow_module
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -34,7 +35,7 @@ app.include_router(admin_router, prefix=settings.API_V1_STR, tags=["Admin"])
 app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocket"])
 
 
-@app.on_event("startup")
+@app.on_event("startup")  # ty:ignore[deprecated]
 async def on_startup():
     print(" Starting E-commerce Smart Agent v4.0...")
     await init_db()
@@ -45,11 +46,11 @@ async def on_startup():
 @app.get("/health")
 async def health_check():
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "version": "v4.0",
         "features": [
-            "用户登录认证", 
-            "多租户数据隔离",  
+            "用户登录认证",
+            "多租户数据隔离",
             "订单查询",
             "政策咨询",
             "退货申请",

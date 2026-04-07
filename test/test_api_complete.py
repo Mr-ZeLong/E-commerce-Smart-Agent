@@ -62,7 +62,7 @@ def test_api():
         print(f"\n{'=' * 60}")
         print(f"📋 测试 {i}/{len(test_cases)}: {case['name']}")
         print(f"{'=' * 60}")
-        print(f"❓ 问题: {case['data']['question']}")
+        print(f"❓ 问题: {case['data']['question']}")  # ty:ignore[invalid-argument-type]
         print(f"🎯 预期: {case['expect']}")
         
         try:

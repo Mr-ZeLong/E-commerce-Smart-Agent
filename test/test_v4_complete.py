@@ -96,7 +96,7 @@ async def test_v4():
                 
                 # 查询审计日志
                 async with async_session_maker() as session:
-                    result = await session.execute(
+                    result = await session.execute(  # ty:ignore[deprecated]
                         select(AuditLog).where(AuditLog.id == audit_log_id)
                     )
                     audit_log = result.scalar_one_or_none()
@@ -125,9 +125,9 @@ async def test_v4():
                 print("\n 模拟管理员批准...")
                 async with async_session_maker() as session:
                     audit_log = await session.get(AuditLog, final_state['audit_log_id'])
-                    audit_log.action = AuditAction.APPROVE
-                    audit_log.admin_id = 999
-                    audit_log.admin_comment = "测试批准"
+                    audit_log.action = AuditAction.APPROVE  # ty:ignore[invalid-assignment]
+                    audit_log.admin_id = 999  # ty:ignore[invalid-assignment]
+                    audit_log.admin_comment = "测试批准"  # ty:ignore[invalid-assignment]
                     session.add(audit_log)
                     await session.commit()
                     print(" 管理员已批准")

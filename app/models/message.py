@@ -3,11 +3,12 @@
 v4.0 新增：结构化消息模型
 支持富媒体卡片渲染（audit_card, order_card, text）
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional, Dict, Any
-from sqlalchemy import Column, String, text, JSON, Text
-from sqlmodel import SQLModel, Field
+from typing import Any
+
+from sqlalchemy import JSON, Column, String, text
+from sqlmodel import Field, SQLModel
 
 
 class MessageType(str, Enum):
@@ -30,53 +31,53 @@ class MessageStatus(str, Enum):
 class MessageCard(SQLModel, table=True):
     """结构化消息表 - 支持富媒体卡片"""
     __tablename__ = "message_cards"
-    
-    id: Optional[int] = Field(default=None, primary_key=True)
-    
+
+    id: int | None = Field(default=None, primary_key=True)
+
     # 会话标识
     thread_id: str = Field(index=True, max_length=128, description="会话ID")
-    
+
     # 消息类型
     message_type: MessageType = Field(
         default=MessageType.TEXT,
         sa_column=Column(String, index=True, nullable=False)
     )
-    
+
     # 消息状态
     status: MessageStatus = Field(
         default=MessageStatus.PENDING,
         sa_column=Column(String, index=True, nullable=False)
     )
-    
+
     # 消息内容 (JSON格式，支持富媒体)
-    content: Dict[str, Any] = Field(
+    content: dict[str, Any] = Field(
         sa_column=Column(JSON, nullable=False),
         description="消息内容，JSON格式"
     )
-    
+
     # 发送者 (user_id 或 system)
-    sender_id: Optional[int] = Field(default=None, index=True)
+    sender_id: int | None = Field(default=None, index=True)
     sender_type: str = Field(default="user", max_length=32)  # user | agent | admin | system
-    
+
     # 接收者
-    receiver_id: Optional[int] = Field(default=None, index=True)
-    
+    receiver_id: int | None = Field(default=None, index=True)
+
     # 元数据（可扩展）
-    meta_data: Optional[Dict[str, Any]] = Field(default={}, sa_column=Column(JSON))
-    
+    meta_data: dict[str, Any] | None = Field(default={}, sa_column=Column(JSON))
+
     # 时间戳
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
-    
+
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")
         }
     )
-    
+
     class Config:
         use_enum_values = True

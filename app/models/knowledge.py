@@ -1,17 +1,18 @@
 # app/models/knowledge.py
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
-from sqlmodel import SQLModel, Field, Column, JSON
+from datetime import UTC, datetime
+from typing import Any
+
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Index, text
-from pydantic import ConfigDict
+from sqlmodel import JSON, Column, Field, SQLModel
 
 # 引入配置
-from app.core.config import settings 
+from app.core.config import settings
+
 
 class KnowledgeChunk(SQLModel, table=True):
-    __tablename__ = "knowledge_chunks" #type: ignore
-    
+    __tablename__ = "knowledge_chunks"
+
     # 动态获取维度用于 HNSW 索引参数
     __table_args__ = (
         Index(
@@ -22,28 +23,28 @@ class KnowledgeChunk(SQLModel, table=True):
         ),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     content: str = Field(index=False)
 
     # 从 Config 读取维度
     # 注意：SQLAlchemy 在定义类时就会执行 Vector(dim)，
     # 所以 settings.EMBEDDING_DIM 必须在此时就是可用的整数。
-    embedding: List[float] = Field(
-        sa_column=Column(Vector(settings.EMBEDDING_DIM)) 
+    embedding: list[float] = Field(
+        sa_column=Column(Vector(settings.EMBEDDING_DIM))
     )
 
     source: str = Field(index=True)
-    meta_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    meta_data: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     is_active: bool = Field(default=True, index=True)
 
     created_at: datetime = Field(
         # replace(tzinfo=None) 会移除时区信息，但保留 UTC 的时间数值
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")
@@ -51,4 +52,3 @@ class KnowledgeChunk(SQLModel, table=True):
     )
 
     model_config = {"arbitrary_types_allowed": True}
-        

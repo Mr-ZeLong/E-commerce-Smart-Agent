@@ -1,10 +1,12 @@
 # app/api/v1/chat.py
 import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from app.core.security import get_current_user_id
+from langchain_core.runnables import RunnableConfig
+
 from app.api.v1.schemas import ChatRequest
-from langchain_core.runnables import RunnableConfig 
+from app.core.security import get_current_user_id
 
 router = APIRouter()
 
@@ -15,13 +17,13 @@ async def chat(
 ):
     """
     聊天接口：支持订单查询和政策咨询
-    
+
     - ORDER:  查询用户自己的订单
     - POLICY: 从知识库检索政策信息
     """
     # 在函数内部导入，避免模块加载顺序问题
     from app.graph.workflow import app_graph
-    
+
     if app_graph is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -31,14 +33,14 @@ async def chat(
     async def event_generator():
         """SSE 流式响应生成器"""
         from app.graph.workflow import app_graph
-        
-        thread_id = f"{current_user_id}_{request.thread_id}" 
+
+        thread_id = f"{current_user_id}_{request.thread_id}"
         config: RunnableConfig = {"configurable": {"thread_id":  thread_id}}
 
         initial_state = {
             "question":  request.question,
             "user_id": current_user_id,
-            "history": [], 
+            "history": [],
             "context": [],
             "order_data": None,
             "answer": ""
@@ -49,7 +51,7 @@ async def chat(
                 initial_state, config, version="v2"
             ):
                 kind = event["event"]
-                
+
                 # 只处理 LLM 流式输出
                 if kind == "on_chat_model_stream":
                     data = event.get("data")
@@ -62,8 +64,8 @@ async def chat(
                                 yield f"data: {payload}\n\n"
 
             yield "data: [DONE]\n\n"
-            
-        except Exception as e: 
+
+        except Exception as e:
             error_msg = json.dumps({'error': str(e)}, ensure_ascii=False)
             yield f"data: {error_msg}\n\n"
 

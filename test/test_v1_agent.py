@@ -29,7 +29,7 @@ async def test_agent(query: str):  # 注意：函数名必须以 test_ 开头
     # 用于最后断言
     final_answer = None
 
-    async for event in app_graph.astream(initial_state, config):
+    async for event in app_graph.astream(initial_state, config):  # ty:ignore[unresolved-attribute]
         for node_name, output in event.items():
             if node_name == "retrieve":
                 # 注意：根据你的 LangGraph 定义，output 可能是字典也可能是对象

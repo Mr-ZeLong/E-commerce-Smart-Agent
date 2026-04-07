@@ -58,7 +58,7 @@ async def test_refund_rules():
             
             if is_eligible:
                 success, message, refund_app = await RefundApplicationService.create_refund_application(
-                    order_id=order3.id,
+                    order_id=order3.id,  # ty:ignore[invalid-argument-type]
                     user_id=order3.user_id,
                     reason_detail="尺码偏大，想换小一号",
                     reason_category=RefundReason.SIZE_NOT_FIT,
@@ -75,7 +75,7 @@ async def test_refund_rules():
         
         if order3:
             success, message, _ = await RefundApplicationService.create_refund_application(
-                order_id=order3.id,
+                order_id=order3.id,  # ty:ignore[invalid-argument-type]
                 user_id=order3.user_id,
                 reason_detail="测试重复申请",
                 reason_category=RefundReason.OTHER,
@@ -89,7 +89,7 @@ async def test_refund_rules():
         
         if order3:
             success, message, _ = await RefundApplicationService.create_refund_application(
-                order_id=order3.id,
+                order_id=order3.id,  # ty:ignore[invalid-argument-type]
                 user_id=999,  # 假冒的用户ID
                 reason_detail="恶意攻击测试",
                 reason_category=RefundReason.OTHER,

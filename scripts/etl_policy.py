@@ -23,8 +23,8 @@ DB_BATCH_SIZE = 100 # 每次向数据库写入的条数
 # =========================================
 
 embeddings_model = OpenAIEmbeddings(
-    base_url=settings.OPENAI_BASE_URL,
-    api_key=SecretStr(settings.OPENAI_API_KEY),
+    base_url=settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
+    api_key=SecretStr(settings.OPENAI_API_KEY),  # ty:ignore[unknown-argument]
     model=settings.EMBEDDING_MODEL,
     check_embedding_ctx_length=False
 )
@@ -71,7 +71,7 @@ async def process_file(file_path: str, source_name: str):
             # --- Step 3.1: 幂等清理 ---
             # 只有在第一批次时才清理，或者一次性清理
             print(f"  broom 清理旧数据...")
-            await session.execute(delete(KnowledgeChunk).where(KnowledgeChunk.source == source_name))
+            await session.execute(delete(KnowledgeChunk).where(KnowledgeChunk.source == source_name))  # ty:ignore[deprecated, invalid-argument-type]
             await session.commit() # 立即提交删除
 
             # --- Step 3.2: 分批处理 (Batch Processing) ---

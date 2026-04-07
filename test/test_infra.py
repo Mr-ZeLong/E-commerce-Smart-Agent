@@ -11,9 +11,9 @@ async def test_llm():
     print("🤖 Testing Qwen LLM Connection...")
     # 3. 去掉 try...except，让 pytest 捕获真正的错误
     llm = ChatOpenAI(
-        base_url=settings.OPENAI_BASE_URL,
-        api_key=settings.OPENAI_API_KEY,
-        model=settings.LLM_MODEL
+        base_url=settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
+        api_key=settings.OPENAI_API_KEY,  # ty:ignore[unknown-argument]
+        model=settings.LLM_MODEL  # ty:ignore[unknown-argument]
     )
     response = await llm.ainvoke("你好，请回复'Pong'。") # 注意：在 async 函数中最好用 ainvoke
     print(f"✅ LLM Response: {response.content}")
@@ -26,8 +26,8 @@ async def test_llm():
 async def test_embedding():
     print("\n🧠 Testing Qwen Embedding...")
     emb = OpenAIEmbeddings(
-        base_url=settings.OPENAI_BASE_URL,
-        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
+        api_key=settings.OPENAI_API_KEY,  # ty:ignore[unknown-argument]
         model=settings.EMBEDDING_MODEL,
         check_embedding_ctx_length=False
     )
