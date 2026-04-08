@@ -24,6 +24,9 @@ class ClarificationResponse:
 class ClarificationEngine:
     """澄清引擎"""
 
+    # 最大建议选项数量（UX研究表明4个选项是最佳选择）
+    MAX_SUGGESTIONS = 4
+
     # 槽位询问模板
     SLOT_QUESTION_TEMPLATES: dict[str, str] = {
         "order_sn": "请问您的订单号是多少？",
@@ -118,7 +121,8 @@ class ClarificationEngine:
         if self._is_user_refusal(user_response):
             return await self._handle_refusal(state, user_response)
 
-        # 提取槽位值（简化版，实际可用LLM提取）
+        # 提取槽位值（简化版 - 实际应使用LLM提取以处理 conversational filler）
+        # TODO: 实现LLM槽位提取以处理 "我的订单号是 SN001" -> "SN001"
         if state.pending_slot:
             state.collected_slots[state.pending_slot] = user_response.strip()
             state.clarification_history.append({
@@ -166,7 +170,7 @@ class ClarificationEngine:
         )
 
         if suggestions:
-            suggestion_text = " / ".join(suggestions[:4])  # 最多4个选项
+            suggestion_text = " / ".join(suggestions[:self.MAX_SUGGESTIONS])
             return f"{base_question}（可选：{suggestion_text}）"
 
         return base_question
@@ -208,7 +212,7 @@ class ClarificationEngine:
         """降级策略1: 设为可选，询问是否跳过"""
         if state.clarification_round <= 1:
             return ClarificationResponse(
-                response=f"这个信息不是必须的，我们可以先跳过。您确定不需要提供吗？",
+                response="这个信息不是必须的，我们可以先跳过。您确定不需要提供吗？",
                 state=state,
                 is_complete=False,
             )
@@ -253,7 +257,17 @@ class ClarificationEngine:
         )
 
     def _build_max_rounds_response(self, state: ClarificationState) -> ClarificationResponse:
-        """达到最大澄清轮次的响应"""
+        """达到最大澄清轮次的响应
+
+        当澄清轮次达到上限时返回，标记澄清过程为完成状态，
+        使用已收集的槽位继续处理。
+
+        Args:
+            state: 当前澄清状态
+
+        Returns:
+            ClarificationResponse: 包含完成标记和已收集槽位的响应
+        """
         return ClarificationResponse(
             response="我已经了解了主要信息，现在就为您处理。",
             state=state,
