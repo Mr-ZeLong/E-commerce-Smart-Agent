@@ -240,6 +240,10 @@ class TestRecognizeMethod:
 
             result = await mock_redis_service.recognize("我要退货", "session_123")
 
+            # 验证结果
+            assert result is not None
+            assert result.primary_intent == IntentCategory.AFTER_SALES
+
             # 验证话题切换检测被调用
             mock_detect.assert_called_once()
             # redis.get 被调用两次：一次查询缓存，一次查询会话状态

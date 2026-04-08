@@ -104,7 +104,8 @@ class IntentRecognitionService:
             result.slots = merged_slots
         else:
             # 5. 单意图分类
-            result = await self.classifier.classify(query, conversation_history)
+            context = {"history": conversation_history} if conversation_history else None
+            result = await self.classifier.classify(query, context)
 
         # 6. 话题切换检测
         previous_result = state.current_intent if state else None
