@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -20,9 +21,18 @@ from app.core.config import settings
 from app.intent.config import TERTIARY_INTENT_CONFIG, validate_tertiary_intent
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
+logger = logging.getLogger(__name__)
+
 
 class IntentClassifier:
     """意图分类器 - 3层Fallback机制"""
+
+    # 类常量
+    RULE_MATCH_CONFIDENCE = 0.5
+    DEFAULT_FALLBACK_CONFIDENCE = 0.3
+
+    FUNCTION_CALLING_THRESHOLD = 0.7
+    JSON_PARSING_THRESHOLD = 0.6
 
     # Few-shot示例提示词
     FEW_SHOT_EXAMPLES = """
@@ -235,6 +245,12 @@ class IntentClassifier:
 
         self._intent_function = self.INTENT_FUNCTION_SCHEMA
 
+        # 预编译正则表达式
+        self._compiled_rules: dict[tuple[str, str], list[re.Pattern]] = {
+            key: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
+            for key, patterns in self.RULE_PATTERNS.items()
+        }
+
     async def classify(self, query: str, context: dict[str, Any] | None = None) -> IntentResult:
         """
         分类用户意图 - 3层Fallback机制
@@ -249,20 +265,20 @@ class IntentClassifier:
         # Layer 1: Function Calling
         try:
             result = await self._classify_with_function_calling(query, context)
-            if result is not None and result.confidence >= 0.7:
+            if result is not None and result.confidence >= self.FUNCTION_CALLING_THRESHOLD:
                 return result
         except Exception as e:
             # Function Calling失败，继续降级
-            pass
+            logger.warning(f"Function calling failed: {e}, falling back to JSON parsing")
 
         # Layer 2: JSON解析
         try:
             result = await self._classify_with_json(query, context)
-            if result is not None and result.confidence >= 0.6:
+            if result is not None and result.confidence >= self.JSON_PARSING_THRESHOLD:
                 return result
         except Exception as e:
             # JSON解析失败，继续降级
-            pass
+            logger.warning(f"JSON parsing failed: {e}, falling back to rule matching")
 
         # Layer 3: 规则匹配
         return self._classify_with_rules(query)
@@ -348,16 +364,16 @@ class IntentClassifier:
         """
         query_lower = query.lower()
 
-        for (primary, secondary), patterns in self.RULE_PATTERNS.items():
+        for (primary, secondary), patterns in self._compiled_rules.items():
             for pattern in patterns:
-                if re.search(pattern, query_lower, re.IGNORECASE):
+                if pattern.search(query_lower):
                     # 匹配成功，构建结果
                     return IntentResult(
                         primary_intent=IntentCategory[primary],
                         secondary_intent=IntentAction[secondary],
                         tertiary_intent=None,
-                        confidence=0.5,  # 规则匹配的置信度较低
-                        slots={"matched_pattern": pattern},
+                        confidence=self.RULE_MATCH_CONFIDENCE,
+                        slots={"matched_pattern": pattern.pattern},
                         raw_query=query
                     )
 
@@ -366,7 +382,7 @@ class IntentClassifier:
             primary_intent=IntentCategory.OTHER,
             secondary_intent=IntentAction.CONSULT,
             tertiary_intent=None,
-            confidence=0.3,
+            confidence=self.DEFAULT_FALLBACK_CONFIDENCE,
             slots={},
             raw_query=query
         )
