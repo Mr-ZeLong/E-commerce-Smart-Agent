@@ -4,9 +4,9 @@
 
 ```mermaid
 flowchart TB
-    subgraph Frontend["🖥️ 前端层 (Gradio)"]
-        CUI["👤 Customer UI<br/>用户聊天界面<br/>Port: 7860"]
-        ADM["🛡️ Admin Dashboard<br/>管理员工作台<br/>Port: 7861"]
+    subgraph Frontend["🖥️ 前端层 (React + TypeScript)"]
+        CUI["👤 Customer App<br/>用户聊天界面<br/>React 18 + Vite"]
+        ADM["🛡️ Admin Dashboard<br/>管理员工作台<br/>React 18 + Vite"]
     end
 
     subgraph APILayer["📡 API 层 (FastAPI)"]
@@ -348,7 +348,7 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     subgraph Layer1["表示层"]
-        F1["Gradio<br/>Port 7860/7861"]
+        F1["React 18 + TypeScript<br/>Vite + Tailwind CSS"]
     end
 
     subgraph Layer2["接入层"]
@@ -438,9 +438,39 @@ E-commerce-Smart-Agent/
 │   ├── 📁 websocket/               # WebSocket 服务
 │   │   └── 📄 manager.py           # 连接管理器
 │   │
-│   └── 📁 frontend/                # Gradio 前端界面
-│       ├── 📄 customer_ui.py       # C端用户界面 (Port 7860)
-│       └── 📄 admin_dashboard.py   # B端管理后台 (Port 7861)
+│
+├── 📁 frontend/                    # React 前端 (Vite + TypeScript)
+│   ├── 📄 package.json             # npm 依赖配置
+│   ├── 📄 vite.config.ts           # Vite 多页面配置
+│   ├── 📄 tailwind.config.ts       # Tailwind CSS 配置
+│   ├── 📄 tsconfig.json            # TypeScript 配置
+│   ├── 📄 index.html               # C端入口
+│   ├── 📄 admin.html               # B端入口
+│   │
+│   └── 📁 src/
+│       ├── 📁 apps/
+│       │   ├── 📁 customer/        # C端用户应用
+│       │   │   ├── 📄 App.tsx
+│       │   │   ├── 📄 main.tsx
+│       │   │   └── 📁 pages/
+│       │   │       ├── 📄 Login.tsx
+│       │   │       └── 📄 Chat.tsx
+│       │   │
+│       │   └── 📁 admin/           # B端管理后台
+│       │       ├── 📄 App.tsx
+│       │       ├── 📄 main.tsx
+│       │       └── 📁 pages/
+│       │           ├── 📄 Login.tsx
+│       │           └── 📄 Dashboard.tsx
+│       │
+│       ├── 📁 components/
+│       │   ├── 📁 ui/              # shadcn/ui 组件
+│       │   └── 📁 common/          # 业务共享组件
+│       │
+│       ├── 📁 api/                 # API 客户端
+│       ├── 📁 stores/              # Zustand 状态管理
+│       ├── 📁 hooks/               # 自定义 React Hooks
+│       └── 📁 types/               # TypeScript 类型定义
 │
 ├── 📁 scripts/                     # 辅助脚本
 │   ├── 📄 seed_data.py             # 数据库初始化数据
