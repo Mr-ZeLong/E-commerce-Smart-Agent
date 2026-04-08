@@ -116,7 +116,7 @@ class LLMSignal:
         context: list[str],
         generated_answer: str,
     ) -> SignalResult:
-        """计算 LLM 信号，带重试机制"""
+        """计算 LLM 信号，带重试机制（标记为内部调用）"""
         prompt = f"""评估回答置信度（0-1）：
 问题：{query}
 回答：{generated_answer}
@@ -128,7 +128,11 @@ class LLMSignal:
 
         for attempt in range(max_retries):
             try:
-                response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
+                # 标记为内部调用，避免被转发给用户
+                response = await self.llm.ainvoke(
+                    [{"role": "user", "content": prompt}],
+                    config={"tags": ["confidence_eval", "internal"]}
+                )
                 raw_text = response.content if hasattr(response, 'content') else str(response)
 
                 score = self._parse_confidence_score(str(raw_text))

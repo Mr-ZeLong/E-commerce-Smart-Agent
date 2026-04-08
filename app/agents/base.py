@@ -49,15 +49,19 @@ class BaseAgent(ABC):
     async def _call_llm(
         self,
         messages: list,
-        temperature: float | None = None
+        temperature: float | None = None,
+        tags: list[str] | None = None
     ) -> str:
         """调用 LLM"""
         try:
+            config = {}
             if temperature is not None:
-                response = await self.llm.ainvoke(
-                    messages,
-                    temperature=temperature
-                )
+                config["temperature"] = temperature
+            if tags:
+                config["tags"] = tags
+
+            if config:
+                response = await self.llm.ainvoke(messages, config=config)
             else:
                 response = await self.llm.ainvoke(messages)
             return str(response.content)

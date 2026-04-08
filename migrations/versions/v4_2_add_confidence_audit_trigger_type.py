@@ -18,6 +18,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 创建枚举类型（如果不存在）
+    op.execute("CREATE TYPE audittriggertype AS ENUM ('RISK', 'CONFIDENCE', 'MANUAL')")
+
     # 添加 trigger_type 列
     op.add_column(
         'audit_logs',

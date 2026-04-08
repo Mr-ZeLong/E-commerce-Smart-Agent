@@ -59,8 +59,28 @@ async def chat(
             ):
                 kind = event["event"]
 
-                # 处理 LLM 流式输出
+                # 处理 LLM 流式输出 - 只处理用户可见的 Agent 输出
                 if kind == "on_chat_model_stream":
+                    # 过滤内部调用（置信度评估、意图识别等）
+                    metadata = event.get("metadata", {})
+                    langgraph_node = metadata.get("langgraph_node", "")
+                    tags = metadata.get("tags", [])
+
+                    # 只转发标记为 user_visible 的输出
+                    # 过滤掉 router 和内部置信度评估的调用
+                    is_internal = (
+                        langgraph_node == "router" or
+                        "confidence_eval" in tags or
+                        "internal" in tags
+                    )
+
+                    if is_internal:
+                        continue
+
+                    # 只处理用户可见的 LLM 输出
+                    if "user_visible" not in tags:
+                        continue
+
                     data = event.get("data")
                     if data and isinstance(data, dict):
                         chunk = data.get("chunk")
@@ -73,7 +93,22 @@ async def chat(
                 # v4.1: 捕获 on_chain_end 事件获取最终状态
                 elif kind == "on_chain_end":
                     output = event.get("data", {}).get("output", {})
+                    metadata = event.get("metadata", {})
+                    langgraph_node = metadata.get("langgraph_node", "")
+
                     if output and isinstance(output, dict):
+                        # 从 supervisor 节点获取 answer 发送给用户
+                        # (对于 OrderAgent 等非 LLM 节点，answer 直接来自 state)
+                        if langgraph_node == "supervisor" and "answer" in output:
+                            answer = output["answer"]
+                            if answer and answer not in getattr(event_generator, '_sent_answers', set()):
+                                # 避免重复发送相同的 answer
+                                if not hasattr(event_generator, '_sent_answers'):
+                                    event_generator._sent_answers = set()
+                                event_generator._sent_answers.add(answer)
+                                payload = json.dumps({"token": answer}, ensure_ascii=False)
+                                yield f"data: {payload}\n\n"
+
                         # 收集置信度相关信息
                         if "confidence_score" in output:
                             final_state["confidence_score"] = output["confidence_score"]

@@ -46,13 +46,11 @@ def upgrade() -> None:
     # ========== 2. 修改 audit_logs 表（添加 audit_level）==========
     op.add_column('audit_logs', sa.Column('audit_level', sa.String(length=16), nullable=True))
 
-    # ========== 3. 数据迁移：audit_required -> audit_level ==========
+    # ========== 3. 数据迁移：设置默认 audit_level ==========
     op.execute("""
         UPDATE audit_logs
-        SET audit_level = CASE
-            WHEN audit_required = true THEN 'manual'
-            ELSE 'none'
-        END
+        SET audit_level = 'none'
+        WHERE audit_level IS NULL
     """)
 
 

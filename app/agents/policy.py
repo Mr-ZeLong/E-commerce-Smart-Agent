@@ -53,7 +53,8 @@ class PolicyAgent(BaseAgent):
             context={"context": chunks}
         )
 
-        response = await self._call_llm(messages)
+        # 标记为用户可见的输出
+        response = await self._call_llm(messages, tags=["user_visible"])
 
         # Step 3: 计算置信度（初步估计）
         confidence = self._estimate_confidence(chunks, similarities)
