@@ -1,6 +1,5 @@
 """测试意图配置"""
 
-import pytest
 from app.intent.config import (
     TERTIARY_INTENT_CONFIG,
     SLOT_PRIORITY_CONFIG,

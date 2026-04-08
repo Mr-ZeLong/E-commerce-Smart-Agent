@@ -3,7 +3,7 @@
 定义意图层级、槽位优先级、三级意图约束等配置。
 """
 
-from app.intent.models import IntentCategory, IntentAction, SlotPriority, Slot
+from app.intent.models import IntentCategory, IntentAction, SlotPriority
 
 
 # ============== 意图兼容性矩阵 ==============
