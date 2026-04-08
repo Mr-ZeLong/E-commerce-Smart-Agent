@@ -473,7 +473,15 @@ class TestMultiIntentProcessorProcess:
         history = [{"role": "user", "content": "之前的对话"}]
         result = await processor.process("查询订单", conversation_history=history)
 
-        mock_classifier.classify.assert_called_once_with("查询订单", history)
+        # 验证结果被正确使用
+        assert result.is_multi_intent is False
+        assert len(result.sub_intents) == 1
+        assert result.sub_intents[0].primary_intent == IntentCategory.ORDER
+
+        # 验证分类器被调用时history被转换为context dict
+        mock_classifier.classify.assert_called_once_with(
+            "查询订单", {"history": history}
+        )
 
     @pytest.mark.asyncio
     async def test_process_classifier_returns_none(self) -> None:

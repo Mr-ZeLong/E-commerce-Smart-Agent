@@ -129,6 +129,11 @@ class MultiIntentProcessor:
         """
         logger.info("Processing query: %s", query)
 
+        # 构建上下文字典
+        context: dict[str, Any] | None = None
+        if conversation_history:
+            context = {"history": conversation_history}
+
         # 1. 检测是否多意图
         segments = self._split_query(query)
         logger.debug("Query split into %d segments: %s", len(segments), segments)
@@ -138,9 +143,7 @@ class MultiIntentProcessor:
             logger.debug("Single intent detected")
             if self.classifier:
                 try:
-                    result = await self.classifier.classify(
-                        query, conversation_history
-                    )
+                    result = await self.classifier.classify(query, context)
                     logger.debug("Classifier returned result: %s", result)
                     return MultiIntentResult(
                         is_multi_intent=False,
@@ -170,9 +173,7 @@ class MultiIntentProcessor:
                     logger.debug(
                         "Classifying segment %d/%d: %s", i + 1, len(segments), segment
                     )
-                    result = await self.classifier.classify(
-                        segment.strip(), conversation_history
-                    )
+                    result = await self.classifier.classify(segment.strip(), context)
                     if result:
                         sub_intents.append(result)
                         logger.debug(
