@@ -17,7 +17,7 @@ export function useChat(conversationId?: string, userId?: string) {
       }
 
       const userMessage: ChatMessage = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         role: 'user',
         content,
         timestamp: new Date(),
@@ -35,7 +35,7 @@ export function useChat(conversationId?: string, userId?: string) {
 
       try {
         const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: crypto.randomUUID(),
           role: 'assistant',
           content: '',
           timestamp: new Date(),
