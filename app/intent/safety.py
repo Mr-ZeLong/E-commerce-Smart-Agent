@@ -5,34 +5,32 @@
 
 from __future__ import annotations
 
+import logging
 import re
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
+
+# 类型约束
+RiskLevel = Literal["low", "medium", "high"]
+RiskType = Literal["keyword", "injection", "code", "semantic"]
 
 
 @dataclass
-class SafetyCheckResult:
-    """安全检查结果"""
-    is_safe: bool
-    risk_level: str  # "low", "medium", "high"
-    risk_type: str | None  # "keyword", "injection", "semantic"
-    reason: str
-    sanitized_query: str | None = None
-
-
-class SafetyFilter:
-    """安全过滤器"""
+class SafetyConfig:
+    """安全过滤器配置"""
 
     # 敏感关键词列表
-    SENSITIVE_KEYWORDS = [
+    sensitive_keywords: list[str] = field(default_factory=lambda: [
         "密码", "password", "passwd", "pwd",
         "信用卡", "credit card", "cvv",
         "身份证", "id card", "身份证号",
         "银行卡", "bank card",
-    ]
+    ])
 
     # Prompt注入检测模式
-    INJECTION_PATTERNS = [
+    injection_patterns: list[str] = field(default_factory=lambda: [
         r"忽略.*指令",
         r"忽略.*提示",
         r"ignore.*instruction",
@@ -48,21 +46,97 @@ class SafetyFilter:
         r"越狱",
         r"jailbreak",
         r"DAN",
-    ]
+    ])
 
-    # 代码执行检测
-    CODE_PATTERNS = [
+    # 代码执行检测 - 核心模式（默认启用）
+    code_patterns: list[str] = field(default_factory=lambda: [
         r"```[\s\S]*?```",  # 代码块
-        r"`[^`]+`",          # 行内代码
         r"import\s+\w+",    # Python import
         r"exec\s*\(",       # exec函数
         r"eval\s*\(",       # eval函数
         r"<script",         # script标签
         r"javascript:",     # javascript协议
-    ]
+    ])
 
-    def __init__(self, llm: Any | None = None):
+    # 行内代码检测（可选，敏感度较高）
+    enable_inline_code_check: bool = False
+    inline_code_pattern: str = r"`[^`]+`"
+
+    # 查询长度限制（ReDoS防护）
+    max_query_length: int = 10000
+
+
+@dataclass
+class SafetyResponseTemplate:
+    """安全拒绝响应模板"""
+
+    # 中英文模板
+    templates: dict[str, dict[str, str]] = field(default_factory=lambda: {
+        "keyword": {
+            "zh": "检测到敏感信息，为了您的安全，请勿在对话中分享密码、银行卡号等敏感内容。",
+            "en": "Sensitive information detected. For your security, please do not share passwords, bank card numbers, or other sensitive content in the conversation.",
+        },
+        "injection": {
+            "zh": "检测到潜在的指令注入尝试，此请求已被拦截。",
+            "en": "Potential prompt injection attempt detected. This request has been blocked.",
+        },
+        "code": {
+            "zh": "检测到代码内容，出于安全考虑，请避免在对话中执行代码。",
+            "en": "Code content detected. For security reasons, please avoid executing code in the conversation.",
+        },
+        "semantic": {
+            "zh": "检测到潜在的安全风险，此请求已被拦截。",
+            "en": "Potential security risk detected. This request has been blocked.",
+        },
+    })
+
+    def get_rejection_response(self, risk_type: str, language: str = "zh") -> str:
+        """获取拒绝响应模板
+
+        Args:
+            risk_type: 风险类型
+            language: 语言代码 ("zh" 或 "en")
+
+        Returns:
+            拒绝响应文本
+        """
+        if risk_type in self.templates:
+            return self.templates[risk_type].get(language, self.templates[risk_type]["zh"])
+        return self.templates["semantic"].get(language, "检测到安全风险，请求已被拦截。")
+
+
+@dataclass
+class SafetyCheckResult:
+    """安全检查结果"""
+    is_safe: bool
+    risk_level: RiskLevel
+    risk_type: RiskType | None
+    reason: str
+    sanitized_query: str | None = None
+
+    def get_rejection_response(self, language: str = "zh") -> str:
+        """获取拒绝响应
+
+        Args:
+            language: 语言代码 ("zh" 或 "en")
+
+        Returns:
+            拒绝响应文本
+        """
+        if self.is_safe:
+            return ""
+
+        template = SafetyResponseTemplate()
+        return template.get_rejection_response(self.risk_type or "semantic", language)
+
+
+class SafetyFilter:
+    """安全过滤器"""
+
+    def __init__(self, llm: Any | None = None, config: SafetyConfig | None = None):
         self.llm = llm
+        self.config = config or SafetyConfig()
+        self._response_template = SafetyResponseTemplate()
 
     async def check(self, query: str) -> SafetyCheckResult:
         """
@@ -74,6 +148,16 @@ class SafetyFilter:
         Returns:
             SafetyCheckResult: 检查结果
         """
+        # ReDoS防护：检查查询长度
+        if len(query) > self.config.max_query_length:
+            logger.warning(f"Query too long: {len(query)} characters, max allowed: {self.config.max_query_length}")
+            return SafetyCheckResult(
+                is_safe=False,
+                risk_level="high",
+                risk_type="semantic",
+                reason=f"查询过长，超过最大限制 {self.config.max_query_length} 字符",
+            )
+
         # 1. 关键词过滤
         keyword_result = self._check_keywords(query)
         if not keyword_result.is_safe:
@@ -107,10 +191,11 @@ class SafetyFilter:
         """关键词过滤"""
         query_lower = query.lower()
 
-        for keyword in self.SENSITIVE_KEYWORDS:
+        for keyword in self.config.sensitive_keywords:
             if keyword.lower() in query_lower:
-                # 对敏感信息进行脱敏
-                sanitized = query.replace(keyword, "***")
+                # 对敏感信息进行脱敏（不区分大小写，替换所有匹配项）
+                pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+                sanitized = pattern.sub("***", query)
                 return SafetyCheckResult(
                     is_safe=False,
                     risk_level="high",
@@ -128,13 +213,13 @@ class SafetyFilter:
 
     def _check_injection(self, query: str) -> SafetyCheckResult:
         """Prompt注入检测"""
-        for pattern in self.INJECTION_PATTERNS:
+        for pattern in self.config.injection_patterns:
             if re.search(pattern, query, re.IGNORECASE):
                 return SafetyCheckResult(
                     is_safe=False,
                     risk_level="high",
                     risk_type="injection",
-                    reason=f"检测到潜在的Prompt注入攻击",
+                    reason="检测到潜在的Prompt注入攻击",
                 )
 
         return SafetyCheckResult(
@@ -146,8 +231,19 @@ class SafetyFilter:
 
     def _check_code(self, query: str) -> SafetyCheckResult:
         """代码执行检测"""
-        for pattern in self.CODE_PATTERNS:
+        # 检测核心代码模式
+        for pattern in self.config.code_patterns:
             if re.search(pattern, query, re.IGNORECASE):
+                return SafetyCheckResult(
+                    is_safe=False,
+                    risk_level="medium",
+                    risk_type="code",
+                    reason="检测到潜在的代码执行",
+                )
+
+        # 可选：检测行内代码
+        if self.config.enable_inline_code_check:
+            if re.search(self.config.inline_code_pattern, query, re.IGNORECASE):
                 return SafetyCheckResult(
                     is_safe=False,
                     risk_level="medium",
@@ -192,7 +288,7 @@ class SafetyFilter:
                 )
 
         except Exception as e:
-            print(f"Semantic check failed: {e}")
+            logger.error(f"Semantic check failed: {e}")
 
         return SafetyCheckResult(
             is_safe=True,
@@ -203,6 +299,11 @@ class SafetyFilter:
 
     def sanitize(self, query: str) -> str:
         """清理查询（去除潜在危险内容）"""
+        # ReDoS防护：检查查询长度
+        if len(query) > self.config.max_query_length:
+            logger.warning(f"Query too long in sanitize: {len(query)} characters, truncating to {self.config.max_query_length}")
+            query = query[:self.config.max_query_length]
+
         sanitized = query
 
         # 移除代码块
