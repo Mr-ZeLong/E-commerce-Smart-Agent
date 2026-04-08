@@ -72,7 +72,7 @@ class IntentRouterAgent(BaseAgent):
         self.intent_service = IntentRecognitionService()
         logger.debug("IntentRouterAgent initialized")
 
-    async def process(self, state: RouterState) -> AgentResult:
+    async def process(self, state: dict) -> AgentResult:
         """处理用户输入，识别意图并路由
 
         流程：
@@ -88,9 +88,11 @@ class IntentRouterAgent(BaseAgent):
         Returns:
             AgentResult: 包含响应内容和更新后的状态
         """
-        query = state.get("question", "")
-        session_id = state.get("thread_id", "")
-        user_id = state.get("user_id")
+        # Cast to RouterState for better type checking within this method
+        router_state = state  # type: RouterState
+        query = router_state.get("question", "")
+        session_id = router_state.get("thread_id", "")
+        user_id = router_state.get("user_id")
 
         logger.info(
             "Processing query for user_id=%s, session_id=%s, query='%s'",
