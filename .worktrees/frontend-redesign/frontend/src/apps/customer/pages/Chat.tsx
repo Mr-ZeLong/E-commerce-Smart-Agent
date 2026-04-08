@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/auth';
 import { useChat } from '@/hooks/useChat';
 import { ChatMessage } from '../components/ChatMessage';
 import { ChatInput } from '../components/ChatInput';
@@ -12,8 +13,9 @@ import { QuickActions } from '../components/QuickActions';
 
 export function Chat() {
   const { user, logout } = useAuth();
+  const userId = useAuthStore((state) => state.user?.user_id);
   const [showQuickActions, setShowQuickActions] = useState(true);
-  const { messages, isStreaming, sendMessage } = useChat();
+  const { messages, isStreaming, sendMessage } = useChat(undefined, userId);
 
   const handleSendMessage = async (content: string) => {
     setShowQuickActions(false);

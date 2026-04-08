@@ -18,11 +18,11 @@ export function NotificationToast({
   const unreadNotifications = notifications.filter((n) => !n.read);
 
   useEffect(() => {
-    // Auto mark as read after 5 seconds
+    // Auto mark as read after 10 seconds
     const timers = unreadNotifications.map((n) =>
       setTimeout(() => {
         onMarkAsRead(n.id);
-      }, 5000)
+      }, 10000)
     );
 
     return () => {

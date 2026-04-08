@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 import type { Task } from '@/types';
 
@@ -14,6 +15,7 @@ interface DecisionPanelProps {
 
 export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelProps) {
   const [comment, setComment] = useState('');
+  const [validationError, setValidationError] = useState('');
 
   if (!task)
     return (
@@ -36,15 +38,17 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
   };
 
   const handleApprove = () => {
+    setValidationError('');
     onDecision(task.audit_log_id, 'APPROVE', comment);
     setComment('');
   };
 
   const handleReject = () => {
     if (!comment.trim()) {
-      alert('拒绝时必须填写审核备注');
+      setValidationError('拒绝时必须填写审核备注');
       return;
     }
+    setValidationError('');
     onDecision(task.audit_log_id, 'REJECT', comment);
     setComment('');
   };
@@ -70,6 +74,11 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
             rows={4}
             className="mt-1"
           />
+          {validationError && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertDescription>{validationError}</AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <div className="space-y-2">
