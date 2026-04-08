@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 class IntentClassifier:
     """意图分类器 - 3层Fallback机制"""
 
+    # 类属性
+    supports_multi_intent: bool = True
+
     # 类常量
     RULE_MATCH_CONFIDENCE = 0.5
     DEFAULT_FALLBACK_CONFIDENCE = 0.3
