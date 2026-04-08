@@ -15,9 +15,14 @@ from app.intent.models import (
 
 class TestIntentCategory:
     def test_enum_values(self):
-        assert IntentCategory.ORDER == "ORDER"
-        assert IntentCategory.AFTER_SALES == "AFTER_SALES"
-        assert IntentCategory.POLICY == "POLICY"
+        """测试所有12个IntentCategory值"""
+        expected_values = {
+            "ORDER", "AFTER_SALES", "POLICY", "ACCOUNT",
+            "PROMOTION", "PAYMENT", "LOGISTICS", "PRODUCT",
+            "RECOMMENDATION", "CART", "COMPLAINT", "OTHER"
+        }
+        actual_values = {e.value for e in IntentCategory}
+        assert actual_values == expected_values
 
     def test_enum_comparison(self):
         assert IntentCategory.ORDER == IntentCategory.ORDER
@@ -26,9 +31,13 @@ class TestIntentCategory:
 
 class TestIntentAction:
     def test_enum_values(self):
-        assert IntentAction.QUERY == "QUERY"
-        assert IntentAction.APPLY == "APPLY"
-        assert IntentAction.MODIFY == "MODIFY"
+        """测试所有8个IntentAction值"""
+        expected_values = {
+            "QUERY", "APPLY", "MODIFY", "CANCEL",
+            "CONSULT", "ADD", "REMOVE", "COMPARE"
+        }
+        actual_values = {e.value for e in IntentAction}
+        assert actual_values == expected_values
 
 
 class TestSlotPriority:
