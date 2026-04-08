@@ -90,7 +90,8 @@
   # CART 场景（v1.1新增）
   - CART_VIEW: 查看购物车
   - CART_CHECKOUT: 购物车结算
-  - CART_SELECT: 选择/取消选择商品
+  - CART_REMOVE_ITEM: 选择并移除特定商品  # v1.1 fix: 重命名以更准确表达意图
+  - CART_CLEAR_ALL: 清空购物车           # v1.1 fix: 新增三级意图
   - CART_UPDATE_QUANTITY: 修改商品数量
 ```
 
@@ -388,6 +389,37 @@ DEFAULT_SLOT_PRIORITIES = {
             "P0": ["order_sn"],  # 可为"最近订单"
             "P1": ["query_type"],
             "P2": []
+        }
+    },
+    # ... 其他意图组合
+}
+
+# 槽位优先级配置示例  # v1.1 fix: 添加完整配置示例
+SLOT_PRIORITY_CONFIG = {
+    "AFTER_SALES": {
+        "APPLY": {
+            "P0": ["order_sn", "action_type"],
+            "P1": ["reason_category", "specific_item"],
+            "P2": ["reason_detail", "preferred_contact"]
+        },
+        "CONSULT": {
+            "P0": ["policy_topic"],
+            "P1": ["specific_item", "order_sn"],
+            "P2": []
+        }
+    },
+    "ORDER": {
+        "QUERY": {
+            "P0": ["order_sn"],  # 可为"最近订单"
+            "P1": ["query_type"],
+            "P2": ["phone"]
+        }
+    },
+    "PRODUCT": {
+        "QUERY": {
+            "P0": ["product_name"],
+            "P1": ["product_id", "specification"],
+            "P2": ["price_range"]
         }
     },
     # ... 其他意图组合
@@ -887,12 +919,13 @@ TERTIARY_INTENT_CONFIG: dict[tuple[str, str], list[str]] = {
     ("CART", "ADD"): [
         "CART_UPDATE_QUANTITY",
     ],
-    ("CART", "REMOVE"): [
-        "CART_SELECT",
-    ],
+    ("CART", "REMOVE"): {
+        "tertiary_intents": ["CART_REMOVE_ITEM", "CART_CLEAR_ALL"],  # v1.1 fix: CART_REMOVE_ITEM表示选择并移除特定商品
+        "description": "从购物车移除商品"
+    },
     ("CART", "MODIFY"): [
         "CART_UPDATE_QUANTITY",
-        "CART_SELECT",
+        "CART_REMOVE_ITEM",  # v1.1 fix: 统一命名
     ],
     ("CART", "APPLY"): [
         "CART_CHECKOUT",
@@ -1376,9 +1409,9 @@ class TopicSwitchHandler:
         return HandlerResult(action="continue_current")
 ```
 
-### 6.2 安全过滤（v1.1增强版）
+### 6.2 安全过滤架构（v1.1增强版）  # v1.1 fix: 重构章节结构，拆分为更清晰的子结构
 
-#### 6.2.1 多层安全过滤架构
+#### 6.2.1 整体架构
 
 ```python
 class SafetyFilter:
@@ -1456,6 +1489,8 @@ class SafetyFilter:
         return SafetyCheckResult(is_safe=True)
 
 
+#### 6.2.2 关键词过滤层
+
 class KeywordFilter:
     """关键词过滤器"""
 
@@ -1479,9 +1514,12 @@ class KeywordFilter:
         return KeywordCheckResult(is_blocked=False)
 
 
+#### 6.2.3 Prompt注入防护
+
 class PromptInjectionDetector:
     """Prompt注入攻击检测器"""
 
+    # v1.1 fix: 使用原始字符串标记 r"..." 确保正则表达式正确转义
     INJECTION_PATTERNS = [
         # 角色劫持
         r"忽略.*指令",
@@ -1497,9 +1535,9 @@ class PromptInjectionDetector:
         r"开发者模式",
         r"无限制模式",
         # 分隔符注入
-        r"\[\[\[.*\]\]\]",
-        r"###.*###",
-        r"\{\{\{.*\}\}\}",
+        r"\[\[\[.*?\]\]\]",  # v1.1 fix: 使用非贪婪匹配 .*?
+        r"###.*?###",
+        r"\{\{\{.*?\}\}\}",
     ]
 
     def detect(self, query: str) -> InjectionCheckResult:
@@ -1535,6 +1573,8 @@ class PromptInjectionDetector:
 
         return False
 
+
+#### 6.2.4 电商特殊场景过滤
 
 class EcommerceSpecialFilter:
     """电商场景特殊过滤器"""
@@ -1585,6 +1625,8 @@ class EcommerceSpecialFilter:
         return EcommerceCheckResult(is_blocked=False)
 
 
+#### 6.2.5 LLM语义安全检测
+
 class LLMSemanticFilter:
     """LLM语义安全检测层"""
 
@@ -1630,6 +1672,8 @@ class LLMSemanticFilter:
             # 解析失败，保守处理（允许通过但记录日志）
             return SemanticCheckResult(is_safe=True)
 
+
+#### 6.2.6 安全过滤配置示例
 
 # 安全过滤配置
 SAFETY_CONFIG = {
