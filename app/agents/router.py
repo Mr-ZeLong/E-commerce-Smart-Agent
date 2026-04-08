@@ -3,11 +3,15 @@
 使用分层意图识别系统替换原有的规则+LLM混合方案。
 """
 
+import logging
 from enum import Enum
+from typing import Any, TypedDict
 
 from app.agents.base import AgentResult, BaseAgent
 from app.intent import IntentRecognitionService
 from app.intent.models import IntentCategory, IntentResult
+
+logger = logging.getLogger(__name__)
 
 
 class Intent(str, Enum):
@@ -18,57 +22,109 @@ class Intent(str, Enum):
     OTHER = "OTHER"
 
 
-class IntentRouterAgent(BaseAgent):
+class RouterState(TypedDict, total=False):
+    """路由状态字典类型定义
+
+    Attributes:
+        question: 用户输入的问题
+        thread_id: 会话ID
+        user_id: 用户ID（字符串或整数）
+        history: 对话历史记录
+        intent_result: 意图识别结果字典
+        slots: 提取的槽位信息
+        awaiting_clarification: 是否等待澄清
+        clarification_state: 澄清状态
+        intent: 向后兼容的意图枚举
+        next_agent: 下一个路由的Agent名称
     """
-    意图路由Agent（v2.0）
+    question: str
+    thread_id: str
+    user_id: str | int
+    history: list[dict[str, Any]]
+    intent_result: dict[str, Any]
+    slots: dict[str, Any]
+    awaiting_clarification: bool
+    clarification_state: dict[str, Any]
+    intent: Intent
+    next_agent: str
+
+
+class IntentRouterAgent(BaseAgent):
+    """意图路由Agent（v2.0）
 
     基于Function Calling的分层意图识别：
     1. 识别一级（业务域）、二级（动作）、三级（子意图）
     2. 槽位提取和验证
     3. 智能澄清机制
-    4. 话题切换检测
+    4. 话题切换检测（由IntentRecognitionService处理）
+
+    Attributes:
+        GREETING_RESPONSE: 问候语回复文本（类常量）
     """
 
-    def __init__(self):
+    GREETING_RESPONSE: str = (
+        "您好！我是您的智能客服助手，可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？"
+    )
+
+    def __init__(self) -> None:
+        """初始化IntentRouterAgent。"""
         super().__init__(name="intent_router", system_prompt=None)
         self.intent_service = IntentRecognitionService()
+        logger.debug("IntentRouterAgent initialized")
 
-    async def process(self, state: dict) -> AgentResult:
-        """
-        处理用户输入，识别意图并路由
+    async def process(self, state: RouterState) -> AgentResult:
+        """处理用户输入，识别意图并路由
 
         流程：
-        1. 检测话题切换
-        2. 识别用户意图（Function Calling）
+        1. 接收用户查询和会话信息
+        2. 识别用户意图（通过IntentRecognitionService）
         3. 验证槽位完整性
         4. 需要澄清 -> 生成追问问题
         5. 意图清晰 -> 路由到对应Agent
+
+        Args:
+            state: 路由状态字典，包含question, thread_id, user_id等字段
+
+        Returns:
+            AgentResult: 包含响应内容和更新后的状态
         """
         query = state.get("question", "")
         session_id = state.get("thread_id", "")
         user_id = state.get("user_id")
 
-        # 1. 话题切换检测
-        if await self._detect_topic_switch(state):
-            await self._handle_topic_switch(session_id)
+        logger.info(
+            "Processing query for user_id=%s, session_id=%s, query='%s'",
+            user_id, session_id, query
+        )
 
-        # 2. 意图识别
+        # 意图识别
+        logger.debug("Starting intent recognition")
         result = await self.intent_service.recognize(
             query=query,
             session_id=session_id,
             conversation_history=state.get("history", []),
         )
+        logger.info(
+            "Intent recognized: primary=%s, confidence=%.2f",
+            result.primary_intent, result.confidence
+        )
 
         # 映射到向后兼容的意图格式
         legacy_intent = self._map_to_legacy_intent(result)
         next_agent = self._route_by_intent(result)
+        logger.debug(
+            "Routing decision: legacy_intent=%s, next_agent=%s",
+            legacy_intent, next_agent
+        )
 
-        # 3. 需要澄清
+        # 需要澄清
         if result.needs_clarification or result.missing_slots:
+            logger.info("Clarification needed, missing_slots=%s", result.missing_slots)
             clarification = await self.intent_service.clarify(
                 session_id=session_id,
                 user_response=query,
             )
+            logger.debug("Clarification response generated")
             return AgentResult(
                 response=clarification.response,
                 updated_state={
@@ -83,9 +139,9 @@ class IntentRouterAgent(BaseAgent):
                 }
             )
 
-        # 4. 意图清晰，路由到对应Agent
+        # 意图清晰，路由到对应Agent
         # 构建更新后的状态（包含向后兼容字段）
-        updated_state = {
+        updated_state: RouterState = {
             # 新格式字段
             "intent_result": result.to_dict(),
             "slots": result.slots,
@@ -97,44 +153,27 @@ class IntentRouterAgent(BaseAgent):
 
         # 对于闲聊/OTHER意图，直接返回问候回复（向后兼容行为）
         if legacy_intent == Intent.OTHER:
+            logger.info("OTHER intent detected, returning greeting response")
             return AgentResult(
-                response="您好！我是您的智能客服助手，可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？",
+                response=self.GREETING_RESPONSE,
                 updated_state=updated_state
             )
 
+        logger.info("Routing to agent: %s", next_agent)
         return AgentResult(
             response="",  # 由下一个Agent生成
             updated_state=updated_state
         )
 
-    def _quick_intent_check(self, question: str) -> Intent | None:
-        """
-        快速意图检查（规则匹配，向后兼容）
-
-        注意：此方法仅用于向后兼容。新系统使用 IntentRecognitionService
-        进行完整的意图识别。此方法提供基于规则的快速匹配。
-        """
-        q = question.lower()
-
-        # 退货关键词
-        refund_keywords = ["退货", "退款", "退钱", "不要了", "换货"]
-        if any(kw in q for kw in refund_keywords):
-            return Intent.REFUND
-
-        # 订单关键词
-        order_keywords = ["订单", "物流", "到哪了", "快递", "发货", "签收", "sn"]
-        if any(kw in q for kw in order_keywords):
-            return Intent.ORDER
-
-        # 简单的问候检测
-        greeting_keywords = ["你好", "您好", "hi", "hello", "在吗"]
-        if any(q.strip().startswith(kw) for kw in greeting_keywords) and len(q) < 10:
-            return Intent.OTHER
-
-        return None
-
     def _route_by_intent(self, result: IntentResult) -> str:
-        """根据意图路由到对应Agent"""
+        """根据意图路由到对应Agent
+
+        Args:
+            result: 意图识别结果
+
+        Returns:
+            str: 目标Agent名称
+        """
         routing_map = {
             IntentCategory.ORDER: "order",
             IntentCategory.AFTER_SALES: "order",
@@ -143,10 +182,22 @@ class IntentRouterAgent(BaseAgent):
             IntentCategory.RECOMMENDATION: "policy",
             IntentCategory.CART: "order",
         }
-        return routing_map.get(result.primary_intent, "supervisor")
+        target_agent = routing_map.get(result.primary_intent, "supervisor")
+        logger.debug(
+            "Routing map: primary_intent=%s -> target_agent=%s",
+            result.primary_intent, target_agent
+        )
+        return target_agent
 
     def _map_to_legacy_intent(self, result: IntentResult) -> Intent:
-        """将新的意图结果映射到向后兼容的Intent枚举"""
+        """将新的意图结果映射到向后兼容的Intent枚举
+
+        Args:
+            result: 意图识别结果
+
+        Returns:
+            Intent: 向后兼容的意图枚举值
+        """
         primary = result.primary_intent
 
         # 退货/售后相关意图映射到 REFUND
@@ -170,18 +221,10 @@ class IntentRouterAgent(BaseAgent):
             return Intent.OTHER
 
         # 默认回退
+        logger.warning(
+            "Unknown primary_intent=%s, defaulting to OTHER", primary
+        )
         return Intent.OTHER
-
-    async def _detect_topic_switch(self, state: dict) -> bool:
-        """检测话题切换（简化版）"""
-        # 实际实现应该使用 topic_switch_detector
-        # 这里简化处理
-        return False
-
-    async def _handle_topic_switch(self, session_id: str):
-        """处理话题切换"""
-        # 实际实现应该重置会话状态
-        pass
 
 
 # 向后兼容别名
