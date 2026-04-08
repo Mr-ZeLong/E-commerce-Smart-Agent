@@ -3,7 +3,7 @@ import { chatApi } from '@/api/chat';
 import { useAuthStore } from '@/stores/auth';
 import type { ChatMessage, ChatRequest } from '@/types';
 
-export function useChat(conversationId?: string) {
+export function useChat(conversationId?: string, userId?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function useChat(conversationId?: string) {
       const request: ChatRequest = {
         message: content,
         conversation_id: conversationId,
-        user_id: useAuthStore.getState().user?.user_id || '',
+        user_id: userId || '',
       };
 
       try {
@@ -68,7 +68,7 @@ export function useChat(conversationId?: string) {
         setIsStreaming(false);
       }
     },
-    [conversationId, token]
+    [conversationId, token, userId]
   );
 
   const clearMessages = useCallback(() => {

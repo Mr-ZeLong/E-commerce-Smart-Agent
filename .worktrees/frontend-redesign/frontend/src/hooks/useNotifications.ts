@@ -3,7 +3,7 @@ import { useWebSocketStore } from '@/stores/websocket';
 import { useAuthStore } from '@/stores/auth';
 import type { WebSocketMessage, Task, Notification } from '@/types';
 
-const WS_URL = 'ws://localhost:8000/ws/notifications';
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/notifications';
 
 export function useNotifications() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -84,6 +84,7 @@ export function useNotifications() {
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();

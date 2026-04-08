@@ -16,7 +16,8 @@ export const chatApi = {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
     }
 
     const reader = response.body?.getReader();
