@@ -1,14 +1,17 @@
+# app/agents/__init__.py
+
 from app.agents.base import AgentResult, BaseAgent
-from app.agents.order import OrderAgent  # 新增
-from app.agents.policy import PolicyAgent  # 新增
-from app.agents.router import RouterAgent
-from app.agents.supervisor import SupervisorAgent  # 新增
+from app.agents.router import IntentRouterAgent, RouterAgent
+from app.agents.order import OrderAgent
+from app.agents.policy import PolicyAgent
+from app.agents.supervisor import SupervisorAgent
 
 __all__ = [
     "BaseAgent",
     "AgentResult",
-    "RouterAgent",
-    "PolicyAgent",  # 新增
-    "OrderAgent",  # 新增
-    "SupervisorAgent",  # 新增
+    "IntentRouterAgent",
+    "RouterAgent",  # 向后兼容别名
+    "OrderAgent",
+    "PolicyAgent",
+    "SupervisorAgent",
 ]
