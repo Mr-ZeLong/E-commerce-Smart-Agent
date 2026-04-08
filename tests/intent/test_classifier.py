@@ -413,7 +413,7 @@ def test_validate_intent_result_valid(classifier):
 def test_validate_intent_result_invalid_primary(classifier):
     """测试验证无效的一级意图"""
     result = IntentResult(
-        primary_intent="INVALID",  # 无效的枚举值
+        primary_intent="INVALID",  # type: ignore  # 无效的枚举值
         secondary_intent=IntentAction.QUERY,
         confidence=0.85,
         slots={},

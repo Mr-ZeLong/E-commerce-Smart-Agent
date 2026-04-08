@@ -227,9 +227,9 @@ class IntentClassifier:
             self.llm = llm
         else:
             self.llm = ChatOpenAI(
-                base_url=settings.OPENAI_BASE_URL,
-                api_key=SecretStr(settings.OPENAI_API_KEY),
-                model=settings.LLM_MODEL,
+                base_url=settings.OPENAI_BASE_URL,  # type: ignore
+                api_key=SecretStr(settings.OPENAI_API_KEY),  # type: ignore
+                model=settings.LLM_MODEL,  # type: ignore
                 temperature=0,
             )
 
