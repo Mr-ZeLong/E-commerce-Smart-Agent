@@ -165,6 +165,8 @@ class IntentResult:
             "slots": self.slots,
             "missing_slots": self.missing_slots,
             "needs_clarification": self.needs_clarification,
+            "clarification_question": self.clarification_question,
+            "raw_query": self.raw_query,
         }
 
 
@@ -878,17 +880,18 @@ class IntentClassifier:
         try:
             messages = self._build_messages(query, conversation_history)
 
-            # 调用LLM with function calling
-            response = await self.llm.ainvoke(
-                messages,
-                functions=[self._intent_function],
-                function_call={"name": "classify_intent"},
+            # 使用bind_tools绑定工具
+            llm_with_tools = self.llm.bind_tools(
+                [self._intent_function],
+                tool_choice={"type": "function", "function": {"name": "classify_intent"}}
             )
 
-            # 解析function call结果
-            function_call = response.additional_kwargs.get("function_call")
-            if function_call and function_call.get("arguments"):
-                args = json.loads(function_call["arguments"])
+            response = await llm_with_tools.ainvoke(messages)
+
+            # 解析tool_calls结果
+            tool_calls = response.additional_kwargs.get("tool_calls", [])
+            if tool_calls:
+                args = json.loads(tool_calls[0]["function"]["arguments"])
                 return self._parse_result(query, args)
 
         except Exception as e:
@@ -934,8 +937,8 @@ class IntentClassifier:
             for pattern in patterns:
                 if re.search(pattern, query_lower):
                     return IntentResult(
-                        primary_intent=IntentCategory(primary),
-                        secondary_intent=IntentAction(secondary),
+                        primary_intent=IntentCategory[primary],
+                        secondary_intent=IntentAction[secondary],
                         confidence=0.5,  # 规则匹配置信度较低
                         raw_query=query,
                     )
@@ -1058,10 +1061,13 @@ class TestFunctionCalling:
     async def test_function_calling_fallback_to_json(self, classifier, mock_llm):
         """测试Function Calling失败时降级到JSON解析"""
         # Arrange - 第一次调用失败，第二次成功
-        mock_llm.ainvoke.side_effect = [
-            Exception("Function calling error"),
-            MagicMock(content='{"primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "confidence": 0.8, "slots": {}}'),
-        ]
+        async def mock_ainvoke(*args, **kwargs):
+            mock_ainvoke.call_count = getattr(mock_ainvoke, 'call_count', 0) + 1
+            if mock_ainvoke.call_count == 1:
+                raise Exception("Function calling error")
+            return MagicMock(content='{"primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "confidence": 0.8, "slots": {}}')
+
+        mock_llm.ainvoke = mock_ainvoke
 
         # Act
         result = await classifier.classify("我要退货")
@@ -1362,7 +1368,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.intent.models import ClarificationState, IntentResult
-from app.intent.slot_validator import SlotValidationResult
+from app.intent.slot_validator import SlotValidationResult, SlotValidator
 
 
 @dataclass
@@ -1394,7 +1400,8 @@ class ClarificationEngine:
         "算了", "不用了", "不用", "别问了", "随便",
     ]
 
-    def __init__(self):
+    def __init__(self, slot_validator: SlotValidator | None = None):
+        self.slot_validator = slot_validator or SlotValidator()
         self.degradation_strategies = [
             self._degradation_optional,      # 策略1: 设为可选
             self._degradation_infer,         # 策略2: 智能推断
@@ -1422,9 +1429,7 @@ class ClarificationEngine:
             return self._build_max_rounds_response(state)
 
         # 获取下一个缺失槽位
-        from app.intent.slot_validator import SlotValidator
-        validator = SlotValidator()
-        next_slot = validator.get_next_missing_slot(validation_result)
+        next_slot = self.slot_validator.get_next_missing_slot(validation_result)
 
         if not next_slot:
             # 所有槽位已收集完成
@@ -1485,8 +1490,6 @@ class ClarificationEngine:
         # 检查是否完成
         if validation_result:
             # 重新验证
-            from app.intent.slot_validator import SlotValidator
-            validator = SlotValidator()
 
             # 构建临时结果用于验证
             temp_result = IntentResult(
@@ -1494,7 +1497,7 @@ class ClarificationEngine:
                 secondary_intent=state.current_intent.secondary_intent if state.current_intent else None,  # type: ignore
                 slots=state.collected_slots,
             )
-            new_validation = validator.validate(temp_result)
+            new_validation = self.slot_validator.validate(temp_result)
 
             if new_validation.is_complete:
                 return ClarificationResponse(
@@ -1648,6 +1651,7 @@ def initial_state():
 
 
 class TestClarificationGeneration:
+    @pytest.mark.asyncio
     async def test_generate_clarification_for_missing_slot(self, engine, initial_state):
         """测试为缺失槽位生成澄清问题"""
         validation = SlotValidationResult(
@@ -1664,6 +1668,7 @@ class TestClarificationGeneration:
         assert "订单号" in response.response
         assert initial_state.pending_slot == "order_sn"
 
+    @pytest.mark.asyncio
     async def test_clarification_complete_when_no_missing_slots(self, engine, initial_state):
         """测试无缺失槽位时返回完成"""
         validation = SlotValidationResult(
@@ -1681,12 +1686,14 @@ class TestClarificationGeneration:
 
 
 class TestUserRefusalHandling:
+    @pytest.mark.asyncio
     async def test_detect_refusal(self, engine):
         """测试检测用户拒绝"""
         assert engine._is_user_refusal("我不知道") is True
         assert engine._is_user_refusal("不记得了") is True
         assert engine._is_user_refusal("SN001") is False
 
+    @pytest.mark.asyncio
     async def test_handle_refusal_with_degradation(self, engine, initial_state):
         """测试处理用户拒绝"""
         initial_state.pending_slot = "order_sn"
@@ -2391,9 +2398,10 @@ class IntentRecognitionService:
         )
 
         if multi_result.is_multi_intent and len(multi_result.sub_intents) > 0:
-            # 简化：取第一个意图
             result = multi_result.sub_intents[0]
-            result.slots = multi_result.shared_slots
+            # 合并共享槽位和特定槽位，特定槽位优先
+            merged_slots = {**multi_result.shared_slots, **(result.slots or {})}
+            result.slots = merged_slots
         else:
             # 5. 单意图分类
             result = await self.classifier.classify(query, conversation_history)
@@ -2551,11 +2559,14 @@ class IntentRecognitionService:
             "pending_slot": state.pending_slot,
             "user_refused_slots": state.user_refused_slots,
             "clarification_history": state.clarification_history,
+            "created_at": state.created_at.isoformat() if state.created_at else None,
+            "updated_at": state.updated_at.isoformat() if state.updated_at else None,
         }
 
     def _deserialize_state(self, data: dict) -> ClarificationState:
         """反序列化会话状态"""
-        from app.intent.models import IntentCategory, IntentAction
+        from datetime import datetime
+        from app.intent.models import IntentCategory, IntentAction, IntentResult
 
         state = ClarificationState(
             session_id=data["session_id"],
@@ -2567,6 +2578,12 @@ class IntentRecognitionService:
             user_refused_slots=data.get("user_refused_slots", []),
             clarification_history=data.get("clarification_history", []),
         )
+
+        # 恢复datetime
+        if data.get("created_at"):
+            state.created_at = datetime.fromisoformat(data["created_at"])
+        if data.get("updated_at"):
+            state.updated_at = datetime.fromisoformat(data["updated_at"])
 
         if data.get("current_intent"):
             intent_data = data["current_intent"]
@@ -2620,7 +2637,8 @@ class IntentRecognitionService:
 """
 
 from app.agents.base import AgentResult, BaseAgent
-from app.intent import IntentRecognitionService, IntentCategory
+from app.intent import IntentRecognitionService
+from app.intent.models import IntentCategory, IntentResult
 
 
 class IntentRouterAgent(BaseAgent):
