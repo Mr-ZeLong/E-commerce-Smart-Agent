@@ -1,71 +1,293 @@
-"""意图识别服务"""
+"""意图识别服务层
+
+整合所有组件，对外提供统一接口，会话状态管理（Redis）。
+"""
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any
 
-from app.intent.models import (
-    IntentCategory,
-    IntentAction,
-    IntentResult,
-    ClarificationState,
-)
+from app.intent.classifier import IntentClassifier
+from app.intent.clarification import ClarificationEngine, ClarificationResponse
+from app.intent.models import ClarificationState, IntentCategory, IntentAction, IntentResult
+from app.intent.multi_intent import MultiIntentProcessor
+from app.intent.safety import SafetyFilter
+from app.intent.slot_validator import SlotValidator
+from app.intent.topic_switch import TopicSwitchDetector
 
 
 class IntentRecognitionService:
-    """意图识别服务
+    """意图识别服务"""
 
-    提供分层意图识别、槽位管理、澄清机制等功能。
-    """
+    def __init__(
+        self,
+        llm: Any | None = None,
+        redis_client: Any | None = None,
+        cache_ttl: int = 300,  # 缓存5分钟
+    ):
+        self.llm = llm
+        self.redis = redis_client
+        self.cache_ttl = cache_ttl
 
-    def __init__(self):
-        """初始化意图识别服务"""
-        pass
+        # 初始化组件
+        self.classifier = IntentClassifier(llm=llm)
+        self.slot_validator = SlotValidator()
+        self.clarification_engine = ClarificationEngine()
+        self.topic_switch_detector = TopicSwitchDetector()
+        self.multi_intent_processor = MultiIntentProcessor(classifier=self.classifier)
+        self.safety_filter = SafetyFilter(llm=llm)
 
     async def recognize(
         self,
         query: str,
-        session_id: str | None = None,
-        context: dict[str, Any] | None = None,
+        session_id: str,
+        conversation_history: list | None = None,
     ) -> IntentResult:
-        """识别用户意图
+        """
+        识别用户意图（主入口）
 
         Args:
             query: 用户输入
             session_id: 会话ID
-            context: 上下文信息
+            conversation_history: 对话历史
 
         Returns:
             IntentResult: 意图识别结果
         """
-        # TODO: 实现意图识别逻辑
-        raise NotImplementedError("意图识别功能将在后续任务中实现")
+        # 1. 安全过滤
+        safety_result = await self.safety_filter.check(query)
+        if not safety_result.is_safe:
+            # 返回安全警告意图
+            return self._create_safety_warning_result(safety_result)
+
+        # 2. 检查缓存
+        cached_result = await self._get_cached_result(query)
+        if cached_result:
+            return cached_result
+
+        # 3. 加载会话状态
+        state = await self._load_session_state(session_id)
+
+        # 4. 多意图处理
+        multi_result = await self.multi_intent_processor.process(
+            query, conversation_history
+        )
+
+        if multi_result.is_multi_intent and len(multi_result.sub_intents) > 0:
+            result = multi_result.sub_intents[0]
+            # 合并共享槽位和特定槽位，特定槽位优先
+            merged_slots = {**multi_result.shared_slots, **(result.slots or {})}
+            result.slots = merged_slots
+        else:
+            # 5. 单意图分类
+            result = await self.classifier.classify(query, conversation_history)
+
+        # 6. 话题切换检测
+        previous_result = state.current_intent if state else None
+        switch_result = await self.topic_switch_detector.detect(
+            result, previous_result, query, conversation_history
+        )
+
+        if switch_result.is_switch and switch_result.should_reset_context:
+            # 重置会话状态
+            state = ClarificationState(session_id=session_id)
+
+        # 7. 槽位验证
+        validation = self.slot_validator.validate(result)
+
+        if not validation.is_complete:
+            result.needs_clarification = True
+            result.missing_slots = validation.missing_p0_slots
+
+        # 8. 保存会话状态
+        if state:
+            state.current_intent = result
+            await self._save_session_state(state)
+
+        # 9. 缓存结果
+        await self._cache_result(query, result)
+
+        return result
 
     async def clarify(
         self,
         session_id: str,
         user_response: str,
-    ) -> IntentResult:
-        """处理用户澄清回复
+    ) -> ClarificationResponse:
+        """
+        处理澄清回复
 
         Args:
             session_id: 会话ID
             user_response: 用户回复
 
         Returns:
-            IntentResult: 更新后的意图识别结果
+            ClarificationResponse: 澄清响应
         """
-        # TODO: 实现澄清处理逻辑
-        raise NotImplementedError("澄清处理功能将在后续任务中实现")
+        # 1. 加载会话状态
+        state = await self._load_session_state(session_id)
 
-    def get_clarification_state(self, session_id: str) -> ClarificationState | None:
-        """获取澄清状态
+        if not state or not state.current_intent:
+            return ClarificationResponse(
+                response="会话已过期，请重新描述您的问题。",
+                state=ClarificationState(session_id=session_id),
+                is_complete=True,
+            )
 
-        Args:
-            session_id: 会话ID
+        # 2. 安全过滤
+        safety_result = await self.safety_filter.check(user_response)
+        if not safety_result.is_safe:
+            return ClarificationResponse(
+                response="输入包含不安全内容，请重新输入。",
+                state=state,
+                is_complete=False,
+            )
 
-        Returns:
-            ClarificationState | None: 澄清状态，如果不存在则返回None
-        """
-        # TODO: 实现状态获取逻辑
+        # 3. 处理用户回复
+        validation = self.slot_validator.validate(state.current_intent)
+        response = await self.clarification_engine.handle_user_response(
+            state, user_response, validation
+        )
+
+        # 4. 保存更新后的状态
+        await self._save_session_state(response.state)
+
+        return response
+
+    async def _load_session_state(self, session_id: str) -> ClarificationState | None:
+        """从Redis加载会话状态"""
+        if not self.redis:
+            return None
+
+        try:
+            key = f"intent:session:{session_id}"
+            data = await self.redis.get(key)
+            if data:
+                state_dict = json.loads(data)
+                return self._deserialize_state(state_dict)
+        except Exception as e:
+            print(f"Failed to load session state: {e}")
+
         return None
+
+    async def _save_session_state(self, state: ClarificationState) -> None:
+        """保存会话状态到Redis"""
+        if not self.redis:
+            return
+
+        try:
+            key = f"intent:session:{state.session_id}"
+            state_dict = self._serialize_state(state)
+            await self.redis.setex(key, self.cache_ttl, json.dumps(state_dict))
+        except Exception as e:
+            print(f"Failed to save session state: {e}")
+
+    async def _get_cached_result(self, query: str) -> IntentResult | None:
+        """获取缓存的识别结果"""
+        if not self.redis:
+            return None
+
+        try:
+            query_hash = hashlib.md5(query.encode()).hexdigest()
+            key = f"intent:cache:{query_hash}"
+            data = await self.redis.get(key)
+            if data:
+                result_dict = json.loads(data)
+                return self._deserialize_result(result_dict)
+        except Exception as e:
+            print(f"Failed to get cached result: {e}")
+
+        return None
+
+    async def _cache_result(self, query: str, result: IntentResult) -> None:
+        """缓存识别结果"""
+        if not self.redis:
+            return
+
+        try:
+            query_hash = hashlib.md5(query.encode()).hexdigest()
+            key = f"intent:cache:{query_hash}"
+            result_dict = result.to_dict()
+            await self.redis.setex(key, self.cache_ttl, json.dumps(result_dict))
+        except Exception as e:
+            print(f"Failed to cache result: {e}")
+
+    def _create_safety_warning_result(self, safety_result) -> IntentResult:
+        """创建安全警告结果"""
+        return IntentResult(
+            primary_intent=IntentCategory.OTHER,
+            secondary_intent=IntentAction.CONSULT,
+            confidence=0.0,
+            needs_clarification=True,
+            clarification_question=f"输入包含不安全内容（{safety_result.reason}），请重新输入。",
+            raw_query="",
+        )
+
+    def _serialize_state(self, state: ClarificationState) -> dict:
+        """序列化会话状态"""
+        return {
+            "session_id": state.session_id,
+            "current_intent": state.current_intent.to_dict() if state.current_intent else None,
+            "clarification_round": state.clarification_round,
+            "max_clarification_rounds": state.max_clarification_rounds,
+            "asked_slots": state.asked_slots,
+            "collected_slots": state.collected_slots,
+            "pending_slot": state.pending_slot,
+            "user_refused_slots": state.user_refused_slots,
+            "clarification_history": state.clarification_history,
+            "created_at": state.created_at.isoformat() if state.created_at else None,
+            "updated_at": state.updated_at.isoformat() if state.updated_at else None,
+        }
+
+    def _deserialize_state(self, data: dict) -> ClarificationState:
+        """反序列化会话状态"""
+        from datetime import datetime
+
+        state = ClarificationState(
+            session_id=data["session_id"],
+            clarification_round=data.get("clarification_round", 0),
+            max_clarification_rounds=data.get("max_clarification_rounds", 3),
+            asked_slots=data.get("asked_slots", []),
+            collected_slots=data.get("collected_slots", {}),
+            pending_slot=data.get("pending_slot"),
+            user_refused_slots=data.get("user_refused_slots", []),
+            clarification_history=data.get("clarification_history", []),
+        )
+
+        # 恢复datetime
+        if data.get("created_at"):
+            state.created_at = datetime.fromisoformat(data["created_at"])
+        if data.get("updated_at"):
+            state.updated_at = datetime.fromisoformat(data["updated_at"])
+
+        if data.get("current_intent"):
+            intent_data = data["current_intent"]
+            state.current_intent = IntentResult(
+                primary_intent=IntentCategory(intent_data["primary_intent"]),
+                secondary_intent=IntentAction(intent_data["secondary_intent"]),
+                tertiary_intent=intent_data.get("tertiary_intent"),
+                confidence=intent_data.get("confidence", 0.0),
+                slots=intent_data.get("slots", {}),
+                missing_slots=intent_data.get("missing_slots", []),
+                needs_clarification=intent_data.get("needs_clarification", False),
+                clarification_question=intent_data.get("clarification_question"),
+                raw_query=intent_data.get("raw_query", ""),
+            )
+
+        return state
+
+    def _deserialize_result(self, data: dict) -> IntentResult:
+        """反序列化识别结果"""
+        return IntentResult(
+            primary_intent=IntentCategory(data["primary_intent"]),
+            secondary_intent=IntentAction(data["secondary_intent"]),
+            tertiary_intent=data.get("tertiary_intent"),
+            confidence=data.get("confidence", 0.0),
+            slots=data.get("slots", {}),
+            missing_slots=data.get("missing_slots", []),
+            needs_clarification=data.get("needs_clarification", False),
+            clarification_question=data.get("clarification_question"),
+            raw_query=data.get("raw_query", ""),
+        )
