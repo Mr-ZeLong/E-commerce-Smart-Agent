@@ -55,9 +55,10 @@ export function useAuth() {
 }
 
 export function useCurrentUser() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: ['currentUser'],
     queryFn: authApi.getCurrentUser,
-    enabled: useAuthStore.getState().isAuthenticated,
+    enabled: isAuthenticated,
   });
 }
