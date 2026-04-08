@@ -21,7 +21,8 @@ class TestServiceInitialization:
         service = IntentRecognitionService()
         assert service.llm is None
         assert service.redis is None
-        assert service.cache_ttl == 300
+        assert service.result_cache_ttl == 300
+        assert service.session_cache_ttl == 1800
         assert service.classifier is not None
         assert service.slot_validator is not None
         assert service.clarification_engine is not None
@@ -45,8 +46,9 @@ class TestServiceInitialization:
 
     def test_init_with_custom_cache_ttl(self):
         """测试自定义缓存TTL"""
-        service = IntentRecognitionService(cache_ttl=600)
-        assert service.cache_ttl == 600
+        service = IntentRecognitionService(result_cache_ttl=600, session_cache_ttl=1200)
+        assert service.result_cache_ttl == 600
+        assert service.session_cache_ttl == 1200
 
 
 class TestRecognizeMethod:
@@ -635,7 +637,7 @@ class TestCaching:
         mock_redis_service.redis.setex.assert_called_once()
         call_args = mock_redis_service.redis.setex.call_args
         assert call_args[0][0].startswith("intent:cache:")
-        assert call_args[0][1] == 300  # cache_ttl
+        assert call_args[0][1] == 300  # result_cache_ttl
 
     @pytest.mark.asyncio
     async def test_cache_result_no_redis(self):
@@ -727,7 +729,7 @@ class TestSessionStateManagement:
         mock_redis_service.redis.setex.assert_called_once()
         call_args = mock_redis_service.redis.setex.call_args
         assert call_args[0][0] == "intent:session:session_123"
-        assert call_args[0][1] == 300  # cache_ttl
+        assert call_args[0][1] == 1800  # session_cache_ttl
 
     @pytest.mark.asyncio
     async def test_save_session_state_no_redis(self):
@@ -754,7 +756,7 @@ class TestSafetyFilterIntegration:
             reason="检测到敏感关键词: 密码",
         )
 
-        result = service._create_safety_warning_result(safety_result)
+        result = service._create_safety_warning_result("测试查询", safety_result)
 
         assert result.primary_intent == IntentCategory.OTHER
         assert result.secondary_intent == IntentAction.CONSULT

@@ -7,29 +7,51 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from typing import Any
 
 from app.intent.classifier import IntentClassifier
 from app.intent.clarification import ClarificationEngine, ClarificationResponse
 from app.intent.models import ClarificationState, IntentCategory, IntentAction, IntentResult
 from app.intent.multi_intent import MultiIntentProcessor
-from app.intent.safety import SafetyFilter
+from app.intent.safety import SafetyFilter, SafetyCheckResult
 from app.intent.slot_validator import SlotValidator
 from app.intent.topic_switch import TopicSwitchDetector
 
+logger = logging.getLogger(__name__)
+
 
 class IntentRecognitionService:
-    """意图识别服务"""
+    """意图识别服务
+
+    整合所有意图识别组件，对外提供统一的意图识别接口。
+    包含安全过滤、多意图处理、槽位验证、话题切换检测、
+    澄清机制等功能，支持Redis缓存和会话状态管理。
+
+    Attributes:
+        llm: LLM模型实例，用于分类和澄清
+        redis: Redis客户端，用于缓存和会话状态存储
+        result_cache_ttl: 识别结果缓存TTL（秒），默认300秒
+        session_cache_ttl: 会话状态缓存TTL（秒），默认1800秒
+        classifier: 意图分类器
+        slot_validator: 槽位验证器
+        clarification_engine: 澄清引擎
+        topic_switch_detector: 话题切换检测器
+        multi_intent_processor: 多意图处理器
+        safety_filter: 安全过滤器
+    """
 
     def __init__(
         self,
         llm: Any | None = None,
         redis_client: Any | None = None,
-        cache_ttl: int = 300,  # 缓存5分钟
+        result_cache_ttl: int = 300,  # 识别结果缓存5分钟
+        session_cache_ttl: int = 1800,  # 会话状态缓存30分钟
     ):
         self.llm = llm
         self.redis = redis_client
-        self.cache_ttl = cache_ttl
+        self.result_cache_ttl = result_cache_ttl
+        self.session_cache_ttl = session_cache_ttl
 
         # 初始化组件
         self.classifier = IntentClassifier(llm=llm)
@@ -60,9 +82,9 @@ class IntentRecognitionService:
         safety_result = await self.safety_filter.check(query)
         if not safety_result.is_safe:
             # 返回安全警告意图
-            return self._create_safety_warning_result(safety_result)
+            return self._create_safety_warning_result(query, safety_result)
 
-        # 2. 检查缓存
+        # 2. 检查缓存（缓存中已包含安全检查结果，安全的内容才会被缓存）
         cached_result = await self._get_cached_result(query)
         if cached_result:
             return cached_result
@@ -157,7 +179,14 @@ class IntentRecognitionService:
         return response
 
     async def _load_session_state(self, session_id: str) -> ClarificationState | None:
-        """从Redis加载会话状态"""
+        """从Redis加载会话状态
+
+        Args:
+            session_id: 会话ID
+
+        Returns:
+            ClarificationState | None: 会话状态对象，未找到则返回None
+        """
         if not self.redis:
             return None
 
@@ -168,65 +197,98 @@ class IntentRecognitionService:
                 state_dict = json.loads(data)
                 return self._deserialize_state(state_dict)
         except Exception as e:
-            print(f"Failed to load session state: {e}")
+            logger.warning(f"Failed to load session state: {e}")
 
         return None
 
     async def _save_session_state(self, state: ClarificationState) -> None:
-        """保存会话状态到Redis"""
+        """保存会话状态到Redis
+
+        Args:
+            state: 会话状态对象
+        """
         if not self.redis:
             return
 
         try:
             key = f"intent:session:{state.session_id}"
             state_dict = self._serialize_state(state)
-            await self.redis.setex(key, self.cache_ttl, json.dumps(state_dict))
+            await self.redis.setex(key, self.session_cache_ttl, json.dumps(state_dict))
         except Exception as e:
-            print(f"Failed to save session state: {e}")
+            logger.warning(f"Failed to save session state: {e}")
 
     async def _get_cached_result(self, query: str) -> IntentResult | None:
-        """获取缓存的识别结果"""
+        """获取缓存的识别结果
+
+        Args:
+            query: 用户查询字符串
+
+        Returns:
+            IntentResult | None: 缓存的识别结果，未命中则返回None
+        """
         if not self.redis:
             return None
 
         try:
-            query_hash = hashlib.md5(query.encode()).hexdigest()
+            query_hash = hashlib.sha256(query.encode()).hexdigest()
             key = f"intent:cache:{query_hash}"
             data = await self.redis.get(key)
             if data:
                 result_dict = json.loads(data)
                 return self._deserialize_result(result_dict)
         except Exception as e:
-            print(f"Failed to get cached result: {e}")
+            logger.warning(f"Failed to get cached result: {e}")
 
         return None
 
     async def _cache_result(self, query: str, result: IntentResult) -> None:
-        """缓存识别结果"""
+        """缓存识别结果
+
+        Args:
+            query: 用户查询字符串
+            result: 意图识别结果
+        """
         if not self.redis:
             return
 
         try:
-            query_hash = hashlib.md5(query.encode()).hexdigest()
+            query_hash = hashlib.sha256(query.encode()).hexdigest()
             key = f"intent:cache:{query_hash}"
             result_dict = result.to_dict()
-            await self.redis.setex(key, self.cache_ttl, json.dumps(result_dict))
+            await self.redis.setex(key, self.result_cache_ttl, json.dumps(result_dict))
         except Exception as e:
-            print(f"Failed to cache result: {e}")
+            logger.warning(f"Failed to cache result: {e}")
 
-    def _create_safety_warning_result(self, safety_result) -> IntentResult:
-        """创建安全警告结果"""
+    def _create_safety_warning_result(
+        self, query: str, safety_result: SafetyCheckResult
+    ) -> IntentResult:
+        """创建安全警告结果
+
+        Args:
+            query: 原始用户查询
+            safety_result: 安全检查结果
+
+        Returns:
+            IntentResult: 安全警告意图结果
+        """
         return IntentResult(
             primary_intent=IntentCategory.OTHER,
             secondary_intent=IntentAction.CONSULT,
             confidence=0.0,
             needs_clarification=True,
             clarification_question=f"输入包含不安全内容（{safety_result.reason}），请重新输入。",
-            raw_query="",
+            raw_query=query,
         )
 
     def _serialize_state(self, state: ClarificationState) -> dict:
-        """序列化会话状态"""
+        """序列化会话状态
+
+        Args:
+            state: 会话状态对象
+
+        Returns:
+            dict: 序列化后的字典
+        """
         return {
             "session_id": state.session_id,
             "current_intent": state.current_intent.to_dict() if state.current_intent else None,
@@ -242,7 +304,14 @@ class IntentRecognitionService:
         }
 
     def _deserialize_state(self, data: dict) -> ClarificationState:
-        """反序列化会话状态"""
+        """反序列化会话状态
+
+        Args:
+            data: 序列化的状态字典
+
+        Returns:
+            ClarificationState: 反序列化后的会话状态对象
+        """
         from datetime import datetime
 
         state = ClarificationState(
@@ -279,7 +348,14 @@ class IntentRecognitionService:
         return state
 
     def _deserialize_result(self, data: dict) -> IntentResult:
-        """反序列化识别结果"""
+        """反序列化识别结果
+
+        Args:
+            data: 序列化的结果字典
+
+        Returns:
+            IntentResult: 反序列化后的意图识别结果
+        """
         return IntentResult(
             primary_intent=IntentCategory(data["primary_intent"]),
             secondary_intent=IntentAction(data["secondary_intent"]),
