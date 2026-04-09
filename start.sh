@@ -16,9 +16,25 @@ cd frontend && npm install && cd ..
 echo " 构建前端..."
 cd frontend && npm run build && cd ..
 
-# 启动 Redis 和 PostgreSQL
+# 启动 Redis、PostgreSQL 和 Qdrant
 echo " 启动基础设施..."
-docker-compose up -d db redis
+docker-compose up -d db redis qdrant
+
+# 等待 Qdrant 就绪
+echo "Waiting for Qdrant to be healthy..."
+QDRANT_HEALTHY=0
+for i in {1..30}; do
+  if curl -sf http://localhost:6333/healthz > /dev/null; then
+    echo "Qdrant is healthy"
+    QDRANT_HEALTHY=1
+    break
+  fi
+  sleep 1
+done
+if [ "$QDRANT_HEALTHY" -eq 0 ]; then
+  echo "Qdrant failed to become healthy"
+  exit 1
+fi
 
 # 等待数据库就绪
 echo " 等待数据库启动..."
