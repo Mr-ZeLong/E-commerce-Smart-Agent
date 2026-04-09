@@ -100,6 +100,29 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "qwen-plus"
     EMBEDDING_MODEL: str = "text-embedding-v3"
     EMBEDDING_DIM: int = 1024
+
+    # Qdrant
+    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_API_KEY: str | None = None
+    QDRANT_COLLECTION_NAME: str = "knowledge_chunks"
+    QDRANT_TIMEOUT: float = 10.0
+    QDRANT_RETRIES: int = 3
+
+    # Reranker / Rewriter
+    RERANK_MODEL: str = "qwen3-rerank"
+    REWRITE_MODEL: str = "qwen-turbo"
+    RERANK_TIMEOUT: float = 10.0
+    REWRITE_TIMEOUT: float = 5.0
+
+    # Retriever
+    RETRIEVER_DENSE_TOPK: int = 15
+    RETRIEVER_SPARSE_TOPK: int = 15
+    RETRIEVER_RRF_K: int = 60
+    RETRIEVER_FINAL_TOPK: int = 5
+
+    # fastembed
+    FASTEMBED_CACHE_PATH: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
