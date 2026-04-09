@@ -23,7 +23,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
 
-# 4. 初始化 DB 工具 (用于创建 pgvector 扩展)
+# 4. 初始化 DB 工具
 async def init_db():
     async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        pass
