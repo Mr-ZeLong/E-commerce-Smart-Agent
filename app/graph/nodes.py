@@ -14,14 +14,10 @@ from app.core.database import async_session_maker
 from app.graph.state import AgentState
 from app.retrieval.embeddings import embedding_model
 from app.models.audit import AuditAction, AuditLog, RiskLevel
-from app.models.knowledge import KnowledgeChunk
 from app.models.order import Order
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 from app.tasks.refund_tasks import notify_admin_audit
 from app.websocket.manager import manager
-
-# 相似度阈值：只有距离 < 0.5 才认为相关
-SIMILARITY_THRESHOLD = 0.5
 
 # ==========================================
 # 全局组件初始化
@@ -58,43 +54,6 @@ prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
 # ==========================================
 # 节点函数定义
 # ==========================================
-
-async def retrieve(state: AgentState) -> dict:
-    """
-    检索节点：带阈值过滤的硬逻辑
-    """
-    question = state["question"]
-    print(f"🔍 [Retrieve] 正在检索: {question}")
-
-    # 生成查询向量
-    query_vector = await embedding_model.aembed_query(question)
-
-    async with async_session_maker() as session:
-        # 查询最相似的 chunk
-        distance_col = KnowledgeChunk.embedding.cosine_distance(query_vector).label("distance") # type: ignore
-
-        stmt = (
-            select(KnowledgeChunk, distance_col)
-            .where(KnowledgeChunk.is_active)
-            .order_by(distance_col)
-            .limit(5)
-        )
-        result = await session.exec(stmt)
-        results = result.all()
-
-    # 硬逻辑过滤
-    valid_chunks = []
-    for chunk, distance in results:
-        print(f"   - 内容片段: {chunk.content[: 10]}...  | 距离分:  {distance:.4f}")
-
-        if distance < SIMILARITY_THRESHOLD:
-            valid_chunks.append(chunk.content)
-        else:
-            print("    距离过大，已丢弃")
-
-    print(f" [Retrieve] 最终有效记录: {len(valid_chunks)} 条")
-    return {"context": valid_chunks}
-
 
 # Generate 节点的 System Prompt
 GENERATE_SYSTEM_PROMPT = """
