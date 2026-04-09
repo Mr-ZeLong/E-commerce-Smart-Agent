@@ -1,11 +1,10 @@
-from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.agents.base import AgentResult
 from app.models.order import Order, OrderStatus
-from app.models.refund import RefundReason, RefundStatus
+from app.models.refund import RefundStatus
 from app.services.order_service import OrderService
 
 
@@ -179,3 +178,75 @@ async def test_handle_refund_request_order_not_found(order_service: OrderService
     assert isinstance(result, AgentResult)
     assert "未找到订单" in result.response
     assert result.updated_state["refund_flow_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_handle_refund_request_order_id_none(order_service: OrderService):
+    """订单 id 为 None 时返回数据异常提示"""
+    mock_order = MagicMock(spec=Order)
+    mock_order.id = None
+
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+
+    with (
+        patch(
+            "app.services.order_service.async_session_maker",
+            return_value=mock_session,
+        ),
+        patch(
+            "app.services.order_service.get_order_by_sn",
+            new_callable=AsyncMock,
+            return_value=mock_order,
+        ),
+    ):
+        result = await order_service.handle_refund_request(
+            "我要退货，订单号 SN20240001",
+            user_id=1,
+        )
+
+    assert isinstance(result, AgentResult)
+    assert "订单数据异常" in result.response
+    assert result.updated_state["refund_flow_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_handle_refund_request_refund_failed(order_service: OrderService):
+    """process_refund_for_order 返回失败时返回错误消息"""
+    mock_order = MagicMock(spec=Order)
+    mock_order.id = 42
+    mock_order.model_dump.return_value = {
+        "order_sn": "SN20240001",
+        "status": OrderStatus.DELIVERED,
+    }
+
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=False)
+
+    with (
+        patch(
+            "app.services.order_service.async_session_maker",
+            return_value=mock_session,
+        ),
+        patch(
+            "app.services.order_service.get_order_by_sn",
+            new_callable=AsyncMock,
+            return_value=mock_order,
+        ),
+        patch(
+            "app.services.order_service.process_refund_for_order",
+            new_callable=AsyncMock,
+            return_value=(False, "超期", None),
+        ),
+    ):
+        result = await order_service.handle_refund_request(
+            "我要退货，订单号 SN20240001",
+            user_id=1,
+        )
+
+    assert isinstance(result, AgentResult)
+    assert "超期" in result.response
+    assert result.updated_state["refund_flow_active"] is False
+    assert result.updated_state["order_data"]["order_sn"] == "SN20240001"

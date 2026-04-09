@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import logging
 from typing import Any
 
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlmodel import select
 
+from app.agents.base import AgentResult
 from app.core.database import async_session_maker
 from app.models.order import Order
 from app.models.refund import RefundApplication
@@ -14,7 +17,6 @@ from app.services.refund_service import (
 )
 from app.tasks.refund_tasks import notify_admin_audit
 from app.utils.order_utils import classify_refund_reason, extract_order_sn
-
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ class OrderService:
             return None
         except SQLAlchemyError:
             logger.exception("[OrderService] Database error querying order")
-            return None
+            raise
         except Exception:
             logger.exception("[OrderService] Unexpected error querying order")
             return None
@@ -57,10 +59,8 @@ class OrderService:
         question: str,
         user_id: int,
         thread_id: str = ""
-    ) -> "AgentResult":
+    ) -> AgentResult:
         """处理退货申请，封装数据库事务与 Celery 副作用。"""
-        from app.agents.base import AgentResult
-
         order_sn = extract_order_sn(question)
 
         if not order_sn:
@@ -107,7 +107,9 @@ class OrderService:
             audit = None
             if refund_data is not None:
                 refund_result = await session.exec(
-                    select(RefundApplication).where(RefundApplication.id == refund_data["refund_id"])
+                    select(RefundApplication).where(
+                        RefundApplication.id == refund_data["refund_id"]
+                    )
                 )
                 refund = refund_result.one_or_none()
                 if refund:

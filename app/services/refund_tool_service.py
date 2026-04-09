@@ -105,13 +105,19 @@ async def query_refund_status(user_id: int, refund_id: int | None = None) -> str
                 f"📋 退货申请详情（#{refund.id}）\n\n"
                 f"订单信息：\n"
                 f"  - 订单号：{order.order_sn if order else '未知'}\n"
-                f"  - 商品：{', '.join([item['name'] for item in order.items]) if order else '未知'}\n\n"
+                f"  - 商品："
+                f"{', '.join([item['name'] for item in order.items]) if order else '未知'}\n\n"
                 f"申请信息：\n"
                 f"  - 申请状态：{refund.status}\n"
                 f"  - 退款金额：¥{refund.refund_amount}\n"
                 f"  - 申请时间：{refund.created_at.strftime('%Y-%m-%d %H:%M')}\n"
                 f"  - 退货原因：{refund.reason_detail}\n\n"
-                f"{'审核信息：\n  - 审核时间：' + refund.reviewed_at.strftime('%Y-%m-%d %H:%M') if refund.reviewed_at else '⏳ 审核中，请耐心等待'}\n"
+                f"{(
+                    '审核信息：\n  - 审核时间：'
+                    + refund.reviewed_at.strftime('%Y-%m-%d %H:%M')
+                    if refund.reviewed_at
+                    else '⏳ 审核中，请耐心等待'
+                )}\n"
                 f"{('  - 审核备注：' + refund.admin_note) if refund.admin_note else ''}"
             )
 

@@ -1,10 +1,10 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.models.order import Order, OrderStatus
-from app.models.refund import RefundReason, RefundStatus
+from app.models.refund import RefundStatus
 from app.services import refund_tool_service
 
 

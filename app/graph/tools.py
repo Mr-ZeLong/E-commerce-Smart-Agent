@@ -9,7 +9,11 @@ from pydantic import Field
 
 from app.services.refund_tool_service import (
     check_refund_eligibility as _check_refund_eligibility,
+)
+from app.services.refund_tool_service import (
     query_refund_status as _query_refund_status,
+)
+from app.services.refund_tool_service import (
     submit_refund_application as _submit_refund_application,
 )
 
@@ -47,7 +51,11 @@ async def submit_refund_application(
     reason_detail: Annotated[str, Field(description="用户填写的退货原因详细描述")],
     reason_category: Annotated[
         str | None,
-        Field(description="退货原因分类，可选值:  QUALITY_ISSUE(质量问题), SIZE_NOT_FIT(尺码不合适), NOT_AS_DESCRIBED(与描述不符), CHANGED_MIND(不想要了), OTHER(其他)")
+        Field(
+            description="退货原因分类，可选值: "
+            "QUALITY_ISSUE(质量问题), SIZE_NOT_FIT(尺码不合适), "
+            "NOT_AS_DESCRIBED(与描述不符), CHANGED_MIND(不想要了), OTHER(其他)"
+        )
     ] = None
 ) -> str:
     """
