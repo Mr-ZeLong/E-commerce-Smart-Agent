@@ -79,7 +79,7 @@ class PolicyAgent(BaseAgent):
         Returns:
             (chunks, similarities, sources)
         """
-        from app.graph.nodes import embedding_model
+        from app.retrieval.embeddings import embedding_model
 
         # 生成查询向量
         query_vector = await embedding_model.aembed_query(question)
