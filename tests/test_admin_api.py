@@ -2,34 +2,16 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlmodel import SQLModel, select
+from sqlmodel import select
 
 from app.api.v1.utils import build_thread_id
-from app.core.database import async_session_maker, engine
-from app.core.limiter import limiter
+from app.core.database import async_session_maker
 from app.core.security import create_access_token
-from app.main import app
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
 from app.models.message import MessageCard
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
-
-
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-
-@pytest_asyncio.fixture
-async def client():
-    limiter.reset()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
-        yield c
 
 
 async def create_admin_user() -> tuple[User, str]:
@@ -125,7 +107,6 @@ async def create_audit_log(
 
 @pytest.mark.asyncio
 async def test_get_admin_tasks_returns_pending_tasks_for_admin(client):
-    await init_db()
     admin, token = await create_admin_user()
     user = await create_regular_user()
     order, refund = await create_order_and_refund(user)
@@ -144,7 +125,6 @@ async def test_get_admin_tasks_returns_pending_tasks_for_admin(client):
 
 @pytest.mark.asyncio
 async def test_get_admin_tasks_rejects_non_admin_token(client):
-    await init_db()
     user = await create_regular_user()
     token = create_access_token(user_id=user.id, is_admin=False)
 
@@ -158,14 +138,33 @@ async def test_get_admin_tasks_rejects_non_admin_token(client):
 
 @pytest.mark.asyncio
 async def test_get_admin_tasks_rejects_missing_token(client):
-    await init_db()
     response = await client.get("/api/v1/admin/tasks")
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
+async def test_get_admin_tasks_all_returns_stats(client):
+    admin, token = await create_admin_user()
+    user = await create_regular_user()
+    order, refund = await create_order_and_refund(user)
+    await create_audit_log(user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING)
+
+    response = await client.get(
+        "/api/v1/admin/tasks-all",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "risk_tasks" in data
+    assert "confidence_tasks" in data
+    assert "manual_tasks" in data
+    assert "total" in data
+    assert data["total"] == data["risk_tasks"] + data["confidence_tasks"] + data["manual_tasks"]
+    assert data["total"] >= 1
+
+
+@pytest.mark.asyncio
 async def test_admin_decision_approve_updates_all_records(client):
-    await init_db()
     admin, admin_token = await create_admin_user()
     user = await create_regular_user()
     order, refund = await create_order_and_refund(user)
@@ -222,7 +221,6 @@ async def test_admin_decision_approve_updates_all_records(client):
 
 @pytest.mark.asyncio
 async def test_admin_decision_reject_updates_records(client):
-    await init_db()
     admin, admin_token = await create_admin_user()
     user = await create_regular_user()
     order, refund = await create_order_and_refund(user)
@@ -266,7 +264,6 @@ async def test_admin_decision_reject_updates_records(client):
 
 @pytest.mark.asyncio
 async def test_admin_decision_returns_404_for_nonexistent_audit_log(client):
-    await init_db()
     admin, admin_token = await create_admin_user()
 
     response = await client.post(
@@ -280,7 +277,6 @@ async def test_admin_decision_returns_404_for_nonexistent_audit_log(client):
 
 @pytest.mark.asyncio
 async def test_admin_decision_returns_400_for_already_processed_audit_log(client):
-    await init_db()
     admin, admin_token = await create_admin_user()
     user = await create_regular_user()
     order, refund = await create_order_and_refund(user)
@@ -299,7 +295,6 @@ async def test_admin_decision_returns_400_for_already_processed_audit_log(client
 
 @pytest.mark.asyncio
 async def test_admin_decision_rejects_non_admin_token(client):
-    await init_db()
     user = await create_regular_user()
     order, refund = await create_order_and_refund(user)
     audit_log = await create_audit_log(

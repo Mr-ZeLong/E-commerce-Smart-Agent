@@ -1,34 +1,15 @@
 import uuid
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlmodel import SQLModel, select
+from sqlmodel import select
 
-from app.core.database import async_session_maker, engine
-from app.core.limiter import limiter
+from app.core.database import async_session_maker
 from app.core.security import create_access_token
-from app.main import app
 from app.models.user import User
-
-
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-
-@pytest_asyncio.fixture
-async def client():
-    limiter.reset()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
-        yield c
 
 
 @pytest.mark.asyncio
 async def test_login_success_returns_token_response(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     username = f"login_ok_{unique}"
     password = "password123"
@@ -62,7 +43,6 @@ async def test_login_success_returns_token_response(client):
 
 @pytest.mark.asyncio
 async def test_login_wrong_password_returns_401(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     username = f"login_wrong_{unique}"
 
@@ -88,7 +68,6 @@ async def test_login_wrong_password_returns_401(client):
 
 @pytest.mark.asyncio
 async def test_login_nonexistent_user_returns_401(client):
-    await init_db()
     response = await client.post(
         "/api/v1/login",
         json={"username": "nonexistent_user_xyz", "password": "anypass"},
@@ -99,7 +78,6 @@ async def test_login_nonexistent_user_returns_401(client):
 
 @pytest.mark.asyncio
 async def test_login_disabled_user_returns_403(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     username = f"login_disabled_{unique}"
 
@@ -125,7 +103,6 @@ async def test_login_disabled_user_returns_403(client):
 
 @pytest.mark.asyncio
 async def test_register_success_creates_user_and_returns_token(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     username = f"register_ok_{unique}"
 
@@ -156,7 +133,6 @@ async def test_register_success_creates_user_and_returns_token(client):
 
 @pytest.mark.asyncio
 async def test_register_duplicate_username_returns_400(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     username = f"register_dup_user_{unique}"
 
@@ -187,7 +163,6 @@ async def test_register_duplicate_username_returns_400(client):
 
 @pytest.mark.asyncio
 async def test_register_duplicate_email_returns_400(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     email = f"register_dup_email_{unique}@test.com"
 
@@ -218,7 +193,6 @@ async def test_register_duplicate_email_returns_400(client):
 
 @pytest.mark.asyncio
 async def test_me_valid_token_returns_user_info(client):
-    await init_db()
     unique = uuid.uuid4().hex[:8]
     username = f"me_ok_{unique}"
 
@@ -252,14 +226,12 @@ async def test_me_valid_token_returns_user_info(client):
 
 @pytest.mark.asyncio
 async def test_me_missing_token_returns_401(client):
-    await init_db()
     response = await client.get("/api/v1/me")
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_me_invalid_token_returns_401(client):
-    await init_db()
     response = await client.get(
         "/api/v1/me",
         headers={"Authorization": "Bearer invalid-token"},

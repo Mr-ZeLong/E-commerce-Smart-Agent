@@ -1,20 +1,6 @@
 import uuid
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-
-from app.core.limiter import limiter
-from app.main import app
-
-
-@pytest_asyncio.fixture
-async def client():
-    limiter.reset()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
-        yield c
 
 
 @pytest.mark.asyncio
