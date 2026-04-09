@@ -1,4 +1,5 @@
 from qdrant_client import AsyncQdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, Modifier, SparseVectorParams, VectorParams
 
 from app.core.config import settings
@@ -42,7 +43,7 @@ class QdrantKnowledgeClient:
     async def recreate_collection(self) -> None:
         try:
             await self.client.delete_collection(self.collection_name)
-        except Exception:
+        except UnexpectedResponse:
             pass
         await self.ensure_collection()
 

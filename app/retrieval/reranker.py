@@ -21,7 +21,7 @@ class QwenReranker:
         max_document_chars: int = 12000,
     ):
         # Use the correct DashScope rerank endpoint, not the OpenAI chat endpoint
-        self.base_url = "https://dashscope.aliyuncs.com/compatible-api/v1"
+        self.base_url = (base_url or "https://dashscope.aliyuncs.com/compatible-api/v1").rstrip("/")
         self.api_key = api_key or settings.OPENAI_API_KEY
         self.model = model or settings.RERANK_MODEL
         self.timeout = timeout
@@ -48,7 +48,7 @@ class QwenReranker:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    "https://dashscope.aliyuncs.com/compatible-api/v1/reranks",
+                    f"{self.base_url}/reranks",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
