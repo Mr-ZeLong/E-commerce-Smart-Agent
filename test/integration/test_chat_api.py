@@ -62,10 +62,12 @@ class TestChatAPIEndpoints:
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="你")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="好")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chain_end",
@@ -121,14 +123,17 @@ class TestChatAPIEndpoints:
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="满")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="100")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="免运费")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chain_end",
@@ -197,6 +202,7 @@ class TestChatAPIEndpoints:
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="非常抱歉")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chain_end",
@@ -363,6 +369,7 @@ class TestChatMetadataContent:
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="回答")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chain_end",
@@ -441,6 +448,7 @@ class TestChatMetadataContent:
                 {
                     "event": "on_chat_model_stream",
                     "data": {"chunk": MagicMock(content="回答")},
+                    "metadata": {"tags": ["user_visible"]},
                 },
                 {
                     "event": "on_chain_end",
@@ -496,6 +504,7 @@ class TestChatStreamingBehavior:
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content=token)},
+                "metadata": {"tags": ["user_visible"]},
             }
             for token in tokens
         ]
@@ -537,6 +546,7 @@ class TestChatStreamingBehavior:
             {
                 "event": "on_chat_model_stream",
                 "data": {"chunk": MagicMock(content="完成")},
+                "metadata": {"tags": ["user_visible"]},
             },
             {
                 "event": "on_chain_end",

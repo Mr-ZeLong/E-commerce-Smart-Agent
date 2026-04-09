@@ -1,9 +1,10 @@
 """安全过滤器测试"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from app.intent.safety import SafetyCheckResult, SafetyFilter, SafetyConfig, SafetyResponseTemplate
+import pytest
+
+from app.intent.safety import SafetyCheckResult, SafetyConfig, SafetyFilter, SafetyResponseTemplate
 
 
 class TestSafetyResponseTemplate:

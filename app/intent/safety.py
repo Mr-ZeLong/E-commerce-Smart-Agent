@@ -242,14 +242,15 @@ class SafetyFilter:
                 )
 
         # 可选：检测行内代码
-        if self.config.enable_inline_code_check:
-            if re.search(self.config.inline_code_pattern, query, re.IGNORECASE):
-                return SafetyCheckResult(
-                    is_safe=False,
-                    risk_level="medium",
-                    risk_type="code",
-                    reason="检测到潜在的代码执行",
-                )
+        if self.config.enable_inline_code_check and re.search(
+            self.config.inline_code_pattern, query, re.IGNORECASE
+        ):
+            return SafetyCheckResult(
+                is_safe=False,
+                risk_level="medium",
+                risk_type="code",
+                reason="检测到潜在的代码执行",
+            )
 
         return SafetyCheckResult(
             is_safe=True,

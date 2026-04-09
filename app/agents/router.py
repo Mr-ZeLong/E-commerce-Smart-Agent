@@ -132,7 +132,7 @@ class IntentRouterAgent(BaseAgent):
                 updated_state={
                     # 新格式字段
                     "intent_result": result.to_dict(),
-                    "slots": result.slots,
+                    "slots": result.slots or {},
                     "awaiting_clarification": True,
                     "clarification_state": clarification.state,
                     # 向后兼容字段
@@ -146,7 +146,7 @@ class IntentRouterAgent(BaseAgent):
         updated_state: RouterState = {
             # 新格式字段
             "intent_result": result.to_dict(),
-            "slots": result.slots,
+            "slots": result.slots or {},
             "awaiting_clarification": result.needs_clarification,
             # 向后兼容字段（用于旧版Agent）
             "intent": legacy_intent,
@@ -158,13 +158,13 @@ class IntentRouterAgent(BaseAgent):
             logger.info("OTHER intent detected, returning greeting response")
             return AgentResult(
                 response=self.GREETING_RESPONSE,
-                updated_state=updated_state
+                updated_state=dict(updated_state)
             )
 
         logger.info("Routing to agent: %s", next_agent)
         return AgentResult(
             response="",  # 由下一个Agent生成
-            updated_state=updated_state
+            updated_state=dict(updated_state)
         )
 
     def _route_by_intent(self, result: IntentResult) -> str:
@@ -226,6 +226,39 @@ class IntentRouterAgent(BaseAgent):
         logger.warning(
             "Unknown primary_intent=%s, defaulting to OTHER", primary
         )
+        return Intent.OTHER
+
+    def _quick_intent_check(self, query: str) -> Intent:
+        """快速意图检查 - 基于关键词规则匹配，不调用 LLM
+
+        Args:
+            query: 用户输入
+
+        Returns:
+            Intent: 向后兼容的意图枚举值
+        """
+        lowered = query.lower()
+
+        # 问候语检测
+        greetings = {"你好", "您好", "hello", "hi", "在吗", "在么"}
+        if any(g in lowered for g in greetings):
+            return Intent.OTHER
+
+        # 退货/售后相关
+        refund_keywords = {"退货", "退款", "售后", "退换", "换货"}
+        if any(k in lowered for k in refund_keywords):
+            return Intent.REFUND
+
+        # 订单相关
+        order_keywords = {"订单", "物流", "发货", "快递", "货到哪", "到哪了"}
+        if any(k in lowered for k in order_keywords):
+            return Intent.ORDER
+
+        # 政策相关（作为粗略分类）
+        policy_keywords = {"政策", "规则", "怎么算", "多少钱", "价格", "运费"}
+        if any(k in lowered for k in policy_keywords):
+            return Intent.POLICY
+
         return Intent.OTHER
 
 

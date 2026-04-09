@@ -1,15 +1,13 @@
 """测试数据模型"""
 
-import pytest
-from datetime import datetime
 
 from app.intent.models import (
-    IntentCategory,
-    IntentAction,
-    SlotPriority,
-    Slot,
-    IntentResult,
     ClarificationState,
+    IntentAction,
+    IntentCategory,
+    IntentResult,
+    Slot,
+    SlotPriority,
 )
 
 

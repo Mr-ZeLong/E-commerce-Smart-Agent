@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from app.intent.config import check_intent_compatibility
 from app.intent.models import IntentResult

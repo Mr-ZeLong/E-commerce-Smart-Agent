@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
@@ -54,14 +55,14 @@ class BaseAgent(ABC):
     ) -> str:
         """调用 LLM"""
         try:
-            config = {}
+            config: dict[str, Any] = {}
             if temperature is not None:
                 config["temperature"] = temperature
             if tags:
                 config["tags"] = tags
 
             if config:
-                response = await self.llm.ainvoke(messages, config=config)
+                response = await self.llm.ainvoke(messages, config=config)  # type: ignore
             else:
                 response = await self.llm.ainvoke(messages)
             return str(response.content)

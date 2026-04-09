@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, cast
 
 from app.intent.models import IntentResult
 
@@ -148,7 +148,7 @@ class MultiIntentProcessor:
                     return MultiIntentResult(
                         is_multi_intent=False,
                         sub_intents=[result] if result else [],
-                        shared_slots=result.slots if result else {},
+                        shared_slots=(result.slots or {}) if result else {},
                         execution_order=[0] if result else [],
                     )
                 except Exception as e:
@@ -240,7 +240,9 @@ class MultiIntentProcessor:
         segments = [query]
 
         # 按长度降序排序，确保长分隔符优先匹配
-        sorted_separators = sorted(self.INTENT_SEPARATORS, key=len, reverse=True)
+        sorted_separators: list[str] = cast(
+            list[str], sorted(self.INTENT_SEPARATORS, key=len, reverse=True)
+        )
 
         for separator in sorted_separators:
             new_segments = []

@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.intent.models import IntentCategory, IntentAction, IntentResult
-from app.intent.topic_switch import TopicSwitchDetector, TopicSwitchResult
+from app.intent.models import IntentAction, IntentCategory, IntentResult
+from app.intent.topic_switch import TopicSwitchDetector
 
 
 @pytest.fixture

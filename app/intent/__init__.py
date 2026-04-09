@@ -4,14 +4,14 @@
 """
 
 from app.intent.models import (
-    IntentResult,
     ClarificationState,
+    IntentAction,
+    IntentCategory,
+    IntentResult,
     Slot,
     SlotPriority,
-    IntentCategory,
-    IntentAction,
 )
-from app.intent.safety import SafetyFilter, SafetyCheckResult, SafetyConfig, SafetyResponseTemplate
+from app.intent.safety import SafetyCheckResult, SafetyConfig, SafetyFilter, SafetyResponseTemplate
 from app.intent.service import IntentRecognitionService
 
 __all__ = [

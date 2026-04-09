@@ -3,7 +3,7 @@
 import pytest
 
 from app.intent.clarification import ClarificationEngine
-from app.intent.models import ClarificationState, IntentCategory, IntentAction, IntentResult
+from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
 from app.intent.slot_validator import SlotValidationResult
 
 

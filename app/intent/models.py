@@ -60,7 +60,7 @@ class IntentResult:
     secondary_intent: IntentAction
     tertiary_intent: str | None = None
     confidence: float = 0.0
-    slots: dict[str, Any] = field(default_factory=dict)
+    slots: dict[str, Any] | None = field(default_factory=dict)
     missing_slots: list[str] = field(default_factory=list)
     needs_clarification: bool = False
     clarification_question: str | None = None

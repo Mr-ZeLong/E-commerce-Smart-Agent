@@ -572,7 +572,7 @@ class TestIntentClassifierProtocol:
     def test_protocol_definition(self) -> None:
         """测试协议定义存在"""
         # 验证协议可以被引用
-        assert hasattr(IntentClassifierProtocol, "__call__")
+        assert callable(IntentClassifierProtocol)
 
     @pytest.mark.asyncio
     async def test_mock_implements_protocol(self) -> None:

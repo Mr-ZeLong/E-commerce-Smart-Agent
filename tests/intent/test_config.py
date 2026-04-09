@@ -2,14 +2,12 @@
 
 from app.intent.config import (
     TERTIARY_INTENT_CONFIG,
-    SLOT_PRIORITY_CONFIG,
-    INTENT_COMPATIBILITY,
-    validate_tertiary_intent,
-    get_slot_priority,
-    get_required_slots,
     check_intent_compatibility,
+    get_required_slots,
+    get_slot_priority,
+    validate_tertiary_intent,
 )
-from app.intent.models import IntentCategory, IntentAction, SlotPriority
+from app.intent.models import IntentAction, IntentCategory, SlotPriority
 
 
 def test_tertiary_intent_config_exists():

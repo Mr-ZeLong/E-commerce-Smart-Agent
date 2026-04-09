@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.intent.models import IntentCategory, IntentAction, SlotPriority, IntentResult
 from app.intent.config import SLOT_PRIORITY_CONFIG
+from app.intent.models import IntentResult, SlotPriority
 
 
 @dataclass
@@ -148,7 +148,7 @@ class SlotValidator:
 
         # 按优先级检查槽位
         p0_missing, p1_missing, p2_missing, filled_slots = self._check_priority_slots(
-            slots, config
+            slots or {}, config
         )
 
         # 合并所有缺失槽位（按优先级排序）
@@ -202,9 +202,10 @@ class SlotValidator:
         merged = dict(existing)
 
         for key, value in new_slots.items():
-            if not self._is_empty_value(value):
-                if overwrite or self._is_empty_value(merged.get(key)):
-                    merged[key] = value
+            if not self._is_empty_value(value) and (
+                overwrite or self._is_empty_value(merged.get(key))
+            ):
+                merged[key] = value
 
         return merged
 
@@ -228,8 +229,8 @@ class SlotValidator:
         Returns:
             SlotPriority | None: 槽位优先级
         """
-        for primary, secondary_config in SLOT_PRIORITY_CONFIG.items():
-            for secondary, priorities in secondary_config.items():
+        for _primary, secondary_config in SLOT_PRIORITY_CONFIG.items():
+            for _secondary, priorities in secondary_config.items():
                 for priority, slots in priorities.items():
                     if slot_name in slots:
                         return SlotPriority(priority)

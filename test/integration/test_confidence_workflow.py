@@ -455,7 +455,7 @@ class TestConfidenceSignalsIntegration:
                 score=0.9, reason="情感测试", metadata={}
             )
 
-            confidence_signals = ConfidenceSignals(state)
+            confidence_signals = ConfidenceSignals(state)  # type: ignore
             results = await confidence_signals.calculate_all("测试回答")
 
             # 验证所有信号都被计算
@@ -556,7 +556,7 @@ class TestConfidenceEdgeCases:
             "_calculate_with_timeout",
             side_effect=asyncio.TimeoutError,
         ):
-            confidence_signals = ConfidenceSignals(state)
+            confidence_signals = ConfidenceSignals(state)  # type: ignore
 
             # 由于无法真正触发超时，我们测试超时后的处理逻辑
             # 实际测试中可能需要调整超时时间或使用其他方式

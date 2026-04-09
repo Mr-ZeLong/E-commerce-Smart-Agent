@@ -10,11 +10,11 @@ import json
 import logging
 from typing import Any
 
-from app.intent.classifier import IntentClassifier
 from app.intent.clarification import ClarificationEngine, ClarificationResponse
-from app.intent.models import ClarificationState, IntentCategory, IntentAction, IntentResult
+from app.intent.classifier import IntentClassifier
+from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
 from app.intent.multi_intent import MultiIntentProcessor
-from app.intent.safety import SafetyFilter, SafetyCheckResult
+from app.intent.safety import SafetyCheckResult, SafetyFilter
 from app.intent.slot_validator import SlotValidator
 from app.intent.topic_switch import TopicSwitchDetector
 

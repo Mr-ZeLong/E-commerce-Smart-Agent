@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.intent.models import IntentCategory, IntentAction, IntentResult
-from app.intent.slot_validator import SlotValidator, SlotValidationResult
+from app.intent.models import IntentAction, IntentCategory, IntentResult
+from app.intent.slot_validator import SlotValidationResult, SlotValidator
 
 
 class TestSlotValidationResult:

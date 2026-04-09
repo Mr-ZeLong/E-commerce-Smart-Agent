@@ -16,7 +16,6 @@ from langchain_openai import ChatOpenAI
 from app.intent.classifier import IntentClassifier, IntentClassifierWithFallback
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
-
 # ========== Fixtures ==========
 
 

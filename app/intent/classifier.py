@@ -492,17 +492,16 @@ class IntentClassifier:
             return False, f"无效的二级意图: {result.secondary_intent}"
 
         # 验证三级意图
-        if result.tertiary_intent:
-            if not validate_tertiary_intent(
-                result.primary_intent,
-                result.secondary_intent,
-                result.tertiary_intent
-            ):
-                allowed = TERTIARY_INTENT_CONFIG.get(
-                    (result.primary_intent.value, result.secondary_intent.value),
-                    {}
-                ).get("tertiary_intents", [])
-                return False, f"无效的三级意图: {result.tertiary_intent}, 允许的值: {allowed}"
+        if result.tertiary_intent and not validate_tertiary_intent(
+            result.primary_intent,
+            result.secondary_intent,
+            result.tertiary_intent
+        ):
+            allowed = TERTIARY_INTENT_CONFIG.get(
+                (result.primary_intent.value, result.secondary_intent.value),
+                {}
+            ).get("tertiary_intents", [])
+            return False, f"无效的三级意图: {result.tertiary_intent}, 允许的值: {allowed}"
 
         # 验证置信度
         if not 0 <= result.confidence <= 1:
@@ -543,7 +542,7 @@ class IntentClassifierWithFallback:
             # 验证失败，降级到规则匹配
             result = self.classifier._classify_with_rules(query)
             # 确保slots是可变的，并添加validation_error
-            slots = dict(result.slots)
+            slots = dict(result.slots or {})
             slots["validation_error"] = error_msg
             result.slots = slots
 
