@@ -4,7 +4,7 @@
 """
 import asyncio
 import concurrent.futures
-from datetime import UTC, datetime
+import logging
 from typing import Any
 
 from celery import Task
@@ -12,9 +12,12 @@ from sqlmodel import select
 
 from app.celery_app import celery_app
 from app.core.database import async_session_maker
+from app.core.utils import utc_now
 from app.models.audit import AuditLog
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseTask(Task):
@@ -54,7 +57,7 @@ def send_refund_sms(self, refund_id: int, phone:  str, message: str) -> dict[str
     """
     try:
         # TODO: 接入真实短信网关 (阿里云、腾讯云等)
-        print(f"📱 [SMS] 发送短信到 {phone}: {message}")
+        logger.info(f"📱 [SMS] 发送短信到 {phone}: {message}")
 
         # 模拟短信发送
         import time
@@ -65,12 +68,12 @@ def send_refund_sms(self, refund_id: int, phone:  str, message: str) -> dict[str
             "status": "success",
             "refund_id": refund_id,
             "phone": phone,
-            "sent_at": datetime.now(UTC).isoformat(),
+            "sent_at": utc_now().isoformat(),
         }
 
     except Exception as exc:
         # 重试机制
-        print(f"  [SMS] 发送失败: {exc}")
+        logger.error(f"  [SMS] 发送失败: {exc}")
         raise self.retry(exc=exc)
 
 
@@ -103,7 +106,7 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
                     raise ValueError(f"Refund application {refund_id} not found")
 
                 # TODO: 接入真实支付网关 (支付宝、微信支付等)
-                print(f"💰 [Payment] 退款 ¥{amount} 到 {payment_method}")
+                logger.info(f"💰 [Payment] 退款 ¥{amount} 到 {payment_method}")
 
                 # 模拟支付网关调用
                 import time
@@ -111,7 +114,7 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
 
                 # 更新退款状态
                 refund.status = RefundStatus.COMPLETED
-                refund.updated_at = datetime.now(UTC).replace(tzinfo=None)
+                refund.updated_at = utc_now()
                 session.add(refund)
                 await session.commit()
 
@@ -120,11 +123,11 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
                     "refund_id": refund_id,
                     "amount": amount,
                     "transaction_id": f"TXN{refund_id}{int(time.time())}",
-                    "completed_at": datetime.now(UTC).isoformat(),
+                    "completed_at": utc_now().isoformat(),
                 }
 
         except Exception as exc:
-            print(f"  [Payment] 退款失败: {exc}")
+            logger.error(f"  [Payment] 退款失败: {exc}")
             raise exc
 
     try:
@@ -158,10 +161,10 @@ def notify_admin_audit(self, audit_log_id: int) -> dict[str, Any]:
                 raise ValueError(f"Audit log {audit_log_id} not found")
 
             # TODO: 接入真实通知系统 (邮件、企业微信、钉钉等)
-            print("  [Notify] 通知管理员审核任务:")
-            print(f"  - 风险等级: {audit_log.risk_level}")
-            print(f"  - 触发原因: {audit_log.trigger_reason}")
-            print(f"  - 用户ID: {audit_log.user_id}")
+            logger.info("  [Notify] 通知管理员审核任务:")
+            logger.info(f"  - 风险等级: {audit_log.risk_level}")
+            logger.info(f"  - 触发原因: {audit_log.trigger_reason}")
+            logger.info(f"  - 用户ID: {audit_log.user_id}")
 
             # 创建系统消息通知 B 端
             message = MessageCard(
@@ -183,11 +186,11 @@ def notify_admin_audit(self, audit_log_id: int) -> dict[str, Any]:
             return {
                 "status": "success",
                 "audit_log_id": audit_log_id,
-                "notified_at": datetime.now(UTC).isoformat(),
+                "notified_at": utc_now().isoformat(),
             }
 
     try:
         return self.run_async(_notify())
     except Exception as exc:
-        print(f"  [Notify] 通知失败:  {exc}")
+        logger.error(f"  [Notify] 通知失败:  {exc}")
         raise self.retry(exc=exc)

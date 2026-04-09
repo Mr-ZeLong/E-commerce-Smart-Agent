@@ -1,4 +1,5 @@
 # app/main.py
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -16,22 +17,23 @@ from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
 from app.graph.workflow import compile_app_graph
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(" Starting E-commerce Smart Agent v4.0...")
+    logger.info(" Starting E-commerce Smart Agent v4.0...")
     workflow_module.app_graph = await compile_app_graph()
-    print(" Infrastructure is ready.")
+    logger.info(" Infrastructure is ready.")
     yield
     # Shutdown: close cached Qdrant client if it was created
     try:
         from app.retrieval import get_retriever
         retriever = get_retriever()
         await retriever.qdrant_client.aclose()
-        print(" Qdrant client closed.")
+        logger.info(" Qdrant client closed.")
     except Exception:
-        print("⚠️  Failed to close Qdrant client during shutdown")
-
+        logger.warning("⚠️  Failed to close Qdrant client during shutdown")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -43,11 +45,17 @@ app = FastAPI(
 # 1. 配置跨域
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if "*" in settings.CORS_ORIGINS:
+    logger.warning(
+        "CORS is configured with allow_origins=['*'] and allow_credentials=True, "
+        "which poses a security risk in production."
+    )
 
 # 2. 注册路由
 app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["Auth"])  # v4.0 新增

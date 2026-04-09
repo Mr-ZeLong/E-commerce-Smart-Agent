@@ -1,11 +1,14 @@
+import logging
+
 from sqlmodel import select
 
 from app.agents.base import AgentResult, BaseAgent
 from app.core.database import async_session_maker
 from app.models.order import Order
-from app.models.refund import RefundReason
-from app.services.refund_service import RefundApplicationService, RefundEligibilityChecker
+from app.services.refund_service import get_order_by_sn, process_refund_for_order
 from app.utils.order_utils import classify_refund_reason, extract_order_sn
+
+logger = logging.getLogger(__name__)
 
 ORDER_SYSTEM_PROMPT = """你是专业的电商订单处理助手。
 
@@ -55,10 +58,7 @@ class OrderAgent(BaseAgent):
         user_id: int
     ) -> AgentResult:
         """处理订单查询"""
-        # 提取订单号
-        order_sn = self._extract_order_sn(question)
-
-        # 查询订单
+        order_sn = extract_order_sn(question)
         order_data = await self._query_order(order_sn, user_id)
 
         if not order_data:
@@ -67,7 +67,6 @@ class OrderAgent(BaseAgent):
                 updated_state={"order_data": None}
             )
 
-        # 生成回复
         response = self._format_order_response(order_data)
 
         return AgentResult(
@@ -81,8 +80,7 @@ class OrderAgent(BaseAgent):
         user_id: int
     ) -> AgentResult:
         """处理退货申请"""
-        # 提取订单号
-        order_sn = self._extract_order_sn(question)
+        order_sn = extract_order_sn(question)
 
         if not order_sn:
             return AgentResult(
@@ -90,19 +88,11 @@ class OrderAgent(BaseAgent):
                 updated_state={"refund_flow_active": False}
             )
 
-        # 提取退货原因
         reason_detail = question
-        reason_category = self._classify_refund_reason(question)
+        reason_category = classify_refund_reason(question)
 
-        # 查询订单
         async with async_session_maker() as session:
-            stmt = select(Order).where(
-                Order.order_sn == order_sn.upper(),
-                Order.user_id == user_id
-            )
-            result = await session.exec(stmt)
-            order = result.first()
-
+            order = await get_order_by_sn(order_sn, user_id, session)
             if not order:
                 return AgentResult(
                     response=f"未找到订单 {order_sn}，请确认订单号是否正确。",
@@ -115,62 +105,37 @@ class OrderAgent(BaseAgent):
                     updated_state={"refund_flow_active": False}
                 )
 
-            # 检查退货资格
-            is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(
-                order, session
-            )
-
-            if not is_eligible:
-                return AgentResult(
-                    response=f"该订单不符合退货条件：{eligibility_msg}",
-                    updated_state={
-                        "order_data": order.model_dump(),
-                        "refund_flow_active": False
-                    }
-                )
-
-            # 创建退货申请
-            success, message, refund_app = await RefundApplicationService.create_refund_application(
-                order_id=order.id,
+            success, message, refund_data = await process_refund_for_order(
+                order_sn=order_sn,
                 user_id=user_id,
                 reason_detail=reason_detail,
                 reason_category=reason_category,
                 session=session
             )
 
-            if success and refund_app is not None:
+            if not success:
                 return AgentResult(
-                    response=f"✅ {message}",
+                    response=message,
                     updated_state={
                         "order_data": order.model_dump(),
-                        "refund_data": {
-                            "refund_id": refund_app.id,
-                            "amount": float(refund_app.refund_amount)
-                        },
-                        "refund_flow_active": True
+                        "refund_flow_active": False
                     }
                 )
-            elif success:
-                return AgentResult(
-                    response=f"✅ {message}",
-                    updated_state={
-                        "order_data": order.model_dump(),
-                        "refund_flow_active": True
-                    }
-                )
-            else:
-                return AgentResult(
-                    response=f"❌ {message}",
-                    updated_state={"refund_flow_active": False}
-                )
 
-    def _extract_order_sn(self, text: str) -> str | None:
-        """提取订单号"""
-        return extract_order_sn(text)
+            updated_state = {
+                "order_data": order.model_dump(),
+                "refund_flow_active": True
+            }
+            if refund_data is not None:
+                updated_state["refund_data"] = {
+                    "refund_id": refund_data["refund_id"],
+                    "amount": refund_data["amount"]
+                }
 
-    def _classify_refund_reason(self, text: str) -> RefundReason:
-        """分类退货原因"""
-        return classify_refund_reason(text)
+            return AgentResult(
+                response=f"✅ {message}",
+                updated_state=updated_state
+            )
 
     async def _query_order(
         self,
@@ -181,25 +146,20 @@ class OrderAgent(BaseAgent):
         try:
             async with async_session_maker() as session:
                 if order_sn:
-                    stmt = select(Order).where(
-                        Order.order_sn == order_sn,
-                        Order.user_id == user_id
-                    )
+                    order = await get_order_by_sn(order_sn, user_id, session)
                 else:
-                    # 查询最近订单
                     stmt = (
                         select(Order)
                         .where(Order.user_id == user_id)
                         .order_by(Order.created_at.desc())  # type: ignore
                         .limit(1)
                     )
-
-                result = await session.exec(stmt)
-                order = result.first()
+                    result = await session.exec(stmt)
+                    order = result.first()
 
                 return order.model_dump() if order else None
         except Exception as e:
-            print(f"[OrderAgent] Database query failed: {e}")
+            logger.error(f"[OrderAgent] Database query failed: {e}")
             return None
 
     def _format_order_response(self, order: dict) -> str:

@@ -3,13 +3,15 @@
 v4.0 新增：审计日志模型
 记录人工审核流程的完整上下文
 """
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from sqlalchemy import JSON, Column, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
+
+from app.core.utils import utc_now
 
 
 class RiskLevel(str, Enum):
@@ -113,7 +115,7 @@ class AuditLog(SQLModel, table=True):
 
     # 时间戳
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")},
         description="创建时间（触发审核时间）"
     )
@@ -124,7 +126,7 @@ class AuditLog(SQLModel, table=True):
     )
 
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")

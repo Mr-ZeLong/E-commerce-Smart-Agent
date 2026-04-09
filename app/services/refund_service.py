@@ -1,9 +1,10 @@
 # app/services/refund_service.py
-from datetime import UTC, datetime
+from datetime import UTC
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.utils import utc_now
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 
@@ -94,7 +95,7 @@ class RefundEligibilityChecker:
     @staticmethod
     def _check_time_limit(order: Order) -> tuple[bool, str]:
         """检查退货时效"""
-        now = datetime.now(UTC)
+        now = utc_now()
 
         # 计算订单创建后的天数
         # 注意：这里应该用 delivered_at（签收时间），但示例数据没有这个字段
@@ -241,3 +242,65 @@ class RefundApplicationService:
         return result.first()
 
 
+async def get_order_by_sn(
+    order_sn: str,
+    user_id: int,
+    session: AsyncSession
+) -> Order | None:
+    """按订单号查询订单（统一转大写处理）"""
+    normalized_sn = order_sn.strip().upper()
+    stmt = select(Order).where(
+        Order.order_sn == normalized_sn,
+        Order.user_id == user_id
+    )
+    result = await session.exec(stmt)
+    return result.first()
+
+
+async def process_refund_for_order(
+    order_sn: str,
+    user_id: int,
+    reason_detail: str,
+    reason_category: RefundReason | None,
+    session: AsyncSession
+) -> tuple[bool, str, dict | None]:
+    """
+    为指定订单处理退款申请。
+
+    返回:
+        (是否成功, 消息, refund_data_dict_or_none)
+        refund_data_dict 包含键: refund_id, amount, status, reason_detail
+    """
+    order = await get_order_by_sn(order_sn, user_id, session)
+    if not order:
+        return False, f"未找到订单 {order_sn}，或您无权访问此订单。", None
+
+    if order.id is None:
+        return False, "订单数据异常，请稍后重试。", None
+
+    is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(
+        order, session
+    )
+    if not is_eligible:
+        return False, f"该订单不符合退货条件：{eligibility_msg}", None
+
+    success, message, refund_app = await RefundApplicationService.create_refund_application(
+        order_id=order.id,
+        user_id=user_id,
+        reason_detail=reason_detail,
+        reason_category=reason_category,
+        session=session
+    )
+
+    if success and refund_app is not None:
+        refund_data = {
+            "refund_id": refund_app.id,
+            "amount": float(refund_app.refund_amount),
+            "status": refund_app.status,
+            "reason_detail": refund_app.reason_detail,
+        }
+        return True, message, refund_data
+    elif success:
+        return True, message, None
+    else:
+        return False, message, None

@@ -3,12 +3,14 @@
 v4.0 新增：结构化消息模型
 支持富媒体卡片渲染（audit_card, order_card, text）
 """
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from sqlalchemy import JSON, Column, String, text
 from sqlmodel import Field, SQLModel
+
+from app.core.utils import utc_now
 
 
 class MessageType(str, Enum):
@@ -69,12 +71,12 @@ class MessageCard(SQLModel, table=True):
 
     # 时间戳
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")

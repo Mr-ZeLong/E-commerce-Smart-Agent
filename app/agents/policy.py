@@ -1,6 +1,10 @@
+import logging
+
 from app.agents.base import AgentResult, BaseAgent
 from app.models.state import RetrievalResult  # 使用新的 RetrievalResult
 from app.retrieval import get_retriever
+
+logger = logging.getLogger(__name__)
 
 POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 
@@ -50,11 +54,10 @@ class PolicyAgent(BaseAgent):
         # 标记为用户可见的输出
         response = await self._call_llm(messages, tags=["user_visible"])
 
-        # Step 3: 计算置信度（初步估计）
-        confidence = self._estimate_confidence(chunks, similarities)
-
-        needs_human = confidence < 0.45
-        transfer_reason = "rag_confidence_low" if needs_human else None
+        # Step 3: 置信度评估现在统一由上层 ConfidenceEvaluator 负责
+        confidence = 0.0
+        needs_human = False
+        transfer_reason = None
 
         return AgentResult(
             response=response,
@@ -77,23 +80,7 @@ class PolicyAgent(BaseAgent):
         chunks = [r.content for r in results]
         similarities = [r.score for r in results]
         sources = [r.source for r in results]
-        print(f"[PolicyAgent] 检索到 {len(results)} 条有效结果")
+        logger.info(f"[PolicyAgent] 检索到 {len(results)} 条有效结果")
         return chunks, similarities, sources
 
-    def _estimate_confidence(
-        self,
-        chunks: list[str],
-        similarities: list[float]
-    ) -> float:
-        if not chunks:
-            return 0.0
-        if similarities:
-            avg_sim = sum(similarities) / len(similarities)
-            # Direct mapping without arbitrary stretching; thresholds will be tuned after data collection
-            if avg_sim >= 0.65:
-                return 0.8
-            elif avg_sim >= 0.45:
-                return 0.5
-            else:
-                return 0.2
-        return 0.5 if len(chunks) > 0 else 0.0
+

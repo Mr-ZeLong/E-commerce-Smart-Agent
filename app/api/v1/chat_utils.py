@@ -21,6 +21,10 @@ class TransferReason:
     COMPLEX_ISSUE = "complex_issue"
 
 
+def _clamp_score(score: float) -> float:
+    return max(0.0, min(1.0, score))
+
+
 # ========== 转人工原因映射 ==========
 TRANSFER_REASON_MAP: dict[str, str] = {
     TransferReason.CONFIDENCE_LOW: "置信度不足",
@@ -42,7 +46,7 @@ def get_confidence_level(score: float) -> str:
         置信度等级: "high" | "medium" | "low"
     """
     # 确保分数在有效范围内
-    score = max(0.0, min(1.0, score))
+    score = _clamp_score(score)
 
     if score >= HIGH_CONFIDENCE_THRESHOLD:
         return "high"
@@ -71,7 +75,7 @@ def create_confidence_message(
         置信度卡片内容字典
     """
     # 确保分数在有效范围内
-    confidence_score = max(0.0, min(1.0, confidence_score))
+    confidence_score = _clamp_score(confidence_score)
 
     # 确定置信度等级
     confidence_level = get_confidence_level(confidence_score)
@@ -125,7 +129,7 @@ def create_transfer_message(
         转人工卡片内容字典
     """
     # 确保分数在有效范围内
-    confidence_score = max(0.0, min(1.0, confidence_score))
+    confidence_score = _clamp_score(confidence_score)
 
     # 确定置信度等级
     confidence_level = get_confidence_level(confidence_score)
@@ -174,7 +178,7 @@ def create_stream_metadata_message(
 
     if confidence_score is not None:
         # 确保分数在有效范围内
-        confidence_score = max(0.0, min(1.0, confidence_score))
+        confidence_score = _clamp_score(confidence_score)
         metadata["confidence_score"] = round(confidence_score, 2)
         metadata["confidence_level"] = get_confidence_level(confidence_score)
 

@@ -2,11 +2,13 @@
 """
 用户模型 - 支持真实登录认证
 """
-from datetime import UTC, datetime
+from datetime import datetime
 
 from passlib.context import CryptContext
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
+
+from app.core.utils import utc_now
 
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -35,12 +37,12 @@ class User(SQLModel, table=True):
 
     # 时间戳
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")

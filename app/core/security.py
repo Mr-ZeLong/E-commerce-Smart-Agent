@@ -1,11 +1,12 @@
 # app/core/security.py
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import settings
+from app.core.utils import utc_now
 
 # 设置 Token 获取的 URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login", auto_error=False)
@@ -19,25 +20,38 @@ def create_access_token(user_id: int, is_admin: bool = False) -> str:
         user_id: 用户ID
         is_admin:  是否为管理员
     """
-    expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = utc_now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {
         "sub": str(user_id),
         "exp": expire,
-        "iat": datetime.now(UTC),
+        "iat": utc_now(),
         "is_admin": is_admin,  # v4.0 新增：区分管理员权限
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
+def _decode_token(
+    token: str,
+    *,
+    headers: dict[str, str] | None = None,
+    missing_user_detail: str = "Invalid token: missing user ID"
+) -> dict:
     """
-    FastAPI 依赖项：验证 Token 并提取 user_id
+    统一的 JWT decode、验证 sub 字段、处理异常。
+
+    Args:
+        token: JWT Token 字符串
+        headers: 可选的响应头
+        missing_user_detail: sub 缺失时的错误详情
+
+    Returns:
+        payload: 解析后的 JWT payload
     """
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers=headers,
         )
 
     try:
@@ -47,24 +61,36 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token:  missing user ID",
-                headers={"WWW-Authenticate": "Bearer"},
+                detail=missing_user_detail,
+                headers=headers,
             )
 
-        return int(user_id)
+        return payload
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers=headers,
         )
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers=headers,
         )
+
+
+def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
+    """
+    FastAPI 依赖项：验证 Token 并提取 user_id
+    """
+    payload = _decode_token(
+        token,
+        headers={"WWW-Authenticate": "Bearer"},
+        missing_user_detail="Invalid token:  missing user ID"
+    )
+    return int(payload["sub"])
 
 
 async def get_current_user_id_ws(token: str) -> int:
@@ -80,34 +106,11 @@ async def get_current_user_id_ws(token: str) -> int:
     Raises:
         HTTPException: Token 无效时抛出
     """
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token"
-        )
-
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
-
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing user ID"
-            )
-
-        return int(user_id)
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+    payload = _decode_token(
+        token,
+        missing_user_detail="Invalid token: missing user ID"
+    )
+    return int(payload["sub"])
 
 
 def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
@@ -116,42 +119,22 @@ def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
 
     验证 Token 并检查管理员权限
     """
-    if not token:
+    return verify_admin_token(token)
+
+
+def verify_admin_token(token: str) -> int:
+    """
+    验证管理员 Token（无需 FastAPI Depends，供 WebSocket 使用）
+
+    验证 Token 并检查管理员权限
+    """
+    payload = _decode_token(token, headers={"WWW-Authenticate": "Bearer"})
+    is_admin: bool = payload.get("is_admin", False)
+
+    if not is_admin:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
         )
 
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
-        is_admin: bool = payload.get("is_admin", False)
-
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: missing user ID",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        if not is_admin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin privileges required"
-            )
-
-        return int(user_id)
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    return int(payload["sub"])

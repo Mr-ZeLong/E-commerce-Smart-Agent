@@ -37,8 +37,6 @@ async def chat(
 
     async def event_generator():
         """SSE 流式响应生成器 - v4.1 支持置信度元数据"""
-        from app.graph.workflow import app_graph
-
         thread_id = build_thread_id(current_user_id, request.thread_id)
         config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 

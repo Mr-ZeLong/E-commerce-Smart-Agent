@@ -137,6 +137,9 @@ class Settings(BaseSettings):
     # Token 有效期（分钟），默认 1 天
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
+    # CORS 配置
+    CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+
     # Celery 配置
     CELERY_BROKER_URL: str = ""  # 默认使用 REDIS_URL
     CELERY_RESULT_BACKEND: str = ""  # 默认使用 REDIS_URL

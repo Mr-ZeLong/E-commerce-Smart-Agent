@@ -1,14 +1,18 @@
 # app/graph/workflow.py
+import logging
+
 from langgraph.checkpoint.redis import AsyncRedisSaver
 from langgraph.graph import END, START, StateGraph
 
 from app.agents import SupervisorAgent
 from app.core.config import settings
-from app.graph.state import AgentState
+from app.models.state import AgentState
 
 app_graph = None
 
 _supervisor: SupervisorAgent | None = None
+
+logger = logging.getLogger(__name__)
 
 
 def get_supervisor() -> SupervisorAgent:
@@ -29,7 +33,7 @@ async def supervisor_node(state: AgentState) -> dict:
         result = await supervisor.coordinate(state)  # type: ignore
         return result
     except Exception as e:
-        print(f"[Workflow] Supervisor 节点错误: {e}")
+        logger.error(f"[Workflow] Supervisor 节点错误: {e}")
         return {
             "answer": "抱歉，系统处理出现问题，请稍后重试或联系人工客服。",
             "needs_human_transfer": True,
@@ -45,7 +49,7 @@ def route_after_evaluation(state: AgentState):
     保留此路由函数以兼容 LangGraph 条件边接口。
     """
     if state.get("needs_human_transfer", False):
-        print(f"[Workflow] 置信度不足 ({state.get('confidence_score', 0):.3f})，转人工")
+        logger.info(f"[Workflow] 置信度不足 ({state.get('confidence_score', 0):.3f})，转人工")
     return END
 
 
@@ -68,12 +72,12 @@ workflow.add_conditional_edges(
 
 async def compile_app_graph():
     """编译 LangGraph"""
-    print("🔧 Compiling Multi-Agent LangGraph with Redis checkpointer...")
+    logger.info("🔧 Compiling Multi-Agent LangGraph with Redis checkpointer...")
 
     checkpointer = AsyncRedisSaver(redis_url=settings.REDIS_URL)
     await checkpointer.setup()
 
     compiled_graph = workflow.compile(checkpointer=checkpointer)
 
-    print("✅ Multi-Agent LangGraph compiled successfully!")
+    logger.info("✅ Multi-Agent LangGraph compiled successfully!")
     return compiled_graph

@@ -6,8 +6,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.database import async_session_maker
+from app.core.database import get_session
 from app.core.security import create_access_token, get_current_user_id
 from app.models.user import User
 
@@ -51,130 +52,135 @@ class UserInfoResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest):
+async def login(
+    request: LoginRequest,
+    session: AsyncSession = Depends(get_session)
+):
     """
     用户登录
 
     验证用户名和密码，返回 JWT Token
     """
-    async with async_session_maker() as session:
-        # 查询用户
-        result = await session.execute(  # ty:ignore[deprecated]
-            select(User).where(User.username == request.username)
+    # 查询用户
+    result = await session.exec(
+        select(User).where(User.username == request.username)
+    )
+    user = result.first()
+
+    # 验证用户存在
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        user = result.scalar_one_or_none()
 
-        # 验证用户存在
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户名或密码错误",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # 验证账号激活
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="账号已被禁用，请联系管理员"
-            )
-
-        # 验证密码
-        if not user.verify_password(request.password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户名或密码错误",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # 生成 Token
-        token = create_access_token(user_id=user.id, is_admin=user.is_admin)
-
-        return TokenResponse(
-            access_token=token,
-            user_id=user.id,
-            username=user.username,
-            full_name=user.full_name,
-            is_admin=user.is_admin
+    # 验证账号激活
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账号已被禁用，请联系管理员"
         )
+
+    # 验证密码
+    if not user.verify_password(request.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 生成 Token
+    token = create_access_token(user_id=user.id, is_admin=user.is_admin)  # ty:ignore[invalid-argument-type]
+
+    return TokenResponse(
+        access_token=token,
+        user_id=user.id,  # ty:ignore[invalid-argument-type]
+        username=user.username,
+        full_name=user.full_name,
+        is_admin=user.is_admin
+    )
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(request:  RegisterRequest):
+async def register(
+    request: RegisterRequest,
+    session: AsyncSession = Depends(get_session)
+):
     """
     用户注册
 
     创建新用户并返回 JWT Token
     """
-    async with async_session_maker() as session:
-        # 检查用户名是否已存在
-        result = await session.execute(  # ty:ignore[deprecated]
-            select(User).where(User.username == request.username)
-        )
-        if result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名已存在"
-            )
-
-        # 检查邮箱是否已存在
-        result = await session.execute(  # ty:ignore[deprecated]
-            select(User).where(User.email == request.email)
-        )
-        if result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被注册"
-            )
-
-        # 创建用户
-        user = User(
-            username=request.username,
-            password_hash=User.hash_password(request.password),
-            email=request.email,
-            full_name=request.full_name,
-            phone=request.phone,
-            is_admin=False,
-            is_active=True
+    # 检查用户名是否已存在
+    result = await session.exec(
+        select(User).where(User.username == request.username)
+    )
+    if result.first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户名已存在"
         )
 
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-
-        # 生成 Token
-        token = create_access_token(user_id=user.id, is_admin=user.is_admin)  # ty:ignore[invalid-argument-type]
-
-        return TokenResponse(
-            access_token=token,
-            user_id=user.id,  # ty:ignore[invalid-argument-type]
-            username=user.username,
-            full_name=user.full_name,
-            is_admin=user.is_admin
+    # 检查邮箱是否已存在
+    result = await session.exec(
+        select(User).where(User.email == request.email)
+    )
+    if result.first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邮箱已被注册"
         )
+
+    # 创建用户
+    user = User(
+        username=request.username,
+        password_hash=User.hash_password(request.password),
+        email=request.email,
+        full_name=request.full_name,
+        phone=request.phone,
+        is_admin=False,
+        is_active=True
+    )
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    # 生成 Token
+    token = create_access_token(user_id=user.id, is_admin=user.is_admin)  # ty:ignore[invalid-argument-type]
+
+    return TokenResponse(
+        access_token=token,
+        user_id=user.id,  # ty:ignore[invalid-argument-type]
+        username=user.username,
+        full_name=user.full_name,
+        is_admin=user.is_admin
+    )
 
 
 @router.get("/me", response_model=UserInfoResponse)
-async def get_current_user_info(current_user_id: int = Depends(get_current_user_id)):
+async def get_current_user_info(
+    current_user_id: int = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session)
+):
     """
     获取当前登录用户信息
     """
+    user = await session.get(User, current_user_id)
 
-    async with async_session_maker() as session:
-        user = await session.get(User, current_user_id)
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户不存在"
-            )
-
-        return UserInfoResponse(
-            user_id=user.id,  # ty:ignore[invalid-argument-type]
-            username=user.username,
-            email=user.email,
-            full_name=user.full_name,
-            phone=user.phone,
-            is_admin=user.is_admin,
-            created_at=user.created_at.isoformat()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
         )
+
+    return UserInfoResponse(
+        user_id=user.id,  # ty:ignore[invalid-argument-type]
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        phone=user.phone,
+        is_admin=user.is_admin,
+        created_at=user.created_at.isoformat()
+    )

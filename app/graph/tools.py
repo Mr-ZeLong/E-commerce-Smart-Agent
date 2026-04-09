@@ -14,6 +14,8 @@ from app.services.refund_service import (
     RefundApplicationService,
     RefundEligibilityChecker,
     RefundReason,
+    get_order_by_sn,
+    process_refund_for_order,
 )
 
 # ==========================================
@@ -37,23 +39,15 @@ async def check_refund_eligibility(
     - 如果不能退货，返回拒绝原因（如：超期、已退、商品类别等）
     """
     async with async_session_maker() as session:
-        # 1. 查询订单（带用户权限校验）
-        stmt = select(Order).where(
-            Order.order_sn == order_sn,
-            Order.user_id == user_id  # 🔒 安全：只能查自己的订单
-        )
-        result = await session.exec(stmt)
-        order = result.first()
+        order = await get_order_by_sn(order_sn, user_id, session)
 
         if not order:
             return f"❌ 未找到订单 {order_sn}，或您无权访问此订单。"
 
-        # 2. 调用规则引擎检查资格
         is_eligible, message = await RefundEligibilityChecker.check_eligibility(
             order, session
         )
 
-        # 3. 格式化返回结果
         if is_eligible:
             return (
                 f"✅ 订单 {order_sn} 符合退货条件。\n"
@@ -101,18 +95,6 @@ async def submit_refund_application(
     - 失败：返回拒绝原因
     """
     async with async_session_maker() as session:
-        # 1. 查询订单
-        stmt = select(Order).where(
-            Order.order_sn == order_sn,
-            Order.user_id == user_id  # 🔒 安全校验
-        )
-        result = await session.exec(stmt)
-        order = result.first()
-
-        if not order:
-            return f"❌ 未找到订单 {order_sn}，或您无权访问此订单。"
-
-        # 2. 转换原因分类
         category = None
         if reason_category:
             try:
@@ -120,25 +102,23 @@ async def submit_refund_application(
             except ValueError:
                 category = RefundReason.OTHER
 
-        # 3. 创建退货申请（内部会自动校验资格）
-        success, message, refund_app = await RefundApplicationService.create_refund_application(
-            order_id=order.id,  # ty:ignore[invalid-argument-type]
+        success, message, refund_data = await process_refund_for_order(
+            order_sn=order_sn,
             user_id=user_id,
             reason_detail=reason_detail,
             reason_category=category,
             session=session
         )
 
-        # 4. 格式化返回结果
-        if success and refund_app:
+        if success and refund_data:
             return (
                 f"✅ 退货申请提交成功！\n\n"
                 f"📋 申请信息：\n"
-                f"  - 申请编号：#{refund_app.id}\n"
+                f"  - 申请编号：#{refund_data['refund_id']}\n"
                 f"  - 订单号：{order_sn}\n"
-                f"  - 退款金额：¥{refund_app.refund_amount}\n"
-                f"  - 申请状态：{refund_app.status}（待审核）\n"
-                f"  - 退货原因：{refund_app.reason_detail}\n\n"
+                f"  - 退款金额：¥{refund_data['amount']}\n"
+                f"  - 申请状态：{refund_data['status']}（待审核）\n"
+                f"  - 退货原因：{refund_data['reason_detail']}\n\n"
                 f"⏳ 后续流程：\n"
                 f"  1. 我们会在 1-2 个工作日内审核您的申请\n"
                 f"  2. 审核通过后，请将商品寄回（保持包装完好）\n"

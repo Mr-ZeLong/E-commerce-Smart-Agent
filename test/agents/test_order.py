@@ -2,7 +2,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.agents.order import OrderAgent, RefundReason
+from app.agents.order import OrderAgent
+from app.models.refund import RefundReason
+from app.utils.order_utils import extract_order_sn, classify_refund_reason
 
 
 class TestOrderAgent:
@@ -72,19 +74,19 @@ class TestOrderAgent:
 
     def test_extract_order_sn(self, order_agent):
         """测试订单号提取"""
-        assert order_agent._extract_order_sn("查询订单 SN20240001") == "SN20240001"
-        assert order_agent._extract_order_sn("我要退货 SN12345") == "SN12345"
-        assert order_agent._extract_order_sn("没有订单号") is None
-        assert order_agent._extract_order_sn("sn20240001") == "SN20240001"  # 大小写不敏感
+        assert extract_order_sn("查询订单 SN20240001") == "SN20240001"
+        assert extract_order_sn("我要退货 SN12345") == "SN12345"
+        assert extract_order_sn("没有订单号") is None
+        assert extract_order_sn("sn20240001") == "SN20240001"  # 大小写不敏感
 
     def test_classify_refund_reason(self, order_agent):
         """测试退货原因分类"""
-        assert order_agent._classify_refund_reason("质量问题") == RefundReason.QUALITY_ISSUE
-        assert order_agent._classify_refund_reason("商品破损") == RefundReason.QUALITY_ISSUE
-        assert order_agent._classify_refund_reason("尺码不合适") == RefundReason.SIZE_NOT_FIT
-        assert order_agent._classify_refund_reason("大小不对") == RefundReason.SIZE_NOT_FIT
-        assert order_agent._classify_refund_reason("与描述不符") == RefundReason.NOT_AS_DESCRIBED
-        assert order_agent._classify_refund_reason("其他原因") == RefundReason.OTHER
+        assert classify_refund_reason("质量问题") == RefundReason.QUALITY_ISSUE
+        assert classify_refund_reason("商品破损") == RefundReason.QUALITY_ISSUE
+        assert classify_refund_reason("尺码不合适") == RefundReason.SIZE_NOT_FIT
+        assert classify_refund_reason("大小不对") == RefundReason.SIZE_NOT_FIT
+        assert classify_refund_reason("与描述不符") == RefundReason.NOT_AS_DESCRIBED
+        assert classify_refund_reason("其他原因") == RefundReason.OTHER
 
     def test_format_order_response(self, order_agent):
         """测试订单回复格式化"""
@@ -137,18 +139,11 @@ class TestOrderAgent:
             mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_context)
             mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            mock_result = MagicMock()
-            mock_result.first.return_value = mock_order
-            mock_context.exec.return_value = mock_result
+            with patch("app.agents.order.get_order_by_sn", new_callable=AsyncMock) as mock_get_order:
+                mock_get_order.return_value = mock_order
 
-            with patch("app.agents.order.RefundEligibilityChecker.check_eligibility") as mock_check:
-                mock_check.return_value = (True, "符合退货条件")
-
-                with patch("app.agents.order.RefundApplicationService.create_refund_application") as mock_create:
-                    mock_refund = MagicMock()
-                    mock_refund.id = 100
-                    mock_refund.refund_amount = 199.0
-                    mock_create.return_value = (True, "退货申请已提交", mock_refund)
+                with patch("app.agents.order.process_refund_for_order", new_callable=AsyncMock) as mock_process:
+                    mock_process.return_value = (True, "退货申请已提交", {"refund_id": 100, "amount": 199.0})
 
                     result = await order_agent.process({
                         "question": "我要退货 SN20240001，质量问题",
@@ -173,18 +168,17 @@ class TestOrderAgent:
             mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_context)
             mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            mock_result = MagicMock()
-            mock_result.first.return_value = mock_order
-            mock_context.exec.return_value = mock_result
+            with patch("app.agents.order.get_order_by_sn", new_callable=AsyncMock) as mock_get_order:
+                mock_get_order.return_value = mock_order
 
-            with patch("app.agents.order.RefundEligibilityChecker.check_eligibility") as mock_check:
-                mock_check.return_value = (False, "订单已发货，不符合退货条件")
+                with patch("app.agents.order.process_refund_for_order", new_callable=AsyncMock) as mock_process:
+                    mock_process.return_value = (False, "该订单不符合退货条件：订单已发货", None)
 
-                result = await order_agent.process({
-                    "question": "我要退货 SN20240001",
-                    "user_id": 1,
-                    "intent": "REFUND"
-                })
+                    result = await order_agent.process({
+                        "question": "我要退货 SN20240001",
+                        "user_id": 1,
+                        "intent": "REFUND"
+                    })
 
-                assert "不符合退货条件" in result.response
-                assert result.updated_state["refund_flow_active"] is False
+                    assert "不符合退货条件" in result.response
+                    assert result.updated_state["refund_flow_active"] is False

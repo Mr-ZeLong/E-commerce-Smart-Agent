@@ -1,7 +1,11 @@
+import logging
+
 from app.agents.base import AgentResult, BaseAgent
-from app.agents.order import OrderAgent
-from app.agents.policy import PolicyAgent
-from app.agents.router import RouterAgent
+from app.agents.evaluator import ConfidenceEvaluator
+from app.agents.orchestrator import AgentOrchestrator
+from app.agents.transfer import TransferDecider
+
+logger = logging.getLogger(__name__)
 
 
 class SupervisorAgent(BaseAgent):
@@ -9,19 +13,15 @@ class SupervisorAgent(BaseAgent):
     监督 Agent (Supervisor)
 
     职责：
-    1. 协调多个 Specialist Agent 的执行
-    2. 在关键节点进行置信度评估
-    3. 决定是否需要人工接管
-    4. 整合最终结果返回给用户
+    1. 协调 AgentOrchestrator、ConfidenceEvaluator、TransferDecider 完成多 Agent 工作流
+    2. 作为对外统一入口，保留流程观察日志和异常处理
     """
 
     def __init__(self):
         super().__init__(name="supervisor", system_prompt=None)
-
-        # 初始化所有 Specialist Agents
-        self.router = RouterAgent()
-        self.policy_agent = PolicyAgent()
-        self.order_agent = OrderAgent()
+        self.orchestrator = AgentOrchestrator()
+        self.evaluator = ConfidenceEvaluator()
+        self.transfer_decider = TransferDecider()
 
     async def process(self, state: dict) -> AgentResult:
         """
@@ -42,123 +42,69 @@ class SupervisorAgent(BaseAgent):
             question = state.get("question", "")
             user_id = state.get("user_id")
 
-            print(f"[Supervisor] 开始协调: user={user_id}, question={question[:50]}...")
+            logger.info(f"[Supervisor] 开始协调: user={user_id}, question={question[:50]}...")
 
-            # Step 1: 路由决策
-            router_result = await self.router.process(state)
+            # Step 1: 路由决策并执行 Specialist Agent
+            specialist_result = await self.orchestrator.route_and_execute(state)
 
-            # 如果 Router 直接返回了回复（如闲聊），直接返回
-            if router_result.response:
+            # Step 2: 如果 Router 直接返回了回复（如闲聊），直接返回
+            updated_state = specialist_result.updated_state or {}
+            if not updated_state.get("_router_next_agent"):
+                # Router 直接返回（或 orchestrator 返回了错误）
+                if updated_state.get("_error"):
+                    error_reason = updated_state.get("_error_reason")
+                    intent = updated_state.get("intent")
+                    if error_reason == "empty_router_state":
+                        return {
+                            "answer": specialist_result.response,
+                            "intent": intent,
+                            "confidence_score": 0.0,
+                            "needs_human_transfer": True,
+                            "transfer_reason": "系统内部错误"
+                        }
+                    else:
+                        return {
+                            "answer": specialist_result.response,
+                            "intent": intent,
+                            "confidence_score": 0.0,
+                            "needs_human_transfer": True,
+                            "transfer_reason": "无法路由到合适的代理"
+                        }
+
+                intent = updated_state.get("intent")
                 return {
-                    "answer": router_result.response,
-                    "intent": router_result.updated_state.get("intent") if router_result.updated_state else None,
+                    "answer": specialist_result.response,
+                    "intent": intent,
                     "confidence_score": 1.0,
                     "needs_human_transfer": False
                 }
 
-            if not router_result.updated_state:
-                return {
-                    "answer": "系统内部错误，请稍后重试。",
-                    "intent": None,
-                    "confidence_score": 0.0,
-                    "needs_human_transfer": True,
-                    "transfer_reason": "系统内部错误"
-                }
+            intent = updated_state.get("_router_intent")
 
-            intent = router_result.updated_state.get("intent")
-            next_agent = router_result.updated_state.get("next_agent")
+            logger.info(f"[Supervisor] 意图识别: {intent}, 路由到: {updated_state.get('_router_next_agent')}")
 
-            if not next_agent:
-                return {
-                    "answer": "无法确定处理该请求的专业代理，请尝试换一种方式描述您的问题。",
-                    "intent": intent,
-                    "confidence_score": 0.0,
-                    "needs_human_transfer": True,
-                    "transfer_reason": "无法路由到合适的代理"
-                }
-
-            print(f"[Supervisor] 意图识别: {intent}, 路由到: {next_agent}")
-
-            # Step 2: 调用 Specialist Agent
-            updated_state = router_result.updated_state or {}
-            specialist_result = await self._call_specialist(
-                next_agent=next_agent,
-                state={**state, **updated_state}
-            )
-
-            # Step 3: 如果 Specialist 已标记需要人工接管，直接转接
-            answer = specialist_result.response
+            # Step 3 & 4: 置信度评估（仅当 Specialist 未标记 needs_human 时）
             if specialist_result.needs_human:
-                print(f"[Supervisor] Specialist 请求人工接管: {specialist_result.transfer_reason}")
-                final_state = {
-                    "answer": answer,
-                    "intent": intent,
-                    "confidence_score": specialist_result.confidence or 0.0,
-                    "confidence_signals": {},
-                    "needs_human_transfer": True,
-                    "transfer_reason": specialist_result.transfer_reason or "specialist_requested_transfer",
-                    "audit_level": "manual",
-                }
+                logger.info(f"[Supervisor] Specialist 请求人工接管: {specialist_result.transfer_reason}")
+                eval_result = None
             else:
-                # 置信度评估
-                retrieval_result = specialist_result.updated_state.get("retrieval_result") if specialist_result.updated_state else None
-
-                # 使用新的信号计算模块
-                from app.confidence.signals import ConfidenceSignals
-
-                # 构建临时状态用于信号计算
-                temp_state = {
-                    "question": question,
-                    "history": state.get("history", []),
-                    "retrieval_result": retrieval_result,
-                }
-
-                # 计算置信度信号
-                confidence_signals = ConfidenceSignals(temp_state)  # type: ignore
-                signals = await confidence_signals.calculate_all(answer)
-
-                # 计算加权总分
-                from app.core.config import settings
-                weights = settings.CONFIDENCE.default_weights
-                overall_score = (
-                    signals["rag"].score * weights["rag"] +
-                    signals["llm"].score * weights["llm"] +
-                    signals["emotion"].score * weights["emotion"]
+                retrieval_result = updated_state.get("retrieval_result")
+                eval_result = await self.evaluator.evaluate(
+                    answer=specialist_result.response,
+                    question=question,
+                    history=state.get("history", []),
+                    retrieval_result=retrieval_result,
                 )
+                logger.info(f"[Supervisor] 置信度评估: {eval_result['confidence_score']:.3f}")
 
-                print(f"[Supervisor] 置信度评估: {overall_score:.3f}")
-
-                # 确定审核级别
-                audit_level = settings.CONFIDENCE.get_audit_level(overall_score)
-                needs_transfer = audit_level == "manual"
-
-                # Step 4: 构建最终状态
-                final_state = {
-                    "answer": answer,
-                    "intent": intent,
-                    "confidence_score": overall_score,
-                    "confidence_signals": {
-                        "rag": {"score": signals["rag"].score, "reason": signals["rag"].reason},
-                        "llm": {"score": signals["llm"].score, "reason": signals["llm"].reason},
-                        "emotion": {"score": signals["emotion"].score, "reason": signals["emotion"].reason},
-                    },
-                    "needs_human_transfer": needs_transfer,
-                    "transfer_reason": "置信度不足" if needs_transfer else None,
-                    "audit_level": audit_level,
-                }
-
-            # 合并 Specialist 返回的状态更新（但不覆盖关键字段）
-            if specialist_result.updated_state:
-                for key, value in specialist_result.updated_state.items():
-                    if key not in final_state:
-                        final_state[key] = value
+            # Step 5: 转人工决策并整合最终状态
+            final_state = self.transfer_decider.decide_transfer(specialist_result, eval_result)
+            final_state["intent"] = intent
 
             return final_state
 
         except Exception as e:
-            print(f"[Supervisor] 协调失败: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("[Supervisor] 协调失败")
             return {
                 "answer": "抱歉，系统暂时无法处理您的请求。请稍后重试或联系人工客服。",
                 "intent": "ERROR",
@@ -166,23 +112,3 @@ class SupervisorAgent(BaseAgent):
                 "needs_human_transfer": True,
                 "transfer_reason": f"system_error: {str(e)}",
             }
-
-    async def _call_specialist(
-        self,
-        next_agent: str,
-        state: dict
-    ) -> AgentResult:
-        """调用对应的 Specialist Agent"""
-        if next_agent == "policy":
-            return await self.policy_agent.process(state)
-        elif next_agent == "order":
-            return await self.order_agent.process(state)
-        elif next_agent == "supervisor":
-            # 默认回退到 policy agent 处理一般性咨询
-            return await self.policy_agent.process(state)
-        else:
-            # 默认或未知情况，返回友好提示
-            return AgentResult(
-                response="抱歉，我暂时无法处理这个问题。如需帮助，请联系人工客服。",
-                updated_state={}
-            )

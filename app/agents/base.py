@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -7,6 +8,8 @@ from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
 from app.core.llm_factory import create_openai_llm
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -62,7 +65,7 @@ class BaseAgent(ABC):
                 response = await self.llm.ainvoke(messages)
             return str(response.content)
         except Exception as e:
-            print(f"[{self.name}] LLM 调用失败: {e}")
+            logger.error(f"[{self.name}] LLM 调用失败: {e}")
             raise
 
     def _create_messages(

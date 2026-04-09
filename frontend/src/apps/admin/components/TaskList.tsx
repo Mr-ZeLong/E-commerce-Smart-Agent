@@ -3,6 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { riskLevelConfig } from '@/lib/risk';
 import type { Task, TaskFilters } from '@/types';
 
 interface TaskListProps {
@@ -23,16 +24,8 @@ export function TaskList({
   onSelectTask,
 }: TaskListProps) {
   const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'HIGH':
-        return 'bg-red-100 text-red-700';
-      case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'LOW':
-        return 'bg-green-100 text-green-700';
-      default:
-        return 'bg-gray-100';
-    }
+    const config = riskLevelConfig[risk as keyof typeof riskLevelConfig];
+    return config?.className || 'bg-gray-100';
   };
 
   return (

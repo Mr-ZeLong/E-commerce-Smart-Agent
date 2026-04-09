@@ -25,12 +25,14 @@ flowchart TB
         CONFIG["Config<br/>Pydantic Settings"]
         DB["Database<br/>SQLModel + AsyncPG"]
         SEC["Security<br/>JWT Auth"]
+        UTILS["Utils<br/>通用工具函数"]
     end
 
     subgraph AgentLayer["🤖 Agent 层 (LangGraph)"]
         GRAPH["StateGraph<br/>工作流编排"]
 
         subgraph Nodes["📍 节点定义"]
+            SUPERVISOR["Supervisor<br/>AgentOrchestrator +<br/>ConfidenceEvaluator +<br/>TransferDecider"]
             INTENT["Intent Router v2.0<br/>IntentRouterAgent<br/>分层意图识别"]
             RETRIEVE["Retrieve<br/>知识检索 (RAG)"]
             QUERY["Query Order<br/>订单查询"]
@@ -99,6 +101,7 @@ flowchart TB
 
     GRAPH --> Nodes
     Nodes --> State
+    SUPERVISOR --> INTENT
     INTENT --> RETRIEVE & QUERY & REFUND
     REFUND --> AUDIT
     QUERY --> GEN
@@ -416,7 +419,8 @@ E-commerce-Smart-Agent/
 │   ├── 📁 core/                    # 核心基础设施
 │   │   ├── 📄 config.py            # 配置管理 (Pydantic Settings)
 │   │   ├── 📄 database.py          # 数据库连接 (SQLModel)
-│   │   └── 📄 security.py          # JWT 认证
+│   │   ├── 📄 security.py          # JWT 认证
+│   │   └── 📄 utils.py             # 工具函数（utc_now 等）
 │   │
 │   ├── 📁 models/                  # 数据库模型 (SQLModel)
 │   │   ├── 📄 user.py              # 用户表
@@ -428,7 +432,7 @@ E-commerce-Smart-Agent/
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
 │   │   ├── 📄 workflow.py          # 工作流定义与编译
-│   │   ├── 📄 state.py             # 状态定义 (TypedDict)
+│   │   ├── 📄 state.py             # 状态定义（v5.0 移除的向后兼容层，内部引用已迁移到 app.models.state）
 │   │   ├── 📄 nodes.py             # 节点函数 (6个节点)
 │   │   └── 📄 tools.py             # 工具函数 (3个工具)
 │   │
@@ -437,7 +441,10 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 router.py            # IntentRouterAgent (v2.0) + RouterAgent 兼容别名
 │   │   ├── 📄 order.py             # 订单 Agent
 │   │   ├── 📄 policy.py            # 政策 Agent
-│   │   └── 📄 supervisor.py        # 监督 Agent
+│   │   ├── 📄 supervisor.py        # 监督 Agent（轻量协调器）
+│   │   ├── 📄 orchestrator.py      # AgentOrchestrator（路由调度 + Specialist 执行）
+│   │   ├── 📄 evaluator.py         # ConfidenceEvaluator（置信度信号计算）
+│   │   └── 📄 transfer.py          # TransferDecider（人工接管决策）
 │   │
 │   ├── 📁 intent/                  # 意图识别模块
 │   │   ├── 📄 service.py           # IntentRecognitionService (Redis 会话/缓存)
@@ -472,9 +479,14 @@ E-commerce-Smart-Agent/
 │       │   ├── 📁 customer/        # C端用户应用
 │       │   │   ├── 📄 App.tsx
 │       │   │   ├── 📄 main.tsx
-│       │   │   └── 📁 pages/
-│       │   │       ├── 📄 Login.tsx
-│       │   │       └── 📄 Chat.tsx
+│       │   │   ├── 📁 pages/
+│       │   │   │   ├── 📄 Login.tsx
+│       │   │   │   └── 📄 Chat.tsx
+│       │   │   ├── 📁 hooks/
+│       │   │   │   └── 📄 useChat.ts
+│       │   │   └── 📁 components/
+│       │   │       ├── 📄 ChatMessageList.tsx
+│       │   │       └── 📄 ChatInput.tsx
 │       │   │
 │       │   └── 📁 admin/           # B端管理后台
 │       │       ├── 📄 App.tsx
@@ -485,9 +497,13 @@ E-commerce-Smart-Agent/
 │       │
 │       ├── 📁 components/
 │       │   ├── 📁 ui/              # shadcn/ui 组件
+│       │   │   └── 📄 alert.tsx    # 共享 Alert 组件
 │       │   └── 📁 common/          # 业务共享组件
 │       │
-│       ├── 📁 api/                 # API 客户端
+│       ├── 📁 lib/                 # 共享基础设施
+│       │   ├── 📄 api.ts           # 统一 API 客户端
+│       │   ├── 📄 risk.ts          # 风险等级配置
+│       │   └── 📄 query-client.ts  # Query Client 配置
 │       ├── 📁 stores/              # Zustand 状态管理
 │       ├── 📁 hooks/               # 自定义 React Hooks
 │       └── 📁 types/               # TypeScript 类型定义
@@ -514,7 +530,8 @@ E-commerce-Smart-Agent/
 
 | 特性 | 描述 | 技术实现 |
 |------|------|----------|
-| **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph |
+| **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph + AgentOrchestrator |
+| **Agent 监督层** | Orchestrator + Evaluator + Decider 三组件协作 | SupervisorAgent |
 | **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 | IntentRecognitionService + Redis |
 | **RAG 检索** | 基于 Qdrant 的混合语义检索（Dense + BM25 Sparse + Rerank） | Embedding + 向量数据库 |
 | **退货流程** | 多步骤退货申请流程 | LangGraph 状态机 |

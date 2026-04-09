@@ -4,9 +4,13 @@ WebSocket 连接管理器
 负责维护客户端连接、广播消息、状态同步
 """
 import asyncio
-from datetime import UTC, datetime
+import logging
 
 from fastapi import WebSocket
+
+from app.core.utils import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -39,14 +43,14 @@ class ConnectionManager:
                 self.thread_subscribers[thread_id] = set()
             self.thread_subscribers[thread_id].add(websocket)
 
-        print(f" [WS] 用户 {user_id} 连接到会话 {thread_id}")
+        logger.info(f" [WS] 用户 {user_id} 连接到会话 {thread_id}")
 
     async def connect_admin(self, websocket: WebSocket, admin_id: int):
         """管理员连接"""
         await websocket.accept()
         async with self._lock:
             self.admin_connections[admin_id] = websocket
-        print(f" [WS] 管理员 {admin_id} 已连接")
+        logger.info(f" [WS] 管理员 {admin_id} 已连接")
 
     async def disconnect_user(self, user_id: int, thread_id: str):
         """断开用户连接"""
@@ -59,13 +63,13 @@ class ConnectionManager:
                 if not self.active_connections[user_id]:
                     del self.active_connections[user_id]
 
-        print(f" [WS] 用户 {user_id} 断开会话 {thread_id}")
+        logger.info(f" [WS] 用户 {user_id} 断开会话 {thread_id}")
 
     async def disconnect_admin(self, admin_id: int):
         """断开管理员连接"""
         async with self._lock:
             self.admin_connections.pop(admin_id, None)
-        print(f" [WS] 管理员 {admin_id} 已断开")
+        logger.info(f" [WS] 管理员 {admin_id} 已断开")
 
     async def send_to_user(self, user_id: int, thread_id: str, message: dict):
         """发送消息给指定用户"""
@@ -76,7 +80,7 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message)
             except Exception as e:
-                print(f" [WS] 发送失败: {e}")
+                logger.warning(f" [WS] 发送失败: {e}")
                 await self.disconnect_user(user_id, thread_id)
 
     async def send_to_thread(self, thread_id: str, message: dict):
@@ -89,7 +93,7 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message)
             except Exception as e:
-                print(f" [WS] 广播失败:  {e}")
+                logger.warning(f" [WS] 广播失败:  {e}")
                 disconnected.add(websocket)
 
         if disconnected:
@@ -107,7 +111,7 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message)
             except Exception as e:
-                print(f" [WS] 管理员 {admin_id} 发送失败: {e}")
+                logger.warning(f" [WS] 管理员 {admin_id} 发送失败: {e}")
                 disconnected.append(admin_id)
 
         for admin_id in disconnected:
@@ -127,7 +131,7 @@ class ConnectionManager:
             "thread_id": thread_id,
             "status": status,
             "data": data or {},
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
 
         # 通知该会话的所有订阅者
@@ -139,7 +143,7 @@ class ConnectionManager:
                 "type": "new_audit_task",
                 "thread_id":  thread_id,
                 "data": data,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": utc_now().isoformat(),
             })
 
 

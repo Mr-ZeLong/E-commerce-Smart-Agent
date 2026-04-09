@@ -1,9 +1,11 @@
 # app/models/refund.py
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import Column, Numeric, String, Text, text
 from sqlmodel import Field, SQLModel
+
+from app.core.utils import utc_now
 
 
 # 1. 退货申请状态枚举
@@ -75,13 +77,13 @@ class RefundApplication(SQLModel, table=True):
 
     # 创建时间
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
     # 更新时间
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None),
+        default_factory=utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")

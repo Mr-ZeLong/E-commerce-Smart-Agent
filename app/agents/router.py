@@ -22,6 +22,11 @@ class Intent(str, Enum):
     OTHER = "OTHER"
 
 
+class _IntentMapping(TypedDict):
+    legacy: Intent
+    agent: str
+
+
 class RouterState(TypedDict, total=False):
     """路由状态字典类型定义
 
@@ -47,6 +52,17 @@ class RouterState(TypedDict, total=False):
     clarification_state: dict[str, Any]
     intent: Intent
     next_agent: str
+
+
+_INTENT_MAPPINGS: dict[IntentCategory, _IntentMapping] = {
+    IntentCategory.ORDER: {"legacy": Intent.ORDER, "agent": "order"},
+    IntentCategory.AFTER_SALES: {"legacy": Intent.REFUND, "agent": "order"},
+    IntentCategory.POLICY: {"legacy": Intent.POLICY, "agent": "policy"},
+    IntentCategory.PRODUCT: {"legacy": Intent.POLICY, "agent": "policy"},
+    IntentCategory.RECOMMENDATION: {"legacy": Intent.POLICY, "agent": "policy"},
+    IntentCategory.CART: {"legacy": Intent.ORDER, "agent": "order"},
+    IntentCategory.OTHER: {"legacy": Intent.OTHER, "agent": "supervisor"},
+}
 
 
 class IntentRouterAgent(BaseAgent):
@@ -176,15 +192,8 @@ class IntentRouterAgent(BaseAgent):
         Returns:
             str: 目标Agent名称
         """
-        routing_map = {
-            IntentCategory.ORDER: "order",
-            IntentCategory.AFTER_SALES: "order",
-            IntentCategory.POLICY: "policy",
-            IntentCategory.PRODUCT: "policy",  # 商品咨询也走policy
-            IntentCategory.RECOMMENDATION: "policy",
-            IntentCategory.CART: "order",
-        }
-        target_agent = routing_map.get(result.primary_intent, "supervisor")
+        mapping = _INTENT_MAPPINGS.get(result.primary_intent)
+        target_agent = mapping["agent"] if mapping else "supervisor"
         logger.debug(
             "Routing map: primary_intent=%s -> target_agent=%s",
             result.primary_intent, target_agent
@@ -200,32 +209,10 @@ class IntentRouterAgent(BaseAgent):
         Returns:
             Intent: 向后兼容的意图枚举值
         """
-        primary = result.primary_intent
-
-        # 退货/售后相关意图映射到 REFUND
-        if primary == IntentCategory.AFTER_SALES:
-            return Intent.REFUND
-
-        # 订单相关意图
-        if primary == IntentCategory.ORDER:
-            return Intent.ORDER
-
-        # 购物车相关也映射到 ORDER（由OrderAgent处理）
-        if primary == IntentCategory.CART:
-            return Intent.ORDER
-
-        # 政策、商品、推荐等映射到 POLICY
-        if primary in (IntentCategory.POLICY, IntentCategory.PRODUCT, IntentCategory.RECOMMENDATION):
-            return Intent.POLICY
-
-        # 其他/未知意图映射到 OTHER
-        if primary == IntentCategory.OTHER:
-            return Intent.OTHER
-
-        # 默认回退
-        logger.warning(
-            "Unknown primary_intent=%s, defaulting to OTHER", primary
-        )
+        mapping = _INTENT_MAPPINGS.get(result.primary_intent)
+        if mapping:
+            return mapping["legacy"]
+        logger.warning("Unknown primary_intent=%s, defaulting to OTHER", result.primary_intent)
         return Intent.OTHER
 
     def _quick_intent_check(self, query: str) -> Intent:

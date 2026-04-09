@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
+import { riskLevelConfig } from '@/lib/risk';
 import type { Task } from '@/types';
 
 interface DecisionPanelProps {
@@ -24,18 +25,7 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
       </div>
     );
 
-  const getRiskBadge = (risk: string) => {
-    switch (risk) {
-      case 'HIGH':
-        return <Badge className="bg-red-100 text-red-700">高风险</Badge>;
-      case 'MEDIUM':
-        return <Badge className="bg-yellow-100 text-yellow-700">中风险</Badge>;
-      case 'LOW':
-        return <Badge className="bg-green-100 text-green-700">低风险</Badge>;
-      default:
-        return <Badge>未知</Badge>;
-    }
-  };
+  const riskConfig = riskLevelConfig[task.risk_level as keyof typeof riskLevelConfig];
 
   const handleApprove = () => {
     setValidationError('');
@@ -62,7 +52,9 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">风险等级</span>
-          {getRiskBadge(task.risk_level)}
+          <Badge className={riskConfig?.className || ''}>
+            {riskConfig?.label || '未知'}
+          </Badge>
         </div>
 
         <div>

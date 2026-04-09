@@ -2,12 +2,16 @@
 """
 WebSocket 路由
 """
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+import logging
 
-from app.core.security import get_current_user_id_ws
+from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+
+from app.core.security import get_current_user_id_ws, verify_admin_token
 from app.websocket.manager import manager
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 @router.websocket("/ws/{thread_id}")
@@ -42,7 +46,7 @@ async def websocket_endpoint(
             await manager.disconnect_user(user_id, thread_id)
 
     except Exception as e:
-        print(f" [WS] 连接错误: {e}")
+        logger.warning(f" [WS] 连接错误: {e}")
         await websocket.close(code=1008, reason=str(e))
 
 
@@ -59,8 +63,12 @@ async def admin_websocket_endpoint(
         token: JWT Token (需验证管理员权限)
     """
     try:
-        # TODO: 验证管理员权限
-        # admin_user = await verify_admin_token(token)
+        token_admin_id = verify_admin_token(token)
+        if token_admin_id != admin_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin ID mismatch"
+            )
 
         # 建立连接
         await manager.connect_admin(websocket, admin_id)
@@ -76,5 +84,5 @@ async def admin_websocket_endpoint(
             await manager.disconnect_admin(admin_id)
 
     except Exception as e:
-        print(f" [WS] 管理员连接错误: {e}")
+        logger.warning(f" [WS] 管理员连接错误: {e}")
         await websocket.close(code=1008, reason=str(e))
