@@ -1,7 +1,8 @@
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import pytest
 from qdrant_client import models
-from unittest.mock import patch, MagicMock
-import numpy as np
 
 from app.retrieval.sparse_embedder import SparseTextEmbedder
 
