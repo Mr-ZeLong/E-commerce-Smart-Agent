@@ -3,6 +3,8 @@
 认证 API - 登录、注册
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
@@ -87,7 +89,7 @@ async def login(
         )
 
     # 验证密码
-    if not user.verify_password(body.password):
+    if not await asyncio.to_thread(user.verify_password, body.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
@@ -142,7 +144,7 @@ async def register(
     # 创建用户
     user = User(
         username=body.username,
-        password_hash=User.hash_password(body.password),
+        password_hash=await asyncio.to_thread(User.hash_password, body.password),
         email=body.email,
         full_name=body.full_name,
         phone=body.phone,
