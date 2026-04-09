@@ -39,10 +39,23 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("⚠️  Failed to close Qdrant client during shutdown")
 
+if "*" in settings.CORS_ORIGINS:
+    raise RuntimeError(
+        "CORS allow_origins=['*'] is not allowed when allow_credentials=True. "
+        "Please restrict CORS_ORIGINS to specific domains."
+    )
+
+docs_url = "/docs" if settings.ENABLE_OPENAPI_DOCS else None
+redoc_url = "/redoc" if settings.ENABLE_OPENAPI_DOCS else None
+openapi_url = "/openapi.json" if settings.ENABLE_OPENAPI_DOCS else None
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="4.0.0",
     description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0",
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url,
     lifespan=lifespan,
 )
 app.state.limiter = limiter
@@ -56,12 +69,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-if "*" in settings.CORS_ORIGINS:
-    logger.warning(
-        "CORS is configured with allow_origins=['*'] and allow_credentials=True, "
-        "which poses a security risk in production."
-    )
 
 # 2. Rate limiting middleware
 app.add_middleware(SlowAPIMiddleware)

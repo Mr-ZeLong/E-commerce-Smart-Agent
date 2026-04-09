@@ -141,6 +141,9 @@ class Settings(BaseSettings):
     # CORS 配置
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
+    # OpenAPI docs 配置（生产环境默认关闭）
+    ENABLE_OPENAPI_DOCS: bool = False
+
     # Celery 配置
     CELERY_BROKER_URL: str = ""  # 默认使用 REDIS_URL
     CELERY_RESULT_BACKEND: str = ""  # 默认使用 REDIS_URL
