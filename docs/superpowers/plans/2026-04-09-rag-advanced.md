@@ -81,13 +81,26 @@ In `docker-compose.yaml`, add the `qdrant` service inside `services:` and add `q
       retries: 5
 ```
 
-Also update `app` and `celery_worker` services `depends_on` to include:
+Also add `healthcheck` to the existing `redis` service:
+```yaml
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+```
+
+And update `app` and `celery_worker` services `depends_on` to include:
 ```yaml
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       qdrant:
         condition: service_healthy
 ```
@@ -211,7 +224,7 @@ class QwenEmbeddings(Embeddings):
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         raise NotImplementedError("请使用异步方法 aembed_documents")
 
-    def embed_query(self, text: str) -> list[float]]:
+    def embed_query(self, text: str) -> list[float]:
         raise NotImplementedError("请使用异步方法 aembed_query")
 
     async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -233,7 +246,7 @@ class QwenEmbeddings(Embeddings):
             data = response.json()
             return [item["embedding"] for item in data["data"]]
 
-    async def aembed_query(self, text: str) -> list[float]]:
+    async def aembed_query(self, text: str) -> list[float]:
         results = await self.aembed_documents([text])
         return results[0]
 
@@ -318,14 +331,23 @@ if TYPE_CHECKING:
     from fastembed.sparse.sparse_text_embedding import SparseEmbedding
 
 
+import threading
+
+
 class SparseTextEmbedder:
     def __init__(self, model_name: str = "Qdrant/bm25"):
         self.model_name = model_name
         self._model: SparseTextEmbedding | None = None
+        self._lock = threading.Lock()
 
     def _get_model(self) -> SparseTextEmbedding:
         if self._model is None:
-            self._model = SparseTextEmbedding(model_name=self.model_name)
+            with self._lock:
+                if self._model is None:
+                    kwargs = {}
+                    if settings.FASTEMBED_CACHE_PATH:
+                        kwargs["cache_dir"] = settings.FASTEMBED_CACHE_PATH
+                    self._model = SparseTextEmbedding(model_name=self.model_name, **kwargs)
         return self._model
 
     def _embed_sync(self, texts: list[str]) -> list[models.SparseVector]:
@@ -410,6 +432,8 @@ class QdrantKnowledgeClient:
         self.collection_name = collection_name
         if client is not None:
             self.client = client
+        elif url == ":memory:":
+            self.client = AsyncQdrantClient(location=":memory:", timeout=settings.QDRANT_TIMEOUT)
         else:
             self.client = AsyncQdrantClient(url=url, api_key=api_key, timeout=settings.QDRANT_TIMEOUT)
 
@@ -458,7 +482,7 @@ class QdrantKnowledgeClient:
                     limit=sparse_limit,
                 ),
             ],
-            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            query=models.RrfQuery(rrf=models.Rrf(k=settings.RETRIEVER_RRF_K)),
         )
         return list(response.points)
 ```
@@ -497,7 +521,7 @@ async def test_rewrite_returns_first_line():
     rewriter = QueryRewriter(base_url="http://test", api_key="sk-test")
     with patch("app.retrieval.rewriter.ChatOpenAI") as mock_llm_cls:
         mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = type("R", {}, {"content": "  \n改写后查询\n多余内容"})()
+        mock_llm.ainvoke.return_value = type("R", (), {"content": "  \n改写后查询\n多余内容"})()
         mock_llm_cls.return_value = mock_llm
 
         result = await rewriter.rewrite("东西坏了怎么退")
@@ -637,7 +661,8 @@ class QwenReranker:
         timeout: float = 10.0,
         max_document_chars: int = 12000,
     ):
-        self.base_url = (base_url or settings.OPENAI_BASE_URL).rstrip('/')
+        # Use the correct DashScope rerank endpoint, not the OpenAI chat endpoint
+        self.base_url = "https://dashscope.aliyuncs.com/compatible-api/v1"
         self.api_key = api_key or settings.OPENAI_API_KEY
         self.model = model or settings.RERANK_MODEL
         self.timeout = timeout
@@ -664,7 +689,7 @@ class QwenReranker:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/reranks",
+                    "https://dashscope.aliyuncs.com/compatible-api/v1/reranks",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
@@ -730,17 +755,16 @@ async def test_retriever_orchestrates_all_steps():
 
     qdrant_client = AsyncMock()
     qdrant_client.query_hybrid.return_value = [
-        type("P", {}, {
+        type("P", (), {
             "id": 1,
             "score": 0.1,
             "payload": {"content": "c1", "source": "s1", "meta_data": {}},
         })(),
-        type("P", {}, {
+        type("P", (), {
             "id": 2,
             "score": 0.05,
             "payload": {"content": "c2", "source": "s2", "meta_data": {}},
         })(),
-    ]
 
     dense_embedder = AsyncMock()
     dense_embedder.aembed_query.return_value = [0.1] * 1024
@@ -808,34 +832,63 @@ class HybridRetriever:
 
     async def retrieve(self, query: str) -> list[RetrievedChunk]:
         rewritten = await self.rewriter.rewrite(query)
-
         dense_vec = await self.dense_embedder.aembed_query(rewritten)
-        sparse_vecs = await self.sparse_embedder.aembed([rewritten])
-        sparse_vec = sparse_vecs[0]
 
-        scored_points = await self.qdrant_client.query_hybrid(
-            dense_vector=dense_vec,
-            sparse_vector=sparse_vec,
-            dense_limit=settings.RETRIEVER_DENSE_TOPK,
-            sparse_limit=settings.RETRIEVER_SPARSE_TOPK,
-        )
+        # Fallback: if sparse embedder fails, do pure dense retrieval
+        try:
+            sparse_vecs = await self.sparse_embedder.aembed([rewritten])
+            sparse_vec = sparse_vecs[0]
+        except Exception:
+            sparse_vec = None
+
+        try:
+            if sparse_vec is not None:
+                scored_points = await self.qdrant_client.query_hybrid(
+                    dense_vector=dense_vec,
+                    sparse_vector=sparse_vec,
+                    dense_limit=settings.RETRIEVER_DENSE_TOPK,
+                    sparse_limit=settings.RETRIEVER_SPARSE_TOPK,
+                )
+            else:
+                scored_points = await self.qdrant_client.query_dense(
+                    dense_vector=dense_vec,
+                    limit=settings.RETRIEVER_DENSE_TOPK,
+                )
+        except Exception:
+            # Qdrant failure is unrecoverable for this request
+            raise
 
         if not scored_points:
             return []
 
         documents = [str(p.payload.get("content", "")) for p in scored_points]
-        reranked = await self.reranker.rerank(rewritten, documents, top_n=settings.RETRIEVER_FINAL_TOPK)
 
-        # Build result map from reranker ordering
+        # Try rerank; on failure return RRF/dense results with original scores
+        try:
+            reranked = await self.reranker.rerank(rewritten, documents, top_n=settings.RETRIEVER_FINAL_TOPK)
+        except Exception:
+            reranked = None
+
         results: list[RetrievedChunk] = []
-        for r in reranked:
-            if 0 <= r.index < len(scored_points):
-                point = scored_points[r.index]
+        if reranked is not None and len(reranked) > 0:
+            for r in reranked:
+                if 0 <= r.index < len(scored_points):
+                    point = scored_points[r.index]
+                    payload = point.payload or {}
+                    results.append(RetrievedChunk(
+                        content=str(payload.get("content", "")),
+                        source=str(payload.get("source", "unknown")),
+                        score=r.score,
+                        metadata=dict(payload.get("meta_data", {})),
+                    ))
+        else:
+            # Fallback: return top results from Qdrant with their original scores
+            for point in scored_points[:settings.RETRIEVER_FINAL_TOPK]:
                 payload = point.payload or {}
                 results.append(RetrievedChunk(
                     content=str(payload.get("content", "")),
                     source=str(payload.get("source", "unknown")),
-                    score=r.score,
+                    score=point.score,
                     metadata=dict(payload.get("meta_data", {})),
                 ))
 
@@ -845,6 +898,8 @@ class HybridRetriever:
 Create `app/retrieval/__init__.py`:
 
 ```python
+from functools import lru_cache
+
 from app.retrieval.client import QdrantKnowledgeClient
 from app.retrieval.embeddings import embedding_model
 from app.retrieval.reranker import QwenReranker
@@ -854,6 +909,7 @@ from app.retrieval.retriever import HybridRetriever
 from app.core.config import settings
 
 
+@lru_cache(maxsize=1)
 def get_retriever() -> HybridRetriever:
     qdrant_client = QdrantKnowledgeClient(
         url=settings.QDRANT_URL,
@@ -885,7 +941,13 @@ git commit -m "feat(retrieval): add HybridRetriever and get_retriever factory"
 
 **Files:**
 - Modify: `app/agents/policy.py`
+- Modify: `app/confidence/signals.py`
+- Modify: `app/agents/supervisor.py`
 - Create: `tests/agents/test_policy.py`
+
+- [ ] **Step 0: Create test directories if they don't exist**
+
+Run: `mkdir -p tests/retrieval tests/agents`
 
 - [ ] **Step 1: Write failing integration test for PolicyAgent retrieval**
 
@@ -921,7 +983,7 @@ Expected: FAIL (import error from new `_retrieve_knowledge` or missing `get_retr
 
 - [ ] **Step 2: Update `app/agents/policy.py`**
 
-Replace the `_retrieve_knowledge` method and update `_estimate_confidence`:
+Replace imports and methods:
 
 ```python
 from app.retrieval import get_retriever
@@ -950,7 +1012,7 @@ class PolicyAgent(BaseAgent):
             return 0.0
         if similarities:
             avg_sim = sum(similarities) / len(similarities)
-            # Temporary thresholds for new score distribution (reranker/RRF)
+            # Direct mapping without arbitrary stretching; thresholds will be tuned after data collection
             if avg_sim >= 0.65:
                 return 0.8
             elif avg_sim >= 0.45:
@@ -960,16 +1022,39 @@ class PolicyAgent(BaseAgent):
         return 0.5 if len(chunks) > 0 else 0.0
 ```
 
-Remove the old `_retrieve_knowledge` body that queried `KnowledgeChunk` directly via SQL.
+Remove the old `_retrieve_knowledge` SQL body and clean up dead imports/constants:
+- Remove `from sqlmodel import select`
+- Remove `from app.core.database import async_session_maker`
+- Remove `from app.models.knowledge import KnowledgeChunk`
+- Remove `SIMILARITY_THRESHOLD = 0.5`
 
-Run: `pytest tests/agents/test_policy.py -v`
-Expected: PASS.
+- [ ] **Step 3: Review `app/confidence/signals.py`**
 
-- [ ] **Step 3: Commit**
+Open `app/confidence/signals.py` and verify `RAGSignal.calculate()` works with the new `similarities` score distribution (0~1 from reranker/RRF, potentially lower than old `1.0 - cosine_distance`). The formula `max_sim * 0.4 + avg_sim * 0.3 + coverage * 0.3` is mathematically still valid regardless of score source, but the absolute output range may shift. No code change is strictly required, but add a comment:
+
+```python
+# Note: similarities now come from reranker/RRF instead of 1.0 - cosine_distance.
+# Thresholds may need recalibration once Golden Dataset is available.
+```
+
+- [ ] **Step 4: Review `app/agents/supervisor.py`**
+
+Confirm that `SupervisorAgent.coordinate()` has a broad `try/except` around the specialist call. If `HybridRetriever.retrieve()` raises an exception, it should be caught and returned as:
+
+```python
+{
+    "answer": "抱歉，系统暂时无法处理您的请求。请稍后重试或联系人工客服。",
+    ...
+}
+```
+
+This is already the case in the current code (lines 329-338), so no change is needed unless the exception type changes.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add app/agents/policy.py tests/agents/test_policy.py
-git commit -m "feat(policy): integrate HybridRetriever into PolicyAgent"
+git add app/agents/policy.py app/confidence/signals.py tests/agents/test_policy.py
+git commit -m "feat(policy): integrate HybridRetriever into PolicyAgent, clean dead code"
 ```
 
 ---
@@ -1013,6 +1098,8 @@ import os
 import sys
 
 sys.path.append(os.getcwd())
+
+_global_point_id_counter = 0
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -1081,7 +1168,7 @@ async def process_file(file_path: str, source_name: str, qdrant_client: QdrantKn
             points = []
             for j, text in enumerate(batch_texts):
                 points.append(models.PointStruct(
-                    id=i + j,
+                    id=_global_point_id_counter,
                     vector={
                         "dense": dense_vectors[j],
                         "sparse": sparse_vectors[j],
@@ -1092,6 +1179,7 @@ async def process_file(file_path: str, source_name: str, qdrant_client: QdrantKn
                         "meta_data": batch_metas[j],
                     },
                 ))
+                _global_point_id_counter += 1
 
             await qdrant_client.upsert_chunks(points)
 
