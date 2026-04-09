@@ -4,20 +4,18 @@ from datetime import UTC
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.utils import utc_now
 from app.models.audit import AuditLog
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 
 # ==========================================
-# 退货规则配置（硬编码业务规则）
+# 退货规则配置
 # ==========================================
 
 class RefundRules:
     """退货规则常量"""
-
-    # 退货期限（天数）
-    REFUND_DEADLINE_DAYS = 7
 
     # 允许退货的订单状态
     ALLOWED_ORDER_STATUSES = [
@@ -25,12 +23,8 @@ class RefundRules:
         OrderStatus.SHIPPED     # 已发货（可选，根据业务决定）
     ]
 
-    # 不可退货的商品类别（预留，后续可扩展）
-    NON_REFUNDABLE_CATEGORIES = [
-        "内衣",  # 贴身衣物
-        "食品",  # 食品类
-        "定制商品"  # 定制类
-    ]
+    REFUND_DEADLINE_DAYS = settings.REFUND_DEADLINE_DAYS
+    NON_REFUNDABLE_CATEGORIES = settings.NON_REFUNDABLE_CATEGORIES
 
 
 # ==========================================

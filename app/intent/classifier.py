@@ -16,6 +16,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from app.core.config import settings
 from app.core.llm_factory import create_openai_llm
 from app.intent.config import TERTIARY_INTENT_CONFIG, validate_tertiary_intent
 from app.intent.models import IntentAction, IntentCategory, IntentResult
@@ -33,8 +34,8 @@ class IntentClassifier:
     RULE_MATCH_CONFIDENCE = 0.5
     DEFAULT_FALLBACK_CONFIDENCE = 0.3
 
-    FUNCTION_CALLING_THRESHOLD = 0.7
-    JSON_PARSING_THRESHOLD = 0.6
+    FUNCTION_CALLING_THRESHOLD = settings.FUNCTION_CALLING_THRESHOLD
+    JSON_PARSING_THRESHOLD = settings.JSON_PARSING_THRESHOLD
 
     # Few-shot示例提示词
     FEW_SHOT_EXAMPLES = """

@@ -6,11 +6,8 @@ v4.1 新增：聊天 API 工具函数
 
 from typing import Any
 
+from app.core.config import settings
 from app.core.utils import clamp_score
-
-# ========== 置信度阈值常量 ==========
-HIGH_CONFIDENCE_THRESHOLD = 0.8
-MEDIUM_CONFIDENCE_THRESHOLD = 0.6
 
 
 # ========== 转人工原因常量 ==========
@@ -46,9 +43,9 @@ def get_confidence_level(score: float) -> str:
     # 确保分数在有效范围内
     score = clamp_score(score)
 
-    if score >= HIGH_CONFIDENCE_THRESHOLD:
+    if score >= settings.HIGH_CONFIDENCE_THRESHOLD:
         return "high"
-    elif score >= MEDIUM_CONFIDENCE_THRESHOLD:
+    elif score >= settings.MEDIUM_CONFIDENCE_THRESHOLD:
         return "medium"
     else:
         return "low"

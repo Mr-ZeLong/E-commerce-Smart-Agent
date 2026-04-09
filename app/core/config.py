@@ -171,6 +171,36 @@ class Settings(BaseSettings):
     # 轮询配置
     STATUS_POLLING_INTERVAL: int = 3  # 状态轮询间隔（秒）
 
+    # Refund rules
+    REFUND_DEADLINE_DAYS: int = 7
+    NON_REFUNDABLE_CATEGORIES: list[str] = Field(default_factory=lambda: ["内衣", "食品", "定制商品"])
+
+    # Confidence thresholds
+    HIGH_CONFIDENCE_THRESHOLD: float = 0.8
+    MEDIUM_CONFIDENCE_THRESHOLD: float = 0.6
+
+    # Graph routing limits
+    MAX_ROUTER_ITERATIONS: int = 5
+    CONFIDENCE_RETRY_THRESHOLD: float = 0.3
+
+    # Emotion signal word lists
+    NEGATIVE_WORDS: list[str] = Field(default_factory=lambda: [
+        "生气", "愤怒", "不满", "投诉", "差评", "退款", "骗子", "垃圾", "太差",
+        "失望", "欺骗", "坑", "忽悠", "恶劣", "糟糕", "气愤", "恼火", "心烦"
+    ])
+    URGENT_WORDS: list[str] = Field(default_factory=lambda: [
+        "马上", "立刻", "现在", "急", "紧急", "hurry", "urgent", "asap",
+        "立即", "赶紧", "赶快", "快点", "等着", "急用"
+    ])
+    POSITIVE_WORDS: list[str] = Field(default_factory=lambda: [
+        "谢谢", "感谢", "满意", "好评", "不错", "好用", "推荐", "喜欢",
+        "完美", "优秀", "棒", "赞", "给力", "靠谱"
+    ])
+
+    # Intent classification thresholds
+    FUNCTION_CALLING_THRESHOLD: float = 0.7
+    JSON_PARSING_THRESHOLD: float = 0.6
+
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 

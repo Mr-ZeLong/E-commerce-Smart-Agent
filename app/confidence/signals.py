@@ -165,20 +165,6 @@ class LLMSignal:
 class EmotionSignal:
     """用户情感检测信号（修复词典）"""
 
-    # 扩展的情感词典
-    NEGATIVE_WORDS = frozenset([
-        '生气', '愤怒', '不满', '投诉', '差评', '退款', '骗子', '垃圾', '太差',
-        '失望', '欺骗', '坑', '忽悠', '恶劣', '糟糕', '气愤', '恼火', '心烦'
-    ])
-    URGENT_WORDS = frozenset([
-        '马上', '立刻', '现在', '急', '紧急', 'hurry', 'urgent', 'asap',
-        '立即', '赶紧', '赶快', '快点', '等着', '急用'
-    ])
-    POSITIVE_WORDS = frozenset([
-        '谢谢', '感谢', '满意', '好评', '不错', '好用', '推荐', '喜欢',
-        '完美', '优秀', '棒', '赞', '给力', '靠谱'
-    ])
-
     async def calculate(
         self,
         query: str,
@@ -191,9 +177,9 @@ class EmotionSignal:
         all_texts = [msg.get('content', '') for msg in recent_history] + [query]
         all_text = ' '.join(all_texts).lower()
 
-        negative_count = sum(1 for w in self.NEGATIVE_WORDS if w in all_text)
-        urgent_count = sum(1 for w in self.URGENT_WORDS if w in all_text)
-        positive_count = sum(1 for w in self.POSITIVE_WORDS if w in all_text)
+        negative_count = sum(1 for w in settings.NEGATIVE_WORDS if w in all_text)
+        urgent_count = sum(1 for w in settings.URGENT_WORDS if w in all_text)
+        positive_count = sum(1 for w in settings.POSITIVE_WORDS if w in all_text)
 
         # 情感计算逻辑
         if negative_count >= 3 or urgent_count >= 2:
