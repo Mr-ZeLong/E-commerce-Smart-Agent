@@ -94,8 +94,8 @@ class OrderAgent(BaseAgent):
                 updated_state={"refund_flow_active": False}
             )
 
-        reason_detail = question
         reason_category = classify_refund_reason(question)
+        reason_detail = reason_category.value if reason_category else question
 
         async with async_session_maker() as session:
             order = await get_order_by_sn(order_sn, user_id, session)

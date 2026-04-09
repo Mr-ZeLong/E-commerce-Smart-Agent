@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from app.intent.clarification import ClarificationEngine, ClarificationResponse
-from app.intent.classifier import IntentClassifier
+from app.intent.classifier import IntentClassifierWithFallback
 from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
 from app.intent.multi_intent import MultiIntentProcessor
 from app.intent.safety import SafetyCheckResult, SafetyFilter
@@ -54,7 +54,7 @@ class IntentRecognitionService:
         self.session_cache_ttl = session_cache_ttl
 
         # 初始化组件
-        self.classifier = IntentClassifier(llm=llm)
+        self.classifier = IntentClassifierWithFallback(llm=llm)
         self.slot_validator = SlotValidator()
         self.clarification_engine = ClarificationEngine()
         self.topic_switch_detector = TopicSwitchDetector()
@@ -102,6 +102,12 @@ class IntentRecognitionService:
             # 合并共享槽位和特定槽位，特定槽位优先
             merged_slots = {**multi_result.shared_slots, **(result.slots or {})}
             result.slots = merged_slots
+            # 如果有更多意图，标记在后续处理队列中
+            if len(multi_result.sub_intents) > 1:
+                result.slots["pending_intents"] = [
+                    {"primary_intent": si.primary_intent.value, "secondary_intent": si.secondary_intent.value, "slots": si.slots}
+                    for si in multi_result.sub_intents[1:]
+                ]
         else:
             # 5. 单意图分类
             context = {"history": conversation_history} if conversation_history else None

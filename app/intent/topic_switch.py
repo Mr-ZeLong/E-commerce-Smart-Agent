@@ -173,7 +173,3 @@ class TopicSwitchDetector:
             should_reset_context=True,
         )
 
-    def update_state(self, result: IntentResult):
-        """更新检测器状态"""
-        self._last_intent = result
-        self._last_confidence = result.confidence

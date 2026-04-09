@@ -24,7 +24,3 @@ def get_retriever() -> HybridRetriever:
         rewriter=QueryRewriter(),
     )
 
-
-def clear_retriever_cache() -> None:
-    """Clear the cached retriever singleton (useful in tests)."""
-    get_retriever.cache_clear()

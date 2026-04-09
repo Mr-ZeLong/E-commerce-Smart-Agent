@@ -97,6 +97,7 @@ class Settings(BaseSettings):
     # LLM (Qwen)
     OPENAI_BASE_URL: str
     OPENAI_API_KEY: str
+    DASHSCOPE_API_KEY: str | None = None
     LLM_MODEL: str = "qwen-plus"
     EMBEDDING_MODEL: str = "text-embedding-v3"
     EMBEDDING_DIM: int = 1024

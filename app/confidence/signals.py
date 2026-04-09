@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from app.core.config import settings
 from app.core.llm_factory import create_openai_llm
+from app.core.utils import clamp_score
 from app.models.state import AgentState
 
 
@@ -33,20 +34,27 @@ class RAGSignal:
         avg_sim = sum(similarities) / len(similarities)
         max_sim = max(similarities)
 
-        # 计算覆盖率
-        query_words = set(query.lower().split())
-        covered_words = set()
-        for chunk in chunks:
-            chunk_words = set(chunk.lower().split())
-            covered_words.update(query_words & chunk_words)
+        def _extract_tokens(text: str) -> set[str]:
+            """提取中英文混合 token：中文字符单独提取，英文按空格分词保留长度>2的词。"""
+            # 提取中文字符
+            chinese_chars = set(re.findall(r'[\u4e00-\u9fff]', text))
+            # 提取英文/数字词（长度>2）
+            words = {w.lower() for w in re.findall(r'[a-zA-Z0-9]+', text) if len(w) > 2}
+            return chinese_chars | words
 
-        coverage = len(covered_words) / len(query_words) if query_words else 0.0
+        query_tokens = _extract_tokens(query)
+        covered_tokens = set()
+        for chunk in chunks:
+            chunk_tokens = _extract_tokens(chunk)
+            covered_tokens.update(query_tokens & chunk_tokens)
+
+        coverage = len(covered_tokens) / len(query_tokens) if query_tokens else 0.0
         # Note: similarities now come from reranker/RRF instead of 1.0 - cosine_distance.
         # Thresholds may need recalibration once Golden Dataset is available.
         score = max_sim * 0.4 + avg_sim * 0.3 + coverage * 0.3
 
         return SignalResult(
-            score=min(max(score, 0.0), 1.0),
+            score=clamp_score(score),
             reason=f"最高:{max_sim:.2f} 平均:{avg_sim:.2f} 覆盖:{coverage:.2f}",
             metadata={
                 "max_similarity": max_sim,
@@ -79,7 +87,7 @@ class LLMSignal:
             try:
                 value = float(percent_match.group(1))
                 # 处理 85% 或 0.85%
-                return min(max(value / 100, 0.0), 1.0)
+                return clamp_score(value / 100)
             except (ValueError, TypeError):
                 pass
 
@@ -98,7 +106,7 @@ class LLMSignal:
                     # 如果值大于1，视为百分比
                     if value > 1.0:
                         value = value / 100
-                    return min(max(value, 0.0), 1.0)
+                    return clamp_score(value)
                 except (ValueError, TypeError):
                     continue
 

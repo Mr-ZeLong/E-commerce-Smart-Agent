@@ -400,6 +400,7 @@ flowchart TB
 ```
 E-commerce-Smart-Agent/
 ├── 📄 README.md                    # 项目文档
+├── 📄 .env.example                 # 环境变量模板
 ├── 📄 pyproject.toml               # Python 项目配置 (uv)
 ├── 📄 docker-compose.yaml          # 容器编排配置
 ├── 📄 celery_worker.py             # Celery Worker 启动脚本
@@ -433,17 +434,15 @@ E-commerce-Smart-Agent/
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
 │   │   ├── 📄 workflow.py          # 工作流定义与编译
-│   │   ├── 📄 state.py             # 状态定义（v5.0 移除的向后兼容层，内部引用已迁移到 app.models.state）
-│   │   ├── 📄 nodes.py             # 节点函数 (6个节点)
-│   │   └── 📄 tools.py             # 工具函数 (3个工具)
+│   │   ├── 📄 nodes.py             # 节点函数
+│   │   └── 📄 tools.py             # 工具函数
 │   │
 │   ├── 📁 agents/                  # Agent 实现层
 │   │   ├── 📄 base.py              # Agent 基类与 AgentResult
 │   │   ├── 📄 router.py            # IntentRouterAgent (v2.0) + RouterAgent 兼容别名
 │   │   ├── 📄 order.py             # 订单 Agent
 │   │   ├── 📄 policy.py            # 政策 Agent
-│   │   ├── 📄 evaluator.py         # ConfidenceEvaluator（置信度信号计算）
-│   │   └── 📄 transfer.py          # TransferDecider（人工接管决策）
+│   │   └── 📄 evaluator.py         # ConfidenceEvaluator（置信度信号计算）
 │   │
 │   ├── 📁 intent/                  # 意图识别模块
 │   │   ├── 📄 service.py           # IntentRecognitionService (Redis 会话/缓存)

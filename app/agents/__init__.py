@@ -3,7 +3,6 @@ from app.agents.evaluator import ConfidenceEvaluator
 from app.agents.order import OrderAgent
 from app.agents.policy import PolicyAgent
 from app.agents.router import IntentRouterAgent, RouterAgent
-from app.agents.transfer import TransferDecider
 
 __all__ = [
     "AgentResult",
@@ -13,5 +12,4 @@ __all__ = [
     "OrderAgent",
     "PolicyAgent",
     "RouterAgent",
-    "TransferDecider",
 ]

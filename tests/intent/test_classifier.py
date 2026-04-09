@@ -42,18 +42,26 @@ def classifier_with_fallback(mock_llm):
 
 
 def create_mock_response_with_tool_calls(tool_args: dict):
-    """创建带工具调用的Mock响应"""
+    """创建带工具调用的Mock响应（兼容新版 LangChain API）"""
     mock_response = MagicMock()
+    arguments = json.dumps(tool_args) if isinstance(tool_args, dict) else tool_args
     mock_response.additional_kwargs = {
         "tool_calls": [{
             "id": "call_123",
             "type": "function",
             "function": {
                 "name": "classify_intent",
-                "arguments": json.dumps(tool_args) if isinstance(tool_args, dict) else tool_args
+                "arguments": arguments
             }
         }]
     }
+    # 新版 API: response.tool_calls
+    mock_response.tool_calls = [{
+        "name": "classify_intent",
+        "args": tool_args if isinstance(tool_args, dict) else json.loads(arguments),
+        "id": "call_123",
+        "type": "tool_call",
+    }]
     return mock_response
 
 

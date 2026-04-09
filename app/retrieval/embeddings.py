@@ -54,7 +54,3 @@ def get_embedding_model() -> QwenEmbeddings:
         dimensions=settings.EMBEDDING_DIM,
     )
 
-
-def clear_embedding_model_cache() -> None:
-    """Clear the cached embedding model singleton (useful in tests)."""
-    get_embedding_model.cache_clear()

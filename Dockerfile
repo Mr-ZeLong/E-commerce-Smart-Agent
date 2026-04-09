@@ -1,5 +1,7 @@
 FROM python:3.13-slim
 
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
@@ -25,6 +27,9 @@ COPY celery_worker.py ./
 COPY alembic.ini ./
 COPY migrations/ ./migrations/
 COPY data/ ./data/
+
+RUN chown -R appuser:appgroup /app
+USER appuser
 
 # Ensure the virtual environment is on PATH
 ENV PATH="/app/.venv/bin:$PATH"

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 async def websocket_endpoint(
     websocket: WebSocket,
     thread_id: str,
-    token: str = Query(...),
+    token: str | None = Query(None),
 ):
     """
     用户 WebSocket 连接
@@ -26,6 +26,12 @@ async def websocket_endpoint(
     Query Params:
         token: JWT Token
     """
+    auth_header = websocket.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:]
+    if not token:
+        await websocket.close(code=1008, reason="Missing authentication token")
+        return
     try:
         # 验证 Token
         user_id = await get_current_user_id_ws(token)
@@ -54,7 +60,7 @@ async def websocket_endpoint(
 async def admin_websocket_endpoint(
     websocket: WebSocket,
     admin_id: int,
-    token: str = Query(...),
+    token: str | None = Query(None),
 ):
     """
     管理员 WebSocket 连接
@@ -62,6 +68,12 @@ async def admin_websocket_endpoint(
     Query Params:
         token: JWT Token (需验证管理员权限)
     """
+    auth_header = websocket.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:]
+    if not token:
+        await websocket.close(code=1008, reason="Missing authentication token")
+        return
     try:
         token_admin_id = verify_admin_token(token)
         if token_admin_id != admin_id:

@@ -13,7 +13,6 @@ from app.agents.evaluator import ConfidenceEvaluator
 from app.agents.order import OrderAgent
 from app.agents.policy import PolicyAgent
 from app.agents.router import IntentRouterAgent
-from app.agents.transfer import TransferDecider
 from app.models.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -166,8 +165,6 @@ async def evaluator_node(state: AgentState) -> Command[Literal["decider_node", "
 
 def decider_node(state: AgentState) -> dict:
     """转人工最终决策节点"""
-    decider = TransferDecider()
-
     specialist_result = AgentResult(
         response=state.get("answer", ""),
         updated_state=dict(state),
@@ -176,14 +173,38 @@ def decider_node(state: AgentState) -> dict:
         transfer_reason=state.get("transfer_reason"),
     )
 
-    eval_result = dict(state) if state.get("confidence_score") is not None else None
-    decision = decider.decide_transfer(specialist_result, eval_result)
+    if specialist_result.needs_human:
+        final_state = {
+            "answer": specialist_result.response,
+            "confidence_score": specialist_result.confidence or 0.0,
+            "confidence_signals": {},
+            "needs_human_transfer": True,
+            "transfer_reason": specialist_result.transfer_reason or "specialist_requested_transfer",
+            "audit_level": "manual",
+        }
+    elif state.get("confidence_score") is not None:
+        final_state = dict(state)
+    else:
+        final_state = {
+            "answer": specialist_result.response,
+            "confidence_score": 0.0,
+            "confidence_signals": {},
+            "needs_human_transfer": True,
+            "transfer_reason": "missing_evaluation",
+            "audit_level": "manual",
+        }
+
+    # 合并 Specialist 返回的状态更新（但不覆盖关键字段和内部字段）
+    if specialist_result.updated_state:
+        for key, value in specialist_result.updated_state.items():
+            if key not in final_state and not key.startswith("_"):
+                final_state[key] = value
 
     return {
         "answer": state.get("answer", ""),
-        "needs_human_transfer": decision.get("needs_human_transfer", False),
-        "transfer_reason": decision.get("transfer_reason"),
-        "audit_level": decision.get("audit_level"),
+        "needs_human_transfer": final_state.get("needs_human_transfer", False),
+        "transfer_reason": final_state.get("transfer_reason"),
+        "audit_level": final_state.get("audit_level"),
         "confidence_score": state.get("confidence_score"),
         "confidence_signals": state.get("confidence_signals"),
         "intent": state.get("intent"),

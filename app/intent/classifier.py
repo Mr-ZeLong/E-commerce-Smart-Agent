@@ -305,14 +305,17 @@ class IntentClassifier:
 
         response = await llm_with_tools.ainvoke(messages)
 
-        # 提取工具调用结果
-        tool_calls = response.additional_kwargs.get("tool_calls", [])
+        # 提取工具调用结果（新版 API）
+        tool_calls = getattr(response, "tool_calls", None) or []
+        if not tool_calls or not isinstance(tool_calls, (list, tuple)):
+            # 兼容旧版 API
+            tool_calls = response.additional_kwargs.get("tool_calls", []) if hasattr(response, "additional_kwargs") else []
         if not tool_calls:
             return None
 
         # 解析第一个工具调用
         tool_call = tool_calls[0]
-        function_args = tool_call.get("function", {}).get("arguments", "")
+        function_args = tool_call.get("args", {})
 
         if isinstance(function_args, str):
             result_data = json.loads(function_args)
@@ -546,6 +549,10 @@ class IntentClassifierWithFallback:
             result.clarification_question = self._generate_clarification_question(result)
 
         return result
+
+    @property
+    def llm(self):
+        return self.classifier.llm
 
     def _generate_clarification_question(self, result: IntentResult) -> str:
         """生成澄清问题"""

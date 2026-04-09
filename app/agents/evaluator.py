@@ -1,5 +1,5 @@
 import logging
-from typing import Any, cast
+from typing import Any
 
 from app.confidence.signals import ConfidenceSignals
 from app.core.config import settings
@@ -27,14 +27,14 @@ class ConfidenceEvaluator:
         - audit_level
         """
         # 构建临时状态用于信号计算
-        temp_state = {
+        temp_state: AgentState = {
             "question": question,
             "history": history,
             "retrieval_result": retrieval_result,
         }
 
         # 计算置信度信号
-        confidence_signals = ConfidenceSignals(cast(AgentState, temp_state))
+        confidence_signals = ConfidenceSignals(temp_state)
         signals = await confidence_signals.calculate_all(answer)
 
         # 计算加权总分

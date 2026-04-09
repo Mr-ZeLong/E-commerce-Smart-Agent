@@ -4,14 +4,11 @@
 """
 from datetime import datetime
 
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
 
 from app.core.utils import utc_now
-
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class User(SQLModel, table=True):
@@ -52,11 +49,11 @@ class User(SQLModel, table=True):
     @staticmethod
     def hash_password(password: str) -> str:
         """密码加密"""
-        return pwd_context.hash(password)
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     def verify_password(self, password: str) -> bool:
         """验证密码"""
-        return pwd_context.verify(password, self.password_hash)
+        return bcrypt.checkpw(password.encode("utf-8"), self.password_hash.encode("utf-8"))
 
     model_config = {
         "json_schema_extra": {

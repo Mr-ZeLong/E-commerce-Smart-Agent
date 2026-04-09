@@ -310,16 +310,6 @@ class TestNoPreviousResult:
 class TestDetectorState:
     """测试检测器状态管理"""
 
-    def test_update_state(self, detector, order_query_result):
-        """测试状态更新"""
-        assert detector._last_intent is None
-        assert detector._last_confidence == 0.0
-
-        detector.update_state(order_query_result)
-
-        assert detector._last_intent is order_query_result
-        assert detector._last_confidence == 0.9
-
     def test_initial_state(self, detector):
         """测试初始状态"""
         assert detector._last_intent is None

@@ -188,45 +188,6 @@ SLOT_PRIORITY_CONFIG: dict[str, dict[str, dict[str, list[str]]]] = {
 }
 
 
-def get_slot_priority(
-    primary: IntentCategory,
-    secondary: IntentAction,
-    slot_name: str,
-) -> SlotPriority | None:
-    """获取槽位优先级"""
-    primary_key = primary.value
-    secondary_key = secondary.value
-
-    if primary_key not in SLOT_PRIORITY_CONFIG:
-        return None
-    if secondary_key not in SLOT_PRIORITY_CONFIG[primary_key]:
-        return None
-
-    config = SLOT_PRIORITY_CONFIG[primary_key][secondary_key]
-
-    for priority_level, slots in config.items():
-        if slot_name in slots:
-            return SlotPriority(priority_level)
-
-    return None
-
-
-def get_required_slots(
-    primary: IntentCategory,
-    secondary: IntentAction,
-) -> list[str]:
-    """获取指定意图组合的所有必需槽位（P0）"""
-    primary_key = primary.value
-    secondary_key = secondary.value
-
-    if primary_key not in SLOT_PRIORITY_CONFIG:
-        return []
-    if secondary_key not in SLOT_PRIORITY_CONFIG[primary_key]:
-        return []
-
-    return SLOT_PRIORITY_CONFIG[primary_key][secondary_key].get("P0", [])
-
-
 def check_intent_compatibility(
     current_intent: str,
     new_intent: str,
