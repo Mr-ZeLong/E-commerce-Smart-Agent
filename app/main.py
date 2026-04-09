@@ -14,14 +14,12 @@ from app.api.v1.chat import router as chat_router
 from app.api.v1.status import router as status_router
 from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
-from app.core.database import init_db
 from app.graph.workflow import compile_app_graph
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(" Starting E-commerce Smart Agent v4.0...")
-    await init_db()
     workflow_module.app_graph = await compile_app_graph()
     print(" Infrastructure is ready.")
     yield
