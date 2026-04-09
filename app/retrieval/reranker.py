@@ -62,7 +62,7 @@ class QwenReranker:
             # Handle multiple possible response shapes
             raw_results = data.get("results", [])
             if not raw_results and "output" in data:
-                raw_results = data["output"].get("results", [])
+                raw_results = (data.get("output") or {}).get("results", [])
 
             results = []
             for item in raw_results:

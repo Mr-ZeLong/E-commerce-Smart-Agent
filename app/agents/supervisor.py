@@ -86,53 +86,66 @@ class SupervisorAgent(BaseAgent):
                 state={**state, **updated_state}
             )
 
-            # Step 3: 置信度评估
+            # Step 3: 如果 Specialist 已标记需要人工接管，直接转接
             answer = specialist_result.response
-            retrieval_result = specialist_result.updated_state.get("retrieval_result") if specialist_result.updated_state else None
+            if specialist_result.needs_human:
+                print(f"[Supervisor] Specialist 请求人工接管: {specialist_result.transfer_reason}")
+                final_state = {
+                    "answer": answer,
+                    "intent": intent,
+                    "confidence_score": specialist_result.confidence or 0.0,
+                    "confidence_signals": {},
+                    "needs_human_transfer": True,
+                    "transfer_reason": specialist_result.transfer_reason or "specialist_requested_transfer",
+                    "audit_level": "manual",
+                }
+            else:
+                # 置信度评估
+                retrieval_result = specialist_result.updated_state.get("retrieval_result") if specialist_result.updated_state else None
 
-            # 使用新的信号计算模块
-            from app.confidence.signals import ConfidenceSignals
+                # 使用新的信号计算模块
+                from app.confidence.signals import ConfidenceSignals
 
-            # 构建临时状态用于信号计算
-            temp_state = {
-                "question": question,
-                "history": state.get("history", []),
-                "retrieval_result": retrieval_result,
-            }
+                # 构建临时状态用于信号计算
+                temp_state = {
+                    "question": question,
+                    "history": state.get("history", []),
+                    "retrieval_result": retrieval_result,
+                }
 
-            # 计算置信度信号
-            confidence_signals = ConfidenceSignals(temp_state)  # type: ignore
-            signals = await confidence_signals.calculate_all(answer)
+                # 计算置信度信号
+                confidence_signals = ConfidenceSignals(temp_state)  # type: ignore
+                signals = await confidence_signals.calculate_all(answer)
 
-            # 计算加权总分
-            from app.core.config import settings
-            weights = settings.CONFIDENCE.default_weights
-            overall_score = (
-                signals["rag"].score * weights["rag"] +
-                signals["llm"].score * weights["llm"] +
-                signals["emotion"].score * weights["emotion"]
-            )
+                # 计算加权总分
+                from app.core.config import settings
+                weights = settings.CONFIDENCE.default_weights
+                overall_score = (
+                    signals["rag"].score * weights["rag"] +
+                    signals["llm"].score * weights["llm"] +
+                    signals["emotion"].score * weights["emotion"]
+                )
 
-            print(f"[Supervisor] 置信度评估: {overall_score:.3f}")
+                print(f"[Supervisor] 置信度评估: {overall_score:.3f}")
 
-            # 确定审核级别
-            audit_level = settings.CONFIDENCE.get_audit_level(overall_score)
-            needs_transfer = audit_level == "manual"
+                # 确定审核级别
+                audit_level = settings.CONFIDENCE.get_audit_level(overall_score)
+                needs_transfer = audit_level == "manual"
 
-            # Step 4: 构建最终状态
-            final_state = {
-                "answer": answer,
-                "intent": intent,
-                "confidence_score": overall_score,
-                "confidence_signals": {
-                    "rag": {"score": signals["rag"].score, "reason": signals["rag"].reason},
-                    "llm": {"score": signals["llm"].score, "reason": signals["llm"].reason},
-                    "emotion": {"score": signals["emotion"].score, "reason": signals["emotion"].reason},
-                },
-                "needs_human_transfer": needs_transfer,
-                "transfer_reason": "置信度不足" if needs_transfer else None,
-                "audit_level": audit_level,
-            }
+                # Step 4: 构建最终状态
+                final_state = {
+                    "answer": answer,
+                    "intent": intent,
+                    "confidence_score": overall_score,
+                    "confidence_signals": {
+                        "rag": {"score": signals["rag"].score, "reason": signals["rag"].reason},
+                        "llm": {"score": signals["llm"].score, "reason": signals["llm"].reason},
+                        "emotion": {"score": signals["emotion"].score, "reason": signals["emotion"].reason},
+                    },
+                    "needs_human_transfer": needs_transfer,
+                    "transfer_reason": "置信度不足" if needs_transfer else None,
+                    "audit_level": audit_level,
+                }
 
             # 合并 Specialist 返回的状态更新（但不覆盖关键字段）
             if specialist_result.updated_state:

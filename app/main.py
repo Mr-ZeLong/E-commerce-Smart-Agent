@@ -1,6 +1,8 @@
 # app/main.py
 import os
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -16,10 +18,29 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.graph.workflow import compile_app_graph
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print(" Starting E-commerce Smart Agent v4.0...")
+    await init_db()
+    workflow_module.app_graph = await compile_app_graph()
+    print(" Infrastructure is ready.")
+    yield
+    # Shutdown: close cached Qdrant client if it was created
+    try:
+        from app.retrieval import get_retriever
+        retriever = get_retriever()
+        await retriever.qdrant_client.aclose()
+        print(" Qdrant client closed.")
+    except Exception:
+        pass
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="4.0.0",
-    description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0"
+    description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0",
+    lifespan=lifespan,
 )
 
 # 1. 配置跨域
@@ -57,14 +78,6 @@ if os.path.exists(frontend_dist_path):
     @app.get('/')
     async def root():
         return RedirectResponse(url='/app')
-
-
-@app.on_event("startup")  # ty:ignore[deprecated]
-async def on_startup():
-    print(" Starting E-commerce Smart Agent v4.0...")
-    await init_db()
-    workflow_module.app_graph = await compile_app_graph()
-    print(" Infrastructure is ready.")
 
 
 @app.get("/health")

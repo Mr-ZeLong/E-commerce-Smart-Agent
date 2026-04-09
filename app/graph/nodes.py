@@ -12,7 +12,7 @@ from sqlmodel import select
 from app.core.config import settings
 from app.core.database import async_session_maker
 from app.graph.state import AgentState
-from app.retrieval.embeddings import embedding_model
+# Embedding model import removed; graph nodes now use app.retrieval via agents
 from app.models.audit import AuditAction, AuditLog, RiskLevel
 from app.models.order import Order
 from app.models.refund import RefundApplication, RefundReason, RefundStatus

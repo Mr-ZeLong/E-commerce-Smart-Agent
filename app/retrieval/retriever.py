@@ -81,7 +81,7 @@ class HybridRetriever:
                     content=str(payload.get("content", "")),
                     source=str(payload.get("source", "unknown")),
                     score=point.score,
-                    metadata=dict(payload.get("meta_data", {})),
+                    metadata=dict(payload.get("meta_data") or {}),
                 ))
 
         return results
