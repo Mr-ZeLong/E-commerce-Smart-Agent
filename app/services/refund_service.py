@@ -94,12 +94,15 @@ class RefundEligibilityChecker:
     @staticmethod
     def _check_time_limit(order: Order) -> tuple[bool, str]:
         """检查退货时效"""
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
 
         # 计算订单创建后的天数
         # 注意：这里应该用 delivered_at（签收时间），但示例数据没有这个字段
         # 实际业务中需要在 Order 模型中添加 delivered_at 字段
         order_time = order.created_at
+        if order_time.tzinfo is None:
+            # 如果 order_time 是 naive，假设它是 UTC
+            order_time = order_time.replace(tzinfo=UTC)
         days_passed = (now - order_time).days
 
         if days_passed > RefundRules.REFUND_DEADLINE_DAYS:
@@ -185,15 +188,14 @@ class RefundApplicationService:
 
         session.add(refund_app)
 
-        # ========== 步骤 4: 提交事务 ==========
+        # ========== 步骤 4: 刷新记录以获取 ID ==========
         try:
-            await session.commit()
+            await session.flush()
             await session.refresh(refund_app)
 
             return True, f"退货申请已提交（申请编号：{refund_app.id}），等待审核", refund_app
 
         except Exception as e:
-            await session.rollback()
             return False, f"提交失败：{str(e)}", None
 
     @staticmethod

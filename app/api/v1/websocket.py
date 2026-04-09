@@ -39,7 +39,7 @@ async def websocket_endpoint(
                     await websocket.send_text("pong")
 
         except WebSocketDisconnect:
-            manager.disconnect_user(user_id, thread_id)
+            await manager.disconnect_user(user_id, thread_id)
 
     except Exception as e:
         print(f" [WS] 连接错误: {e}")
@@ -73,7 +73,7 @@ async def admin_websocket_endpoint(
                     await websocket.send_text("pong")
 
         except WebSocketDisconnect:
-            manager.disconnect_admin(admin_id)
+            await manager.disconnect_admin(admin_id)
 
     except Exception as e:
         print(f" [WS] 管理员连接错误: {e}")

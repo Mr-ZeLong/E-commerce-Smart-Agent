@@ -1261,7 +1261,7 @@ export interface Task {
 - [ ] 更新前端 TypeScript 类型
 - [ ] 检查组件中类型使用
 - [ ] 运行 TypeScript 编译检查
-- [ ] 运行后端类型检查 (mypy)
+- [ ] 运行后端类型检查 (ty)
 
 ---
 

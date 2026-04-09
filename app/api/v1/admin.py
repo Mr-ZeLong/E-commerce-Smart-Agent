@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlmodel import desc, func, select
 
 from app.core.database import async_session_maker
-from app.core.security import get_current_user_id
+from app.core.security import get_admin_user_id
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
@@ -58,7 +58,7 @@ class TaskStatsResponse(BaseModel):
 @router.get("/admin/tasks", response_model=list[AuditTask])
 async def get_pending_tasks(
     risk_level: str | None = None,
-    current_admin_id: int = Depends(get_current_user_id)  # TODO: 改为管理员认证
+    current_admin_id: int = Depends(get_admin_user_id)
 ):
     """
     获取待审核任务列表
@@ -98,7 +98,7 @@ async def get_pending_tasks(
 
 @router.get("/admin/confidence-tasks", response_model=list[AuditTask])
 async def get_confidence_pending_tasks(
-    current_admin_id: int = Depends(get_current_user_id)
+    current_admin_id: int = Depends(get_admin_user_id)
 ):
     """获取置信度触发的待审核任务"""
     async with async_session_maker() as session:
@@ -129,7 +129,7 @@ async def get_confidence_pending_tasks(
 
 @router.get("/admin/tasks-all", response_model=TaskStatsResponse)
 async def get_all_pending_tasks(
-    current_admin_id: int = Depends(get_current_user_id)
+    current_admin_id: int = Depends(get_admin_user_id)
 ):
     """获取所有待审核任务（风险 + 置信度 + 手动）"""
     async with async_session_maker() as session:
@@ -163,7 +163,7 @@ async def get_all_pending_tasks(
 async def admin_decision(
     audit_log_id: int,
     request: AdminDecisionRequest,
-    current_admin_id: int = Depends(get_current_user_id)  # TODO: 改为管理员认证
+    current_admin_id: int = Depends(get_admin_user_id)
 ):
     """
     管理员决策接口

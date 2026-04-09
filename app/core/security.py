@@ -10,8 +10,6 @@ from app.core.config import settings
 # 设置 Token 获取的 URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
-ALGORITHM = "HS256"
-
 
 def create_access_token(user_id: int, is_admin: bool = False) -> str:
     """
@@ -28,7 +26,7 @@ def create_access_token(user_id: int, is_admin: bool = False) -> str:
         "iat": datetime.now(UTC),
         "is_admin": is_admin,  # v4.0 新增：区分管理员权限
     }
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
@@ -43,7 +41,7 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
         )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
 
         if user_id is None:
@@ -89,7 +87,7 @@ async def get_current_user_id_ws(token: str) -> int:
         )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
 
         if user_id is None:
@@ -126,7 +124,7 @@ def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
         )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
         is_admin: bool = payload.get("is_admin", False)
 

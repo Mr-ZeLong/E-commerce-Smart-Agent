@@ -88,7 +88,7 @@ class SupervisorAgent(BaseAgent):
 
             # Step 3: 置信度评估
             answer = specialist_result.response
-            retrieval_metadata = specialist_result.updated_state.get("retrieval_metadata") if specialist_result.updated_state else None
+            retrieval_result = specialist_result.updated_state.get("retrieval_result") if specialist_result.updated_state else None
 
             # 使用新的信号计算模块
             from app.confidence.signals import ConfidenceSignals
@@ -97,7 +97,7 @@ class SupervisorAgent(BaseAgent):
             temp_state = {
                 "question": question,
                 "history": state.get("history", []),
-                "retrieval_result": retrieval_metadata,
+                "retrieval_result": retrieval_result,
             }
 
             # 计算置信度信号

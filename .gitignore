@@ -105,3 +105,5 @@ scripts/dev_*.py
 
 # Git worktrees
 .worktrees/
+.serena
+.ruff_cache

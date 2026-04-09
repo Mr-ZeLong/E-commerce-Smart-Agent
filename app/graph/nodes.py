@@ -1,6 +1,7 @@
 # app/graph/nodes.py
 import re
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import httpx
 from langchain_core.embeddings import Embeddings
@@ -393,7 +394,7 @@ async def handle_refund(state: AgentState) -> dict:
             status=RefundStatus.PENDING,
             reason_category=reason_category,
             reason_detail=reason_detail,
-            refund_amount=float(order.total_amount)
+            refund_amount=order.total_amount
         )
 
         session.add(refund)
@@ -409,7 +410,7 @@ async def handle_refund(state: AgentState) -> dict:
                 "refund_id": refund.id,
                 "order_id": order.id,
                 "order_sn": order_sn,
-                "amount": float(refund.refund_amount),
+                "amount": refund.refund_amount,
                 "reason": reason_detail,
                 "reason_category": reason_category
             },
@@ -435,19 +436,21 @@ async def check_refund_eligibility(state: AgentState) -> dict:
             "answer": state.get("answer", "")
         }
 
-    refund_amount = refund_data.get("amount", 0)
+    refund_amount = Decimal(str(refund_data.get("amount", 0)))
     refund_id = refund_data.get("refund_id")
 
     print(f" [Audit] 退款金额: ¥{refund_amount}")
 
     # 判断风险等级
-    if refund_amount >= settings.HIGH_RISK_REFUND_AMOUNT:
+    high_risk_threshold = Decimal(str(settings.HIGH_RISK_REFUND_AMOUNT))
+    medium_risk_threshold = Decimal(str(settings.MEDIUM_RISK_REFUND_AMOUNT))
+    if refund_amount >= high_risk_threshold:
         risk_level = RiskLevel.HIGH
-        trigger_reason = f"高额退款申请：¥{refund_amount} (≥ ¥{settings.HIGH_RISK_REFUND_AMOUNT})"
+        trigger_reason = f"高额退款申请：¥{refund_amount} (≥ ¥{high_risk_threshold})"
         needs_audit = True
-    elif refund_amount >= settings.MEDIUM_RISK_REFUND_AMOUNT:
+    elif refund_amount >= medium_risk_threshold:
         risk_level = RiskLevel.MEDIUM
-        trigger_reason = f"中额退款申请：¥{refund_amount} (≥ ¥{settings.MEDIUM_RISK_REFUND_AMOUNT})"
+        trigger_reason = f"中额退款申请：¥{refund_amount} (≥ ¥{medium_risk_threshold})"
         needs_audit = True
     else:
         # 低风险，自动通过

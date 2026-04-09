@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import desc, select
 
+from app.api.v1.utils import build_thread_id
 from app.core.database import async_session_maker
 from app.core.security import get_current_user_id
 from app.models.audit import AuditAction, AuditLog
@@ -36,6 +37,7 @@ async def get_thread_status(
 
     用于 C 端轮询查询当前会话的处理状态
     """
+    thread_id = build_thread_id(current_user_id, thread_id)
     async with async_session_maker() as session:
         # 1. 查询该会话最新的审计日志
         audit_result = await session.execute(  # ty:ignore[deprecated]
