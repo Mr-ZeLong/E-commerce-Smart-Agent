@@ -79,14 +79,8 @@ class TestAuthenticateUser:
 class TestRegisterUser:
     @pytest.mark.asyncio
     async def test_success_creates_user(self):
-        request = MagicMock()
-        request.username = "newuser"
-        request.password = "password123"
-        request.email = "new@example.com"
-        request.full_name = "New User"
-        request.phone = "13800138000"
-
         mock_session = AsyncMock()
+        mock_session.begin = MagicMock(return_value=AsyncMock())
         mock_session.exec = AsyncMock(
             return_value=MagicMock(first=MagicMock(return_value=None))
         )
@@ -95,7 +89,14 @@ class TestRegisterUser:
         service = AuthService()
         with patch("app.services.auth_service.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
             mock_to_thread.return_value = "hashed_password"
-            user = await service.register_user(mock_session, request)
+            user = await service.register_user(
+                mock_session,
+                username="newuser",
+                password="password123",
+                email="new@example.com",
+                full_name="New User",
+                phone="13800138000",
+            )
 
         assert isinstance(user, User)
         assert user.username == "newuser"
@@ -106,34 +107,34 @@ class TestRegisterUser:
         assert user.is_admin is False
         assert user.is_active is True
         mock_session.add.assert_called_once_with(user)
-        mock_session.commit.assert_awaited_once()
+        mock_session.begin.assert_called_once()
         mock_session.refresh.assert_awaited_once_with(user)
 
     @pytest.mark.asyncio
     async def test_duplicate_username_raises_400(self):
-        request = MagicMock()
-        request.username = "existing"
-        request.email = "new@example.com"
-
         mock_session = AsyncMock()
+        mock_session.begin = MagicMock(return_value=AsyncMock())
         mock_session.exec = AsyncMock(
             return_value=MagicMock(first=MagicMock(return_value=MagicMock()))
         )
 
         service = AuthService()
         with pytest.raises(HTTPException) as exc_info:
-            await service.register_user(mock_session, request)
+            await service.register_user(
+                mock_session,
+                username="existing",
+                password="password123",
+                email="new@example.com",
+                full_name="New User",
+            )
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "用户名已存在" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_duplicate_email_raises_400(self):
-        request = MagicMock()
-        request.username = "newuser"
-        request.email = "existing@example.com"
-
         mock_session = AsyncMock()
+        mock_session.begin = MagicMock(return_value=AsyncMock())
         mock_session.exec = AsyncMock(
             side_effect=[
                 MagicMock(first=MagicMock(return_value=None)),
@@ -143,7 +144,13 @@ class TestRegisterUser:
 
         service = AuthService()
         with pytest.raises(HTTPException) as exc_info:
-            await service.register_user(mock_session, request)
+            await service.register_user(
+                mock_session,
+                username="newuser",
+                password="password123",
+                email="existing@example.com",
+                full_name="New User",
+            )
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "邮箱已被注册" in exc_info.value.detail
@@ -151,7 +158,7 @@ class TestRegisterUser:
 
 class TestGetUserInfo:
     @pytest.mark.asyncio
-    async def test_success_returns_response(self):
+    async def test_success_returns_user(self):
         mock_user = MagicMock(spec=User)
         mock_user.id = 42
         mock_user.username = "alice"
@@ -167,13 +174,7 @@ class TestGetUserInfo:
         service = AuthService()
         response = await service.get_user_info(mock_session, 42)
 
-        assert response.user_id == 42
-        assert response.username == "alice"
-        assert response.email == "alice@example.com"
-        assert response.full_name == "Alice Wang"
-        assert response.phone == "13800138000"
-        assert response.is_admin is False
-        assert response.created_at == "2024-01-01T12:00:00+00:00"
+        assert response is mock_user
 
     @pytest.mark.asyncio
     async def test_user_not_found_raises_404(self):

@@ -1,20 +1,15 @@
 # app/services/auth_service.py
 """Authentication business logic service."""
 
-from __future__ import annotations
-
 import asyncio
-from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import create_access_token
 from app.models.user import User
-
-if TYPE_CHECKING:
-    from app.api.v1.auth import RegisterRequest, UserInfoResponse
 
 
 def create_user_token(user: User) -> str:
@@ -60,52 +55,65 @@ class AuthService:
 
         return user
 
-    async def register_user(self, session: AsyncSession, request: RegisterRequest) -> User:
+    async def register_user(
+        self,
+        session: AsyncSession,
+        username: str,
+        password: str,
+        email: str,
+        full_name: str,
+        phone: str | None = None,
+    ) -> User:
         """
         Create a new user after checking for duplicates.
 
         Raises:
             HTTPException: 400 if username or email already exists.
         """
-        result = await session.exec(select(User).where(User.username == request.username))
-        if result.first():
+        try:
+            async with session.begin():
+                result = await session.exec(select(User).where(User.username == username))
+                if result.first():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="用户名已存在",
+                    )
+
+                result = await session.exec(select(User).where(User.email == email))
+                if result.first():
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="邮箱已被注册",
+                    )
+
+                password_hash = await asyncio.to_thread(User.hash_password, password)
+                user = User(
+                    username=username,
+                    password_hash=password_hash,
+                    email=email,
+                    full_name=full_name,
+                    phone=phone,
+                    is_admin=False,
+                    is_active=True,
+                )
+
+                session.add(user)
+        except IntegrityError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名已存在",
-            )
+                detail="用户名或邮箱已被注册",
+            ) from exc
 
-        result = await session.exec(select(User).where(User.email == request.email))
-        if result.first():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被注册",
-            )
-
-        password_hash = await asyncio.to_thread(User.hash_password, request.password)
-        user = User(
-            username=request.username,
-            password_hash=password_hash,
-            email=request.email,
-            full_name=request.full_name,
-            phone=request.phone,
-            is_admin=False,
-            is_active=True,
-        )
-
-        session.add(user)
-        await session.commit()
         await session.refresh(user)
         return user
 
-    async def get_user_info(self, session: AsyncSession, user_id: int) -> UserInfoResponse:
+    async def get_user_info(self, session: AsyncSession, user_id: int) -> User:
         """
         Fetch user information by ID.
 
         Raises:
             HTTPException: 404 if user not found.
         """
-        from app.api.v1.auth import UserInfoResponse
-
         user = await session.get(User, user_id)
 
         if not user:
@@ -114,12 +122,4 @@ class AuthService:
                 detail="用户不存在",
             )
 
-        return UserInfoResponse(
-            user_id=user.id,  # type: ignore[arg-type]
-            username=user.username,
-            email=user.email,
-            full_name=user.full_name,
-            phone=user.phone,
-            is_admin=user.is_admin,
-            created_at=user.created_at.isoformat(),
-        )
+        return user

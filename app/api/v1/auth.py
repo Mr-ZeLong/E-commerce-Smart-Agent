@@ -3,7 +3,7 @@
 认证 API - 登录、注册
 """
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -13,7 +13,10 @@ from app.core.security import get_current_user_id
 from app.services.auth_service import AuthService, create_user_token
 
 router = APIRouter()
-auth_service = AuthService()
+
+
+def get_auth_service() -> AuthService:
+    return AuthService()
 
 
 class LoginRequest(BaseModel):
@@ -59,9 +62,10 @@ async def login(
     response: Response,
     body: LoginRequest,
     session: AsyncSession = Depends(get_session),
+    service: AuthService = Depends(get_auth_service),
 ):
     """用户登录 - 验证用户名和密码，返回 JWT Token"""
-    user = await auth_service.authenticate_user(session, body.username, body.password)
+    user = await service.authenticate_user(session, body.username, body.password)
     token = create_user_token(user)
     return TokenResponse(
         access_token=token,
@@ -79,9 +83,17 @@ async def register(
     response: Response,
     body: RegisterRequest,
     session: AsyncSession = Depends(get_session),
+    service: AuthService = Depends(get_auth_service),
 ):
     """用户注册 - 创建新用户并返回 JWT Token"""
-    user = await auth_service.register_user(session, body)
+    user = await service.register_user(
+        session,
+        username=body.username,
+        password=body.password,
+        email=body.email,
+        full_name=body.full_name,
+        phone=body.phone,
+    )
     token = create_user_token(user)
     return TokenResponse(
         access_token=token,
@@ -96,6 +108,16 @@ async def register(
 async def get_current_user_info(
     current_user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
+    service: AuthService = Depends(get_auth_service),
 ):
     """获取当前登录用户信息"""
-    return await auth_service.get_user_info(session, current_user_id)
+    user = await service.get_user_info(session, current_user_id)
+    return UserInfoResponse(
+        user_id=user.id,  # type: ignore[arg-type]
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        phone=user.phone,
+        is_admin=user.is_admin,
+        created_at=user.created_at.isoformat(),
+    )
