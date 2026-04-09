@@ -3,7 +3,7 @@
 认证 API - 登录、注册
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -56,6 +56,7 @@ class UserInfoResponse(BaseModel):
 @limiter.limit("5/minute")
 async def login(
     request: Request,
+    response: Response,
     body: LoginRequest,
     session: AsyncSession = Depends(get_session)
 ):
@@ -109,6 +110,7 @@ async def login(
 @limiter.limit("5/minute")
 async def register(
     request: Request,
+    response: Response,
     body: RegisterRequest,
     session: AsyncSession = Depends(get_session)
 ):

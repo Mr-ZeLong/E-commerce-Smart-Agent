@@ -12,7 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
-from app.core.utils import utc_now
+from app.core.utils import naive_utc_now, utc_now
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
@@ -197,7 +197,7 @@ async def admin_decision(
     audit_log.action = action_enum
     audit_log.admin_id = current_admin_id
     audit_log.admin_comment = request.admin_comment
-    audit_log.reviewed_at = utc_now()
+    audit_log.reviewed_at = naive_utc_now()
 
     session.add(audit_log)
 
@@ -220,7 +220,7 @@ async def admin_decision(
                 refund.status = RefundStatus.APPROVED
                 refund.admin_note = request.admin_comment
                 refund.reviewed_by = current_admin_id
-                refund.reviewed_at = utc_now()
+                refund.reviewed_at = naive_utc_now()
 
                 # 5. 触发异步任务：退款 + 短信通知
                 process_refund_payment.delay(
@@ -240,7 +240,7 @@ async def admin_decision(
                 refund.status = RefundStatus.REJECTED
                 refund.admin_note = request.admin_comment
                 refund.reviewed_by = current_admin_id
-                refund.reviewed_at = utc_now()
+                refund.reviewed_at = naive_utc_now()
 
             session.add(refund)
 

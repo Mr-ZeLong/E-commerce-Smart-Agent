@@ -5,7 +5,7 @@ from enum import Enum
 from sqlalchemy import JSON, Column, Numeric, String, text
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import utc_now
+from app.core.utils import naive_utc_now, utc_now
 
 
 # 1. 使用 Enum 管理状态
@@ -39,7 +39,7 @@ class Order(SQLModel, table=True):
     shipping_address: str = Field(description="下单时的详细地址快照")
 
     created_at: datetime = Field(
-        default_factory=utc_now,
+        default_factory=naive_utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 

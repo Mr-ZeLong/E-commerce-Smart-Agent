@@ -33,6 +33,7 @@ async def test_login_allows_five_requests_per_minute(client):
         json={"username": "nonexistent_user", "password": "wrongpass"},
     )
     assert response.status_code == 429
+    assert "Retry-After" in response.headers
 
 
 @pytest.mark.asyncio
@@ -63,6 +64,7 @@ async def test_register_allows_five_requests_per_minute(client):
         },
     )
     assert response.status_code == 429
+    assert "Retry-After" in response.headers
 
 
 @pytest.mark.asyncio
@@ -80,6 +82,7 @@ async def test_login_and_register_limits_are_independent(client):
         json={"username": "nonexistent", "password": "wrongpass"},
     )
     assert login_response.status_code == 429
+    assert "Retry-After" in login_response.headers
 
     # Register should still work because it has a separate counter
     unique = uuid.uuid4().hex[:8]

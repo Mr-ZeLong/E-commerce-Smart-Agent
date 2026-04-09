@@ -12,7 +12,7 @@ from sqlmodel import select
 
 from app.celery_app import celery_app
 from app.core.database import async_session_maker
-from app.core.utils import utc_now
+from app.core.utils import naive_utc_now, utc_now
 from app.models.audit import AuditLog
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
@@ -110,7 +110,7 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
 
                 # 更新退款状态
                 refund.status = RefundStatus.COMPLETED
-                refund.updated_at = utc_now()
+                refund.updated_at = naive_utc_now()
                 session.add(refund)
                 await session.commit()
 

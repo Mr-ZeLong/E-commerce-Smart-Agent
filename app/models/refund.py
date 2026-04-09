@@ -5,7 +5,7 @@ from enum import Enum
 from sqlalchemy import Column, Numeric, String, Text, text
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import utc_now
+from app.core.utils import naive_utc_now, utc_now
 
 
 # 1. 退货申请状态枚举
@@ -77,7 +77,7 @@ class RefundApplication(SQLModel, table=True):
 
     # 创建时间
     created_at: datetime = Field(
-        default_factory=utc_now,
+        default_factory=naive_utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
