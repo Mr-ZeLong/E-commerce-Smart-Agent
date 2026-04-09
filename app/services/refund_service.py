@@ -105,6 +105,8 @@ class RefundEligibilityChecker:
         if order_time.tzinfo is None:
             # 如果 order_time 是 naive，假设它是 UTC
             order_time = order_time.replace(tzinfo=UTC)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=UTC)
         days_passed = (now - order_time).days
 
         if days_passed > RefundRules.REFUND_DEADLINE_DAYS:

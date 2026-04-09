@@ -3,12 +3,13 @@
 认证 API - 登录、注册
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
+from app.core.limiter import limiter
 from app.core.security import create_access_token, get_current_user_id
 from app.models.user import User
 
@@ -52,8 +53,10 @@ class UserInfoResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(
-    request: LoginRequest,
+    request: Request,
+    body: LoginRequest,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -63,7 +66,7 @@ async def login(
     """
     # 查询用户
     result = await session.exec(
-        select(User).where(User.username == request.username)
+        select(User).where(User.username == body.username)
     )
     user = result.first()
 
@@ -83,7 +86,7 @@ async def login(
         )
 
     # 验证密码
-    if not user.verify_password(request.password):
+    if not user.verify_password(body.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
@@ -103,8 +106,10 @@ async def login(
 
 
 @router.post("/register", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def register(
-    request: RegisterRequest,
+    request: Request,
+    body: RegisterRequest,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -114,7 +119,7 @@ async def register(
     """
     # 检查用户名是否已存在
     result = await session.exec(
-        select(User).where(User.username == request.username)
+        select(User).where(User.username == body.username)
     )
     if result.first():
         raise HTTPException(
@@ -124,7 +129,7 @@ async def register(
 
     # 检查邮箱是否已存在
     result = await session.exec(
-        select(User).where(User.email == request.email)
+        select(User).where(User.email == body.email)
     )
     if result.first():
         raise HTTPException(
@@ -134,11 +139,11 @@ async def register(
 
     # 创建用户
     user = User(
-        username=request.username,
-        password_hash=User.hash_password(request.password),
-        email=request.email,
-        full_name=request.full_name,
-        phone=request.phone,
+        username=body.username,
+        password_hash=User.hash_password(body.password),
+        email=body.email,
+        full_name=body.full_name,
+        phone=body.phone,
         is_admin=False,
         is_active=True
     )

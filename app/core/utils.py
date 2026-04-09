@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 
 def utc_now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def clamp_score(score: float) -> float:

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi.middleware import SlowAPIMiddleware
 
 import app.graph.workflow as workflow_module
 from app.api.v1.admin import router as admin_router
@@ -15,6 +16,7 @@ from app.api.v1.chat import router as chat_router
 from app.api.v1.status import router as status_router
 from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.graph.workflow import compile_app_graph
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,7 @@ app = FastAPI(
     description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
 
 # 1. 配置跨域
 app.add_middleware(
@@ -57,7 +60,10 @@ if "*" in settings.CORS_ORIGINS:
         "which poses a security risk in production."
     )
 
-# 2. 注册路由
+# 2. Rate limiting middleware
+app.add_middleware(SlowAPIMiddleware)
+
+# 3. 注册路由
 app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["Auth"])  # v4.0 新增
 app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["Chat"])
 app.include_router(status_router, prefix=settings.API_V1_STR, tags=["Status"])
