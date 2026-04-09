@@ -13,7 +13,7 @@ dependencies = [
     "python-multipart>=0.0.21",
     "sqlmodel>=0.0.31",
     "asyncpg>=0.31.0",
-    "psycopg2-binary>=2.9.11",
+    "psycopg2>=2.9.11",
     "pydantic-settings>=2.12.0",
     "httpx>=0.28.1",
     "redis>=7.1.0",
@@ -33,6 +33,7 @@ dependencies = [
     "email-validator>=2.3.0",
     "qdrant-client>=1.16.0",
     "fastembed>=0.6.0",
+    "slowapi>=0.1.9",
 ]
 
 [build-system]

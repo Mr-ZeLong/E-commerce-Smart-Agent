@@ -3,10 +3,13 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 import app.graph.workflow as workflow_module
 from app.api.v1.admin import router as admin_router
@@ -15,6 +18,8 @@ from app.api.v1.chat import router as chat_router
 from app.api.v1.status import router as status_router
 from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
+from app.core.limiter import limiter
+from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
 from app.graph.workflow import compile_app_graph
 
 logger = logging.getLogger(__name__)
@@ -35,12 +40,48 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("⚠️  Failed to close Qdrant client during shutdown")
 
+if "*" in settings.CORS_ORIGINS:
+    raise RuntimeError(
+        "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
+        "Please restrict CORS_ORIGINS to specific domains."
+    )
+
+docs_url = "/docs" if settings.ENABLE_OPENAPI_DOCS else None
+redoc_url = "/redoc" if settings.ENABLE_OPENAPI_DOCS else None
+openapi_url = "/openapi.json" if settings.ENABLE_OPENAPI_DOCS else None
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="4.0.0",
     description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0",
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url,
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+formatter = logging.Formatter(
+    "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
+)
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+root_logger = logging.getLogger()
+root_logger.handlers = [handler]
+root_logger.addFilter(CorrelationIdFilter())
+
+for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+    logging.getLogger(name).addFilter(CorrelationIdFilter())
+
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    cid = request.headers.get("x-correlation-id") or generate_correlation_id()
+    set_correlation_id(cid)
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = cid
+    return response
 
 # 1. 配置跨域
 app.add_middleware(
@@ -51,13 +92,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if "*" in settings.CORS_ORIGINS:
-    logger.warning(
-        "CORS is configured with allow_origins=['*'] and allow_credentials=True, "
-        "which poses a security risk in production."
-    )
+# 2. Rate limiting middleware
+app.add_middleware(SlowAPIMiddleware)
 
-# 2. 注册路由
+# 3. 注册路由
 app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["Auth"])  # v4.0 新增
 app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["Chat"])
 app.include_router(status_router, prefix=settings.API_V1_STR, tags=["Status"])

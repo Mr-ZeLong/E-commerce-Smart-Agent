@@ -6,7 +6,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 
+from app.core.logging import generate_correlation_id, set_correlation_id
 from app.core.security import get_current_user_id_ws, verify_admin_token
+from app.core.utils import build_thread_id
 from app.websocket.manager import manager
 
 router = APIRouter()
@@ -26,6 +28,9 @@ async def websocket_endpoint(
     Query Params:
         token: JWT Token
     """
+    cid = websocket.headers.get("x-correlation-id") or generate_correlation_id()
+    set_correlation_id(cid)
+
     auth_header = websocket.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):
         token = auth_header[7:]
@@ -36,8 +41,11 @@ async def websocket_endpoint(
         # 验证 Token
         user_id = await get_current_user_id_ws(token)
 
+        # 限定 thread_id 作用域，防止跨用户订阅
+        scoped_thread_id = build_thread_id(user_id, thread_id)
+
         # 建立连接
-        await manager.connect_user(websocket, user_id, thread_id)
+        await manager.connect_user(websocket, user_id, scoped_thread_id)
 
         try:
             while True:
@@ -49,11 +57,18 @@ async def websocket_endpoint(
                     await websocket.send_text("pong")
 
         except WebSocketDisconnect:
-            await manager.disconnect_user(user_id, thread_id)
+            await manager.disconnect_user(user_id, scoped_thread_id)
 
+    except HTTPException as exc:
+        if exc.status_code in (401, 403):
+            logger.warning(" [WS] 认证失败")
+            await websocket.close(code=1008, reason="Authentication failed")
+        else:
+            logger.warning(" [WS] 连接错误: %s", exc)
+            await websocket.close(code=1008, reason="Connection error")
     except Exception as e:
-        logger.warning(f" [WS] 连接错误: {e}")
-        await websocket.close(code=1008, reason=str(e))
+        logger.warning(" [WS] 连接错误: %s", e)
+        await websocket.close(code=1008, reason="Connection error")
 
 
 @router.websocket("/ws/admin/{admin_id}")
@@ -68,6 +83,9 @@ async def admin_websocket_endpoint(
     Query Params:
         token: JWT Token (需验证管理员权限)
     """
+    cid = websocket.headers.get("x-correlation-id") or generate_correlation_id()
+    set_correlation_id(cid)
+
     auth_header = websocket.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):
         token = auth_header[7:]
@@ -95,6 +113,9 @@ async def admin_websocket_endpoint(
         except WebSocketDisconnect:
             await manager.disconnect_admin(admin_id)
 
+    except HTTPException:
+        logger.warning(" [WS] 管理员认证失败")
+        await websocket.close(code=1008, reason="Authentication failed")
     except Exception as e:
-        logger.warning(f" [WS] 管理员连接错误: {e}")
-        await websocket.close(code=1008, reason=str(e))
+        logger.warning(" [WS] 管理员连接错误: %s", e)
+        await websocket.close(code=1008, reason="Connection error")

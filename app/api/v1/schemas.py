@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ChatRequest(BaseModel):
     # 用户的问题
-    question: str = Field(..., json_schema_extra={"example": "内衣拆封了可以退吗？"})
+    question: str = Field(..., max_length=500, json_schema_extra={"example": "内衣拆封了可以退吗？"})
 
     # 会话 ID，用于后续追踪对话上下文 (v1.0 暂不强制，但预留)
     thread_id: str = Field("default_thread", json_schema_extra={"example": "user_123_session_001"})

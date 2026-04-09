@@ -8,8 +8,8 @@ from langchain_core.runnables import RunnableConfig
 
 from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
-from app.api.v1.utils import build_thread_id
 from app.core.security import get_current_user_id
+from app.core.utils import build_thread_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

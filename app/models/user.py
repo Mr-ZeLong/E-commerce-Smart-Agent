@@ -8,7 +8,7 @@ import bcrypt
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import utc_now
+from app.core.utils import naive_utc_now, utc_now
 
 
 class User(SQLModel, table=True):
@@ -34,12 +34,12 @@ class User(SQLModel, table=True):
 
     # 时间戳
     created_at: datetime = Field(
-        default_factory=utc_now,
+        default_factory=naive_utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
     updated_at: datetime = Field(
-        default_factory=utc_now,
+        default_factory=naive_utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")

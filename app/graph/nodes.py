@@ -13,6 +13,7 @@ from app.agents.evaluator import ConfidenceEvaluator
 from app.agents.order import OrderAgent
 from app.agents.policy import PolicyAgent
 from app.agents.router import IntentRouterAgent
+from app.core.config import settings
 from app.models.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ async def router_node(state: AgentState) -> Command[Literal["policy_agent", "ord
             }
         )
 
-    if iteration > 5:
+    if iteration > settings.MAX_ROUTER_ITERATIONS:
         logger.warning("Router 迭代次数超过限制: %s", iteration)
         return Command(
             goto="decider_node",
@@ -154,7 +155,7 @@ async def evaluator_node(state: AgentState) -> Command[Literal["decider_node", "
     )
 
     # 极低置信度且未超限，返回 router 重试一次
-    if eval_result.get("confidence_score", 0) < 0.3 and state.get("iteration_count", 0) <= 3:
+    if eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES:
         return Command(
             goto="router_node",
             update={"retry_requested": True, **eval_result}

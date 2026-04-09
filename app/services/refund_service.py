@@ -4,33 +4,21 @@ from datetime import UTC
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.utils import utc_now
 from app.models.audit import AuditLog
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 
 # ==========================================
-# 退货规则配置（硬编码业务规则）
+# 退货规则配置
 # ==========================================
 
-class RefundRules:
-    """退货规则常量"""
-
-    # 退货期限（天数）
-    REFUND_DEADLINE_DAYS = 7
-
-    # 允许退货的订单状态
-    ALLOWED_ORDER_STATUSES = [
-        OrderStatus.DELIVERED,  # 已签收
-        OrderStatus.SHIPPED     # 已发货（可选，根据业务决定）
-    ]
-
-    # 不可退货的商品类别（预留，后续可扩展）
-    NON_REFUNDABLE_CATEGORIES = [
-        "内衣",  # 贴身衣物
-        "食品",  # 食品类
-        "定制商品"  # 定制类
-    ]
+# 允许退货的订单状态
+ALLOWED_ORDER_STATUSES = [
+    OrderStatus.DELIVERED,  # 已签收
+    OrderStatus.SHIPPED     # 已发货（可选，根据业务决定）
+]
 
 
 # ==========================================
@@ -53,7 +41,7 @@ class RefundEligibilityChecker:
         """
 
         # ========== 规则 1: 检查订单状态 ==========
-        if order.status not in RefundRules.ALLOWED_ORDER_STATUSES:
+        if order.status not in ALLOWED_ORDER_STATUSES:
             return False, f"订单状态为 {order.status}，只有已发货或已签收的订单才能退货"
 
         # ========== 规则 2: 检查是否已有退货申请 ==========
@@ -107,9 +95,9 @@ class RefundEligibilityChecker:
             order_time = order_time.replace(tzinfo=UTC)
         days_passed = (now - order_time).days
 
-        if days_passed > RefundRules.REFUND_DEADLINE_DAYS:
+        if days_passed > settings.REFUND_DEADLINE_DAYS:
             return False, (
-                f"订单已超过退货期限（{RefundRules.REFUND_DEADLINE_DAYS}天），"
+                f"订单已超过退货期限（{settings.REFUND_DEADLINE_DAYS}天），"
                 f"当前已过 {days_passed} 天"
             )
 
@@ -123,7 +111,7 @@ class RefundEligibilityChecker:
             item_name = item.get("name", "")
 
             # 简单的字符串匹配（实际应该用商品分类字段）
-            for non_refundable in RefundRules.NON_REFUNDABLE_CATEGORIES:
+            for non_refundable in settings.NON_REFUNDABLE_CATEGORIES:
                 if non_refundable in item_name:
                     return False, f"订单包含不可退货商品：{item_name}（{non_refundable}类商品不支持退货）"
 
