@@ -26,6 +26,7 @@ def upgrade() -> None:
         postgresql_with={'m': 16, 'ef_construction': 64}
     )
     op.drop_table('knowledge_chunks')
+    op.execute(sa.text("DROP EXTENSION IF EXISTS vector"))
 
 
 def downgrade() -> None:
@@ -51,3 +52,4 @@ def downgrade() -> None:
         postgresql_using='hnsw',
         postgresql_with={'m': 16, 'ef_construction': 64}
     )
+    op.execute(sa.text("CREATE EXTENSION IF NOT EXISTS vector"))
