@@ -48,7 +48,7 @@ app/core/
 
 ### 2.3 保留与废弃
 - **保留**：PostgreSQL 继续用于 `orders`、`refund_applications`、`audit_logs` 等业务表
-- **废弃**：`scripts/etl_policy_v2.py` 被 `etl_qdrant.py` 取代
+- **废弃**：`scripts/etl_policy.py` 被 `etl_qdrant.py` 取代
 - **兼容**：`app/models/knowledge.py` 中的 `KnowledgeChunk` 表定义保留，避免破坏 alembic 历史和其他引用，但**不再用于检索**
 
 ---
@@ -96,7 +96,7 @@ class QdrantKnowledgeClient:
     async def upsert_chunks(self, points: list[models.PointStruct]) -> None:
         """批量写入 chunk 向量与 payload"""
 
-    async def search_hybrid(
+    async def query_hybrid(
         self,
         dense_vector: list[float],
         sparse_vector: models.SparseVector,
@@ -104,10 +104,12 @@ class QdrantKnowledgeClient:
         sparse_limit: int = 15,
     ) -> list[models.ScoredPoint]:
         """
-        使用 Qdrant 的 prefetch + fusion API：
-        - prefetch 1: dense search (top_k=dense_limit)
-        - prefetch 2: sparse search (top_k=sparse_limit)
-        - fusion: RRF (由 Qdrant 服务端计算)
+        使用 Qdrant 的 prefetch + fusion API（通过 query_points）。
+        qdrant-client >=1.16 的 AsyncQdrantClient 已移除 search 方法，必须使用 query_points。
+        - prefetch 1: dense search (limit=dense_limit)
+        - prefetch 2: sparse search (limit=sparse_limit)
+        - query: fusion=RRF (由 Qdrant 服务端计算)
+        返回 response.points（list[ScoredPoint]）
         """
 ```
 
@@ -125,8 +127,10 @@ class QdrantKnowledgeClient:
 
 **Step 2: 向量生成（批量，batch_size=50）**
 - **Dense**: `QwenEmbeddings.aembed_documents(texts)` → `text-embedding-v3`, 1024 维
-- **Sparse**: `fastembed.SparseTextEmbedding("Qdrant/bm25").embed(texts)` → `Iterator[SparseEmbedding]`
-  - **必须添加转换层**：将 `fastembed.SparseEmbedding` 解包为 `qdrant_client.models.SparseVector(indices, values)`
+- **Sparse**: `fastembed.SparseTextEmbedding("Qdrant/bm25").embed(texts)` → 同步 `Iterator[SparseEmbedding]`
+  - **必须添加转换层 + 异步包装**：
+    1. 使用 `asyncio.to_thread()` 执行同步生成器，避免阻塞事件循环
+    2. 将 `fastembed.SparseEmbedding` 解包为 `qdrant_client.models.SparseVector(indices, values)`
 
 **Step 3: 写入 Qdrant**
 - `recreate_collection` 幂等重建（知识库当前数据量极小，全量重建最干净）
@@ -196,12 +200,23 @@ class HybridRetriever:
 
     async def retrieve(self, query: str) -> list[RetrievedChunk]:
         """完整检索流程：改写 → dense+sparse 召回 → RRF → rerank"""
+        # 实现要点：
+        # 1. rewriter.rewrite(query) 返回单条 query（若返回多行，取第一行非空文本）
+        # 2. qdrant_client.query_hybrid(...) 使用 query_points API
+        # 3. reranker.rerank(...) 对候选文档做截断后传入
 ```
 
 ### 6.2 `app/retrieval/reranker.py`
 ```python
 class QwenReranker:
-    def __init__(self, base_url: str, api_key: str, model: str = "qwen3-rerank", timeout: float = 10.0): ...
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str = "qwen3-rerank",
+        timeout: float = 10.0,
+        max_document_chars: int = 12000,  # 约 4000 token 的字符安全边际
+    ): ...
 
     async def rerank(
         self,
@@ -210,7 +225,10 @@ class QwenReranker:
         top_n: int = 5,
     ) -> list[RerankResult]:
         """
-        调用阿里云 qwen3-rerank API（OpenAI-compatible endpoint）。
+        调用阿里云百炼原生 Rerank API（endpoint: /compatible-api/v1/reranks）。
+        注意：这不是 OpenAI 官方 rerank 规范，请求/响应格式有差异。
+        实现前必须先用 curl 验证实际响应结构（常见字段：index / document_index, relevance_score / score）。
+        传入 document 前先做字符截断（max_document_chars），避免触发服务端长度限制。
         返回：list[(original_index, relevance_score)]，按 score 降序排列
         """
 ```
@@ -218,12 +236,13 @@ class QwenReranker:
 ### 6.3 `app/retrieval/rewriter.py`
 ```python
 class QueryRewriter:
-    def __init__(self, base_url: str, api_key: str, model: str = "qwen-flash", timeout: float = 5.0): ...
+    def __init__(self, base_url: str, api_key: str, model: str = "qwen-turbo", timeout: float = 5.0): ...
 
     async def rewrite(self, query: str) -> str:
         """
-        调用 qwen-flash 改写查询。
-        失败或返回空时，回退到原始 query。
+        调用 qwen-turbo（或经确认可用的轻量模型）改写查询。
+        解析策略：取返回文本的第一行非空内容作为改写结果；
+        若解析为空或调用失败，回退到原始 query。
         """
 ```
 
@@ -232,13 +251,14 @@ class QueryRewriter:
 class SparseTextEmbedder:
     def __init__(self, model_name: str = "Qdrant/bm25"): ...
 
-    def embed(self, texts: list[str]) -> list[models.SparseVector]:
+    async def aembed(self, texts: list[str]) -> list[models.SparseVector]:
         """
-        使用 fastembed 将文本编码为 BM25 sparse vectors。
+        使用 fastembed 将文本异步编码为 BM25 sparse vectors。
         内部转换逻辑：
-        1. fastembed.SparseTextEmbedding.embed(texts) 返回 Iterator[SparseEmbedding]
-        2. 对每个 SparseEmbedding 提取 .indices 和 .values
-        3. 封装为 qdrant_client.models.SparseVector(indices=..., values=...)
+        1. 在 `asyncio.to_thread()` 中执行 `fastembed.SparseTextEmbedding.embed(texts)`
+        2. `list()` 化同步生成器，得到 `list[SparseEmbedding]`
+        3. 对每个 SparseEmbedding 提取 .indices 和 .values
+        4. 封装为 `qdrant_client.models.SparseVector(indices=..., values=...)`
         懒加载模型，首次调用时初始化。
         """
 ```
@@ -283,7 +303,7 @@ QDRANT_RETRIES: int = 3
 
 # 模型配置
 RERANK_MODEL: str = "qwen3-rerank"
-REWRITE_MODEL: str = "qwen-flash"
+REWRITE_MODEL: str = "qwen-turbo"
 RERANK_TIMEOUT: float = 10.0
 REWRITE_TIMEOUT: float = 5.0
 
@@ -313,6 +333,11 @@ FASTEMBED_CACHE_PATH: str | None = None
       - qdrant_storage:/qdrant/storage
     environment:
       - QDRANT__SERVICE__HTTP_PORT=6333
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 ```
 
 同时 `volumes` 末尾新增：
@@ -369,11 +394,11 @@ volumes:
 **影响**：reranker score 整体偏低时，`RAGSignal` 分数可能下降，触发不必要的人工接管。
 
 **缓解措施（上线安全网）**：
-1. **上线初期**：在 `HybridRetriever` 中对 reranker score 做线性映射（如 `mapped = 0.5 + score * 0.5`，映射到 `[0.5, 1.0]`），保持与旧阈值兼容，避免大规模误触发人工接管。
-2. **并行埋点**：收集真实 score 分布数据。
-3. **数据充足后**：移除映射，直接基于原始 reranker score 重新校准 `CONFIDENCE_THRESHOLD`。
+1. **上线初期**：直接降低 `CONFIDENCE.THRESHOLD`（如从 0.7 临时调至 0.55），并基于 `RetrievedChunk.score`（reranker score 或 RRF score）重新设定 `PolicyAgent._estimate_confidence()` 的分段阈值。避免无意义的线性拉伸（如 `0.5 + score * 0.5` 会扭曲真实分布）。
+2. **并行埋点**：收集真实 score 分布数据（min/max/avg/percentile）。
+3. **数据充足后**：基于 Golden Dataset 重新校准 `CONFIDENCE.THRESHOLD` 和 `_estimate_confidence()` 分段逻辑，恢复为数据驱动的阈值。
 
-`PolicyAgent._estimate_confidence()` 同步改为基于映射后的 score 计算，避免旧硬编码阈值失效。
+`PolicyAgent._estimate_confidence()` 同步移除旧硬编码的 `0.7/0.5` 分段，改为基于新 score 分布的临时阈值。
 
 ### 11.2 中文 BM25 效果的不确定性
 `fastembed` 的 `Qdrant/bm25` 底层使用 Snowball stemmer，主要对英文优化。中文没有 stemming，其 tokenizer 对中文字词的切分效果有待验证。
@@ -443,5 +468,5 @@ volumes:
 11. `start.sh` — 检查是否需要等待 Qdrant healthy
 
 ### 废弃（保留但不再使用）
-- `scripts/etl_policy_v2.py`
+- `scripts/etl_policy.py`
 - `app/models/knowledge.py` 中的 `KnowledgeChunk` 用于检索的逻辑
