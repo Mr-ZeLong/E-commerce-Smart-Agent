@@ -59,13 +59,16 @@ flowchart TB
     end
 
     subgraph DataLayer["💾 数据层"]
-        subgraph PostgreSQL["🐘 PostgreSQL + pgvector"]
+        subgraph PostgreSQL["🐘 PostgreSQL"]
             TBL_USERS[(users<br/>用户表)]
             TBL_ORDERS[(orders<br/>订单表)]
             TBL_REFUNDS[(refund_applications<br/>退款申请表)]
             TBL_AUDIT[(audit_logs<br/>审计日志表)]
-            TBL_KNOWLEDGE[(knowledge_chunks<br/>知识库表)]
             TBL_MSG[(message_cards<br/>消息卡片表)]
+        end
+
+        subgraph Qdrant["🔷 Qdrant"]
+            VEC_KNOWLEDGE[(knowledge_chunks<br/>向量知识库)]
         end
 
         subgraph Redis["🔴 Redis"]
@@ -372,7 +375,7 @@ flowchart TB
 
     subgraph Layer5["数据层"]
         D1["PostgreSQL<br/>关系型数据"]
-        D2["pgvector<br/>向量检索"]
+        D2["Qdrant<br/>混合向量检索"]
         D3["Redis<br/>缓存/会话"]
     end
 
@@ -513,7 +516,7 @@ E-commerce-Smart-Agent/
 |------|------|----------|
 | **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph |
 | **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 | IntentRecognitionService + Redis |
-| **RAG 检索** | 基于 pgvector 的语义知识检索 | Embedding + 向量数据库 |
+| **RAG 检索** | 基于 Qdrant 的混合语义检索（Dense + BM25 Sparse + Rerank） | Embedding + 向量数据库 |
 | **退货流程** | 多步骤退货申请流程 | LangGraph 状态机 |
 | **智能风控** | 按金额分级风控 (¥500/¥2000 阈值) | 规则引擎 |
 | **人工审核** | 高风险订单转人工审核 | 审计日志 + 管理后台 |

@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # 核心数据库：PostgreSQL + pgvector
+  # 核心数据库：PostgreSQL
   db:
-    image: pgvector/pgvector:pg16
+    image: postgres:16
     container_name: agent_db
     restart: always
     environment:
