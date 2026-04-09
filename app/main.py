@@ -3,7 +3,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +21,6 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
 from app.graph.workflow import compile_app_graph
-from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +62,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-logging.getLogger().addFilter(CorrelationIdFilter())
+formatter = logging.Formatter(
+    "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
+)
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+root_logger = logging.getLogger()
+root_logger.handlers = [handler]
+root_logger.addFilter(CorrelationIdFilter())
+
+for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+    logging.getLogger(name).addFilter(CorrelationIdFilter())
 
 
 @app.middleware("http")
