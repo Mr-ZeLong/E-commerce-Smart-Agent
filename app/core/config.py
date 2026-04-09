@@ -181,6 +181,7 @@ class Settings(BaseSettings):
 
     # Graph routing limits
     MAX_ROUTER_ITERATIONS: int = 5
+    MAX_EVALUATOR_RETRIES: int = 3
     CONFIDENCE_RETRY_THRESHOLD: float = 0.3
 
     # Emotion signal word lists

@@ -8,6 +8,10 @@ from app.core.llm_factory import create_openai_llm
 from app.core.utils import clamp_score
 from app.models.state import AgentState
 
+NEGATIVE_WORDS = frozenset(settings.NEGATIVE_WORDS)
+URGENT_WORDS = frozenset(settings.URGENT_WORDS)
+POSITIVE_WORDS = frozenset(settings.POSITIVE_WORDS)
+
 
 @dataclass
 class SignalResult:
@@ -177,9 +181,9 @@ class EmotionSignal:
         all_texts = [msg.get('content', '') for msg in recent_history] + [query]
         all_text = ' '.join(all_texts).lower()
 
-        negative_count = sum(1 for w in settings.NEGATIVE_WORDS if w in all_text)
-        urgent_count = sum(1 for w in settings.URGENT_WORDS if w in all_text)
-        positive_count = sum(1 for w in settings.POSITIVE_WORDS if w in all_text)
+        negative_count = sum(1 for w in NEGATIVE_WORDS if w in all_text)
+        urgent_count = sum(1 for w in URGENT_WORDS if w in all_text)
+        positive_count = sum(1 for w in POSITIVE_WORDS if w in all_text)
 
         # 情感计算逻辑
         if negative_count >= 3 or urgent_count >= 2:

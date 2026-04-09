@@ -155,7 +155,7 @@ async def evaluator_node(state: AgentState) -> Command[Literal["decider_node", "
     )
 
     # 极低置信度且未超限，返回 router 重试一次
-    if eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD and state.get("iteration_count", 0) <= 3:
+    if eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES:
         return Command(
             goto="router_node",
             update={"retry_requested": True, **eval_result}
