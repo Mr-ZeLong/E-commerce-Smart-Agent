@@ -67,7 +67,7 @@ class MultiIntentProcessor:
         "还有",
         "另外",
         "以及",
-        "和",
+
         "，然后",
         "。另外",
         "。还有",

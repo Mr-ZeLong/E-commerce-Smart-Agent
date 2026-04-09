@@ -174,6 +174,11 @@ class IntentRecognitionService:
             state, user_response, validation
         )
 
+        if response.state.current_intent and response.state.collected_slots:
+            if response.state.current_intent.slots is None:
+                response.state.current_intent.slots = {}
+            response.state.current_intent.slots.update(response.state.collected_slots)
+
         # 4. 保存更新后的状态
         await self._save_session_state(response.state)
 

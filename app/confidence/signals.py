@@ -85,7 +85,7 @@ class LLMSignal:
             try:
                 value = float(percent_match.group(1))
                 # 处理 85% 或 0.85%
-                return min(max(value / 100 if value > 1 else value, 0.0), 1.0)
+                return min(max(value / 100, 0.0), 1.0)
             except (ValueError, TypeError):
                 pass
 

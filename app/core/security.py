@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.config import settings
 
 # 设置 Token 获取的 URL
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login", auto_error=False)
 
 
 def create_access_token(user_id: int, is_admin: bool = False) -> str:

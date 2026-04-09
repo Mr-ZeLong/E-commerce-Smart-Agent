@@ -113,10 +113,10 @@ class TestMultiIntentProcessorSplitQuery:
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_separator_he(self) -> None:
-        """测试使用'和'分隔"""
+        """测试'和'不再作为分隔符（避免正常单意图被误拆分）"""
         processor = MultiIntentProcessor()
         segments = processor._split_query("查询订单和申请退款")
-        assert segments == ["查询订单", "申请退款"]
+        assert segments == ["查询订单和申请退款"]
 
     def test_split_with_punctuation_comma(self) -> None:
         """测试使用'，然后'分隔"""

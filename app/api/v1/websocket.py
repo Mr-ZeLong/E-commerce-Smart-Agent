@@ -4,7 +4,7 @@ WebSocket 路由
 """
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from app.core.security import get_current_user_id
+from app.core.security import get_current_user_id_ws
 from app.websocket.manager import manager
 
 router = APIRouter()
@@ -24,7 +24,7 @@ async def websocket_endpoint(
     """
     try:
         # 验证 Token
-        user_id = await get_current_user_id(token)  # ty:ignore[invalid-await]
+        user_id = await get_current_user_id_ws(token)
 
         # 建立连接
         await manager.connect_user(websocket, user_id, thread_id)

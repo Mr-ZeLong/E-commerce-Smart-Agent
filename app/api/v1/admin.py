@@ -3,7 +3,7 @@
 管理员 API
 """
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -35,7 +35,7 @@ class AuditTask(BaseModel):
 
 class AdminDecisionRequest(BaseModel):
     """管理员决策请求"""
-    action: str  # "APPROVE" | "REJECT"
+    action: Literal["APPROVE", "REJECT"]
     admin_comment: str | None = None
 
 
@@ -120,7 +120,7 @@ async def get_confidence_pending_tasks(
                 refund_application_id=log.refund_application_id,
                 order_id=log.order_id,
                 trigger_reason=f"置信度不足: {confidence_meta.get('confidence_score', 0):.2f}",
-                risk_level=log.risk_level.value,
+                risk_level=log.risk_level,
                 context_snapshot=log.context_snapshot,
                 created_at=log.created_at.isoformat(),
             ))

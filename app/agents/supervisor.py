@@ -164,6 +164,9 @@ class SupervisorAgent(BaseAgent):
             return await self.policy_agent.process(state)
         elif next_agent == "order":
             return await self.order_agent.process(state)
+        elif next_agent == "supervisor":
+            # 默认回退到 policy agent 处理一般性咨询
+            return await self.policy_agent.process(state)
         else:
             # 默认或未知情况，返回友好提示
             return AgentResult(

@@ -45,6 +45,7 @@ async def chat(
         initial_state = {
             "question": request.question,
             "user_id": current_user_id,
+            "thread_id": thread_id,
             "history": [],
             "context": [],
             "order_data": None,

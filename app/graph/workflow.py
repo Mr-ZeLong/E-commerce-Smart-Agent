@@ -8,8 +8,14 @@ from app.graph.state import AgentState
 
 app_graph = None
 
-# 初始化 Supervisor Agent
-supervisor = SupervisorAgent()
+_supervisor: SupervisorAgent | None = None
+
+
+def get_supervisor() -> SupervisorAgent:
+    global _supervisor
+    if _supervisor is None:
+        _supervisor = SupervisorAgent()
+    return _supervisor
 
 
 async def supervisor_node(state: AgentState) -> dict:
@@ -19,6 +25,7 @@ async def supervisor_node(state: AgentState) -> dict:
     这个节点替代了原来的 intent_router + retrieve/query_order/handle_refund
     """
     try:
+        supervisor = get_supervisor()
         result = await supervisor.coordinate(state)  # type: ignore
         return result
     except Exception as e:

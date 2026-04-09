@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Any
 
 from sqlalchemy import JSON, Column, String, Text, text
+from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
 
@@ -68,10 +69,17 @@ class AuditLog(SQLModel, table=True):
         sa_column=Column(String, index=True, nullable=False)
     )
 
+    # 审核级别
+    audit_level: str | None = Field(
+        default=None,
+        sa_column=Column(String(16), nullable=True),
+        description="审核级别 (none/auto/manual)"
+    )
+
     # 触发类型
     trigger_type: AuditTriggerType = Field(
         default=AuditTriggerType.RISK,
-        sa_column=Column(String, index=True, nullable=False),
+        sa_column=Column(SAEnum(AuditTriggerType, name='audittriggertype'), index=True, nullable=False),
         description="触发审核的类型"
     )
 
