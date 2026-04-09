@@ -19,7 +19,9 @@ from app.api.v1.status import router as status_router
 from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
 from app.graph.workflow import compile_app_graph
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,17 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+logging.getLogger().addFilter(CorrelationIdFilter())
+
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    cid = request.headers.get("x-correlation-id") or generate_correlation_id()
+    set_correlation_id(cid)
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = cid
+    return response
 
 # 1. 配置跨域
 app.add_middleware(
