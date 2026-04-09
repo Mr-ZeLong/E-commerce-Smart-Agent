@@ -55,9 +55,13 @@ async def websocket_endpoint(
         except WebSocketDisconnect:
             await manager.disconnect_user(user_id, scoped_thread_id)
 
-    except HTTPException:
-        logger.warning(" [WS] 认证失败")
-        await websocket.close(code=1008, reason="Authentication failed")
+    except HTTPException as exc:
+        if exc.status_code in (401, 403):
+            logger.warning(" [WS] 认证失败")
+            await websocket.close(code=1008, reason="Authentication failed")
+        else:
+            logger.warning(f" [WS] 连接错误: {exc}")
+            await websocket.close(code=1008, reason="Connection error")
     except Exception as e:
         logger.warning(f" [WS] 连接错误: {e}")
         await websocket.close(code=1008, reason="Connection error")

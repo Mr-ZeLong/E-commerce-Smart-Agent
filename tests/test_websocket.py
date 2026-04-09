@@ -2,10 +2,12 @@ import pytest
 from fastapi import HTTPException
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
+from unittest.mock import patch
 
 from app.api.v1.utils import build_thread_id
 from app.core.security import create_access_token
 from app.main import app
+from app.websocket.manager import manager
 
 
 class TestBuildThreadId:
@@ -40,16 +42,27 @@ class TestWebsocketSecurity:
         with self.client.websocket_connect(
             f"/api/v1/ws/{thread_id}?token={token}"
         ) as websocket:
-            from app.websocket.manager import manager
-
             assert 7 in manager.active_connections
             assert expected_scoped in manager.active_connections[7]
 
-            # 清理
-            manager.active_connections[7].pop(expected_scoped, None)
-            manager.thread_subscribers.pop(expected_scoped, None)
-            if not manager.active_connections[7]:
-                manager.active_connections.pop(7, None)
+    def test_user_b_cannot_access_user_a_scoped_thread(self):
+        """验证用户B无法订阅或访问用户A的限定线程。"""
+        token_a = create_access_token(user_id=1, is_admin=False)
+        token_b = create_access_token(user_id=2, is_admin=False)
+        thread_id = "shared-thread"
+
+        with self.client.websocket_connect(
+            f"/api/v1/ws/{thread_id}?token={token_a}"
+        ) as websocket_a:
+            with self.client.websocket_connect(
+                f"/api/v1/ws/{thread_id}?token={token_b}"
+            ) as websocket_b:
+                scoped_a = build_thread_id(1, thread_id)
+                scoped_b = build_thread_id(2, thread_id)
+
+                assert scoped_a in manager.thread_subscribers
+                assert scoped_b in manager.thread_subscribers
+                assert manager.thread_subscribers[scoped_a] != manager.thread_subscribers[scoped_b]
 
     def test_invalid_token_does_not_leak_details(self):
         """无效 Token 时不应向客户端暴露内部错误详情。"""
@@ -84,3 +97,20 @@ class TestWebsocketSecurity:
 
         assert exc_info.value.code == 1008
         assert exc_info.value.reason == "Authentication failed"
+
+    def test_generic_exception_returns_connection_error(self):
+        """非认证相关的异常应返回 Connection error。"""
+        token = create_access_token(user_id=1, is_admin=False)
+
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with patch(
+                "app.api.v1.websocket.manager.connect_user",
+                side_effect=RuntimeError("boom"),
+            ):
+                with self.client.websocket_connect(
+                    f"/api/v1/ws/some-thread?token={token}"
+                ) as websocket:
+                    websocket.receive_text()
+
+        assert exc_info.value.code == 1008
+        assert exc_info.value.reason == "Connection error"

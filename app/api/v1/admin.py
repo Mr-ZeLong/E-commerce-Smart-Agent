@@ -19,6 +19,7 @@ from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
 from app.tasks.refund_tasks import process_refund_payment, send_refund_sms
 from app.websocket.manager import manager
+from app.api.v1.utils import build_thread_id
 
 router = APIRouter()
 
@@ -267,7 +268,7 @@ async def admin_decision(
 
     # 6. 通过 WebSocket 实时推送状态变更
     await manager.notify_status_change(
-        thread_id=audit_log.thread_id,
+        thread_id=build_thread_id(audit_log.user_id, audit_log.thread_id),
         status=request.action,
         data={
             "message": status_message,
