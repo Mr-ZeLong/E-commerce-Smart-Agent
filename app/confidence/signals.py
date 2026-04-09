@@ -44,6 +44,8 @@ class RAGSignal:
             covered_words.update(query_words & chunk_words)
 
         coverage = len(covered_words) / len(query_words) if query_words else 0.0
+        # Note: similarities now come from reranker/RRF instead of 1.0 - cosine_distance.
+        # Thresholds may need recalibration once Golden Dataset is available.
         score = max_sim * 0.4 + avg_sim * 0.3 + coverage * 0.3
 
         return SignalResult(

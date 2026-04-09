@@ -1,9 +1,6 @@
-from sqlmodel import select
-
 from app.agents.base import AgentResult, BaseAgent
-from app.core.database import async_session_maker
-from app.models.knowledge import KnowledgeChunk
 from app.models.state import RetrievalResult  # 使用新的 RetrievalResult
+from app.retrieval import get_retriever
 
 POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 
@@ -12,9 +9,6 @@ POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 2. 如果参考信息为空，直接回答"抱歉，暂未查询到相关规定"
 3. 回答简洁明了，引用具体政策条款
 4. 语气专业、客气"""
-
-
-SIMILARITY_THRESHOLD = 0.5
 
 
 class PolicyAgent(BaseAgent):
@@ -73,66 +67,28 @@ class PolicyAgent(BaseAgent):
         self,
         question: str
     ) -> tuple[list[str], list[float], list[str]]:
-        """
-        执行 RAG 检索
-
-        Returns:
-            (chunks, similarities, sources)
-        """
-        from app.retrieval.embeddings import embedding_model
-
-        # 生成查询向量
-        query_vector = await embedding_model.aembed_query(question)
-
-        async with async_session_maker() as session:
-            distance_col = KnowledgeChunk.embedding.cosine_distance(query_vector).label("distance")  # type: ignore
-
-            stmt = (
-                select(KnowledgeChunk, distance_col)
-                .where(KnowledgeChunk.is_active)
-                .order_by(distance_col)
-                .limit(5)
-            )
-            result = await session.exec(stmt)
-            results = result.all()
-
-        # 过滤并收集结果
-        valid_chunks = []
-        distances = []
-        sources = []
-
-        for chunk, distance in results:
-            distances.append(float(distance))
-            sources.append(chunk.source or "unknown")
-            if distance < SIMILARITY_THRESHOLD:
-                valid_chunks.append(chunk.content)
-
-        # 将距离转换为相似度 (1 - distance)
-        similarities = [1.0 - d for d in distances]
-
-        print(f"[PolicyAgent] 检索到 {len(results)} 条，有效 {len(valid_chunks)} 条")
-
-        return valid_chunks, similarities, sources
+        retriever = get_retriever()
+        results = await retriever.retrieve(question)
+        chunks = [r.content for r in results]
+        similarities = [r.score for r in results]
+        sources = [r.source for r in results]
+        print(f"[PolicyAgent] 检索到 {len(results)} 条有效结果")
+        return chunks, similarities, sources
 
     def _estimate_confidence(
         self,
         chunks: list[str],
         similarities: list[float]
     ) -> float:
-        """
-        初步估计置信度（完整置信度在置信度节点计算）
-        """
         if not chunks:
             return 0.0
-
         if similarities:
-            avg_similarity = sum(similarities) / len(similarities)
-            # 简单映射：相似度越高置信度越高
-            if avg_similarity >= 0.7:
+            avg_sim = sum(similarities) / len(similarities)
+            # Direct mapping without arbitrary stretching; thresholds will be tuned after data collection
+            if avg_sim >= 0.65:
                 return 0.8
-            elif avg_similarity >= 0.5:
+            elif avg_sim >= 0.45:
                 return 0.5
             else:
                 return 0.2
-
         return 0.5 if len(chunks) > 0 else 0.0
