@@ -32,13 +32,12 @@ flowchart TB
         GRAPH["StateGraph<br/>工作流编排"]
 
         subgraph Nodes["📍 节点定义"]
-            SUPERVISOR["Supervisor<br/>AgentOrchestrator +<br/>ConfidenceEvaluator +<br/>TransferDecider"]
-            INTENT["Intent Router v2.0<br/>IntentRouterAgent<br/>分层意图识别"]
-            RETRIEVE["Retrieve<br/>知识检索 (RAG)"]
-            QUERY["Query Order<br/>订单查询"]
-            REFUND["Handle Refund<br/>退货处理"]
-            AUDIT["Check Eligibility<br/>资格审核"]
-            GEN["Generate<br/>回复生成"]
+            ROUTER_NODE["router_node<br/>意图路由"]
+            POLICY_NODE["policy_node<br/>知识检索 (RAG) + 生成"]
+            ORDER_NODE["order_node<br/>订单查询 / 退货处理"]
+            EVALUATOR_NODE["evaluator_node<br/>置信度评估"]
+            DECIDER_NODE["decider_node<br/>人工接管决策"]
+            GEN["generate<br/>回复生成"]
         end
 
         subgraph State["📦 状态定义"]
@@ -101,12 +100,14 @@ flowchart TB
 
     GRAPH --> Nodes
     Nodes --> State
-    SUPERVISOR --> INTENT
-    INTENT --> RETRIEVE & QUERY & REFUND
-    REFUND --> AUDIT
-    QUERY --> GEN
-    RETRIEVE --> GEN
-    AUDIT --> GEN
+    ROUTER_NODE --> POLICY_NODE & ORDER_NODE
+    POLICY_NODE --> EVALUATOR_NODE
+    ORDER_NODE --> EVALUATOR_NODE
+    EVALUATOR_NODE --> DECIDER_NODE
+    EVALUATOR_NODE -->|"低置信度"| ROUTER_NODE
+    DECIDER_NODE --> GEN
+    POLICY_NODE --> GEN
+    ORDER_NODE --> GEN
 
     REFUND_SVC --> RULES
     REFUND_SVC --> DB
@@ -127,24 +128,23 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    START([START]) --> INTENT["🎯 Intent Router<br/>意图识别"]
+    START([START]) --> ROUTER["🎯 router_node<br/>意图路由"]
 
-    INTENT -->|"ORDER"| QUERY["📦 Query Order<br/>订单查询"]
-    INTENT -->|"POLICY"| RETRIEVE["📚 Retrieve<br/>知识检索"]
-    INTENT -->|"REFUND"| REFUND_NODE["🔄 Handle Refund<br/>退货处理"]
-    INTENT -->|"OTHER"| GENERATE["💬 Generate<br/>生成回复"]
+    ROUTER -->|"POLICY"| POLICY["📚 policy_node<br/>知识检索 (RAG)"]
+    ROUTER -->|"ORDER / REFUND"| ORDER["📦 order_node<br/>订单查询 / 退货处理"]
 
-    QUERY --> GENERATE
-    RETRIEVE --> GENERATE
+    POLICY --> EVAL["⚖️ evaluator_node<br/>置信度评估"]
+    ORDER --> EVAL
 
-    REFUND_NODE --> CHECK["⚖️ Check Eligibility<br/>资格审核"]
+    EVAL -->|"低置信度"| ROUTER
+    EVAL -->|"通过"| DECIDER["🔀 decider_node<br/>人工接管决策"]
 
-    CHECK -->|"自动通过<br/>低风险"| GENERATE
-    CHECK -->|"需要审核<br/>中高风险"| END_AUDIT([END<br/>等待人工审核])
+    DECIDER -->|"无需接管"| GENERATE["💬 generate<br/>生成回复"]
+    DECIDER -->|"需要审核"| END_AUDIT([END<br/>等待人工审核])
 
     GENERATE --> END_NORMAL([END])
 
-    style CHECK fill:#ffeb3b,stroke:#f57f17
+    style EVAL fill:#ffeb3b,stroke:#f57f17
     style END_AUDIT fill:#ff9800,stroke:#e65100
 ```
 
@@ -257,8 +257,8 @@ sequenceDiagram
     User->>CUI: "查询我的订单"
     CUI->>API: POST /chat (SSE)
     API->>Graph: astream_events()
-    Graph->>Graph: intent_router()
-    Graph->>Node: query_order()
+    Graph->>Graph: router_node
+    Graph->>Node: order_node()
     Node->>DB: SELECT orders
     DB-->>Node: Order Data
     Node-->>Graph: {order_data, context}
@@ -288,7 +288,7 @@ sequenceDiagram
     CUI->>API: POST /chat
     API->>Graph: 启动工作流
     Graph->>Graph: intent_router → REFUND
-    Graph->>Graph: handle_refund()
+    Graph->>Graph: order_node()
     Graph->>Graph: check_refund_eligibility()
 
     alt 低风险 (< ¥500)
@@ -334,7 +334,7 @@ sequenceDiagram
     CUI->>API: POST /chat
     API->>Graph: 启动工作流
     Graph->>Graph: intent_router → POLICY
-    Graph->>Graph: retrieve()
+    Graph->>Graph: policy_node()（内含 retrieve）
     Graph->>Embed: aembed_query()
     Embed->>Embed: 生成查询向量
     Embed-->>Graph: query_vector
@@ -419,6 +419,7 @@ E-commerce-Smart-Agent/
 │   ├── 📁 core/                    # 核心基础设施
 │   │   ├── 📄 config.py            # 配置管理 (Pydantic Settings)
 │   │   ├── 📄 database.py          # 数据库连接 (SQLModel)
+│   │   ├── 📄 redis.py             # 统一 Redis 客户端
 │   │   ├── 📄 security.py          # JWT 认证
 │   │   └── 📄 utils.py             # 工具函数（utc_now 等）
 │   │
@@ -441,8 +442,6 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 router.py            # IntentRouterAgent (v2.0) + RouterAgent 兼容别名
 │   │   ├── 📄 order.py             # 订单 Agent
 │   │   ├── 📄 policy.py            # 政策 Agent
-│   │   ├── 📄 supervisor.py        # 监督 Agent（轻量协调器）
-│   │   ├── 📄 orchestrator.py      # AgentOrchestrator（路由调度 + Specialist 执行）
 │   │   ├── 📄 evaluator.py         # ConfidenceEvaluator（置信度信号计算）
 │   │   └── 📄 transfer.py          # TransferDecider（人工接管决策）
 │   │
@@ -522,7 +521,7 @@ E-commerce-Smart-Agent/
 ├── 📁 data/                        # 静态数据
 │   └── 📄 shipping_policy.md       # 示例政策文档
 │
-└── 📁 test/                        # 测试文件
+└── 📁 tests/                       # 测试文件
     └── 📄 test_*.py                # 单元测试/集成测试
 ```
 
@@ -530,8 +529,8 @@ E-commerce-Smart-Agent/
 
 | 特性 | 描述 | 技术实现 |
 |------|------|----------|
-| **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph + AgentOrchestrator |
-| **Agent 监督层** | Orchestrator + Evaluator + Decider 三组件协作 | SupervisorAgent |
+| **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph |
+| **LangGraph 节点编排** | router_node → policy_agent/order_agent → evaluator_node → decider_node 显式工作流 | LangGraph 1.0+ Command API |
 | **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 | IntentRecognitionService + Redis |
 | **RAG 检索** | 基于 Qdrant 的混合语义检索（Dense + BM25 Sparse + Rerank） | Embedding + 向量数据库 |
 | **退货流程** | 多步骤退货申请流程 | LangGraph 状态机 |

@@ -41,7 +41,7 @@ class BaseAgent(ABC):
             self.llm = create_openai_llm(model=llm_model or settings.LLM_MODEL)
 
     @abstractmethod
-    async def process(self, state: dict) -> AgentResult:
+    async def process(self, state: dict[str, Any]) -> AgentResult:
         """处理用户请求"""
         pass
 

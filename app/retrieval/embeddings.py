@@ -55,10 +55,6 @@ def get_embedding_model() -> QwenEmbeddings:
     )
 
 
-# Backward compatibility: module-level singleton
-embedding_model = get_embedding_model()
-
-
 def clear_embedding_model_cache() -> None:
     """Clear the cached embedding model singleton (useful in tests)."""
     get_embedding_model.cache_clear()

@@ -31,7 +31,7 @@ dependencies = [
     "celery>=5.6.2",
     "websockets>=14.1",
     "passlib[bcrypt]>=1.7.4",
-    "bcrypt==3.2.2",
+    "bcrypt>=4.0.1,<4.1",
     "email-validator>=2.3.0",
     "qdrant-client>=1.16.0,<1.17.0",
     "fastembed>=0.6.0",
@@ -47,6 +47,7 @@ packages = ["app"]
 [tool.pytest.ini_options]
 # 确保 asyncio 插件使用 session 级别的 loop 作用域
 asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = [

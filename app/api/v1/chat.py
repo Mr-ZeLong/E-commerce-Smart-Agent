@@ -1,5 +1,6 @@
 # app/api/v1/chat.py
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -11,6 +12,7 @@ from app.api.v1.utils import build_thread_id
 from app.core.security import get_current_user_id
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/chat")
@@ -47,7 +49,24 @@ async def chat(
             "history": [],
             "context": [],
             "order_data": None,
-            "answer": ""
+            "answer": "",
+            "intent": None,
+            "current_agent": None,
+            "next_agent": None,
+            "iteration_count": 0,
+            "retry_requested": False,
+            "retrieval_result": None,
+            "messages": [],
+            "audit_level": None,
+            "audit_required": False,
+            "audit_type": None,
+            "audit_log_id": None,
+            "audit_reason": None,
+            "confidence_score": None,
+            "confidence_signals": None,
+            "refund_flow_active": None,
+            "refund_order_sn": None,
+            "refund_step": None,
         }
 
         # v4.1: 用于收集最终状态中的置信度信息
@@ -69,7 +88,7 @@ async def chat(
                     # 只转发标记为 user_visible 的输出
                     # 过滤掉 router 和内部置信度评估的调用
                     is_internal = (
-                        langgraph_node == "router" or
+                        langgraph_node == "router_node" or
                         "confidence_eval" in tags or
                         "internal" in tags
                     )
@@ -97,9 +116,9 @@ async def chat(
                     langgraph_node = metadata.get("langgraph_node", "")
 
                     if output and isinstance(output, dict):
-                        # 从 supervisor 节点获取 answer 发送给用户
+                        # 从 router/policy/order 节点获取 answer 发送给用户
                         # (对于 OrderAgent 等非 LLM 节点，answer 直接来自 state)
-                        if langgraph_node == "supervisor" and "answer" in output:
+                        if langgraph_node in ("router_node", "policy_agent", "order_agent") and "answer" in output:
                             answer = output["answer"]
                             if answer and answer not in getattr(event_generator, '_sent_answers', set()):
                                 # 避免重复发送相同的 answer
@@ -135,8 +154,11 @@ async def chat(
 
             yield "data: [DONE]\n\n"
 
-        except Exception as e:
-            error_msg = json.dumps({"error": str(e)}, ensure_ascii=False)
-            yield f"data: {error_msg}\n\n"
+        except Exception:
+            logger.exception("[Chat] SSE streaming error")
+            error_payload = json.dumps(
+                {"error": "系统处理出现问题，请稍后重试"}, ensure_ascii=False
+            )
+            yield f"data: {error_payload}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

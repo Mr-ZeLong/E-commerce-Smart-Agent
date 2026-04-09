@@ -1,11 +1,15 @@
 import logging
+from typing import Any
 
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlmodel import select
 
 from app.agents.base import AgentResult, BaseAgent
 from app.core.database import async_session_maker
 from app.models.order import Order
-from app.services.refund_service import get_order_by_sn, process_refund_for_order
+from app.models.refund import RefundApplication
+from app.services.refund_service import RefundRiskService, get_order_by_sn, process_refund_for_order
+from app.tasks.refund_tasks import notify_admin_audit
 from app.utils.order_utils import classify_refund_reason, extract_order_sn
 
 logger = logging.getLogger(__name__)
@@ -35,7 +39,7 @@ class OrderAgent(BaseAgent):
             system_prompt=ORDER_SYSTEM_PROMPT
         )
 
-    async def process(self, state: dict) -> AgentResult:
+    async def process(self, state: dict[str, Any]) -> AgentResult:
         """处理订单相关请求"""
         question = state.get("question", "")
         user_id = state.get("user_id")
@@ -48,7 +52,8 @@ class OrderAgent(BaseAgent):
             )
 
         if intent == "REFUND":
-            return await self._handle_refund(question, user_id)
+            thread_id = state.get("thread_id", "")
+            return await self._handle_refund(question, user_id, thread_id)
         else:
             return await self._handle_order_query(question, user_id)
 
@@ -77,7 +82,8 @@ class OrderAgent(BaseAgent):
     async def _handle_refund(
         self,
         question: str,
-        user_id: int
+        user_id: int,
+        thread_id: str = ""
     ) -> AgentResult:
         """处理退货申请"""
         order_sn = extract_order_sn(question)
@@ -122,6 +128,18 @@ class OrderAgent(BaseAgent):
                     }
                 )
 
+            # 退款申请创建成功后，执行风控审计
+            audit = None
+            if refund_data is not None:
+                refund_result = await session.exec(
+                    select(RefundApplication).where(RefundApplication.id == refund_data["refund_id"])
+                )
+                refund = refund_result.one_or_none()
+                if refund:
+                    audit = await RefundRiskService.assess_and_create_audit(
+                        session, refund, order, user_id, thread_id
+                    )
+
             updated_state = {
                 "order_data": order.model_dump(),
                 "refund_flow_active": True
@@ -131,6 +149,12 @@ class OrderAgent(BaseAgent):
                     "refund_id": refund_data["refund_id"],
                     "amount": refund_data["amount"]
                 }
+
+            await session.commit()
+
+            # 事务提交成功后，再派发 Celery 通知任务
+            if audit is not None:
+                notify_admin_audit.delay(audit.id)
 
             return AgentResult(
                 response=f"✅ {message}",
@@ -158,8 +182,13 @@ class OrderAgent(BaseAgent):
                     order = result.first()
 
                 return order.model_dump() if order else None
-        except Exception as e:
-            logger.error(f"[OrderAgent] Database query failed: {e}")
+        except NoResultFound:
+            return None
+        except SQLAlchemyError:
+            logger.exception("[OrderAgent] Database error querying order")
+            raise
+        except Exception:
+            logger.exception("[OrderAgent] Unexpected error querying order")
             return None
 
     def _format_order_response(self, order: dict) -> str:

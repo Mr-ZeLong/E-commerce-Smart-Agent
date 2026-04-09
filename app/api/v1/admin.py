@@ -16,6 +16,7 @@ from app.core.utils import utc_now
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
+from app.models.user import User
 from app.tasks.refund_tasks import process_refund_payment, send_refund_sms
 from app.websocket.manager import manager
 
@@ -199,7 +200,12 @@ async def admin_decision(
 
     session.add(audit_log)
 
-    # 3. 更新退款申请状态
+    # 3. 查询用户手机号
+    user_result = await session.exec(select(User).where(User.id == audit_log.user_id))
+    user = user_result.one_or_none()
+    phone = user.phone if user and getattr(user, "phone", None) else None
+
+    # 4. 更新退款申请状态
     if audit_log.refund_application_id:
         refund_result = await session.exec(
             select(RefundApplication).where(
@@ -215,18 +221,19 @@ async def admin_decision(
                 refund.reviewed_by = current_admin_id
                 refund.reviewed_at = utc_now()
 
-                # 4. 触发异步任务：退款 + 短信通知
+                # 5. 触发异步任务：退款 + 短信通知
                 process_refund_payment.delay(
                     refund_id=refund.id,
                     amount=float(refund.refund_amount),
                     payment_method="原支付方式"
                 )
 
-                send_refund_sms.delay(
-                    refund_id=refund.id,
-                    phone="138****1234",  # TODO: 从用户表获取
-                    message=f"您的退款申请已通过，退款金额¥{refund.refund_amount}将在3-5个工作日退回。"
-                )
+                if phone:
+                    send_refund_sms.delay(
+                        refund_id=refund.id,
+                        phone=phone,
+                        message=f"您的退款申请已通过，退款金额¥{refund.refund_amount}将在3-5个工作日退回。"
+                    )
 
             else:
                 refund.status = RefundStatus.REJECTED

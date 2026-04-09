@@ -133,5 +133,4 @@ class AuditLog(SQLModel, table=True):
         }
     )
 
-    class Config:
-        use_enum_values = True
+    model_config = {"use_enum_values": True}

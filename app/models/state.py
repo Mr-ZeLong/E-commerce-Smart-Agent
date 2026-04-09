@@ -38,6 +38,9 @@ class AgentState(TypedDict):
     # ========== 意图与路由 ==========
     intent: str | None
     current_agent: str | None
+    next_agent: str | None
+    iteration_count: int
+    retry_requested: bool
 
     # ========== 历史记录 ==========
     history: Annotated[list[dict], operator.add]

@@ -15,7 +15,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 from app.retrieval.client import QdrantKnowledgeClient
-from app.retrieval.embeddings import embedding_model
+from app.retrieval.embeddings import get_embedding_model
 from app.retrieval.sparse_embedder import SparseTextEmbedder
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ _RETRY_DECORATOR = retry(
 @_RETRY_DECORATOR
 async def embed_dense_with_retry(texts: list[str]) -> list[list[float]]:
     """Generate dense embeddings with retry."""
-    return await embedding_model.aembed_documents(texts)
+    return await get_embedding_model().aembed_documents(texts)
 
 
 @_RETRY_DECORATOR

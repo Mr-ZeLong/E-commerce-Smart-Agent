@@ -27,16 +27,12 @@ class DatabaseTask(Task):
     def run_async(self, coro):
         """在 Celery worker 中安全运行异步函数"""
         try:
-            loop = asyncio.get_running_loop()
-            if loop.is_running():
-                # 如果当前线程已有运行中的事件循环，创建新线程来运行
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(asyncio.run, coro)
-                    return future.result()
+            return asyncio.run(coro)
         except RuntimeError:
-            pass
-        # 没有运行中的事件循环，直接使用 asyncio.run
-        return asyncio.run(coro)
+            # 当前线程已有运行中的事件循环（如 eventlet/gevent pool）
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, coro)
+                return future.result()
 
 
 @celery_app.task(

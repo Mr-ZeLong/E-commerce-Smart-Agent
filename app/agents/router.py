@@ -85,10 +85,11 @@ class IntentRouterAgent(BaseAgent):
     def __init__(self) -> None:
         """初始化IntentRouterAgent。"""
         super().__init__(name="intent_router", system_prompt=None)
-        self.intent_service = IntentRecognitionService()
+        from app.core.redis import get_redis_client
+        self.intent_service = IntentRecognitionService(redis_client=get_redis_client())
         logger.debug("IntentRouterAgent initialized")
 
-    async def process(self, state: dict) -> AgentResult:
+    async def process(self, state: dict[str, Any]) -> AgentResult:
         """处理用户输入，识别意图并路由
 
         流程：

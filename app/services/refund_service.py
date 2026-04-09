@@ -5,6 +5,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.utils import utc_now
+from app.models.audit import AuditLog
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 
@@ -255,6 +256,43 @@ async def get_order_by_sn(
     )
     result = await session.exec(stmt)
     return result.first()
+
+
+class RefundRiskService:
+    @staticmethod
+    async def assess_and_create_audit(
+        session: AsyncSession,
+        refund: RefundApplication,
+        order: Order,
+        user_id: int,
+        thread_id: str,
+    ) -> AuditLog | None:
+        from app.core.config import settings
+        from app.models.audit import AuditAction, AuditTriggerType, RiskLevel
+
+        amount = float(refund.refund_amount)
+        if amount >= settings.HIGH_RISK_REFUND_AMOUNT:
+            risk_level = RiskLevel.HIGH
+        elif amount >= settings.MEDIUM_RISK_REFUND_AMOUNT:
+            risk_level = RiskLevel.MEDIUM
+        else:
+            return None
+
+        audit = AuditLog(
+            user_id=user_id,
+            thread_id=thread_id,
+            action=AuditAction.PENDING,
+            trigger_type=AuditTriggerType.RISK,
+            risk_level=risk_level,
+            trigger_reason=f"退款金额¥{amount}超过{risk_level.value}风险阈值",
+            refund_application_id=refund.id,
+            order_id=order.id,
+            context_snapshot={"refund_amount": amount, "order_sn": order.order_sn},
+        )
+        session.add(audit)
+        await session.flush()
+        await session.refresh(audit)
+        return audit
 
 
 async def process_refund_for_order(

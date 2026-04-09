@@ -1,15 +1,15 @@
 # app/api/v1/schemas.py
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatRequest(BaseModel):
     # 用户的问题
-    question: str = Field(..., example="内衣拆封了可以退吗？")
+    question: str = Field(..., json_schema_extra={"example": "内衣拆封了可以退吗？"})
 
     # 会话 ID，用于后续追踪对话上下文 (v1.0 暂不强制，但预留)
-    thread_id: str = Field("default_thread", example="user_123_session_001")
+    thread_id: str = Field("default_thread", json_schema_extra={"example": "user_123_session_001"})
 
 
 class ChatResponse(BaseModel):
@@ -42,12 +42,12 @@ class ChatResponseMetadata(BaseModel):
         description="综合置信度分数 (0-1)",
         ge=0,
         le=1,
-        example=0.75
+        json_schema_extra={"example": 0.75}
     )
     confidence_level: str | None = Field(
         None,
         description="置信度等级: high | medium | low",
-        example="medium"
+        json_schema_extra={"example": "medium"}
     )
     confidence_signals: ConfidenceSignals | None = Field(
         None,
@@ -60,16 +60,16 @@ class ChatResponseMetadata(BaseModel):
     transfer_reason: str | None = Field(
         None,
         description="转人工原因代码",
-        example="confidence_low"
+        json_schema_extra={"example": "confidence_low"}
     )
     audit_level: str | None = Field(
         None,
         description="审核级别: none | auto | manual",
-        example="auto"
+        json_schema_extra={"example": "auto"}
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "confidence_score": 0.75,
                 "confidence_level": "medium",
@@ -83,6 +83,7 @@ class ChatResponseMetadata(BaseModel):
                 "audit_level": "auto"
             }
         }
+    )
 
 
 class ConfidenceCardContent(BaseModel):

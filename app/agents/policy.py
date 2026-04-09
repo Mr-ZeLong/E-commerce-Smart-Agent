@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from app.agents.base import AgentResult, BaseAgent
 from app.models.state import RetrievalResult  # 使用新的 RetrievalResult
@@ -31,7 +32,7 @@ class PolicyAgent(BaseAgent):
             system_prompt=POLICY_SYSTEM_PROMPT
         )
 
-    async def process(self, state: dict) -> AgentResult:
+    async def process(self, state: dict[str, Any]) -> AgentResult:
         """处理政策咨询"""
         question = state.get("question", "")
 

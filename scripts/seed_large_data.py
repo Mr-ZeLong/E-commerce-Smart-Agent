@@ -111,7 +111,7 @@ async def seed_large_data():
                 items=processed_items,
                 tracking_number=f"SF{uuid.uuid4().hex[:10].upper()}" if status in [OrderStatus.SHIPPED, OrderStatus.DELIVERED] else None,
                 shipping_address=random.choice(ADDRESS_POOL) + f"{random.randint(1, 999)}号",
-                created_at=created_at.replace(tzinfo=None)
+                created_at=created_at
             )
             orders.append(order)
 

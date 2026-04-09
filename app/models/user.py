@@ -58,11 +58,12 @@ class User(SQLModel, table=True):
         """验证密码"""
         return pwd_context.verify(password, self.password_hash)
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "username": "alice",
                 "email": "alice@example.com",
-                "full_name": "Alice Wang"
+                "full_name": "Alice Wang",
             }
         }
+    }
