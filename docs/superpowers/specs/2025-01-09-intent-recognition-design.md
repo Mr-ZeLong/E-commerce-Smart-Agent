@@ -1,9 +1,11 @@
 # 意图识别系统重构设计文档
 
-**日期**: 2025-01-09
-**版本**: v1.1
+**日期**: 2025-04-09
+**版本**: v1.2
 **作者**: AI Assistant
-**状态**: 待评审
+**状态**: 已落地
+
+**v1.2更新说明**: 同步实际代码实现，修正数据模型命名（IntentResolutionResult → IntentResult），更新IntentRecognitionService和IntentRouterAgent接口签名，移除未落地的概念设计，补充Redis状态管理和向后兼容细节。
 
 **v1.1更新说明**: 补充意图分类体系、完善话题切换检测、增强安全过滤、新增数据隐私与人工介入机制等
 
@@ -172,7 +174,7 @@
 - 对话历史（最近3轮）
 - 当前槽位状态
 
-**输出**：`IntentResolutionResult`（结构化意图解析结果）
+**输出**：`IntentResult`（结构化意图解析结果）
 
 **实现要点**：
 - 使用OpenAI Function Calling定义意图schema
@@ -217,7 +219,7 @@ class ConfigurableSlotValidator:
 
     async def validate(
         self,
-        intent: IntentResolutionResult,
+        intent: IntentResult,
         user_id: str | None = None,
         user_profile: dict | None = None
     ) -> ValidationResult:
@@ -502,8 +504,8 @@ class TopicSwitchDetector:
     def detect_switch(
         self,
         current_query: str,
-        previous_intent: IntentResolutionResult | None,
-        new_intent: IntentResolutionResult
+        previous_intent: IntentResult | None,
+        new_intent: IntentResult
     ) -> SwitchDecision:
         """
         检测话题切换
@@ -573,8 +575,8 @@ class TopicSwitchDetector:
 
     def _determine_preserved_slots(
         self,
-        previous: IntentResolutionResult,
-        new_intent: IntentResolutionResult
+        previous: IntentResult,
+        new_intent: IntentResult
     ) -> list[str]:
         """确定切换时应保留的槽位"""
         preserved = []
@@ -609,201 +611,117 @@ class TopicSwitchDetector:
 
 ## 4. 数据模型
 
-### 4.1 IntentResolutionResult（意图解析结果）
+### 4.1 IntentResult（意图解析结果）
 
 ```python
-class IntentResolutionResult(BaseModel):
-    """意图解析结果"""
-
-    # === 意图层级 ===
-    primary_intent: str           # 一级意图（业务域）
-    secondary_intent: str         # 二级意图（动作类型）
-    tertiary_intent: str | None   # 三级意图（子意图，可选）
-
-    # === 置信度 ===
-    confidence: float             # 总体置信度 (0-1)
-    intent_confidences: dict      # 各级意图的置信度
-
-    # === 槽位信息 ===
-    slots: dict                   # 已提取的槽位 {slot_name: value}
-    required_slots: list          # 当前意图必需的槽位列表
-    missing_slots: list           # 缺失的槽位列表（按优先级排序）
-
-    # === 澄清相关 ===
-    needs_clarification: bool     # 是否需要澄清
-    ambiguity_type: str | None    # 歧义类型："missing_slots" / "intent_conflict" / "low_confidence"
-    clarification_question: str | None  # 生成的澄清问题
-
-    # === 原始信息 ===
-    raw_query: str                # 原始用户输入
-    matched_patterns: list        # 匹配到的模式/示例
-
-class ClarificationState(BaseModel):
-    """澄清状态（用于多轮对话追踪）"""
-
-    session_id: str
-    current_intent: IntentResolutionResult
-    clarification_round: int      # 当前澄清轮次（最大3轮）
-    asked_slots: list             # 已经询问过的槽位
-    collected_slots: dict         # 已收集的槽位
-    pending_slot: str | None      # 当前待确认的槽位
-    clarification_history: list   # 澄清历史记录
-
-    # v1.1新增：用户拒绝处理
-    user_refused_slots: list[str] = []  # 用户明确拒绝提供的槽位
-    refused_fallback_strategy: RefusalFallbackStrategy = RefusalFallbackStrategy.SKIP
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 
-class RefusalFallbackStrategy(Enum):
-    """用户拒绝提供槽位后的降级策略（v1.1新增）"""
-    SKIP = "skip"                    # 跳过该槽位，继续处理
-    TRANSFER_TO_HUMAN = "transfer"   # 转人工客服
-    SMART_GUESS = "guess"            # 基于上下文智能猜测
-    ASK_ALTERNATIVE = "alternative"  # 询问替代信息
+class IntentCategory(str, Enum):
+    """一级意图：业务域"""
+    ORDER = "ORDER"
+    AFTER_SALES = "AFTER_SALES"
+    POLICY = "POLICY"
+    ACCOUNT = "ACCOUNT"
+    PROMOTION = "PROMOTION"
+    PAYMENT = "PAYMENT"
+    LOGISTICS = "LOGISTICS"
+    PRODUCT = "PRODUCT"
+    RECOMMENDATION = "RECOMMENDATION"
+    CART = "CART"
+    COMPLAINT = "COMPLAINT"
+    OTHER = "OTHER"
 
 
-class UserRefusalHandler:
-    """用户拒绝处理器（v1.1新增）"""
+class IntentAction(str, Enum):
+    """二级意图：动作类型"""
+    QUERY = "QUERY"
+    APPLY = "APPLY"
+    MODIFY = "MODIFY"
+    CANCEL = "CANCEL"
+    CONSULT = "CONSULT"
+    ADD = "ADD"
+    REMOVE = "REMOVE"
+    COMPARE = "COMPARE"
 
-    # 拒绝表达模式
-    REFUSAL_PATTERNS = [
-        r"不想?说",
-        r"不想?告诉",
-        r"不想?提供",
-        r"不方便",
-        r"保密",
-        r"跳过",
-        r"先不用",
-        r"以后再说",
-        r"算了",
-    ]
 
-    def detect_refusal(self, user_response: str) -> bool:
-        """检测用户是否拒绝提供信息"""
-        response_lower = user_response.lower()
-        for pattern in self.REFUSAL_PATTERNS:
-            if re.search(pattern, response_lower):
-                return True
-        return False
+class SlotPriority(str, Enum):
+    """槽位优先级"""
+    P0 = "P0"  # 必须
+    P1 = "P1"  # 重要
+    P2 = "P2"  # 可选
 
-    async def handle_refusal(
-        self,
-        refused_slot: str,
-        state: ClarificationState,
-        user_profile: dict | None = None
-    ) -> RefusalHandleResult:
-        """
-        处理用户拒绝
 
-        策略优先级：
-        1. 如果槽位是P0且无法猜测 → 转人工或询问替代
-        2. 如果槽位是P1/P2 → 跳过
-        3. 如果有历史数据支持 → 智能猜测
-        """
-        # 记录拒绝
-        state.user_refused_slots.append(refused_slot)
+@dataclass
+class Slot:
+    """槽位定义"""
+    name: str
+    description: str
+    priority: SlotPriority
+    required: bool = True
+    extractor: str | None = None  # 提取器名称
 
-        # 确定降级策略
-        strategy = await self._determine_strategy(refused_slot, state, user_profile)
 
-        if strategy == RefusalFallbackStrategy.SKIP:
-            return RefusalHandleResult(
-                action="skip_slot",
-                message=None,
-                continue_clarification=True
-            )
+@dataclass
+class IntentResult:
+    """意图识别结果"""
+    primary_intent: IntentCategory
+    secondary_intent: IntentAction
+    tertiary_intent: str | None = None
+    confidence: float = 0.0
+    slots: dict[str, Any] | None = field(default_factory=dict)
+    missing_slots: list[str] = field(default_factory=list)
+    needs_clarification: bool = False
+    clarification_question: str | None = None
+    raw_query: str = ""
 
-        elif strategy == RefusalFallbackStrategy.TRANSFER_TO_HUMAN:
-            return RefusalHandleResult(
-                action="transfer_to_human",
-                message="理解您的顾虑，我为您转接人工客服协助处理。",
-                continue_clarification=False
-            )
-
-        elif strategy == RefusalFallbackStrategy.SMART_GUESS:
-            guessed_value = await self._smart_guess(refused_slot, state)
-            if guessed_value:
-                return RefusalHandleResult(
-                    action="smart_guess",
-                    message=f"根据您的历史记录，订单可能是{guessed_value}，对吗？",
-                    guessed_value=guessed_value,
-                    continue_clarification=True
-                )
-            else:
-                # 无法猜测，降级为询问替代
-                return await self._ask_alternative(refused_slot, state)
-
-        elif strategy == RefusalFallbackStrategy.ASK_ALTERNATIVE:
-            return await self._ask_alternative(refused_slot, state)
-
-        return RefusalHandleResult(action="skip_slot", continue_clarification=True)
-
-    async def _determine_strategy(
-        self,
-        slot: str,
-        state: ClarificationState,
-        user_profile: dict | None
-    ) -> RefusalFallbackStrategy:
-        """确定降级策略"""
-        # 获取槽位优先级
-        priority = self._get_slot_priority(slot, state.current_intent)
-
-        # P0槽位必须处理
-        if priority == "P0":
-            # 检查是否可以智能猜测
-            if await self._can_smart_guess(slot, state):
-                return RefusalFallbackStrategy.SMART_GUESS
-            # VIP用户转人工
-            if user_profile and user_profile.get("vip_level", 0) >= 2:
-                return RefusalFallbackStrategy.TRANSFER_TO_HUMAN
-            # 询问替代信息
-            return RefusalFallbackStrategy.ASK_ALTERNATIVE
-
-        # P1/P2槽位可跳过
-        return RefusalFallbackStrategy.SKIP
-
-    async def _smart_guess(
-        self,
-        slot: str,
-        state: ClarificationState
-    ) -> str | None:
-        """基于上下文智能猜测槽位值"""
-        if slot == "order_sn":
-            # 从最近订单中猜测
-            recent_orders = await self._get_recent_orders(state.session_id)
-            if recent_orders:
-                return recent_orders[0]["order_sn"]
-
-        elif slot == "reason_category":
-            # 基于商品类别和历史退货记录猜测
-            product_category = state.collected_slots.get("product_category")
-            if product_category:
-                return self._guess_reason_by_category(product_category)
-
-        return None
-
-    async def _ask_alternative(
-        self,
-        slot: str,
-        state: ClarificationState
-    ) -> RefusalHandleResult:
-        """询问替代信息"""
-        alternatives = {
-            "order_sn": "您可以提供下单时使用的手机号，我帮您查找",
-            "phone": "您可以提供订单号，我通过订单号查询",
-            "reason_detail": "您可以选择一个最接近的选项，或者简单描述一下",
+    def to_dict(self) -> dict:
+        return {
+            "primary_intent": self.primary_intent.value,
+            "secondary_intent": self.secondary_intent.value,
+            "tertiary_intent": self.tertiary_intent,
+            "confidence": self.confidence,
+            "slots": self.slots,
+            "missing_slots": self.missing_slots,
+            "needs_clarification": self.needs_clarification,
+            "clarification_question": self.clarification_question,
+            "raw_query": self.raw_query,
         }
 
-        message = alternatives.get(
-            slot,
-            "那您能提供其他相关信息吗？"
-        )
 
-        return RefusalHandleResult(
-            action="ask_alternative",
-            message=message,
-            continue_clarification=True
-        )
+@dataclass
+class ClarificationState:
+    """澄清状态（用于多轮对话追踪）"""
+    session_id: str
+    current_intent: IntentResult | None = None
+    clarification_round: int = 0
+    max_clarification_rounds: int = 3
+    asked_slots: list[str] = field(default_factory=list)
+    collected_slots: dict[str, Any] = field(default_factory=dict)
+    pending_slot: str | None = None
+    user_refused_slots: list[str] = field(default_factory=list)
+    clarification_history: list[dict] = field(default_factory=list)
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+
+    def can_continue_clarification(self) -> bool:
+        return self.clarification_round < self.max_clarification_rounds
+
+    def increment_round(self):
+        self.clarification_round += 1
+        self.updated_at = datetime.now()
+
+
+@dataclass
+class ClarificationResponse:
+    """澄清响应"""
+    response: str
+    state: ClarificationState
+    is_complete: bool = False
+    collected_slots: dict[str, Any] | None = None
 ```
 
 ### 4.2 意图Schema（Function Calling定义）
@@ -1158,7 +1076,7 @@ class MultiIntentProcessor:
 
     def _extract_shared_slots(
         self,
-        intents: list[IntentResolutionResult]
+        intents: list[IntentResult]
     ) -> dict[str, Any]:
         """
         提取可共享的槽位
@@ -1193,9 +1111,9 @@ class MultiIntentProcessor:
 
     def _propagate_shared_slots(
         self,
-        intents: list[IntentResolutionResult],
+        intents: list[IntentResult],
         shared_slots: dict[str, Any]
-    ) -> list[IntentResolutionResult]:
+    ) -> list[IntentResult]:
         """将共享槽位传播到所有兼容的意图"""
         for intent in intents:
             for slot_name, value in shared_slots.items():
@@ -1208,8 +1126,8 @@ class MultiIntentProcessor:
 
     def _sort_by_priority(
         self,
-        intents: list[IntentResolutionResult]
-    ) -> list[IntentResolutionResult]:
+        intents: list[IntentResult]
+    ) -> list[IntentResult]:
         """
         按优先级排序意图
 
@@ -1228,14 +1146,14 @@ class MultiIntentProcessor:
             "REMOVE": 7,
         }
 
-        def get_priority(intent: IntentResolutionResult) -> int:
+        def get_priority(intent: IntentResult) -> int:
             return priority_map.get(intent.secondary_intent, 10)
 
         return sorted(intents, key=get_priority)
 
     async def _execute_intents(
         self,
-        intents: list[IntentResolutionResult],
+        intents: list[IntentResult],
         session_id: str
     ) -> IntentExecutionResult:
         """
@@ -1317,7 +1235,7 @@ class MultiIntentProcessor:
 
         return RollbackResult(log=rollback_log)
 
-    def _is_rollbackable(self, intent: IntentResolutionResult) -> bool:
+    def _is_rollbackable(self, intent: IntentResult) -> bool:
         """检查意图是否可回滚"""
         # 查询类操作无需回滚
         if intent.secondary_intent == "QUERY":
@@ -1358,7 +1276,7 @@ class TopicSwitchHandler:
         self,
         decision: SwitchDecision,
         current_state: ConversationState,
-        new_intent: IntentResolutionResult
+        new_intent: IntentResult
     ) -> HandlerResult:
         """处理话题切换"""
 
@@ -1729,26 +1647,51 @@ SAFETY_CONFIG = {
 
 ```python
 class IntentRecognitionService:
-    """意图识别服务"""
+    """意图识别服务
+
+    整合所有意图识别组件，对外提供统一的意图识别接口。
+    包含安全过滤、多意图处理、槽位验证、话题切换检测、
+    澄清机制等功能，支持Redis缓存和会话状态管理。
+    """
+
+    def __init__(
+        self,
+        llm: Any | None = None,
+        redis_client: Any | None = None,
+        result_cache_ttl: int = 300,
+        session_cache_ttl: int = 1800,
+    ):
+        self.llm = llm
+        self.redis = redis_client
+        self.result_cache_ttl = result_cache_ttl
+        self.session_cache_ttl = session_cache_ttl
+
+        self.classifier = IntentClassifier(llm=llm)
+        self.slot_validator = SlotValidator()
+        self.clarification_engine = ClarificationEngine()
+        self.topic_switch_detector = TopicSwitchDetector()
+        self.multi_intent_processor = MultiIntentProcessor(classifier=self.classifier)
+        self.safety_filter = SafetyFilter(llm=llm)
 
     async def recognize(
         self,
         query: str,
         session_id: str,
-        conversation_history: list[dict] | None = None,
-        current_state: ClarificationState | None = None
-    ) -> IntentRecognitionResult:
+        conversation_history: list | None = None,
+    ) -> IntentResult:
         """
-        识别用户意图
+        识别用户意图（主入口）
+
+        流程：安全过滤 → 缓存检查 → 加载会话 → 多意图/单意图分类 →
+              话题切换检测 → 槽位验证 → 保存状态 → 缓存结果
 
         Args:
             query: 用户输入
             session_id: 会话ID
-            conversation_history: 对话历史（最近3轮）
-            current_state: 当前澄清状态（如果有）
+            conversation_history: 对话历史
 
         Returns:
-            IntentRecognitionResult: 包含意图、槽位、澄清需求等
+            IntentResult: 意图识别结果
         """
         pass
 
@@ -1756,18 +1699,16 @@ class IntentRecognitionService:
         self,
         session_id: str,
         user_response: str,
-        current_state: ClarificationState
-    ) -> ClarificationResult:
+    ) -> ClarificationResponse:
         """
-        处理澄清回复，更新槽位状态
+        处理澄清回复
 
         Args:
             session_id: 会话ID
-            user_response: 用户对澄清问题的回复
-            current_state: 当前澄清状态
+            user_response: 用户回复
 
         Returns:
-            ClarificationResult: 更新后的状态，是否继续澄清等
+            ClarificationResponse: 澄清响应（状态由Redis自动管理）
         """
         pass
 ```
@@ -1775,54 +1716,137 @@ class IntentRecognitionService:
 ### 8.2 与现有系统集成
 
 ```python
-# 替换现有的 RouterAgent
-class IntentRouterAgent(BaseAgent):
-    """新的意图路由Agent（替换原RouterAgent）"""
+from enum import Enum
+from typing import Any, TypedDict
 
-    def __init__(self):
+from app.agents.base import AgentResult, BaseAgent
+from app.intent import IntentRecognitionService
+from app.intent.models import IntentCategory, IntentResult
+
+
+class Intent(str, Enum):
+    """意图枚举（向后兼容）"""
+    ORDER = "ORDER"
+    POLICY = "POLICY"
+    REFUND = "REFUND"
+    OTHER = "OTHER"
+
+
+class RouterState(TypedDict, total=False):
+    """路由状态字典类型定义"""
+    question: str
+    thread_id: str
+    user_id: str | int
+    history: list[dict[str, Any]]
+    intent_result: dict[str, Any]
+    slots: dict[str, Any]
+    awaiting_clarification: bool
+    clarification_state: dict[str, Any]
+    intent: Intent
+    next_agent: str
+
+
+class IntentRouterAgent(BaseAgent):
+    """意图路由Agent（v2.0）
+
+    基于分层意图识别系统替换原有的规则+LLM混合方案：
+    1. 识别一级（业务域）、二级（动作）、三级（子意图）
+    2. 槽位提取和验证
+    3. 智能澄清机制（状态由IntentRecognitionService通过Redis管理）
+    4. 话题切换检测
+    """
+
+    GREETING_RESPONSE: str = (
+        "您好！我是您的智能客服助手，可以帮您查询订单、咨询政策或处理退货。"
+        "请问有什么可以帮您？"
+    )
+
+    def __init__(self) -> None:
+        super().__init__(name="intent_router", system_prompt=None)
         self.intent_service = IntentRecognitionService()
-        self.clarification_states: dict[str, ClarificationState] = {}
 
     async def process(self, state: dict) -> AgentResult:
-        query = state.get("question", "")
-        session_id = state.get("thread_id", "")
-        user_id = state.get("user_id")
+        router_state = state  # type: RouterState
+        query = router_state.get("question", "")
+        session_id = router_state.get("thread_id", "")
+        user_id = router_state.get("user_id")
 
-        # 检查是否有未完成的澄清
-        current_state = self.clarification_states.get(session_id)
+        # 意图识别（包含安全过滤、多意图处理、话题切换检测、槽位验证）
+        result = await self.intent_service.recognize(
+            query=query,
+            session_id=session_id,
+            conversation_history=state.get("history", []),
+        )
 
-        if current_state and current_state.pending_slot:
-            # 处理澄清回复
-            result = await self.intent_service.clarify(
-                session_id, query, current_state
-            )
-        else:
-            # 新的意图识别
-            result = await self.intent_service.recognize(
-                query=query,
+        # 映射到向后兼容的意图格式
+        legacy_intent = self._map_to_legacy_intent(result)
+        next_agent = self._route_by_intent(result)
+
+        # 需要澄清
+        if result.needs_clarification or result.missing_slots:
+            clarification = await self.intent_service.clarify(
                 session_id=session_id,
-                conversation_history=state.get("history", [])
+                user_response=query,
             )
-
-        # 处理识别结果...
-        if result.needs_clarification:
-            # 保存澄清状态
-            self.clarification_states[session_id] = result.clarification_state
             return AgentResult(
-                response=result.clarification_question,
-                updated_state={"awaiting_clarification": True}
+                response=clarification.response,
+                updated_state={
+                    "intent_result": result.to_dict(),
+                    "slots": result.slots or {},
+                    "awaiting_clarification": True,
+                    "clarification_state": clarification.state,
+                    "intent": legacy_intent,
+                    "next_agent": next_agent,
+                }
             )
 
         # 意图清晰，路由到对应Agent
-        next_agent = self._route_to_agent(result)
+        updated_state: RouterState = {
+            "intent_result": result.to_dict(),
+            "slots": result.slots or {},
+            "awaiting_clarification": result.needs_clarification,
+            "intent": legacy_intent,
+            "next_agent": next_agent,
+        }
+
+        # 对于闲聊/OTHER意图，直接返回问候回复
+        if legacy_intent == Intent.OTHER:
+            return AgentResult(
+                response=self.GREETING_RESPONSE,
+                updated_state=dict(updated_state)
+            )
+
         return AgentResult(
             response="",  # 由下一个Agent生成
-            updated_state={
-                "intent_result": result,
-                "next_agent": next_agent,
-                "slots": result.slots
-            }
+            updated_state=dict(updated_state)
         )
+
+    def _route_by_intent(self, result: IntentResult) -> str:
+        """根据意图路由到对应Agent"""
+        routing_map = {
+            IntentCategory.ORDER: "order",
+            IntentCategory.AFTER_SALES: "order",
+            IntentCategory.POLICY: "policy",
+            IntentCategory.PRODUCT: "policy",
+            IntentCategory.RECOMMENDATION: "policy",
+            IntentCategory.CART: "order",
+        }
+        return routing_map.get(result.primary_intent, "supervisor")
+
+    def _map_to_legacy_intent(self, result: IntentResult) -> Intent:
+        """将新的意图结果映射到向后兼容的Intent枚举"""
+        primary = result.primary_intent
+        if primary == IntentCategory.AFTER_SALES:
+            return Intent.REFUND
+        if primary in (IntentCategory.ORDER, IntentCategory.CART):
+            return Intent.ORDER
+        if primary in (IntentCategory.POLICY, IntentCategory.PRODUCT, IntentCategory.RECOMMENDATION):
+            return Intent.POLICY
+        return Intent.OTHER
+
+
+# 向后兼容别名
+RouterAgent = IntentRouterAgent
 ```
 
 ---
@@ -1927,7 +1951,7 @@ class IntentEvaluationPipeline:
     def _compare_result(
         self,
         expected: dict,
-        prediction: IntentResolutionResult
+        prediction: IntentResult
     ) -> ComparisonResult:
         """对比预期和实际结果"""
         return ComparisonResult(
@@ -2081,7 +2105,7 @@ class OnlineABTest:
         user_id: str,
         query: str,
         session_id: str
-    ) -> IntentRecognitionResult:
+    ) -> IntentResult:
         """根据分组路由到不同版本"""
         variant = await self.assignment.get_variant(user_id, "intent_recognition_v2")
 

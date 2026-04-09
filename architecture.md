@@ -31,7 +31,7 @@ flowchart TB
         GRAPH["StateGraph<br/>工作流编排"]
 
         subgraph Nodes["📍 节点定义"]
-            INTENT["Intent Router<br/>意图识别"]
+            INTENT["Intent Router v2.0<br/>IntentRouterAgent<br/>分层意图识别"]
             RETRIEVE["Retrieve<br/>知识检索 (RAG)"]
             QUERY["Query Order<br/>订单查询"]
             REFUND["Handle Refund<br/>退货处理"]
@@ -429,6 +429,23 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 nodes.py             # 节点函数 (6个节点)
 │   │   └── 📄 tools.py             # 工具函数 (3个工具)
 │   │
+│   ├── 📁 agents/                  # Agent 实现层
+│   │   ├── 📄 base.py              # Agent 基类与 AgentResult
+│   │   ├── 📄 router.py            # IntentRouterAgent (v2.0) + RouterAgent 兼容别名
+│   │   ├── 📄 order.py             # 订单 Agent
+│   │   ├── 📄 policy.py            # 政策 Agent
+│   │   └── 📄 supervisor.py        # 监督 Agent
+│   │
+│   ├── 📁 intent/                  # 意图识别模块
+│   │   ├── 📄 service.py           # IntentRecognitionService (Redis 会话/缓存)
+│   │   ├── 📄 models.py            # 意图/槽位/澄清状态数据模型
+│   │   ├── 📄 classifier.py        # 意图分类器
+│   │   ├── 📄 clarification.py     # 澄清引擎
+│   │   ├── 📄 slot_validator.py    # 槽位验证器
+│   │   ├── 📄 topic_switch.py      # 话题切换检测
+│   │   ├── 📄 multi_intent.py      # 多意图处理器
+│   │   └── 📄 safety.py            # 安全过滤器
+│   │
 │   ├── 📁 services/                # 业务服务层
 │   │   └── 📄 refund_service.py    # 退货业务逻辑
 │   │
@@ -495,7 +512,7 @@ E-commerce-Smart-Agent/
 | 特性 | 描述 | 技术实现 |
 |------|------|----------|
 | **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph |
-| **意图识别** | 自动识别用户意图 (ORDER/POLICY/REFUND/OTHER) | LLM Prompt |
+| **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 | IntentRecognitionService + Redis |
 | **RAG 检索** | 基于 pgvector 的语义知识检索 | Embedding + 向量数据库 |
 | **退货流程** | 多步骤退货申请流程 | LangGraph 状态机 |
 | **智能风控** | 按金额分级风控 (¥500/¥2000 阈值) | 规则引擎 |
