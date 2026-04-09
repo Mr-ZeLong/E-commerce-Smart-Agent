@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 if "*" in settings.CORS_ORIGINS:
     raise RuntimeError(
-        "CORS allow_origins=['*'] is not allowed when allow_credentials=True. "
+        "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
         "Please restrict CORS_ORIGINS to specific domains."
     )
 
