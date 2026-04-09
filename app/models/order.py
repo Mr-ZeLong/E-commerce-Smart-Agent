@@ -44,7 +44,7 @@ class Order(SQLModel, table=True):
     )
 
     updated_at: datetime = Field(
-        default_factory=utc_now,
+        default_factory=naive_utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
             "onupdate": text("CURRENT_TIMESTAMP")
