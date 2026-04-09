@@ -1,13 +1,13 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import HTTPException, status
 
-from app.models.audit import AuditAction, AuditLog
+from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
-from app.services.admin_service import AdminService
+from app.schemas.admin import TaskStatsResponse
+from app.services.admin_service import AdminService, AuditAlreadyProcessedError, AuditNotFoundError
 
 
 def _make_exec_result(obj):
@@ -171,7 +171,7 @@ class TestProcessAdminDecision:
         )
 
         service = AdminService()
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuditNotFoundError):
             await service.process_admin_decision(
                 mock_session,
                 audit_log_id=999,
@@ -179,9 +179,6 @@ class TestProcessAdminDecision:
                 admin_comment=None,
                 current_admin_id=99,
             )
-
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-        assert "Audit log not found" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_400_for_already_processed(self):
@@ -194,7 +191,7 @@ class TestProcessAdminDecision:
         )
 
         service = AdminService()
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuditAlreadyProcessedError):
             await service.process_admin_decision(
                 mock_session,
                 audit_log_id=1,
@@ -203,5 +200,127 @@ class TestProcessAdminDecision:
                 current_admin_id=99,
             )
 
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-        assert "already been processed" in exc_info.value.detail
+
+class TestQueryMethods:
+    @pytest.mark.asyncio
+    async def test_get_pending_tasks_without_filter(self):
+        mock_session = AsyncMock()
+
+        mock_log1 = MagicMock(spec=AuditLog)
+        mock_log1.id = 1
+        mock_log1.thread_id = "t1"
+        mock_log1.user_id = 10
+        mock_log1.refund_application_id = None
+        mock_log1.order_id = None
+        mock_log1.trigger_reason = "reason1"
+        mock_log1.risk_level = "HIGH"
+        mock_log1.context_snapshot = {}
+        mock_log1.created_at.isoformat.return_value = "2024-01-01T00:00:00"
+
+        mock_log2 = MagicMock(spec=AuditLog)
+        mock_log2.id = 2
+        mock_log2.thread_id = "t2"
+        mock_log2.user_id = 20
+        mock_log2.refund_application_id = None
+        mock_log2.order_id = None
+        mock_log2.trigger_reason = "reason2"
+        mock_log2.risk_level = "MEDIUM"
+        mock_log2.context_snapshot = {}
+        mock_log2.created_at.isoformat.return_value = "2024-01-02T00:00:00"
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [mock_log1, mock_log2]
+        mock_session.exec = AsyncMock(return_value=result_mock)
+
+        service = AdminService()
+        tasks = await service.get_pending_tasks(mock_session)
+
+        assert len(tasks) == 2
+        assert tasks[0].audit_log_id == 1
+        assert tasks[1].audit_log_id == 2
+
+    @pytest.mark.asyncio
+    async def test_get_pending_tasks_with_risk_level_filter(self):
+        mock_session = AsyncMock()
+
+        mock_log = MagicMock(spec=AuditLog)
+        mock_log.id = 1
+        mock_log.thread_id = "t1"
+        mock_log.user_id = 10
+        mock_log.refund_application_id = None
+        mock_log.order_id = None
+        mock_log.trigger_reason = "reason"
+        mock_log.risk_level = "HIGH"
+        mock_log.context_snapshot = {}
+        mock_log.created_at.isoformat.return_value = "2024-01-01T00:00:00"
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [mock_log]
+        mock_session.exec = AsyncMock(return_value=result_mock)
+
+        service = AdminService()
+        tasks = await service.get_pending_tasks(mock_session, risk_level="HIGH")
+
+        assert len(tasks) == 1
+        assert tasks[0].risk_level == "HIGH"
+
+    @pytest.mark.asyncio
+    async def test_get_confidence_pending_tasks(self):
+        mock_session = AsyncMock()
+
+        mock_log = MagicMock(spec=AuditLog)
+        mock_log.id = 1
+        mock_log.thread_id = "t1"
+        mock_log.user_id = 10
+        mock_log.refund_application_id = None
+        mock_log.order_id = None
+        mock_log.trigger_reason = "reason"
+        mock_log.risk_level = "LOW"
+        mock_log.confidence_metadata = {"confidence_score": 0.45}
+        mock_log.context_snapshot = {}
+        mock_log.created_at.isoformat.return_value = "2024-01-01T00:00:00"
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [mock_log]
+        mock_session.exec = AsyncMock(return_value=result_mock)
+
+        service = AdminService()
+        tasks = await service.get_confidence_pending_tasks(mock_session)
+
+        assert len(tasks) == 1
+        assert tasks[0].audit_log_id == 1
+        assert "0.45" in tasks[0].trigger_reason
+
+    @pytest.mark.asyncio
+    async def test_get_all_pending_tasks(self):
+        mock_session = AsyncMock()
+
+        result_mocks = {
+            AuditTriggerType.RISK: 2,
+            AuditTriggerType.CONFIDENCE: 3,
+            AuditTriggerType.MANUAL: 1,
+        }
+
+        async def exec_side_effect(stmt):
+            m = MagicMock()
+            m.one.return_value = result_mocks[AuditTriggerType.RISK]
+            # We need to detect which trigger type is being queried.
+            # The simplest way is to inspect the compiled statement or
+            # use a counter-based side effect since calls are ordered.
+            return m
+
+        call_results = [
+            MagicMock(one=MagicMock(return_value=2)),
+            MagicMock(one=MagicMock(return_value=3)),
+            MagicMock(one=MagicMock(return_value=1)),
+        ]
+        mock_session.exec = AsyncMock(side_effect=call_results)
+
+        service = AdminService()
+        stats = await service.get_all_pending_tasks(mock_session)
+
+        assert isinstance(stats, TaskStatsResponse)
+        assert stats.risk_tasks == 2
+        assert stats.confidence_tasks == 3
+        assert stats.manual_tasks == 1
+        assert stats.total == 6

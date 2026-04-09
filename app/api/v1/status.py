@@ -10,9 +10,9 @@ from pydantic import BaseModel
 from sqlmodel import desc, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.v1.utils import build_thread_id
 from app.core.database import get_session
 from app.core.security import get_current_user_id
+from app.core.utils import build_thread_id
 from app.models.audit import AuditAction, AuditLog
 from app.models.message import MessageCard
 

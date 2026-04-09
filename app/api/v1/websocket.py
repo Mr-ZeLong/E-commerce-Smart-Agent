@@ -6,8 +6,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 
-from app.api.v1.utils import build_thread_id
 from app.core.security import get_current_user_id_ws, verify_admin_token
+from app.core.utils import build_thread_id
 from app.websocket.manager import manager
 
 router = APIRouter()

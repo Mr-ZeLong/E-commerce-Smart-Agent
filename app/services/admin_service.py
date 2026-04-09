@@ -1,11 +1,10 @@
+import logging
 from collections.abc import Sequence
 
-from fastapi import HTTPException, status
 from sqlmodel import desc, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.v1.utils import build_thread_id
-from app.core.utils import naive_utc_now, utc_now
+from app.core.utils import build_thread_id, naive_utc_now, utc_now
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
@@ -13,6 +12,16 @@ from app.models.user import User
 from app.schemas.admin import AdminDecisionResponse, AuditTask, TaskStatsResponse
 from app.tasks.refund_tasks import process_refund_payment, send_refund_sms
 from app.websocket.manager import manager
+
+logger = logging.getLogger(__name__)
+
+
+class AuditNotFoundError(Exception):
+    pass
+
+
+class AuditAlreadyProcessedError(Exception):
+    pass
 
 
 def _build_audit_task(log: AuditLog, trigger_reason: str | None = None) -> AuditTask:
@@ -119,16 +128,10 @@ class AdminService:
         audit_log = result.one_or_none()
 
         if not audit_log:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Audit log not found"
-            )
+            raise AuditNotFoundError()
 
         if audit_log.action != AuditAction.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This audit has already been processed"
-            )
+            raise AuditAlreadyProcessedError()
 
         action_enum = AuditAction.APPROVE if action == "APPROVE" else AuditAction.REJECT
         audit_log.action = action_enum
@@ -199,14 +202,17 @@ class AdminService:
 
         await session.commit()
 
-        await self.manager.notify_status_change(
-            thread_id=self.build_thread_id(audit_log.user_id, audit_log.thread_id),
-            status=action,
-            data={
-                "message": status_message,
-                "admin_comment": admin_comment,
-            }
-        )
+        try:
+            await self.manager.notify_status_change(
+                thread_id=self.build_thread_id(audit_log.user_id, audit_log.thread_id),
+                status=action,
+                data={
+                    "message": status_message,
+                    "admin_comment": admin_comment,
+                }
+            )
+        except Exception:
+            logger.exception("Failed to notify status change via WebSocket")
 
         return AdminDecisionResponse(
             success=True,

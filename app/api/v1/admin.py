@@ -1,14 +1,19 @@
 """
 管理员 API
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.v1.utils import build_thread_id
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
-from app.schemas.admin import AdminDecisionRequest, AdminDecisionResponse, AuditTask, TaskStatsResponse
-from app.services.admin_service import AdminService
+from app.core.utils import build_thread_id
+from app.schemas.admin import (
+    AdminDecisionRequest,
+    AdminDecisionResponse,
+    AuditTask,
+    TaskStatsResponse,
+)
+from app.services.admin_service import AdminService, AuditAlreadyProcessedError, AuditNotFoundError
 from app.tasks.refund_tasks import process_refund_payment, send_refund_sms
 from app.websocket.manager import manager
 
@@ -64,6 +69,17 @@ async def admin_decision(
     service: AdminService = Depends(get_admin_service),
 ):
     """管理员决策接口"""
-    return await service.process_admin_decision(
-        session, audit_log_id, request.action, request.admin_comment, current_admin_id
-    )
+    try:
+        return await service.process_admin_decision(
+            session, audit_log_id, request.action, request.admin_comment, current_admin_id
+        )
+    except AuditNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Audit log not found",
+        )
+    except AuditAlreadyProcessedError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This audit has already been processed",
+        )

@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlmodel import select
 
-from app.api.v1.utils import build_thread_id
 from app.core.database import async_session_maker
 from app.core.security import create_access_token
+from app.core.utils import build_thread_id
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
 from app.models.message import MessageCard
 from app.models.order import Order, OrderStatus
