@@ -1284,3 +1284,47 @@ Expected: The agent returns a policy-based answer grounded in retrieved chunks (
 | Tests | Tasks 4,5,6,7,8,9,12 |
 
 **No placeholders detected.** Every step contains exact file paths, code snippets, and run commands.
+
+---
+
+## Post-Implementation Updates
+
+以下记录实际代码合并到 `main` 分支后，与原始计划相比发生的关键差异和补充清理工作：
+
+### 1. pgvector 彻底清理（超出 Task 10 范围）
+
+Task 10 原计划仅移除 `KnowledgeChunk` 的检索逻辑。实际执行中，为了不给后续维护留下技术债务，进行了更彻底的清理：
+- 从 `pyproject.toml` 移除了 `pgvector` 依赖
+- 删除了 `app/models/knowledge.py`（`KnowledgeChunk` 模型定义）
+- 创建了 Alembic 迁移脚本 `migrations/versions/drop_knowledge_chunks_table.py`，在生产数据库中执行了 `DROP TABLE knowledge_chunks` 和 `DROP EXTENSION IF EXISTS vector`
+- `docker-compose.yaml` 中的数据库镜像从 `pgvector/pgvector:pg16` 切回标准 `postgres:16`
+
+### 2. `app/graph/nodes.py` 完全删除
+
+计划中 Task 10 提到"Modify: `app/graph/nodes.py`"并移除 `retrieve` 节点。但由于 Supervisor 架构重构后，`query_order`、`handle_refund`、`check_refund_eligibility` 等节点函数已没有任何调用方，且与 `OrderAgent` 存在大量重复业务逻辑，因此**直接删除了整个文件**。
+
+### 3. 新增公共模块以消除重复
+
+实际开发过程中发现原计划未覆盖的架构级重复代码，进行了以下提取：
+
+| 新增文件 | 提取的内容 | 替代的使用点 |
+|----------|-----------|-------------|
+| `app/core/llm_factory.py` | `create_openai_llm()` 工厂函数 | `app/agents/base.py`、`app/retrieval/rewriter.py`、`app/confidence/signals.py`、`app/intent/classifier.py`（原 `app/graph/nodes.py` 也已删除） |
+| `app/utils/order_utils.py` | `extract_order_sn()`、`classify_refund_reason()` | `app/agents/order.py`（原 `app/graph/nodes.py` 中也有重复，已随文件删除一并解决） |
+
+### 4. 代码清理与质量修复
+
+在功能合并后，启动了多个并行 agent 进行死代码扫描，并配合 `vulture` / `ruff` / `ty` 进行静态分析，修复了以下问题：
+- 删除了 `app/services/refund_service.py` 中的 `RefundReviewService` 占位死代码
+- 删除了 `app/core/database.py` 中空的 `init_db()` stub
+- 清理了 `celery_worker.py` 和 `test/` 目录中大量未使用的 import
+- 修复了 `app/graph/workflow.py` 的恒真条件路由、`app/main.py` 的静默异常吞掉、`app/retrieval/retriever.py` 的重复 `RetrievedChunk` 构造等问题
+- 修复了 `test/integration/test_chat_api.py:467` 的 `B023` 闭包变量绑定警告
+
+### 5. ETL 脚本简化
+
+`scripts/etl_qdrant.py` 中原有的 4 个完全相同的 `@retry(...)` 装饰器被提取为模块级常量 `_RETRY_DECORATOR`。
+
+### 6. 测试 patch 路径更新
+
+`tests/retrieval/test_rewriter.py` 中的 mock patch 目标从 `app.retrieval.rewriter.ChatOpenAI` 更新为 `app.core.llm_factory.ChatOpenAI`，因为 rewriter 现在通过工厂函数实例化 LLM。

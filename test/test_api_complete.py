@@ -2,10 +2,11 @@
 """
 v2.0 API 完整验收测试
 """
-import requests
 import json
-from app.core.security import create_access_token
 
+import requests
+
+from app.core.security import create_access_token
 
 BASE_URL = "http://localhost:8000"
 API_V1 = f"{BASE_URL}/api/v1"
@@ -15,21 +16,21 @@ def test_api():
     print("=" * 60)
     print("🚀 开始 v2.0 API 验收测试")
     print("=" * 60)
-    
+
     # 生成 Token
     token_user_1 = create_access_token(user_id=1)
     token_user_2 = create_access_token(user_id=2)
-    
+
     headers_user_1 = {
         "Authorization": f"Bearer {token_user_1}",
         "Content-Type": "application/json"
     }
-    
+
     headers_user_2 = {
         "Authorization": f"Bearer {token_user_2}",
         "Content-Type":  "application/json"
     }
-    
+
     # 测试场景
     test_cases = [
         {
@@ -57,14 +58,14 @@ def test_api():
             "expect": "应返回最近订单",
         },
     ]
-    
+
     for i, case in enumerate(test_cases, 1):
         print(f"\n{'=' * 60}")
         print(f"📋 测试 {i}/{len(test_cases)}: {case['name']}")
         print(f"{'=' * 60}")
         print(f"❓ 问题: {case['data']['question']}")  # ty:ignore[invalid-argument-type]
         print(f"🎯 预期: {case['expect']}")
-        
+
         try:
             response = requests.post(
                 f"{API_V1}/chat",
@@ -73,37 +74,37 @@ def test_api():
                 stream=True,
                 timeout=30
             )
-            
+
             if response.status_code != 200:
                 print(f"❌ HTTP {response.status_code}: {response.text}")
                 continue
-            
-            print(f"\n🤖 Agent 回答:")
+
+            print("\n🤖 Agent 回答:")
             full_answer = ""
-            
+
             for line in response.iter_lines():
                 if line:
                     line_str = line.decode('utf-8')
                     if line_str.startswith('data: '):
                         data_str = line_str[6:]  # 去掉 "data: " 前缀
-                        
+
                         if data_str == '[DONE]':
                             print("\n✅ 响应完成")
                             break
-                        
-                        try: 
+
+                        try:
                             data = json.loads(data_str)
                             if 'token' in data:
                                 token = data['token']
                                 full_answer += token
                                 print(token, end='', flush=True)
-                            elif 'error' in data: 
+                            elif 'error' in data:
                                 print(f"\n❌ 错误:  {data['error']}")
                         except json.JSONDecodeError:
                             pass
-            
+
             print(f"\n\n📄 完整回答:  {full_answer[: 200]}...")
-            
+
             # 简单验证
             if i == 1:
                 assert 'SN20240001' in full_answer or '订单' in full_answer
@@ -117,10 +118,10 @@ def test_api():
             elif i == 4:
                 assert '订单' in full_answer
                 print("✅ 测试通过")
-                
-        except Exception as e: 
+
+        except Exception as e:
             print(f"❌ 测试失败: {e}")
-    
+
     print(f"\n{'=' * 60}")
     print("🎉 所有 API 测试完成")
     print("=" * 60)

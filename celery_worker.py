@@ -1,5 +1,4 @@
 import sys
-import os
 from app.celery_app import celery_app
 
 # 简单判断系统

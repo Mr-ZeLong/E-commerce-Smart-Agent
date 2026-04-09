@@ -5,8 +5,9 @@
 包括意图路由、Agent 协作和结果整合。
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.agents.base import AgentResult
 from app.agents.router import Intent, RouterAgent

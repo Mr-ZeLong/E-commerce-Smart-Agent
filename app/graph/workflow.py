@@ -41,14 +41,11 @@ def route_after_evaluation(state: AgentState):
     """
     根据置信度评估结果路由
 
-    - 需要人工接管 → END (等待审核)
-    - 不需要 → 直接结束流程（Supervisor 已经生成了 answer）
+    当前 Supervisor 节点已内部处理所有逻辑，流程统一结束。
+    保留此路由函数以兼容 LangGraph 条件边接口。
     """
     if state.get("needs_human_transfer", False):
         print(f"[Workflow] 置信度不足 ({state.get('confidence_score', 0):.3f})，转人工")
-        return END
-
-    # 不需要转人工，流程结束
     return END
 
 

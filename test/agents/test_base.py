@@ -1,7 +1,6 @@
 import pytest
-from typing import Any
 
-from app.agents.base import BaseAgent, AgentResult
+from app.agents.base import AgentResult, BaseAgent
 
 
 class ConcreteAgent(BaseAgent):

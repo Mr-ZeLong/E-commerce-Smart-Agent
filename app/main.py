@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
         await retriever.qdrant_client.aclose()
         print(" Qdrant client closed.")
     except Exception:
-        pass
+        print("⚠️  Failed to close Qdrant client during shutdown")
 
 
 app = FastAPI(

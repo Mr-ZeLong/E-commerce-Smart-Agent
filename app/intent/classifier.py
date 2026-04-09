@@ -15,9 +15,8 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
 
-from app.core.config import settings
+from app.core.llm_factory import create_openai_llm
 from app.intent.config import TERTIARY_INTENT_CONFIG, validate_tertiary_intent
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
@@ -239,12 +238,7 @@ class IntentClassifier:
         if llm is not None:
             self.llm = llm
         else:
-            self.llm = ChatOpenAI(
-                base_url=settings.OPENAI_BASE_URL,  # type: ignore
-                api_key=SecretStr(settings.OPENAI_API_KEY),  # type: ignore
-                model=settings.LLM_MODEL,  # type: ignore
-                temperature=0,
-            )
+            self.llm = create_openai_llm()
 
         self._intent_function = self.INTENT_FUNCTION_SCHEMA
 

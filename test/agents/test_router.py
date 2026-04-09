@@ -1,8 +1,9 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.agents.router import IntentRouterAgent, Intent
-from app.intent.models import IntentCategory, IntentAction
+import pytest
+
+from app.agents.router import Intent, IntentRouterAgent
+from app.intent.models import IntentAction, IntentCategory
 
 
 class TestIntentRouterAgent:

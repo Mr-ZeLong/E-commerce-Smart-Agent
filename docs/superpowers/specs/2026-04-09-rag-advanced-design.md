@@ -470,3 +470,47 @@ volumes:
 ### 废弃（保留但不再使用）
 - `scripts/etl_policy.py`
 - `app/models/knowledge.py` 中的 `KnowledgeChunk` 用于检索的逻辑
+
+---
+
+## 13. 实施后的变更记录 (Post-Implementation Updates)
+
+> 记录实际开发与原始设计之间的差异，确保文档与代码库保持一致。
+
+### 13.1 pgvector 彻底清理（超出原计划）
+
+原计划仅将 `KnowledgeChunk` 标记为"保留但不再使用"。实际实施中，为确保代码库干净，已**彻底移除** pgvector 相关遗留：
+- 删除了 `app/models/knowledge.py` 中的 `KnowledgeChunk` 模型定义
+- 从 `pyproject.toml` 中移除了 `pgvector` 依赖
+- 创建了 Alembic 迁移脚本，执行 `DROP TABLE knowledge_chunks` 和 `DROP EXTENSION IF EXISTS vector`
+- Docker 镜像从 `pgvector/pgvector:pg16` 切换回标准 `postgres:16`
+
+### 13.2 `app/graph/nodes.py` 完全删除
+
+原计划将该文件中的 `retrieve` 节点改为调用 `app.retrieval.get_retriever()`。但由于工作流已全面重构为 **Supervisor 架构**（`app/agents/supervisor.py` 内部协调所有 Specialist Agents），`app/graph/nodes.py` 中的 `query_order`、`handle_refund`、`check_refund_eligibility` 等节点函数已完全失去调用方。因此**直接删除了整个文件**，消除了与 `OrderAgent` 的跨模块业务逻辑重复。
+
+### 13.3 新增公共工厂与工具模块
+
+为消除多处重复代码，实际实施中新增了两个公共模块：
+
+| 文件 | 作用 |
+|------|------|
+| `app/core/llm_factory.py` | 提供 `create_openai_llm()` 工厂函数，统一封装 `base_url` / `SecretStr(api_key)` / `temperature=0` 等样板配置。替代了原先散落在 `app/agents/base.py`、`app/retrieval/rewriter.py`、`app/confidence/signals.py`、`app/intent/classifier.py`、`app/graph/nodes.py` 中的 5 处重复 `ChatOpenAI(...)` 初始化代码。 |
+| `app/utils/order_utils.py` | 提供 `extract_order_sn()` 和 `classify_refund_reason()` 共享工具函数。替代了原先 `app/agents/order.py` 与 `app/graph/nodes.py` 中的重复正则和 `if/elif` 分类逻辑。 |
+
+### 13.4 死代码与无意义代码清理
+
+在完成主要功能后，进行了多轮代码审查（并行 agent 审计 + `vulture` / `ruff` 静态分析），清理了以下内容：
+- 删除了 `app/services/refund_service.py` 中从未被调用的 `RefundReviewService` 占位类
+- 删除了 `app/core/database.py` 中毫无意义的空 `init_db()` 函数 stub
+- 清理了数十处未使用的 import（如 `celery_worker.py` 的 `os`、`test/` 目录中的 `MagicMock`、`AsyncMock`、`datetime` 等）
+- 修复了 `app/graph/workflow.py` 中的恒真条件路由、`app/graph/nodes.py` 中的不可达代码、`app/main.py` 中的静默异常吞掉等问题
+- 修复了 `test/integration/test_chat_api.py` 中的 `B023` 闭包变量绑定警告
+
+### 13.5 `scripts/etl_qdrant.py` 的简化
+
+实际脚本中，4 个完全相同的 `@retry(...)` 装饰器被提取为共享的 `_RETRY_DECORATOR` 常量，减少了样板代码。
+
+### 13.6 测试调整
+
+由于 `app/retrieval/rewriter.py` 改为通过 `app.core.llm_factory` 实例化 LLM，相关测试的 patch 路径从 `app.retrieval.rewriter.ChatOpenAI` 调整为 `app.core.llm_factory.ChatOpenAI`。

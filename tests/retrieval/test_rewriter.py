@@ -7,7 +7,7 @@ from app.retrieval.rewriter import QueryRewriter
 
 @pytest.mark.asyncio
 async def test_rewrite_returns_first_line():
-    with patch("app.retrieval.rewriter.ChatOpenAI") as mock_llm_cls:
+    with patch("app.core.llm_factory.ChatOpenAI") as mock_llm_cls:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = type("R", (), {"content": "  \n改写后查询\n多余内容"})()
         mock_llm_cls.return_value = mock_llm
@@ -19,7 +19,7 @@ async def test_rewrite_returns_first_line():
 
 @pytest.mark.asyncio
 async def test_rewrite_fallback_on_exception():
-    with patch("app.retrieval.rewriter.ChatOpenAI") as mock_llm_cls:
+    with patch("app.core.llm_factory.ChatOpenAI") as mock_llm_cls:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = RuntimeError("LLM error")
         mock_llm_cls.return_value = mock_llm
@@ -31,7 +31,7 @@ async def test_rewrite_fallback_on_exception():
 
 @pytest.mark.asyncio
 async def test_rewrite_fallback_on_empty_response():
-    with patch("app.retrieval.rewriter.ChatOpenAI") as mock_llm_cls:
+    with patch("app.core.llm_factory.ChatOpenAI") as mock_llm_cls:
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = type("R", (), {"content": "   \n   \n  "})()
         mock_llm_cls.return_value = mock_llm

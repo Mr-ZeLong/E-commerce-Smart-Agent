@@ -20,27 +20,30 @@ from app.retrieval.sparse_embedder import SparseTextEmbedder
 
 logger = logging.getLogger(__name__)
 BATCH_SIZE = 32
+_RETRY_DECORATOR = retry(
+    stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+)
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+@_RETRY_DECORATOR
 async def embed_dense_with_retry(texts: list[str]) -> list[list[float]]:
     """Generate dense embeddings with retry."""
     return await embedding_model.aembed_documents(texts)
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+@_RETRY_DECORATOR
 async def embed_sparse_with_retry(sparse_embedder: SparseTextEmbedder, texts: list[str]) -> list[models.SparseVector]:
     """Generate sparse embeddings with retry."""
     return await sparse_embedder.aembed(texts)
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+@_RETRY_DECORATOR
 async def upsert_with_retry(qdrant_client: QdrantKnowledgeClient, points: list[models.PointStruct]):
     """Upsert points to Qdrant with retry."""
     await qdrant_client.upsert_chunks(points)
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+@_RETRY_DECORATOR
 async def recreate_with_retry(qdrant_client: QdrantKnowledgeClient):
     """Recreate Qdrant collection with retry."""
     await qdrant_client.recreate_collection()

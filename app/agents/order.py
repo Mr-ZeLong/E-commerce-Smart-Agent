@@ -1,5 +1,3 @@
-import re
-
 from sqlmodel import select
 
 from app.agents.base import AgentResult, BaseAgent
@@ -7,6 +5,7 @@ from app.core.database import async_session_maker
 from app.models.order import Order
 from app.models.refund import RefundReason
 from app.services.refund_service import RefundApplicationService, RefundEligibilityChecker
+from app.utils.order_utils import classify_refund_reason, extract_order_sn
 
 ORDER_SYSTEM_PROMPT = """你是专业的电商订单处理助手。
 
@@ -167,19 +166,11 @@ class OrderAgent(BaseAgent):
 
     def _extract_order_sn(self, text: str) -> str | None:
         """提取订单号"""
-        match = re.search(r'(SN\d+)', text, re.IGNORECASE)
-        return match.group(1).upper() if match else None
+        return extract_order_sn(text)
 
     def _classify_refund_reason(self, text: str) -> RefundReason:
         """分类退货原因"""
-        if "质量" in text or "破损" in text:
-            return RefundReason.QUALITY_ISSUE
-        elif "尺码" in text or "大小" in text or "不合适" in text:
-            return RefundReason.SIZE_NOT_FIT
-        elif "不符" in text or "描述" in text:
-            return RefundReason.NOT_AS_DESCRIBED
-        else:
-            return RefundReason.OTHER
+        return classify_refund_reason(text)
 
     async def _query_order(
         self,

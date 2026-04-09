@@ -5,9 +5,10 @@ Chat API 集成测试
 """
 
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
@@ -314,7 +315,6 @@ class TestChatAPIEndpoints:
         """
         async def error_generator(*args, **kwargs):
             raise Exception("测试错误")
-            yield {}
 
         with patch(
             "app.graph.workflow.app_graph"
@@ -463,8 +463,8 @@ class TestChatMetadataContent:
                 },
             ]
 
-            async def mock_event_generator(*args, **kwargs):
-                for event in mock_events:
+            async def mock_event_generator(*args, _events=mock_events, **kwargs):
+                for event in _events:
                     yield event
 
             with patch(

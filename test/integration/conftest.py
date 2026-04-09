@@ -5,7 +5,6 @@
 """
 
 import asyncio
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,7 +16,6 @@ from app.core.security import create_access_token
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 from app.models.user import User
-
 
 # ========== Mock LLM Fixtures ==========
 
@@ -333,7 +331,6 @@ def mock_order_agent():
             from app.agents.base import AgentResult
 
             intent = state.get("intent")
-            question = state.get("question", "")
 
             if intent == "REFUND":
                 # 模拟退货处理
@@ -463,6 +460,7 @@ def mock_negative_emotion_signals():
 def app():
     """创建测试用的 FastAPI 应用实例"""
     from fastapi import FastAPI
+
     from app.api.v1.chat import router as chat_router
 
     test_app = FastAPI()

@@ -7,11 +7,11 @@ from app.agents.router import IntentRouterAgent, RouterAgent
 from app.agents.supervisor import SupervisorAgent
 
 __all__ = [
-    "BaseAgent",
     "AgentResult",
+    "BaseAgent",
     "IntentRouterAgent",
-    "RouterAgent",  # 向后兼容别名
     "OrderAgent",
     "PolicyAgent",
+    "RouterAgent",  # 向后兼容别名
     "SupervisorAgent",
 ]

@@ -13,8 +13,8 @@ __all__ = [
     # "ConfidenceEvaluator",  # 将在 Task 4 中启用
     # "ConfidenceResult",
     "ConfidenceSignals",
-    "RAGSignal",
-    "LLMSignal",
     "EmotionSignal",
+    "LLMSignal",
+    "RAGSignal",
     "SignalResult",
 ]

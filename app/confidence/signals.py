@@ -1,13 +1,10 @@
 # app/confidence/signals.py
-# ruff: noqa: S101
 import asyncio
 import re
 from dataclasses import dataclass
 
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
-
 from app.core.config import settings
+from app.core.llm_factory import create_openai_llm
 from app.models.state import AgentState
 
 
@@ -64,12 +61,7 @@ class LLMSignal:
     """LLM 自我评估信号"""
 
     def __init__(self):
-        self.llm = ChatOpenAI(
-            model=settings.CONFIDENCE.EVALUATION_MODEL,  # type: ignore
-            api_key=SecretStr(settings.OPENAI_API_KEY),  # type: ignore
-            base_url=settings.OPENAI_BASE_URL,  # type: ignore
-            temperature=0,
-        )
+        self.llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
 
     def _parse_confidence_score(self, text: str) -> float | None:
         """

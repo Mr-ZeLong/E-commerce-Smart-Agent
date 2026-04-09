@@ -10,10 +10,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.core.database import async_session_maker, init_db
-from app.models.user import User
-from app.models.order import Order, OrderStatus
 from sqlmodel import select
+
+from app.core.database import async_session_maker, init_db
+from app.models.order import Order, OrderStatus
+from app.models.user import User
 
 
 async def init_test_data():
@@ -21,9 +22,9 @@ async def init_test_data():
     print("=" * 60)
     print("🚀 初始化测试用户和订单数据")
     print("=" * 60)
-    
+
     await init_db()
-    
+
     async with async_session_maker() as session:
         # 检查是否已存在测试用户
         result = await session.exec(
@@ -32,7 +33,7 @@ async def init_test_data():
         if result.first():
             print("⚠️  测试用户已存在，跳过初始化")
             return
-        
+
         # 创建测试用户
         users_data = [
             {
@@ -60,7 +61,7 @@ async def init_test_data():
                 "is_admin":  True
             }
         ]
-        
+
         users = []
         for user_data in users_data:
             password = user_data.pop("password")
@@ -70,21 +71,21 @@ async def init_test_data():
             )
             session.add(user)
             users.append(user)
-        
+
         await session.commit()
-        
+
         # 刷新以获取 ID
         for user in users:
             await session.refresh(user)
-        
+
         print(f"\n✅ 创建了 {len(users)} 个测试用户:")
-        for user in users: 
+        for user in users:
             print(f"   - {user.username} (ID: {user.id}, Admin: {user.is_admin})")
-        
+
         # 为 Alice 创建订单
         alice = users[0]
         bob = users[1]
-        
+
         alice_orders = [
             Order(
                 order_sn="SN20240001",
@@ -121,7 +122,7 @@ async def init_test_data():
                 tracking_number="SF1234567892"
             )
         ]
-        
+
         # 为 Bob 创建订单
         bob_orders = [
             Order(
@@ -146,13 +147,13 @@ async def init_test_data():
                 tracking_number="SF1234567893"
             )
         ]
-        
+
         all_orders = alice_orders + bob_orders
         for order in all_orders:
             session.add(order)
-        
+
         await session.commit()
-        
+
         print(f"\n✅ 创建了 {len(all_orders)} 个测试订单:")
         print(f"   - Alice 的订单: {len(alice_orders)} 个")
         for order in alice_orders:
@@ -160,7 +161,7 @@ async def init_test_data():
         print(f"   - Bob 的订单: {len(bob_orders)} 个")
         for order in bob_orders:
             print(f"     • {order.order_sn}: ¥{order.total_amount} ({order.status})")
-    
+
     print("\n" + "=" * 60)
     print("🎉 测试数据初始化完成！")
     print("=" * 60)

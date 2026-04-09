@@ -241,31 +241,3 @@ class RefundApplicationService:
         return result.first()
 
 
-# ==========================================
-# 退货审核服务（管理员功能，v3.0 暂不实现）
-# ==========================================
-
-class RefundReviewService:
-    """退货审核服务（预留）"""
-
-    @staticmethod
-    async def approve_refund(
-        refund_id: int,
-        admin_id: int,
-        admin_note: str,
-        session: AsyncSession
-    ) -> tuple[bool, str]:
-        """批准退货申请"""
-        # TODO: v4.0 实现管理后台时添加
-        return False, "Not implemented"
-
-    @staticmethod
-    async def reject_refund(
-        refund_id: int,
-        admin_id: int,
-        admin_note: str,
-        session: AsyncSession
-    ) -> tuple[bool, str]:
-        """拒绝退货申请"""
-        # TODO: v4.0 实现
-        return False, "Not implemented"

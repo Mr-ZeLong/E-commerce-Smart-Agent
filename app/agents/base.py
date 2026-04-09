@@ -4,9 +4,9 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
 
 from app.core.config import settings
+from app.core.llm_factory import create_openai_llm
 
 
 @dataclass
@@ -35,12 +35,7 @@ class BaseAgent(ABC):
         if llm is not None:
             self.llm = llm
         else:
-            self.llm = ChatOpenAI(
-                base_url=settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
-                api_key=SecretStr(settings.OPENAI_API_KEY),  # ty:ignore[unknown-argument]
-                model=llm_model or settings.LLM_MODEL,  # ty:ignore[unknown-argument]
-                temperature=0,
-            )
+            self.llm = create_openai_llm(model=llm_model or settings.LLM_MODEL)
 
     @abstractmethod
     async def process(self, state: dict) -> AgentResult:
@@ -95,12 +90,12 @@ class BaseAgent(ABC):
     ) -> str:
         """构建带上下文的用户消息"""
         parts = []
-        if "context" in context and context["context"]:
+        if context.get("context"):
             parts.append("[参考信息]:")
             for i, ctx in enumerate(context["context"], 1):
                 parts.append(f"{i}. {ctx}")
             parts.append("")
-        if "order_data" in context and context["order_data"]:
+        if context.get("order_data"):
             parts.append("[订单信息]:")
             order = context["order_data"]
             parts.append(f"订单号: {order.get('order_sn', 'N/A')}")
