@@ -73,3 +73,17 @@ class QdrantKnowledgeClient:
             with_payload=True,
         )
         return list(response.points)
+
+    async def query_dense(
+        self,
+        dense_vector: list[float],
+        limit: int = 15,
+    ) -> list[models.ScoredPoint]:
+        response = await self.client.query_points(
+            collection_name=self.collection_name,
+            query=dense_vector,
+            using="dense",
+            limit=limit,
+            with_payload=True,
+        )
+        return list(response.points)
