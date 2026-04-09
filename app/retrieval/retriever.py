@@ -53,7 +53,7 @@ class HybridRetriever:
         if not scored_points:
             return []
 
-        documents = [str(p.payload.get("content", "")) for p in scored_points]
+        documents = [str((p.payload or {}).get("content", "")) for p in scored_points]
 
         # Try rerank; on failure return RRF/dense results with original scores
         try:
@@ -71,7 +71,7 @@ class HybridRetriever:
                         content=str(payload.get("content", "")),
                         source=str(payload.get("source", "unknown")),
                         score=r.score,
-                        metadata=dict(payload.get("meta_data", {})),
+                        metadata=dict(payload.get("meta_data") or {}),
                     ))
         else:
             # Fallback: return top results from Qdrant with their original scores

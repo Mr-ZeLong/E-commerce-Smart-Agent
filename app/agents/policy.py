@@ -53,6 +53,9 @@ class PolicyAgent(BaseAgent):
         # Step 3: 计算置信度（初步估计）
         confidence = self._estimate_confidence(chunks, similarities)
 
+        needs_human = confidence < 0.45
+        transfer_reason = "rag_confidence_low" if needs_human else None
+
         return AgentResult(
             response=response,
             updated_state={
@@ -60,7 +63,9 @@ class PolicyAgent(BaseAgent):
                 "context": chunks,  # 向后兼容
                 "answer": response
             },
-            confidence=confidence
+            confidence=confidence,
+            needs_human=needs_human,
+            transfer_reason=transfer_reason,
         )
 
     async def _retrieve_knowledge(

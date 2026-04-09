@@ -21,6 +21,9 @@ class QdrantKnowledgeClient:
         else:
             self.client = AsyncQdrantClient(url=url, api_key=api_key, timeout=settings.QDRANT_TIMEOUT)
 
+    async def aclose(self) -> None:
+        await self.client.close()
+
     async def ensure_collection(self) -> None:
         exists = await self.client.collection_exists(self.collection_name)
         if exists:

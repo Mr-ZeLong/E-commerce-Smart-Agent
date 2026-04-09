@@ -38,7 +38,8 @@ class SparseTextEmbedder:
 
     def _embed_sync(self, texts: list[str]) -> list[models.SparseVector]:
         model = self._get_model()
-        raw_embeddings = list(model.embed(texts))
+        with self._lock:
+            raw_embeddings = list(model.embed(texts))
         results = []
         for emb in raw_embeddings:
             indices = emb.indices.tolist()

@@ -2,7 +2,7 @@ from functools import lru_cache
 
 from app.core.config import settings
 from app.retrieval.client import QdrantKnowledgeClient
-from app.retrieval.embeddings import embedding_model
+from app.retrieval.embeddings import get_embedding_model
 from app.retrieval.reranker import QwenReranker
 from app.retrieval.retriever import HybridRetriever
 from app.retrieval.rewriter import QueryRewriter
@@ -18,8 +18,13 @@ def get_retriever() -> HybridRetriever:
     )
     return HybridRetriever(
         qdrant_client=qdrant_client,
-        dense_embedder=embedding_model,
+        dense_embedder=get_embedding_model(),
         sparse_embedder=SparseTextEmbedder(),
         reranker=QwenReranker(),
         rewriter=QueryRewriter(),
     )
+
+
+def clear_retriever_cache() -> None:
+    """Clear the cached retriever singleton (useful in tests)."""
+    get_retriever.cache_clear()

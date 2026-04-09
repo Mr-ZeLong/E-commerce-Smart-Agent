@@ -26,12 +26,19 @@ from app.websocket.manager import manager
 # 1. Embedding 模型（使用自定义适配器）已迁移至 app.retrieval.embeddings
 
 # 2. LLM 模型 (用于生成回答)
-llm = ChatOpenAI(
-    base_url=settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
-    api_key=SecretStr(settings.OPENAI_API_KEY),  # ty:ignore[unknown-argument]
-    model=settings.LLM_MODEL,  # ty:ignore[unknown-argument]
-    temperature=0
-)
+_llm: ChatOpenAI | None = None
+
+
+def get_llm() -> ChatOpenAI:
+    global _llm
+    if _llm is None:
+        _llm = ChatOpenAI(
+            base_url=settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
+            api_key=SecretStr(settings.OPENAI_API_KEY),  # ty:ignore[unknown-argument]
+            model=settings.LLM_MODEL,  # ty:ignore[unknown-argument]
+            temperature=0,
+        )
+    return _llm
 
 # 3. Prompt 模板
 PROMPT_TEMPLATE = """
@@ -123,7 +130,7 @@ async def generate(state: AgentState) -> dict:
         HumanMessage(content=user_content)
     ]
 
-    response = await llm.ainvoke(messages)
+    response = await get_llm().ainvoke(messages)
 
     return {"answer": response.content}
 
@@ -152,7 +159,7 @@ async def intent_router(state: AgentState):
     """
     print(f" [Router] 正在分析意图:  {state['question']}")
 
-    response = await llm.ainvoke([
+    response = await get_llm().ainvoke([
         SystemMessage(content=INTENT_PROMPT),
         HumanMessage(content=state["question"])
     ])

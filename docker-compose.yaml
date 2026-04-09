@@ -36,6 +36,8 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.16.3
+    container_name: ecommerce_qdrant
+    restart: unless-stopped
     ports:
       - "6333:6333"
       - "6334:6334"

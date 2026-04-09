@@ -18,7 +18,7 @@ cd frontend && npm run build && cd ..
 
 # 启动 Redis、PostgreSQL 和 Qdrant
 echo " 启动基础设施..."
-docker-compose up -d db redis qdrant
+docker compose up -d db redis qdrant
 
 # 等待 Qdrant 就绪
 echo "Waiting for Qdrant to be healthy..."

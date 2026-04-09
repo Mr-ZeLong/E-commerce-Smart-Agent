@@ -24,6 +24,7 @@ dependencies = [
     "pytest>=9.0.2",
     "alembic>=1.18.0",
     "langchain-community>=0.4.1",
+    "langchain-text-splitters>=0.3.0",
     "pypdf>=6.6.0",
     "tenacity>=9.1.2",
     "pyjwt>=2.10.1",

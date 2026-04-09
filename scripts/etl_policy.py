@@ -1,10 +1,19 @@
-# scripts/etl_policy_v2.py
+# scripts/etl_policy.py
+# DEPRECATED: This script populates the legacy Postgres/pgvector KnowledgeChunk table.
+# The project has migrated to Qdrant for RAG. Use scripts/etl_qdrant.py instead.
 import asyncio
 import os
 import sys
 import glob  # 引入 glob 用于批量查找文件
+import warnings
 
 sys.path.append(os.getcwd())
+
+warnings.warn(
+    "scripts/etl_policy.py is deprecated. Use scripts/etl_qdrant.py for Qdrant-based ingestion.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # 引入 PDF 加载器
 from langchain_community.document_loaders import PyPDFLoader, TextLoader

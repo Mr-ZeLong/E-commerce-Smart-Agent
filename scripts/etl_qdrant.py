@@ -19,7 +19,7 @@ from app.retrieval.embeddings import embedding_model
 from app.retrieval.sparse_embedder import SparseTextEmbedder
 
 logger = logging.getLogger(__name__)
-BATCH_SIZE = 50
+BATCH_SIZE = 32
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
@@ -146,7 +146,7 @@ async def main():
 
     qdrant_client = QdrantKnowledgeClient(
         url=settings.QDRANT_URL,
-        collection_name="knowledge_chunks",
+        collection_name=settings.QDRANT_COLLECTION_NAME,
         api_key=settings.QDRANT_API_KEY,
     )
     try:
@@ -156,7 +156,7 @@ async def main():
         next_id = 0
         failed_files = []
         for file_path in all_files:
-            source_name = os.path.basename(file_path)
+            source_name = os.path.relpath(file_path, base_dir)
             next_id, success = await process_file(file_path, source_name, qdrant_client, sparse_embedder, next_id)
             if not success:
                 failed_files.append(source_name)

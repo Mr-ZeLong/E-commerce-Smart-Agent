@@ -1,3 +1,5 @@
+import functools
+
 import httpx
 from langchain_core.embeddings import Embeddings
 
@@ -43,9 +45,20 @@ class QwenEmbeddings(Embeddings):
         return results[0]
 
 
-embedding_model = QwenEmbeddings(
-    base_url=settings.OPENAI_BASE_URL,
-    api_key=settings.OPENAI_API_KEY,
-    model=settings.EMBEDDING_MODEL,
-    dimensions=settings.EMBEDDING_DIM
-)
+@functools.lru_cache(maxsize=1)
+def get_embedding_model() -> QwenEmbeddings:
+    return QwenEmbeddings(
+        base_url=settings.OPENAI_BASE_URL,
+        api_key=settings.OPENAI_API_KEY,
+        model=settings.EMBEDDING_MODEL,
+        dimensions=settings.EMBEDDING_DIM,
+    )
+
+
+# Backward compatibility: module-level singleton
+embedding_model = get_embedding_model()
+
+
+def clear_embedding_model_cache() -> None:
+    """Clear the cached embedding model singleton (useful in tests)."""
+    get_embedding_model.cache_clear()
