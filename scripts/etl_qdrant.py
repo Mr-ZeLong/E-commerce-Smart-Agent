@@ -52,7 +52,7 @@ def load_documents(file_path: str) -> list[Document]:
     if ext in [".md", ".txt"]:
         return TextLoader(file_path, encoding="utf-8").load()
     elif ext == ".json":
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
         text = json.dumps(data, ensure_ascii=False)
         return [Document(page_content=text, metadata={"source": file_path})]

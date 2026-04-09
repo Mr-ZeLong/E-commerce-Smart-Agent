@@ -1,3 +1,5 @@
+import contextlib
+
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, Modifier, SparseVectorParams, VectorParams
@@ -41,10 +43,8 @@ class QdrantKnowledgeClient:
         )
 
     async def recreate_collection(self) -> None:
-        try:
+        with contextlib.suppress(UnexpectedResponse):
             await self.client.delete_collection(self.collection_name)
-        except UnexpectedResponse:
-            pass
         await self.ensure_collection()
 
     async def upsert_chunks(self, points: list[models.PointStruct]) -> None:

@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str | None = None
     QDRANT_COLLECTION_NAME: str = "knowledge_chunks"
-    QDRANT_TIMEOUT: float = 10.0
+    QDRANT_TIMEOUT: int = 10
     QDRANT_RETRIES: int = 3
 
     # Reranker / Rewriter

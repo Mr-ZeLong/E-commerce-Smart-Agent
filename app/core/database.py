@@ -1,7 +1,6 @@
 # app/core/database.py
 from collections.abc import AsyncGenerator
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,5 +24,5 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 # 4. 初始化 DB 工具
 async def init_db():
-    async with engine.begin() as conn:
+    async with engine.begin():
         pass

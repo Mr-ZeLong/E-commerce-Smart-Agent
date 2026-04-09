@@ -23,12 +23,12 @@ class QueryRewriter:
         timeout: float = 5.0,
     ):
         self.llm = ChatOpenAI(
-            base_url=base_url or settings.OPENAI_BASE_URL,
-            api_key=SecretStr(api_key or settings.OPENAI_API_KEY),
-            model=model or settings.REWRITE_MODEL,
+            base_url=base_url or settings.OPENAI_BASE_URL,  # ty:ignore[unknown-argument]
+            api_key=SecretStr(api_key or settings.OPENAI_API_KEY),  # ty:ignore[unknown-argument]
+            model=model or settings.REWRITE_MODEL,  # ty:ignore[unknown-argument]
             temperature=0,
             max_retries=0,
-            timeout=timeout,
+            timeout=timeout,  # ty:ignore[unknown-argument]
         )
 
     async def rewrite(self, query: str) -> str:
