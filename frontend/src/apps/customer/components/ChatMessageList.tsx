@@ -1,12 +1,12 @@
-import { forwardRef } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, Bot, Loader2 } from 'lucide-react';
-import type { Message } from '@/types';
+import { forwardRef } from 'react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { User, Bot, Loader2 } from 'lucide-react'
+import type { Message } from '@/types'
 
 interface ChatMessageListProps {
-  messages: Message[];
-  isLoading: boolean;
+  messages: Message[]
+  isLoading: boolean
 }
 
 export const ChatMessageList = forwardRef<HTMLDivElement, ChatMessageListProps>(
@@ -26,9 +26,7 @@ export const ChatMessageList = forwardRef<HTMLDivElement, ChatMessageListProps>(
               </Avatar>
               <div
                 className={`rounded-lg px-4 py-2 max-w-[80%] whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white border shadow-sm'
+                  msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border shadow-sm'
                 }`}
               >
                 {msg.content}
@@ -53,8 +51,8 @@ export const ChatMessageList = forwardRef<HTMLDivElement, ChatMessageListProps>(
           )}
         </div>
       </ScrollArea>
-    );
+    )
   }
-);
+)
 
-ChatMessageList.displayName = 'ChatMessageList';
+ChatMessageList.displayName = 'ChatMessageList'

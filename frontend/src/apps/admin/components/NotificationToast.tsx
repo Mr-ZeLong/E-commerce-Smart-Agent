@@ -1,13 +1,13 @@
-import { useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import type { Notification } from '@/types';
+import { useEffect } from 'react'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import type { Notification } from '@/types'
 
 interface NotificationToastProps {
-  notifications: Notification[];
-  onMarkAsRead: (id: string) => void;
-  onMarkAllAsRead: () => void;
+  notifications: Notification[]
+  onMarkAsRead: (id: string) => void
+  onMarkAllAsRead: () => void
 }
 
 export function NotificationToast({
@@ -15,35 +15,35 @@ export function NotificationToast({
   onMarkAsRead,
   onMarkAllAsRead,
 }: NotificationToastProps) {
-  const unreadNotifications = notifications.filter((n) => !n.read);
+  const unreadNotifications = notifications.filter((n) => !n.read)
 
   useEffect(() => {
     // Auto mark as read after 10 seconds
     const timers = unreadNotifications.map((n) =>
       setTimeout(() => {
-        onMarkAsRead(n.id);
+        onMarkAsRead(n.id)
       }, 10000)
-    );
+    )
 
     return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, [unreadNotifications, onMarkAsRead]);
+      timers.forEach(clearTimeout)
+    }
+  }, [unreadNotifications, onMarkAsRead])
 
-  if (unreadNotifications.length === 0) return null;
+  if (unreadNotifications.length === 0) return null
 
   const getIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-500" />
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-red-500" />
       case 'warning':
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />
       default:
-        return <Info className="h-4 w-4 text-blue-500" />;
+        return <Info className="h-4 w-4 text-blue-500" />
     }
-  };
+  }
 
   return (
     <div className="fixed bottom-4 right-4 space-y-2 z-50">
@@ -75,5 +75,5 @@ export function NotificationToast({
         </Button>
       )}
     </div>
-  );
+  )
 }

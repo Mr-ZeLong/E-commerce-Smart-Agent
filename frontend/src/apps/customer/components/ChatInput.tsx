@@ -1,22 +1,22 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Send } from 'lucide-react';
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Send } from 'lucide-react'
 
 interface ChatInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSend: () => void;
-  isLoading: boolean;
-  placeholder?: string;
+  value: string
+  onChange: (value: string) => void
+  onSend: () => void
+  isLoading: boolean
+  placeholder?: string
 }
 
 export function ChatInput({ value, onChange, onSend, isLoading, placeholder }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSend();
+      e.preventDefault()
+      onSend()
     }
-  };
+  }
 
   return (
     <div className="bg-white border-t p-4">
@@ -37,5 +37,5 @@ export function ChatInput({ value, onChange, onSend, isLoading, placeholder }: C
         按 Enter 发送，Shift + Enter 换行
       </p>
     </div>
-  );
+  )
 }

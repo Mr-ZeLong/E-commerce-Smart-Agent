@@ -1,47 +1,47 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
-import { riskLevelConfig } from '@/lib/risk';
-import type { Task } from '@/types';
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2 } from 'lucide-react'
+import { riskLevelConfig } from '@/lib/risk'
+import type { Task } from '@/types'
 
 interface DecisionPanelProps {
-  task: Task | null;
-  onDecision: (auditLogId: number, action: 'APPROVE' | 'REJECT', comment: string) => void;
-  isSubmitting: boolean;
+  task: Task | null
+  onDecision: (auditLogId: number, action: 'APPROVE' | 'REJECT', comment: string) => void
+  isSubmitting: boolean
 }
 
 export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelProps) {
-  const [comment, setComment] = useState('');
-  const [validationError, setValidationError] = useState('');
+  const [comment, setComment] = useState('')
+  const [validationError, setValidationError] = useState('')
 
   if (!task)
     return (
       <div className="bg-white rounded-lg border flex items-center justify-center">
         <div className="text-gray-400">请先选择任务</div>
       </div>
-    );
+    )
 
-  const riskConfig = riskLevelConfig[task.risk_level as keyof typeof riskLevelConfig];
+  const riskConfig = riskLevelConfig[task.risk_level]
 
   const handleApprove = () => {
-    setValidationError('');
-    onDecision(task.audit_log_id, 'APPROVE', comment);
-    setComment('');
-  };
+    setValidationError('')
+    onDecision(task.audit_log_id, 'APPROVE', comment)
+    setComment('')
+  }
 
   const handleReject = () => {
     if (!comment.trim()) {
-      setValidationError('拒绝时必须填写审核备注');
-      return;
+      setValidationError('拒绝时必须填写审核备注')
+      return
     }
-    setValidationError('');
-    onDecision(task.audit_log_id, 'REJECT', comment);
-    setComment('');
-  };
+    setValidationError('')
+    onDecision(task.audit_log_id, 'REJECT', comment)
+    setComment('')
+  }
 
   return (
     <div className="bg-white rounded-lg border flex flex-col">
@@ -52,9 +52,7 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">风险等级</span>
-          <Badge className={riskConfig?.className || ''}>
-            {riskConfig?.label || '未知'}
-          </Badge>
+          <Badge className={riskConfig?.className || ''}>{riskConfig?.label || '未知'}</Badge>
         </div>
 
         <div>
@@ -81,7 +79,12 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : '✓ 批准'}
           </Button>
-          <Button onClick={handleReject} disabled={isSubmitting} variant="destructive" className="w-full">
+          <Button
+            onClick={handleReject}
+            disabled={isSubmitting}
+            variant="destructive"
+            className="w-full"
+          >
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : '✗ 拒绝'}
           </Button>
         </div>
@@ -94,5 +97,5 @@ export function DecisionPanel({ task, onDecision, isSubmitting }: DecisionPanelP
         </Card>
       </div>
     </div>
-  );
+  )
 }

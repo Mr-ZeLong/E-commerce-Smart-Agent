@@ -1,9 +1,9 @@
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card';
-import type { Task } from '@/types';
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card } from '@/components/ui/card'
+import type { Task } from '@/types'
 
 interface TaskDetailProps {
-  task: Task | null;
+  task: Task | null
 }
 
 export function TaskDetail({ task }: TaskDetailProps) {
@@ -12,9 +12,9 @@ export function TaskDetail({ task }: TaskDetailProps) {
       <div className="bg-white rounded-lg border flex items-center justify-center">
         <div className="text-gray-400">请从左侧选择任务</div>
       </div>
-    );
+    )
 
-  const orderData = task.context_snapshot?.order_data;
+  const orderData = task.context_snapshot?.order_data
 
   return (
     <div className="bg-white rounded-lg border flex flex-col">
@@ -63,5 +63,5 @@ export function TaskDetail({ task }: TaskDetailProps) {
         </div>
       </ScrollArea>
     </div>
-  );
+  )
 }

@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Shield } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useAuthStore } from '@/stores/auth';
+import { useState } from 'react'
+import { Navigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2, Shield } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/stores/auth'
 
 export function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const { login, isLoading, error } = useAuth();
-  const { isAuthenticated, user } = useAuthStore();
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const { login, isLoading, error } = useAuth()
+  const { isAuthenticated, user } = useAuthStore()
 
   if (isAuthenticated && user?.role === 'ADMIN') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace />
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await login({ username, password });
-  };
+    e.preventDefault()
+    await login({ username, password })
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
@@ -36,14 +36,21 @@ export function Login() {
           <CardDescription className="text-center">管理员登录</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              void handleSubmit(e)
+            }}
+            className="space-y-4"
+          >
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
             <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">用户名</label>
+              <label htmlFor="username" className="text-sm font-medium">
+                用户名
+              </label>
               <Input
                 id="username"
                 type="text"
@@ -54,7 +61,9 @@ export function Login() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">密码</label>
+              <label htmlFor="password" className="text-sm font-medium">
+                密码
+              </label>
               <Input
                 id="password"
                 type="password"
@@ -78,5 +87,5 @@ export function Login() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

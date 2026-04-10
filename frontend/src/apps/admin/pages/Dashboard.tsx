@@ -1,34 +1,38 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { LogOut, Bell, User } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useTasks, useTaskStats } from '@/hooks/useTasks';
-import { useNotifications } from '@/hooks/useNotifications';
-import type { Task, TaskFilters } from '@/types';
-import { TaskList } from '../components/TaskList';
-import { TaskDetail } from '../components/TaskDetail';
-import { DecisionPanel } from '../components/DecisionPanel';
-import { NotificationToast } from '../components/NotificationToast';
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { LogOut, Bell, User } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { useTasks, useTaskStats } from '@/hooks/useTasks'
+import { useNotifications } from '@/hooks/useNotifications'
+import type { Task, TaskFilters } from '@/types'
+import { TaskList } from '../components/TaskList'
+import { TaskDetail } from '../components/TaskDetail'
+import { DecisionPanel } from '../components/DecisionPanel'
+import { NotificationToast } from '../components/NotificationToast'
 
 export function Dashboard() {
-  const { user, logout } = useAuth();
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [filters, setFilters] = useState<TaskFilters>({ riskLevel: 'ALL' });
-  const { tasks, isLoading, submitDecision, isSubmitting } = useTasks(filters);
-  const { data: stats } = useTaskStats();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } =
-    useNotifications();
+  const { user, logout } = useAuth()
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [filters, setFilters] = useState<TaskFilters>({ riskLevel: 'ALL' })
+  const { tasks, isLoading, submitDecision, isSubmitting } = useTasks(filters)
+  const { data: stats } = useTaskStats()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
   const handleDecision = async (
     auditLogId: number,
     action: 'APPROVE' | 'REJECT',
     comment: string
   ) => {
-    await submitDecision({ audit_log_id: auditLogId, action, comment, admin_id: user?.user_id || '' });
-    setSelectedTask(null);
-  };
+    await submitDecision({
+      audit_log_id: auditLogId,
+      action,
+      comment,
+      admin_id: user?.user_id || '',
+    })
+    setSelectedTask(null)
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -85,7 +89,9 @@ export function Dashboard() {
 
         <DecisionPanel
           task={selectedTask}
-          onDecision={handleDecision}
+          onDecision={(auditLogId, action, comment) => {
+            void handleDecision(auditLogId, action, comment)
+          }}
           isSubmitting={isSubmitting}
         />
       </div>
@@ -97,5 +103,5 @@ export function Dashboard() {
         onMarkAllAsRead={markAllAsRead}
       />
     </div>
-  );
+  )
 }

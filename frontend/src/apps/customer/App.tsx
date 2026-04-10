@@ -1,41 +1,41 @@
-import { FC, useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useChat } from './hooks/useChat';
-import { ChatMessageList } from './components/ChatMessageList';
-import { ChatInput } from './components/ChatInput';
+import { FC, useState, useRef, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Bot } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { useChat } from './hooks/useChat'
+import { ChatMessageList } from './components/ChatMessageList'
+import { ChatInput } from './components/ChatInput'
 
 const App: FC = () => {
-  const { isAuthenticated, login, logout, isLoading: isLoginLoading, error: loginError } = useAuth();
-  const { messages, isLoading, sendMessage } = useChat();
-  const [input, setInput] = useState('');
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const threadId = useRef(`thread_${Date.now()}`);
+  const { isAuthenticated, login, logout, isLoading: isLoginLoading, error: loginError } = useAuth()
+  const { messages, isLoading, sendMessage } = useChat()
+  const [input, setInput] = useState('')
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const threadId = useRef(`thread_${Date.now()}`)
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages]);
+  }, [messages])
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     try {
-      await login(loginForm);
+      await login(loginForm)
     } catch {
       // error is already handled by useAuth and displayed via loginError
     }
-  };
+  }
 
   const handleSend = () => {
-    if (!input.trim() || isLoading) return;
-    sendMessage(input, threadId.current);
-    setInput('');
-  };
+    if (!input.trim() || isLoading) return
+    void sendMessage(input, threadId.current)
+    setInput('')
+  }
 
   if (!isAuthenticated) {
     return (
@@ -45,7 +45,12 @@ const App: FC = () => {
             <CardTitle className="text-center">用户登录</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                void handleLogin(e)
+              }}
+              className="space-y-4"
+            >
               <div>
                 <label className="text-sm font-medium">用户名</label>
                 <Input
@@ -65,9 +70,7 @@ const App: FC = () => {
                   required
                 />
               </div>
-              {loginError && (
-                <p className="text-sm text-red-600">{loginError}</p>
-              )}
+              {loginError && <p className="text-sm text-red-600">{loginError}</p>}
               <Button type="submit" className="w-full" disabled={isLoginLoading}>
                 {isLoginLoading ? '登录中...' : '登录'}
               </Button>
@@ -78,7 +81,7 @@ const App: FC = () => {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -93,7 +96,7 @@ const App: FC = () => {
           variant="ghost"
           size="sm"
           onClick={() => {
-            logout();
+            logout()
           }}
         >
           退出登录
@@ -112,7 +115,7 @@ const App: FC = () => {
         placeholder="输入消息..."
       />
     </div>
-  );
-};
+  )
+}
 
-export default App;
+export default App
