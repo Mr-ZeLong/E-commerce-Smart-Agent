@@ -50,14 +50,14 @@ test('customer login and send chat message', async ({ page }) => {
   await page.getByPlaceholder('请输入用户名').fill('testuser')
   await page.getByPlaceholder('请输入密码').fill('password')
   await page.getByRole('button', { name: '登录' }).click()
+  await page.waitForURL('/')
 
   // Assert chat page appears
   await expect(page.getByText('智能客服助手')).toBeVisible()
 
   // Send chat message
   await page.getByPlaceholder('输入消息...').fill('你好')
-  // The send button contains only an SVG icon; target it via its container
-  await page.locator('div.bg-white.border-t button').click()
+  await page.getByRole('button', { name: '发送' }).click()
 
   // Assert assistant response appears
   await expect(page.getByText('您好！')).toBeVisible()

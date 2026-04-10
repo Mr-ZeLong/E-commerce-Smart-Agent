@@ -75,6 +75,7 @@ test('admin login and view dashboard', async ({ page }) => {
   await page.getByPlaceholder('输入管理员用户名').fill('adminuser')
   await page.getByPlaceholder('输入密码').fill('password')
   await page.getByRole('button', { name: '登录' }).click()
+  await page.waitForURL('/admin.html#/')
 
   // Assert dashboard appears
   await expect(page.getByText('审核控制台')).toBeVisible()

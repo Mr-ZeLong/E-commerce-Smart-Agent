@@ -29,7 +29,7 @@ export function ChatInput({ value, onChange, onSend, isLoading, placeholder }: C
           disabled={isLoading}
           className="flex-1"
         />
-        <Button onClick={onSend} disabled={isLoading || !value.trim()}>
+        <Button onClick={onSend} disabled={isLoading || !value.trim()} aria-label="发送">
           <Send className="w-4 h-4" />
         </Button>
       </div>
