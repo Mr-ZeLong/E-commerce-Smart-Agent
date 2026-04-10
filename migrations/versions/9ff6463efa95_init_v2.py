@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
 import sqlmodel
-from pgvector.sqlalchemy import Vector  # type: ignore[import-not-found]
+from pgvector.sqlalchemy import Vector  # ty: ignore[unresolved-import]
 
 # revision identifiers, used by Alembic.
 revision: str = "9ff6463efa95"
