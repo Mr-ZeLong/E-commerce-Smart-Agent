@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/query-client'
 import { useAuthStore } from '@/stores/auth'
@@ -11,10 +11,12 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated && isAdmin ? children : <Navigate to="/login" replace />
 }
 
+const Router = import.meta.env.DEV ? HashRouter : BrowserRouter
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/admin">
+      <Router basename={import.meta.env.DEV ? undefined : '/admin'}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -27,7 +29,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </QueryClientProvider>
   )
 }
