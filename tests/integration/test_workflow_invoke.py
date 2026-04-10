@@ -1,3 +1,4 @@
+from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -55,7 +56,7 @@ async def test_workflow_order_query():
             "audit_level": "none",
         }
         result = await app_graph.ainvoke(
-            initial_state,
+            cast(Any, initial_state),
             config={"configurable": {"thread_id": initial_state["thread_id"]}},
         )
         assert "answer" in result
@@ -109,7 +110,7 @@ async def test_workflow_policy_query():
             "audit_level": "none",
         }
         result = await app_graph.ainvoke(
-            initial_state,
+            cast(Any, initial_state),
             config={"configurable": {"thread_id": initial_state["thread_id"]}},
         )
         assert result.get("answer") == "满100免运费"
