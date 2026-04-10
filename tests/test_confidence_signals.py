@@ -30,6 +30,7 @@ class TestRAGSignal:
         result = await signal.calculate(similarities=similarities, chunks=chunks, query=query)
         max_sim = 0.8
         avg_sim = 0.6
+        assert result.metadata is not None
         score = max_sim * 0.4 + avg_sim * 0.3 + result.metadata["coverage"] * 0.3
         assert result.score == pytest.approx(score, rel=1e-6)
         assert result.metadata["max_similarity"] == max_sim
@@ -44,6 +45,7 @@ class TestRAGSignal:
         query = "apples 这里"
         result = await signal.calculate(similarities=similarities, chunks=chunks, query=query)
         # query tokens: {'这', '里', 'apples'}; covered: '这', '里', 'apples' => coverage=1.0
+        assert result.metadata is not None
         assert result.metadata["coverage"] == 1.0
         expected_score = 0.9 * 0.4 + 0.9 * 0.3 + 1.0 * 0.3
         assert result.score == pytest.approx(expected_score, rel=1e-6)
@@ -81,6 +83,7 @@ class TestLLMSignal:
         result = await signal.calculate(query="q", context=["c"], generated_answer="a")
         assert result.score == 0.75
         assert "LLM自评估" in result.reason
+        assert result.metadata is not None
         assert result.metadata["raw_response"] == "0.75"
 
     @pytest.mark.asyncio
@@ -93,6 +96,7 @@ class TestLLMSignal:
             result = await signal.calculate(query="q", context=["c"], generated_answer="a")
         assert result.score == 0.5
         assert result.reason == "解析失败，使用默认值"
+        assert result.metadata is not None
         assert result.metadata["error"] == "parse_failed"
         assert mock_llm.ainvoke.call_count == 2
 
@@ -106,6 +110,7 @@ class TestLLMSignal:
             result = await signal.calculate(query="q", context=["c"], generated_answer="a")
         assert result.score == 0.5
         assert result.reason == "解析失败，使用默认值"
+        assert result.metadata is not None
         assert "boom" in result.metadata["error"]
         assert mock_llm.ainvoke.call_count == 2
 
@@ -125,12 +130,14 @@ class TestEmotionSignal:
         signal = EmotionSignal()
         result = await signal.calculate(query="hello world", history=[])
         assert result.score == 0.7
+        assert result.metadata is not None
         assert result.metadata["emotion_type"] == "neutral"
 
     @pytest.mark.asyncio
     async def test_mild_frustration(self):
         signal = EmotionSignal()
         result = await signal.calculate(query="this is bad", history=[])
+        assert result.metadata is not None
         assert result.metadata["emotion_type"] == "mild_frustration"
         assert result.score == pytest.approx(0.5, rel=1e-6)
 
@@ -138,6 +145,7 @@ class TestEmotionSignal:
     async def test_high_frustration(self):
         signal = EmotionSignal()
         result = await signal.calculate(query="bad angry urgent hurry", history=[])
+        assert result.metadata is not None
         assert result.metadata["emotion_type"] == "high_frustration"
         assert result.score < 0.3
 
@@ -145,6 +153,7 @@ class TestEmotionSignal:
     async def test_positive(self):
         signal = EmotionSignal()
         result = await signal.calculate(query="good job", history=[])
+        assert result.metadata is not None
         assert result.metadata["emotion_type"] == "positive"
         assert result.score > 0.8
 
@@ -204,12 +213,15 @@ class TestConfidenceSignals:
         ):
             signals = ConfidenceSignals(retrieval_state)
             # Force RAG score high by overriding rag_signal.calculate
-            signals.rag_signal.calculate = AsyncMock(
-                return_value=SignalResult(score=0.95, reason="high")
-            )
-            results = await signals.calculate_all(generated_answer=None)
+            with patch.object(
+                signals.rag_signal,
+                "calculate",
+                new=AsyncMock(return_value=SignalResult(score=0.95, reason="high")),
+            ):
+                results = await signals.calculate_all(generated_answer=None)
 
         assert results["llm"].score == 0.95
+        assert results["llm"].metadata is not None
         assert results["llm"].metadata["skipped"] is True
 
     @pytest.mark.asyncio
