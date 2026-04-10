@@ -1,6 +1,6 @@
 # E-commerce Smart Agent 全面改造设计文档
 
-**版本**: v1.0  
+**版本**: v1.1  
 **日期**: 2026-04-10  
 **范围**: P0 安全止血 → P1 架构精简 → P2 前端加固 → P3 长期优化  
 **目标**: 将当前"技术栈先进但工程实践粗糙"的代码库，改造为现代、安全、干净、可维护的生产级系统。
@@ -117,6 +117,75 @@ jwt.decode(
 )
 ```
 
+#### 3.1.5 `app/services/auth_service.py` —— 删除 assert 校验（审阅补充）
+
+**当前代码 (约 L17)**:
+```python
+assert user.id is not None
+```
+
+**改造后**:
+```python
+if user.id is None:
+    raise ValueError("用户 ID 不能为空")
+```
+
+#### 3.1.6 WebSocket Origin 校验（审阅补充）
+
+**问题**: `app/api/v1/websocket.py` 未校验 `Origin` header，存在 CSWSH（跨站点 WebSocket 劫持）风险。
+
+**改造**:
+在 `websocket_endpoint` 和 `admin_websocket_endpoint` 握手阶段增加 Origin 白名单校验：
+```python
+origin = websocket.headers.get("origin", "")
+allowed_origins = set(settings.CORS_ORIGINS)
+if origin and origin not in allowed_origins:
+    await websocket.close(code=1008)
+    return
+```
+
+#### 3.1.7 CORS 精细化配置（审阅补充）
+
+**问题**: `app/main.py` 中 `allow_methods=["*"]` 和 `allow_headers=["*"]` 过于宽松。
+
+**改造**:
+```python
+allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+allow_headers=["Content-Type", "Authorization", "X-Correlation-ID"],
+```
+
+#### 3.1.8 日志敏感信息脱敏规范（审阅补充）
+
+**问题**: `app/tasks/refund_tasks.py` 直接记录手机号和短信内容，存在 PII 泄露风险。
+
+**改造**:
+- 日志中禁止记录：密码、JWT Token、完整手机号、银行卡号、身份证号。
+- 手机号脱敏：`138****1234`。
+- 短信内容仅记录长度或摘要。
+
+#### 3.1.9 Rate Limiting 补全（审阅补充）
+
+**问题**: `/register`、WebSocket、SSE `/chat` 端点缺少限流保护。
+
+**改造**:
+- `/register`: 增加 `@limiter.limit("5/minute")`
+- WebSocket: 增加 IP 级并发连接数上限（如每个 IP 最多 5 个）
+- SSE `/chat`: 增加用户级流式请求速率限制
+
+#### 3.1.10 密码策略强化（审阅补充）
+
+**问题**: `RegisterRequest` 密码最小长度仅 6 位，无复杂度要求。
+
+**改造**:
+- 最小长度提高到 8 位
+- 增加复杂度校验（至少包含大写、小写、数字中的两种）
+
+#### 3.1.11 JWT 长期安全改进准备（P3）
+
+**改造**:
+- 在 `create_access_token` 中增加 `jti` (JWT ID) 字段，为未来 Token 黑名单/Redis 撤销机制做准备。
+- 评估将 access token 有效期从 1440 分钟缩短至 15-30 分钟，并引入 refresh token 机制。
+
 ---
 
 ### 3.2 测试体系重构 (Test Rescue)
@@ -135,20 +204,20 @@ jwt.decode(
 # conftest.py
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
-from sqlmodel import SQLModel
 
-from app.core.database import engine
-from app.core.limiter import limiter
-from app.main import app
+import tests._db_config  # noqa: F401, I001
 
 
 @pytest_asyncio.fixture(scope="session")
 async def db_engine():
     """Session-scoped engine setup, but NOT autouse."""
+    from sqlalchemy import text
+    from sqlmodel import SQLModel
+    from app.core.database import engine
+
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-    yield
+    yield engine
     async with engine.begin() as conn:
         await conn.execute(text("DROP TABLE IF EXISTS confidence_audits CASCADE"))
         await conn.run_sync(SQLModel.metadata.drop_all)
@@ -156,16 +225,22 @@ async def db_engine():
 
 @pytest_asyncio.fixture
 async def db_session(db_engine):
-    """Test-scoped database session."""
-    async with engine.connect() as conn:
-        trans = await conn.begin()
-        # 每个测试在独立事务中运行，测试结束后回滚
-        yield conn
-        await trans.rollback()
+    """Test-scoped database session with automatic rollback."""
+    from app.core.database import AsyncSession, async_sessionmaker
+
+    async with db_engine.connect() as conn:
+        trans = await conn.begin_nested()
+        async_session = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+        async with async_session(bind=conn) as session:
+            yield session
+            await trans.rollback()
 
 
 @pytest_asyncio.fixture
 async def client():
+    from app.core.limiter import limiter
+    from app.main import app
+
     limiter.reset()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
@@ -173,20 +248,34 @@ async def client():
 
 **步骤 2: 分类测试标记**
 
-引入 `pytest.mark` 对测试进行分类：
+在 `pyproject.toml` 的 `[tool.pytest.ini_options]` 中注册 markers：
 
-```python
-# 在 conftest.py 或 pytest.ini 中注册
+```toml
+[tool.pytest.ini_options]
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
 markers = [
-    "unit: 纯单元测试，不依赖数据库",
-    "db: 依赖数据库的测试",
-    "api: API 集成测试",
-    "websocket: WebSocket 测试",
+    "unit: Pure unit tests with no DB/external services",
+    "db: Tests requiring PostgreSQL",
+    "redis: Tests requiring Redis",
+    "api: API/integration tests",
+    "websocket: WebSocket tests",
 ]
 ```
 
-- `test_security.py`、`test_confidence_signals.py` (mock LLM 的部分)、`test_logging.py` → 标记为 `@pytest.mark.unit`
-- `test_chat_api.py`、`test_admin_api.py` → 标记为 `@pytest.mark.api` + `@pytest.mark.db`
+**分类清单**:
+
+| 文件 | 建议标记 | 说明 |
+|------|---------|------|
+| `test_security.py` | `@pytest.mark.unit` | 纯 JWT 编解码 |
+| `test_chat_utils.py` | `@pytest.mark.unit` | 无外部依赖 |
+| `test_confidence_signals.py` | `@pytest.mark.unit` | 全 mock LLM |
+| `test_main_security.py` | `@pytest.mark.unit` + `@pytest.mark.api` | 轻量 app 测试，不依赖 DB |
+| `test_logging.py` | `@pytest.mark.api` + `@pytest.mark.redis` | `TestClient(app)` 触发 lifespan/Redis |
+| `test_websocket.py` | `@pytest.mark.websocket` + `@pytest.mark.redis` | 同上 |
+| `test_auth_rate_limit.py` | `@pytest.mark.api` + `@pytest.mark.redis` | slowapi 依赖 Redis |
+| `test_chat_api.py` | `@pytest.mark.api` + `@pytest.mark.db` | API + DB |
+| `test_admin_api.py` | `@pytest.mark.api` + `@pytest.mark.db` | API + DB |
 
 **步骤 3: 本地测试环境统一**
 
@@ -244,9 +333,11 @@ if env_path.exists():
 - 这样即使数据库密码错误，JWT 编解码测试也能正常通过
 
 **验收标准**:
-- `uv run pytest -m unit` 必须在无数据库环境下通过
-- `uv run pytest` 在本地（配合 `.env.test` 和 docker-compose db）全部通过
+- `POSTGRES_SERVER=nonexistent REDIS_HOST=nonexistent uv run pytest -m unit` 100% 通过（证明 unit 测试未触碰任何外部服务）
+- `uv run pytest -m unit --collect-only` 不触发 `db_engine` fixture 实例化
+- `uv run pytest` 在本地完整环境 100% 通过
 - CI 中 `pytest --cov=app --cov-fail-under=75` 保持通过
+- 每次里程碑改造后，若 coverage 下降需明确说明原因
 
 ---
 
@@ -308,8 +399,20 @@ class AgentState(TypedDict):
    - `agents/decider.py` (如有) 同步修改
    - `api/v1/chat.py` 中状态初始化代码同步修改
 
+**遗漏调用点补充（审阅补充）**:
+- `api/v1/chat.py` 的 `initial_state`：删除 `"context"`、`"audit_required"`、`"audit_type"`，改为调用 `make_agent_state()` 统一初始化
+- `agents/policy.py` 的返回值：删除 `"context": chunks` 兼容字段
+- `agents/__init__.py`：删除 `RouterAgent = IntentRouterAgent` 兼容别名
+- `agents/router.py`：删除 `_INTENT_MAPPINGS` 中的 `"legacy"` 键；`RouterState.intent` 改为 `str` 类型
+- `make_agent_state`：删除 `context`、`audit_required`、`audit_type` 参数
+
+**Checkpoint 兼容性处理（审阅补充）**:
+1. 在 `main.py` lifespan 启动时，明确声明：**v4.1 不保证与 v4.0 checkpoint 的会话恢复兼容性**。
+2. 若必须保留历史会话，在 `chat.py` 从 checkpoint 恢复状态时增加一次性桥接：若旧状态包含 `context` 但缺少 `retrieval_result`，自动转换。
+3. 推荐在首次部署时运行 Redis 清理脚本，删除旧格式 checkpoint（如 `thread:*` 键）。
+
 **验收标准**:
-- `grep -r "audit_required\|audit_type\|normalize_state" app/ tests/` 返回 0 结果
+- `grep -r "audit_required\|audit_type\|normalize_state\|get_audit_required\|get_audit_level_from_old\|\"context\"\b" app/ tests/` 返回 0 结果
 - `make_agent_state` 工厂函数参数同步精简
 - 所有测试通过
 
@@ -341,6 +444,8 @@ async def check_refund_eligibility(
 3. **修改引用点**:
    - `app/graph/nodes.py` 中 `from app.graph.tools import refund_tools` 改为 `from app.services.refund_tool_service import refund_tools`
    - 更新 `graph/workflow.py` 中的引用
+
+**注意（审阅补充）**: 经代码检索，`app/` 目录中**没有任何文件直接导入 `app.graph.tools`**。`graph/tools.py` 中的 `refund_tools` 列表当前是未使用的死代码。删除该文件对工作流编译**零影响**。只需确保 `@tool` 下沉到 `refund_tool_service.py` 后，LangGraph 未来显式绑定工具时引用正确即可。
 
 **验收标准**:
 - `app/graph/tools.py` 不存在
@@ -406,6 +511,9 @@ class SecurityCheckError(AppError):
 | `app/intent/service.py` (多处) | Redis 异常静默 | 捕获 `redis.ConnectionError`/`TimeoutError`，记录 warning；其余异常抛出 |
 | `app/websocket/manager.py` | 发送异常统一断开 | 区分 `WebSocketDisconnect`（正常清理）和 `RuntimeError`（记录 error 后清理） |
 | `app/services/admin_service.py:227-228` | WebSocket 通知失败静默 | 捕获 `WebSocketDisconnect`/`RuntimeError`，记录 warning；不吞掉未知异常 |
+| `app/api/v1/chat.py:161` | SSE 端点裸 `except Exception` | 明确捕获 `asyncio.CancelledError`、`HTTPException`、`AppError`；未知异常记录后向客户端发送固定错误消息，禁止继续流式输出（审阅补充） |
+| `app/api/v1/websocket.py:70-72, 117-119` | WebSocket 连接裸 `except Exception` | 只捕获 `WebSocketDisconnect` 和预期的 `HTTPException`；其余异常记录 `logger.error(..., exc_info=True)` 后再关闭连接（审阅补充） |
+| `app/tasks/refund_tasks.py` (多处) | Celery task 裸 `except Exception` | 捕获具体异常类型；日志中对手机号脱敏，不记录完整短信内容（审阅补充） |
 
 **设计决策**:
 - **降级策略必须显式化**: 允许降级的地方，必须在 `except` 块中写清楚降级逻辑和原因，不能简单 `pass`。
@@ -452,13 +560,12 @@ await asyncio.sleep(2)
 
 ```python
 # app/api/v1/chat.py
-from functools import lru_cache
-
-@lru_cache
 def get_app_graph():
     from app.graph.workflow import app_graph
     return app_graph
 ```
+
+**注意（审阅补充）**：不使用 `@lru_cache`。`app_graph` 是在 `main.py` lifespan 中**异步赋值**的 mutable 全局引用，缓存会导致引用过期或返回 `None`。
 
 在 endpoint 中调用 `get_app_graph()` 而非模块级导入。
 
@@ -489,6 +596,42 @@ class IntentRouterAgent:
 **验收标准**:
 - 全项目 `grep -r "^\s*from app\..* import" app/ | grep -v "^\s*from app\.(core|models|api|agents|graph|services|utils|intent|retrieval|tasks|websocket|schemas)"` 无函数内导入（除延迟初始化工厂外）
 
+### 4.5 其他架构改造项（审阅补充）
+
+#### 4.5.1 主动拆分 `RefundRiskService`
+
+`app/services/refund_service.py` 已达 322 行，混合了资格校验、申请创建、风险评估三种职责。`RefundRiskService` 与退款资格校验明显属于不同业务域。
+
+**改造**:
+- 新建 `app/services/risk_service.py`
+- 将 `RefundRiskService` 及 `assess_and_create_audit` 迁移至该文件
+- `refund_service.py` 保留退款资格校验和申请创建逻辑
+
+#### 4.5.2 重命名 `BaseAgent` 的 `context` 参数
+
+`agents/base.py` 中 `_create_messages` 和 `_build_contextual_message` 的 `context` 参数与即将删除的 `AgentState.context` 字段同名，易造成混淆。
+
+**改造**:
+- `_create_messages(self, user_message, context=None)` → `_create_messages(self, user_message, context_data=None)`
+- `_build_contextual_message(self, question, context)` → `_build_contextual_message(self, question, context_data)`
+- `agents/policy.py` 调用点同步修改：`context={"context": chunks}` → `context_data={"chunks": chunks, "order_data": ...}`
+
+#### 4.5.3 评估 `AgentStatePartial` 的必要性
+
+`AgentStatePartial` 仅用于 `confidence/signals.py` 构造临时 dict。若 `ConfidenceSignals` 只需要 `question`/`history`/`retrieval_result`，可考虑将其内聚到 `confidence/signals.py` 中，减少 `state.py` 的维护面。
+
+**改造**:
+- 在 `confidence/signals.py` 中定义 `ConfidenceContext` dataclass 或 TypedDict
+- 删除 `models/state.py` 中的 `AgentStatePartial`
+
+#### 4.5.4 迁移 `api/v1/chat_utils.py` 中的业务常量
+
+`TransferReason` 和 `TRANSFER_REASON_MAP` 是业务常量，放在 `api/v1/` 层级不合适。
+
+**改造**:
+- 迁移至 `app/core/constants.py` 或 `app/schemas/chat.py`
+- 保持 API 层只负责协议转换
+
 ---
 
 ## 5. P2: 前端加固
@@ -502,6 +645,7 @@ class IntentRouterAgent:
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react-swc": "^4.3.0",
+    "typescript": "~5.8.2",
     ...
   }
 }
@@ -509,6 +653,11 @@ class IntentRouterAgent:
 
 - `@types/node`: `^25.5.2` → `^22.14.0`
 - `@vitejs/plugin-react-swc`: 从 `dependencies` 移至 `devDependencies`
+- `typescript`: `~6.0.2` → `~5.8.2`（6.0.2 为开发版/非稳定版）
+
+**补充（审阅补充）**:
+- `react-router-dom: ^7.14.0` 为 v7 框架级数据 API，与 v6 行为有差异。若当前代码未使用 v7 特性，建议降级至 `^6.30.0` 或评估全面迁移。
+- 同步将 `tsconfig.json` 中的 `"ignoreDeprecations": "6.0"` 移除。
 
 执行 `cd frontend && npm install` 验证。
 
@@ -525,9 +674,18 @@ cd frontend && npm install zod
 ```typescript
 import { z } from "zod";
 
-export const StreamTokenSchema = z.object({
-  token: z.string(),
-  done: z.boolean().optional(),
+export const StreamTokenSchema = z.union([
+  z.object({ token: z.string() }),
+  z.object({ type: z.literal("metadata"), payload: z.record(z.unknown()) }),
+  z.object({ done: z.literal(true) }),
+]);
+
+export const NotificationSchema = z.object({
+  type: z.enum(["admin_notification", "system"]),
+  payload: z.object({
+    title: z.string(),
+    message: z.string(),
+  }),
 });
 
 export const TaskSchema = z.object({
@@ -548,7 +706,12 @@ const parsed = JSON.parse(data) as StreamToken;
 
 // 改造后
 const raw = JSON.parse(data);
-const parsed = StreamTokenSchema.parse(raw);
+const result = StreamTokenSchema.safeParse(raw);
+if (!result.success) {
+  console.warn("Invalid SSE token", result.error);
+  continue; // 跳过非法行，不中断流
+}
+const parsed = result.data;
 ```
 
 **改造 `useTasks.ts`、 `useAuth.ts`**:
@@ -557,14 +720,32 @@ const parsed = StreamTokenSchema.parse(raw);
 
 ### 5.3 修复通知系统
 
-**诊断**: `useNotifications.ts` 中 `notifications` 状态从未被 `setNotifications` 更新。
+**诊断**: `useNotifications.ts` 中 `notifications` 状态从未被 `setNotifications` 更新。且 **admin 端当前没有任何 WebSocket 连接代码**（审阅补充）。
 
 **改造方案**:
 
-1. **在 WebSocket 连接中推送通知**:
-   管理员 WebSocket 收到 `admin_notification` 消息后，应调用 `useNotifications` 暴露的 `addNotification` 方法。
+1. **建立 admin 端 WebSocket 基础设施（审阅补充）**:
+   新建 `frontend/src/hooks/useAdminWebSocket.ts`，负责：
+   - 连接 `/api/v1/ws/admin/{admin_id}`
+   - 心跳保活
+   - 断线重连
+   - 消息分发（将 `admin_notification` 推送给 `useNotificationStore`）
 
-2. **改造 `useNotifications.ts`**:
+   在 `Dashboard.tsx` 中挂载该 hook：
+   ```typescript
+   const { messages } = useAdminWebSocket(admin_id, token);
+   ```
+
+2. **在 WebSocket 连接中推送通知**:
+   管理员 WebSocket 收到 `admin_notification` 消息后，应调用 `useNotifications` 暴露的 `addNotification` 方法。消息格式需与后端对齐：
+   ```typescript
+   { type: "admin_notification", payload: { title, message, ... } }
+   ```
+
+3. **前端通知内容净化（审阅补充）**:
+   - `title` 和 `message` 需做 HTML 标签剥离，防止 XSS（即使当前 `NotificationToast` 使用 JSX 默认转义，也应在 store 层防御）。
+
+4. **改造 `useNotifications.ts`**:
 
 ```typescript
 import { create } from "zustand";
@@ -624,7 +805,19 @@ if (message.type === "admin_notification") {
 **改造 `src/lib/api.ts`**:
 
 ```typescript
+import { z } from "zod";
+
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public detail?: unknown
+  ) {
+    super(message);
+  }
+}
 
 export function getApiHeaders(token?: string | null): HeadersInit {
   const headers: HeadersInit = {
@@ -639,9 +832,9 @@ export function getApiHeaders(token?: string | null): HeadersInit {
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
-  schema?: z.ZodType<T>
+  token: string | null = null,
+  schema: z.ZodType<T>
 ): Promise<T> {
-  const token = useAuthStore.getState().token;
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -652,26 +845,36 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Request failed: ${res.status}`);
+    throw new ApiError(
+      err.detail || `Request failed: ${res.status}`,
+      res.status,
+      err
+    );
   }
 
   const data = await res.json();
-  if (schema) {
-    return schema.parse(data);
-  }
-  return data;
+  return schema.parse(data);
 }
 ```
 
+**设计决策（审阅补充）**:
+- `apiFetch` **不再内部读取 `useAuthStore`**，而是接受 `token` 参数，解耦全局状态，便于测试和非 React 环境使用。
+- 引入 `ApiError` 结构化异常，调用方可根据 `status` 做精细化处理（如 401 跳转登录）。
+- `schema` 改为**必填参数**，强制所有 API 调用都有运行时校验。
+
 **改造各 hooks**:
 - `useAuth.ts`、`useTasks.ts` 等不再重复定义 `API_BASE` 和 `Authorization` header，统一使用 `apiFetch`。
+- 各 hook 通过 `useAuthStore.getState().token` 获取 token 后，作为参数传给 `apiFetch`。
 
 ### 5.5 其他前端修复
 
-- **`tsconfig.json`**: `"target": "ES2020"` → `"ES2022"`
-- **移除** `"ignoreDeprecations": "6.0"`（如果已无非 6.0 语法）
+- **`tsconfig.json`**: `"target": "ES2020"` → `"ES2022"`，`"lib"` 同步升级为 `["ES2022", "DOM", "DOM.Iterable"]`
+- **移除** `"ignoreDeprecations": "6.0"`
 - **`vite.config.ts`**: 增加 `build.sourcemap: true`
 - **`src/stores/auth.ts`**: `localStorage` → `sessionStorage`
+- **修复 `scrollRef` 自动滚动失效（审阅补充）**: `ChatMessageList` 中应通过 `ScrollAreaPrimitive.Viewport` 的 `ref` 暴露可滚动容器，`App.tsx` 改为滚动 `Viewport` 而非 `Root`
+- **移除 `FC` 类型注解（审阅补充）**: `apps/customer/App.tsx` 等文件中 `const App: FC = () =>` 改为标准函数组件写法
+- **清理空 `catch` 块（审阅补充）**: `apps/customer/App.tsx` 中 `handleLogin` 的空 `catch {}` 改为至少记录错误或显示提示
 
 ---
 
@@ -807,14 +1010,19 @@ class Settings(BaseSettings):
 
 ## 10. 验收清单
 
-- [ ] `pytest -m unit` 在无数据库环境下 100% 通过
+- [ ] `POSTGRES_SERVER=nonexistent REDIS_HOST=nonexistent pytest -m unit` 100% 通过
 - [ ] `pytest` 在本地完整环境 100% 通过，覆盖率 >= 75%
 - [ ] `ruff check app tests` 全绿
 - [ ] `ty check --error-on-warning` 全绿
-- [ ] `grep -r "audit_required\|audit_type\|normalize_state" app/ tests/` 返回空
+- [ ] `grep -r "audit_required\|audit_type\|normalize_state\|get_audit_required\|get_audit_level_from_old\|\"context\"\b" app/ tests/` 返回空
 - [ ] `app/graph/tools.py` 已删除
 - [ ] `grep -r "time.sleep" app/` 返回空（Celery task 的 async 协程内无阻塞）
+- [ ] WebSocket Origin 校验已生效（非法 Origin 返回 1008）
+- [ ] CORS `allow_methods` 和 `allow_headers` 已收紧为显式白名单
+- [ ] 日志中不再记录完整手机号、短信内容、Token 等 PII
 - [ ] 前端 `npm run build` 成功，无类型错误
 - [ ] 前端 `npm run test:e2e` 通过
-- [ ] `@types/node` 版本为 `22.x`
+- [ ] `@types/node` 版本为 `22.x`，`typescript` 版本为 `~5.8.2`
 - [ ] 管理员通知功能在 E2E 中可验证（收到 WebSocket 消息后 Toast 弹出）
+- [ ] `scrollRef` 自动滚底功能正常
+- [ ] 所有 API 调用均已使用 `zod` schema 运行时校验
