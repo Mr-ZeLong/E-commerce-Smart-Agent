@@ -335,6 +335,29 @@ POSTGRES_SERVER=nonexistent REDIS_HOST=nonexistent uv run pytest -m unit -v
 
 **Expected:** `test_security.py` 和 `test_main_security.py` 中的 `TestCORSDangerousComboBlock` 通过。`test_logging.py` 中的纯 unit 类也通过。
 
+**额外测试文件处理（审阅补充）**：
+- `tests/test_websocket.py` 中 `TestClient(app)` 应改为 `TestClient(app, lifespan="off")`，避免触发 Redis lifespan。
+
+**Marker 补全（审阅补充）**：给以下纯单元/无 DB 测试文件顶部添加 `pytestmark = pytest.mark.unit`：
+- `tests/test_chat_utils.py`
+- `tests/test_confidence_signals.py`
+- `tests/test_status_service.py`
+- `tests/test_refund_tool_service.py`
+- `tests/intent/test_config.py`、`test_models.py`、`test_clarification.py`、`test_slot_validator.py`、`test_topic_switch.py`
+- `tests/agents/test_policy.py`
+- `tests/retrieval/test_client.py`、`test_rewriter.py`
+
+给以下 API/集成测试添加 `pytestmark = [pytest.mark.db, pytest.mark.api]`：
+- `tests/test_auth_api.py`
+- `tests/test_auth_rate_limit.py`
+- `tests/test_chat_api.py`
+- `tests/test_admin_api.py`
+- `tests/test_websocket.py`
+- `tests/test_order_service.py`
+- `tests/test_refund_service.py`
+- `tests/test_refund_tasks.py`
+- `tests/test_admin_service.py`
+
 **注意：**大量测试文件尚未标记。在 M1 验收通过后，建议继续为所有测试文件补全 markers，以便 CI 选择性执行。
 
 - [ ] **Step 6: Commit**
@@ -670,21 +693,50 @@ async def _release_ws_ip_limit(ip: str) -> None:
         pass
 ```
 
-在两个 WebSocket endpoint 的 `manager.connect_*` 之前调用（**注意**：`manager.connect_user()` / `manager.connect_admin()` 内部已调用 `accept()`，此处不要再重复调用）：
+在两个 WebSocket endpoint 中，在 `manager.connect_*` 之前调用（**注意**：`manager.connect_user()` / `manager.connect_admin()` 内部已调用 `accept()`，此处不要再重复调用）：
+
+**用户端点** (`/ws/{thread_id}`):
 ```python
     client_ip = websocket.client.host if websocket.client else "unknown"
     if not await _check_ws_ip_limit(client_ip):
         await websocket.close(code=1008)
         return
+
+    try:
+        user_id = await get_current_user_id_ws(token)
+        scoped_thread_id = build_thread_id(user_id, thread_id)
+        await manager.connect_user(websocket, user_id, scoped_thread_id)
+        ...
+    except WebSocketDisconnect:
+        await manager.disconnect_user(user_id, scoped_thread_id)
+    except HTTPException:
+        ...
+    except Exception:
+        ...
+    finally:
+        await manager.disconnect_user(user_id, scoped_thread_id)
+        await _release_ws_ip_limit(client_ip)
 ```
 
-在连接关闭的 finally 块中调用（使用正确的 disconnect 方法名）：
+**管理端点** (`/ws/admin/{admin_id}`):
 ```python
+    client_ip = websocket.client.host if websocket.client else "unknown"
+    if not await _check_ws_ip_limit(client_ip):
+        await websocket.close(code=1008)
+        return
+
+    try:
+        token_admin_id = verify_admin_token(token)
+        await manager.connect_admin(websocket, admin_id)
+        ...
+    except WebSocketDisconnect:
+        await manager.disconnect_admin(admin_id)
+    except HTTPException:
+        ...
+    except Exception:
+        ...
     finally:
-        if is_user_endpoint:
-            await manager.disconnect_user(websocket)
-        else:
-            await manager.disconnect_admin(websocket)
+        await manager.disconnect_admin(admin_id)
         await _release_ws_ip_limit(client_ip)
 ```
 
@@ -901,11 +953,27 @@ def make_agent_state(
 
 函数体同步删除 `context`、`audit_required`、`audit_type` 参数和字典赋值。
 
-- [ ] **Step 4: 修改 `app/agents/policy.py` 删除 `context` 兼容字段**
+- [ ] **Step 4: 修改 `app/agents/evaluator.py` 删除 `AgentStatePartial` 依赖**
+
+`app/agents/evaluator.py` 导入了 `AgentStatePartial`。由于该类型将被删除，将其改为内联 `dict`：
+
+```python
+# 删除
+from app.models.state import AgentStatePartial
+
+# 在 evaluate 方法中
+temp_state = {
+    "question": question,
+    "history": history,
+    "retrieval_result": retrieval_result,
+}
+```
+
+- [ ] **Step 5: 修改 `app/agents/policy.py` 删除 `context` 兼容字段**
 
 找到返回 `AgentState` 更新的地方，删除 `"context": chunks` 或类似字段。只保留 `"retrieval_result": retrieval_result`。
 
-- [ ] **Step 5: 修改 `app/agents/base.py` 参数重命名**
+- [ ] **Step 6: 修改 `app/agents/base.py` 参数重命名**
 
 ```python
     def _create_messages(
@@ -919,13 +987,13 @@ def make_agent_state(
 
 同步修改方法体内的 `context` 引用为 `context_data`。注意：`_build_contextual_message` 内部读取的 dict key 仍为 `"context"`（与现有 Prompt 模板兼容），因此 `PolicyAgent` 调用时继续传入 `"context"` 键。
 
-- [ ] **Step 6: 修改 `app/agents/policy.py` 调用点**
+- [ ] **Step 7: 修改 `app/agents/policy.py` 调用点**
 
 ```python
 context_data={"context": chunks, "order_data": state.get("order_data")}
 ```
 
-- [ ] **Step 7: 修改 `app/api/v1/chat.py` 的 `initial_state`**
+- [ ] **Step 8: 修改 `app/api/v1/chat.py` 的 `initial_state`**
 
 删除 `"context"`、`"audit_required"`、`"audit_type"`，改为使用 `make_agent_state`：
 
@@ -939,23 +1007,23 @@ initial_state = make_agent_state(
 )
 ```
 
-- [ ] **Step 8: 修改 `app/agents/router.py` 删除遗留意图层**
+- [ ] **Step 9: 修改 `app/agents/router.py` 删除遗留意图层**
 
 删除 `Intent` Enum 定义、`_map_to_legacy_intent` 方法。`RouterState` 中的 `intent` 字段类型改为 `str`。
 
 将 `process` 方法中的 `legacy_intent = self._map_to_legacy_intent(result)` 改为直接使用 `result.primary_intent`（根据 `IntentResult` 实际结构使用其字符串值）。确保 `OTHER` intent 的处理逻辑同步更新为字符串比较。
 
-- [ ] **Step 9: 修改 `app/agents/__init__.py`**
+- [ ] **Step 10: 修改 `app/agents/__init__.py`**
 
 删除 `RouterAgent = IntentRouterAgent` 兼容别名。
 
-- [ ] **Step 10: 更新相关测试文件中的 `context` 引用**
+- [ ] **Step 11: 更新相关测试文件中的 `context` 引用**
 
 修改以下测试文件，将 `"context"` 替换为 `"retrieval_result"`：
 - `tests/graph/test_nodes.py`：将 `updated_state={"context": [...]}` 改为使用 `retrieval_result`
 - `tests/agents/test_policy_legacy.py`：将 `result.updated_state["context"]` 断言改为 `result.updated_state["retrieval_result"]`
 
-- [ ] **Step 11: 全局搜索确认无遗漏**
+- [ ] **Step 12: 全局搜索确认无遗漏**
 
 ```bash
 grep -r "audit_required\|audit_type\|normalize_state\|get_audit_required\|get_audit_level_from_old\|\"context\"\b" app/ tests/
@@ -963,7 +1031,7 @@ grep -r "audit_required\|audit_type\|normalize_state\|get_audit_required\|get_au
 
 **Expected:** 0 结果。
 
-- [ ] **Step 12: 运行测试**
+- [ ] **Step 13: 运行测试**
 
 ```bash
 uv run pytest tests/agents/ tests/graph/ tests/test_chat_api.py -v
@@ -1007,46 +1075,44 @@ if TYPE_CHECKING:
 class RefundRiskService:
     """评估退款风险并创建审计记录。"""
 
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
+    @staticmethod
     async def assess_and_create_audit(
-        self,
         session: AsyncSession,
-        refund: object,
+        refund: RefundApplication,
         order: Order,
         user_id: int,
         thread_id: str,
     ) -> AuditLog | None:
         """保持与现有调用方 `order_service.py:106` 的签名兼容。"""
+        from app.core.config import settings
+        from app.models.audit import AuditAction, AuditTriggerType, RiskLevel
+
+        amount = float(refund.refund_amount)
+        if amount >= settings.HIGH_RISK_REFUND_AMOUNT:
+            risk_level = RiskLevel.HIGH
+        elif amount >= settings.MEDIUM_RISK_REFUND_AMOUNT:
+            risk_level = RiskLevel.MEDIUM
+        else:
+            return None
+
         if order.id is None:
             raise ValueError("订单 ID 不能为空，数据异常")
 
-        refund_reason = getattr(refund, "reason", "")
-        refund_amount = getattr(refund, "amount", 0.0)
-
-        # 简化风险规则：高额退款或特定原因触发人工审核
-        if refund_amount > 1000 or "欺诈" in refund_reason:
-            risk_level = RiskLevel.HIGH
-            audit_action = AuditAction.MANUAL_REVIEW
-        else:
-            risk_level = RiskLevel.LOW
-            audit_action = AuditAction.AUTO_APPROVE
-
-        audit_log = AuditLog(
-            order_id=order.id,
-            action=audit_action,
-            trigger_type=AuditTriggerType.REFUND,
+        audit = AuditLog(
+            user_id=user_id,
+            thread_id=thread_id,
+            action=AuditAction.PENDING,
+            trigger_type=AuditTriggerType.RISK,
             risk_level=risk_level,
-            reason=refund_reason,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            trigger_reason=f"退款金额¥{amount}超过{risk_level.value}风险阈值",
+            refund_application_id=refund.id,
+            order_id=order.id,
+            context_snapshot={"refund_amount": amount, "order_sn": order.order_sn},
         )
-        session.add(audit_log)
-        await session.commit()
-        await session.refresh(audit_log)
-
-        return audit_log
+        session.add(audit)
+        await session.flush()
+        await session.refresh(audit)
+        return audit
 ```
 
 - [ ] **Step 2: 从 `app/services/refund_service.py` 删除 `RefundRiskService` 类**
@@ -1354,10 +1420,10 @@ except HTTPException:
     raise
 except AppError as exc:
     logger.error("Chat AppError", exc_info=True)
-    yield create_stream_metadata_message({"error": "服务内部错误"})
+    yield {"type": "metadata", "error": "服务内部错误"}
 except Exception as exc:
     logger.error("Unexpected chat error", exc_info=True)
-    yield create_stream_metadata_message({"error": "服务内部错误"})
+    yield {"type": "metadata", "error": "服务内部错误"}
 ```
 
 - [ ] **Step 8: `app/api/v1/websocket.py`**
@@ -1370,12 +1436,19 @@ try:
     ...
 except WebSocketDisconnect:
     logger.info("WebSocket disconnected")
+    if is_user_endpoint:
+        await manager.disconnect_user(user_id, scoped_thread_id)
+    else:
+        await manager.disconnect_admin(admin_id)
 except HTTPException:
     logger.warning("WebSocket HTTP exception")
 except Exception as exc:
     logger.error("Unexpected WebSocket error", exc_info=True)
 finally:
-    await manager.disconnect(websocket)
+    if is_user_endpoint:
+        await manager.disconnect_user(user_id, scoped_thread_id)
+    else:
+        await manager.disconnect_admin(admin_id)
 ```
 
 - [ ] **Step 9: `app/tasks/refund_tasks.py`**
@@ -1733,10 +1806,21 @@ export const NotificationPayloadSchema = z.object({
   message: z.string(),
 });
 
-export const NotificationSchema = z.object({
-  type: z.enum(["admin_notification", "system"]),
-  payload: NotificationPayloadSchema,
-});
+export const AdminWsMessageSchema = z.union([
+  z.object({
+    type: z.literal("new_audit_task"),
+    thread_id: z.string(),
+    data: z.unknown(),
+    timestamp: z.string(),
+  }),
+  z.object({
+    type: z.literal("status_change"),
+    thread_id: z.string(),
+    status: z.string(),
+    data: z.unknown(),
+    timestamp: z.string(),
+  }),
+]);
 
 export const TaskSchema = z.object({
   id: z.number(),
@@ -1975,6 +2059,7 @@ export interface Notification {
   id: string;
   title: string;
   message: string;
+  type: "success" | "error" | "warning" | "info";
   read: boolean;
 }
 
@@ -2003,6 +2088,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
           ...n,
           title: stripHtml(n.title),
           message: stripHtml(n.message),
+          type: n.type || "info",
           id: crypto.randomUUID(),
           read: false,
         },
@@ -2059,11 +2145,18 @@ export function useAdminWebSocket(adminId: number | undefined, token: string | n
         const raw = JSON.parse(event.data);
         setMessages((prev) => [...prev, raw]);
 
-        const parsed = NotificationSchema.safeParse(raw);
-        if (parsed.success && parsed.data.type === "admin_notification") {
+        const parsed = AdminWsMessageSchema.safeParse(raw);
+        if (parsed.success && parsed.data.type === "new_audit_task") {
           addNotification({
-            title: parsed.data.payload.title,
-            message: parsed.data.payload.message,
+            title: "新审核任务",
+            message: `收到会话 ${parsed.data.thread_id} 的人工审核请求`,
+            type: "info",
+          });
+        } else if (parsed.success && parsed.data.type === "status_change") {
+          addNotification({
+            title: "状态变更",
+            message: `会话 ${parsed.data.thread_id} 状态更新为 ${parsed.data.status}`,
+            type: "info",
           });
         }
       } catch {
@@ -2146,7 +2239,7 @@ git commit -m "frontend: add notification store and admin WebSocket hook"
 - [ ] **Step 1: 修改 `useAuth.ts`**
 
 ```typescript
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { LoginResponseSchema } from "@/lib/schemas";
 
 // 在 login mutation 中
@@ -2219,12 +2312,31 @@ await apiFetch(
 
 ```typescript
 import { StreamTokenSchema } from "@/lib/schemas";
+import { useAuthStore } from "@/stores/auth";
+
+// 在 fetch 调用中传入 token
+const res = await fetch(`${API_BASE}/chat`, {
+  method: "POST",
+  headers: getApiHeaders(useAuthStore.getState().token),
+  body: JSON.stringify({
+    question: userMessage.content,
+    thread_id: threadId,
+  }),
+});
 
 // 在 SSE reader loop 中
 const raw = JSON.parse(data);
 const result = StreamTokenSchema.safeParse(raw);
 if (!result.success) {
   console.warn("Invalid SSE token", result.error);
+  continue;
+}
+if (result.data.done === true) {
+  setMessages((prev) =>
+    prev.map((msg) =>
+      msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
+    )
+  );
   continue;
 }
 const parsed = result.data;
