@@ -169,8 +169,9 @@ allow_headers=["Content-Type", "Authorization", "X-Correlation-ID"],
 
 **改造**:
 - `/register`: 增加 `@limiter.limit("5/minute")`
-- WebSocket: 增加 IP 级并发连接数上限（如每个 IP 最多 5 个）
-- SSE `/chat`: 增加用户级流式请求速率限制
+- `/login`: 同步增加 `@limiter.limit("5/minute")`，防止凭证填充攻击
+- SSE `/chat`: 增加用户级流式请求速率限制（建议 `@limiter.limit("30/minute")`）
+- WebSocket: 增加 IP 级并发连接数上限（如每个 IP 最多 5 个）。**必须使用 Redis 集中计数或基于 `ConnectionManager` 的全局连接池统计，禁止单进程内存计数**（二次审阅补充）
 
 #### 3.1.10 密码策略强化（审阅补充）
 
@@ -226,18 +227,22 @@ async def db_engine():
 @pytest_asyncio.fixture
 async def db_session(db_engine):
     """Test-scoped database session with automatic rollback."""
-    from app.core.database import AsyncSession, async_sessionmaker
+    from app.core.database import async_sessionmaker
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
     async with db_engine.connect() as conn:
         trans = await conn.begin_nested()
-        async_session = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
-        async with async_session(bind=conn) as session:
-            yield session
+        Session = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+        session = Session(bind=conn)
+        yield session
+        await session.close()
+        if trans.is_active:
             await trans.rollback()
 
 
 @pytest_asyncio.fixture
-async def client():
+async def client(db_engine):
+    """API test client with database tables ready."""
     from app.core.limiter import limiter
     from app.main import app
 
@@ -306,6 +311,8 @@ ENABLE_OPENAPI_DOCS=False
 CORS_ORIGINS=http://localhost:5173
 ```
 
+**注意（审阅补充）**：`tests/.env.test` 包含测试用弱密钥和数据库密码，**必须加入 `.gitignore`**，避免测试凭据泄露到版本控制。
+
 修改 `tests/_db_config.py`，在测试启动时优先加载 `tests/.env.test`：
 
 ```python
@@ -331,6 +338,10 @@ if env_path.exists():
 - 移除 `client` fixture 依赖
 - 直接导入 `app.core.security` 中的函数进行测试
 - 这样即使数据库密码错误，JWT 编解码测试也能正常通过
+
+**特殊处理（二次审阅补充）**：
+- `test_main_security.py` 中的 `TestOpenAPIDocsControl` 使用 `AsyncClient(app=app)` 默认会触发 lifespan → Redis 连接。应改为 `ASGITransport(app=app, lifespan="off")`，否则无法通过 `POSTGRES_SERVER=nonexistent REDIS_HOST=nonexistent pytest -m unit` 验收。
+- `test_users.py` 当前自建 `init_db()` 直接操作 `engine`，与 conftest fixture 体系脱节。应重构为使用 `db_session` fixture，删除独立的 `init_db()`。
 
 **验收标准**:
 - `POSTGRES_SERVER=nonexistent REDIS_HOST=nonexistent uv run pytest -m unit` 100% 通过（证明 unit 测试未触碰任何外部服务）
@@ -409,7 +420,7 @@ class AgentState(TypedDict):
 **Checkpoint 兼容性处理（审阅补充）**:
 1. **已确认决策**：采用"彻底清理"策略，不保留旧字段桥接代码。
 2. 在 `main.py` lifespan 启动时，明确声明：**v4.1 不保证与 v4.0 checkpoint 的会话恢复兼容性**。
-3. 首次部署时运行 Redis 清理脚本，删除旧格式 checkpoint（如 `thread:*` 键）。
+3. 首次部署时由运维人员手动执行一次性脚本 `scripts/clear_legacy_checkpoints.py`，删除旧格式 checkpoint（如 `thread:*` 键）。**该脚本不得以 Web API、CLI 管理命令或 Celery task 形式暴露**，防止被诱导执行导致全站会话 DoS（二次审阅补充）。
 4. 不增加运行时桥接逻辑，避免引入新的兼容层。
 
 **验收标准**:
@@ -568,7 +579,12 @@ def get_app_graph():
 
 **注意（审阅补充）**：不使用 `@lru_cache`。`app_graph` 是在 `main.py` lifespan 中**异步赋值**的 mutable 全局引用，缓存会导致引用过期或返回 `None`。
 
-在 endpoint 中调用 `get_app_graph()` 而非模块级导入。
+在 endpoint 中调用 `get_app_graph()` 而非模块级导入，并保留 readiness 检查：
+```python
+graph = get_app_graph()
+if graph is None:
+    raise HTTPException(status_code=503, detail="Chat service not ready")
+```
 
 **方案 B: 依赖注入**
 
@@ -607,6 +623,7 @@ class IntentRouterAgent:
 - 新建 `app/services/risk_service.py`
 - 将 `RefundRiskService` 及 `assess_and_create_audit` 迁移至该文件
 - `refund_service.py` 保留退款资格校验和申请创建逻辑
+- **同步更新 `app/services/__init__.py` 导出路径**，将 `RefundRiskService` 的导入源改为 `risk_service.py`（二次审阅补充）
 
 #### 4.5.2 重命名 `BaseAgent` 的 `context` 参数
 
@@ -715,6 +732,9 @@ if (!result.success) {
 const parsed = result.data;
 ```
 
+**Schema 约束（二次审阅补充）**：
+API Response Schema 默认不使用 `.strict()`，以防止后端新增字段导致前端运行时崩溃。可采用 `.passthrough()` 或在对象定义中仅校验必要字段。
+
 **改造 `useTasks.ts`、 `useAuth.ts`**:
 - 所有 `res.json() as Xxx` 替换为 `XxxSchema.parse(await res.json())`
 - 错误响应体也使用 `z.object({ detail: z.string().optional() })` 解析
@@ -745,6 +765,12 @@ const parsed = result.data;
 
 3. **前端通知内容净化（审阅补充）**:
    - `title` 和 `message` 需做 HTML 标签剥离，防止 XSS（即使当前 `NotificationToast` 使用 JSX 默认转义，也应在 store 层防御）。
+
+4. **E2E 兼容性策略（二次审阅补充，Blocking）**：
+   Playwright E2E 需要验证通知功能，但当前 E2E 仅 mock HTTP 路由，未 mock WebSocket。必须在设计阶段明确以下任一策略：
+   - **策略 1（推荐）**：在 E2E 中使用 `page.routeWebSocket()`（Playwright 1.47+）mock `/api/v1/ws/admin/*`，主动推送 `admin_notification` 消息验证 Toast。
+   - **策略 2**：`useAdminWebSocket` 支持 `enabled` 参数，在 `import.meta.env.VITE_MOCK_WS === 'true'` 时不连接 WebSocket，Toast 通过 HTTP mock 触发。
+   - **策略 3（保底）**：`useAdminWebSocket` 必须实现 `maxReconnectAttempts` 上限与静默失败逻辑，连接失败后不抛出未捕获异常，确保不依赖 WS 的现有 E2E 仍能正常通过。
 
 4. **改造 `useNotifications.ts`**:
 
@@ -873,7 +899,7 @@ export async function apiFetch<T>(
 - **移除** `"ignoreDeprecations": "6.0"`
 - **`vite.config.ts`**: 增加 `build.sourcemap: true`
 - **`src/stores/auth.ts`**: `localStorage` → `sessionStorage`
-- **修复 `scrollRef` 自动滚动失效（审阅补充）**: `ChatMessageList` 中应通过 `ScrollAreaPrimitive.Viewport` 的 `ref` 暴露可滚动容器，`App.tsx` 改为滚动 `Viewport` 而非 `Root`
+- **修复 `scrollRef` 自动滚动失效（审阅补充）**: 需修改 `frontend/src/components/ui/scroll-area.tsx` 以暴露 `viewportRef` 属性，将 `ref` 绑定到 `ScrollAreaPrimitive.Viewport` 而非 `Root`，然后在 `ChatMessageList` / `App.tsx` 中通过 `viewportRef` 控制滚动（二次审阅补充）
 - **移除 `FC` 类型注解（审阅补充）**: `apps/customer/App.tsx` 等文件中 `const App: FC = () =>` 改为标准函数组件写法
 - **清理空 `catch` 块（审阅补充）**: `apps/customer/App.tsx` 中 `handleLogin` 的空 `catch {}` 改为至少记录错误或显示提示
 
@@ -968,13 +994,14 @@ class Settings(BaseSettings):
 7. **验收**: `pytest` 全绿，`ruff`/`ty` 全绿
 
 ### 里程碑 3: P2 前端加固 (Week 3)
-1. 修正 `package.json` 依赖，重新安装
+1. 修正 `package.json` 依赖（含 TypeScript 降级、react-router v6、@types/node 修正），重新安装
 2. 引入 `zod`，定义共享 Schema
-3. 统一 `src/lib/api.ts`，改造各 hooks
-4. 修复 `useNotifications.ts` + Dashboard 集成
+3. 统一 `src/lib/api.ts`，改造各 hooks（SSE `/chat` 继续使用原生 `fetch`，不纳入 `apiFetch`）
+4. 新建 `useAdminWebSocket.ts`，修复 `useNotifications.ts` + Dashboard 集成
 5. `localStorage` → `sessionStorage`
-6. 升级 `tsconfig.json` target
-7. **验收**: `npm run build` 成功，E2E 测试通过
+6. 升级 `tsconfig.json` target 与 lib，配置 `vite.config.ts` sourcemap
+7. 修复 `scrollRef` 自动滚动失效
+8. **验收**: `npm run build` 成功，E2E 测试通过
 
 ### 里程碑 4: P3 长期优化 (Week 4)
 1. 升级 FastAPI、Starlette、Typer、bcrypt
