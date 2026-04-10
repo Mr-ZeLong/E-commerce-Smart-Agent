@@ -12,7 +12,6 @@ from alembic import op
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
 import sqlmodel
-from pgvector.sqlalchemy import Vector  # ty: ignore[unresolved-import]
 
 # revision identifiers, used by Alembic.
 revision: str = "9ff6463efa95"
@@ -28,7 +27,7 @@ def upgrade() -> None:
         "knowledge_chunks",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("content", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("embedding", Vector(1024), nullable=True),
+        sa.Column("embedding", sa.Text(), nullable=True),
         sa.Column("source", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("meta_data", sa.JSON(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False),
