@@ -30,6 +30,7 @@ async def create_admin_user() -> tuple[User, str]:
         session.add(user)
         await session.commit()
         await session.refresh(user)
+        assert user.id is not None
         token = create_access_token(user_id=user.id, is_admin=True)
         return user, token
 
@@ -50,11 +51,13 @@ async def create_regular_user() -> User:
         session.add(user)
         await session.commit()
         await session.refresh(user)
+        assert user.id is not None
         return user
 
 
 async def create_order_and_refund(user: User) -> tuple[Order, RefundApplication]:
     async with async_session_maker() as session:
+        assert user.id is not None
         order = Order(
             order_sn=f"ORD{uuid.uuid4().hex[:12].upper()}",
             user_id=user.id,
@@ -66,6 +69,7 @@ async def create_order_and_refund(user: User) -> tuple[Order, RefundApplication]
         session.add(order)
         await session.commit()
         await session.refresh(order)
+        assert order.id is not None
 
         refund = RefundApplication(
             order_id=order.id,
@@ -77,6 +81,7 @@ async def create_order_and_refund(user: User) -> tuple[Order, RefundApplication]
         session.add(refund)
         await session.commit()
         await session.refresh(refund)
+        assert refund.id is not None
         return order, refund
 
 
@@ -87,6 +92,7 @@ async def create_audit_log(
     action: AuditAction = AuditAction.PENDING,
 ) -> AuditLog:
     async with async_session_maker() as session:
+        assert user.id is not None
         thread_id = build_thread_id(user.id, f"test_thread_{uuid.uuid4().hex[:8]}")
         log = AuditLog(
             thread_id=thread_id,
@@ -126,6 +132,7 @@ async def test_get_admin_tasks_returns_pending_tasks_for_admin(client):
 @pytest.mark.asyncio
 async def test_get_admin_tasks_rejects_non_admin_token(client):
     user = await create_regular_user()
+    assert user.id is not None
     token = create_access_token(user_id=user.id, is_admin=False)
 
     response = await client.get(
@@ -298,6 +305,7 @@ async def test_admin_decision_returns_400_for_already_processed_audit_log(client
 @pytest.mark.asyncio
 async def test_admin_decision_rejects_non_admin_token(client):
     user = await create_regular_user()
+    assert user.id is not None
     order, refund = await create_order_and_refund(user)
     audit_log = await create_audit_log(
         user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING

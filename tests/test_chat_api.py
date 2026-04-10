@@ -30,6 +30,7 @@ async def auth_token():
         session.add(user)
         await session.commit()
         await session.refresh(user)
+        assert user.id is not None
         token = create_access_token(user_id=user.id, is_admin=False)
 
     yield token

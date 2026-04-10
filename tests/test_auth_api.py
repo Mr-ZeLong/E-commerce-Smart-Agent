@@ -26,6 +26,7 @@ async def test_login_success_returns_token_response(client):
         session.add(user)
         await session.commit()
         await session.refresh(user)
+        assert user.id is not None
         user_id = user.id
 
     response = await client.post(
@@ -209,6 +210,7 @@ async def test_me_valid_token_returns_user_info(client):
         session.add(user)
         await session.commit()
         await session.refresh(user)
+        assert user.id is not None
         token = create_access_token(user_id=user.id, is_admin=False)
 
     response = await client.get(
