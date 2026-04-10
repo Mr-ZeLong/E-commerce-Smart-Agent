@@ -141,6 +141,7 @@ async def test_handle_refund_request_success(order_service: OrderService):
         )
 
     assert isinstance(result, AgentResult)
+    assert result.updated_state is not None
     assert "✅" in result.response
     assert result.updated_state["refund_flow_active"] is True
     assert result.updated_state["order_data"]["order_sn"] == "SN20240001"
@@ -156,6 +157,7 @@ async def test_handle_refund_request_missing_order_sn(order_service: OrderServic
     result = await order_service.handle_refund_request("我要退货", user_id=1)
 
     assert isinstance(result, AgentResult)
+    assert result.updated_state is not None
     assert "请提供订单号" in result.response
     assert result.updated_state["refund_flow_active"] is False
 
@@ -184,6 +186,7 @@ async def test_handle_refund_request_order_not_found(order_service: OrderService
         )
 
     assert isinstance(result, AgentResult)
+    assert result.updated_state is not None
     assert "未找到订单" in result.response
     assert result.updated_state["refund_flow_active"] is False
 
@@ -215,6 +218,7 @@ async def test_handle_refund_request_order_id_none(order_service: OrderService):
         )
 
     assert isinstance(result, AgentResult)
+    assert result.updated_state is not None
     assert "订单数据异常" in result.response
     assert result.updated_state["refund_flow_active"] is False
 
@@ -255,6 +259,7 @@ async def test_handle_refund_request_refund_failed(order_service: OrderService):
         )
 
     assert isinstance(result, AgentResult)
+    assert result.updated_state is not None
     assert "超期" in result.response
     assert result.updated_state["refund_flow_active"] is False
     assert result.updated_state["order_data"]["order_sn"] == "SN20240001"
