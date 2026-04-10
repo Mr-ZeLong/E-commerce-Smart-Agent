@@ -1,4 +1,5 @@
 # app/api/v1/chat.py
+import asyncio
 import json
 import logging
 
@@ -16,10 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/chat")
-async def chat(
-    request: ChatRequest,
-    current_user_id: int = Depends(get_current_user_id)
-):
+async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_user_id)):
     """
     聊天接口：支持订单查询和政策咨询
 
@@ -34,7 +32,7 @@ async def chat(
     if app_graph is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Chat service is not fully initialized. Please try again in a moment."
+            detail="Chat service is not fully initialized. Please try again in a moment.",
         )
 
     async def event_generator():
@@ -73,9 +71,7 @@ async def chat(
         final_state = {}
 
         try:
-            async for event in app_graph.astream_events(
-                initial_state, config, version="v2"
-            ):
+            async for event in app_graph.astream_events(initial_state, config, version="v2"):
                 kind = event["event"]
 
                 # 处理 LLM 流式输出 - 只处理用户可见的 Agent 输出
@@ -88,9 +84,9 @@ async def chat(
                     # 只转发标记为 user_visible 的输出
                     # 过滤掉 router 和内部置信度评估的调用
                     is_internal = (
-                        langgraph_node == "router_node" or
-                        "confidence_eval" in tags or
-                        "internal" in tags
+                        langgraph_node == "router_node"
+                        or "confidence_eval" in tags
+                        or "internal" in tags
                     )
 
                     if is_internal:
@@ -118,11 +114,16 @@ async def chat(
                     if output and isinstance(output, dict):
                         # 从 router/policy/order 节点获取 answer 发送给用户
                         # (对于 OrderAgent 等非 LLM 节点，answer 直接来自 state)
-                        if langgraph_node in ("router_node", "policy_agent", "order_agent") and "answer" in output:
+                        if (
+                            langgraph_node in ("router_node", "policy_agent", "order_agent")
+                            and "answer" in output
+                        ):
                             answer = output["answer"]
-                            if answer and answer not in getattr(event_generator, '_sent_answers', set()):
+                            if answer and answer not in getattr(
+                                event_generator, "_sent_answers", set()
+                            ):
                                 # 避免重复发送相同的 answer
-                                if not hasattr(event_generator, '_sent_answers'):
+                                if not hasattr(event_generator, "_sent_answers"):
                                     event_generator._sent_answers = set()
                                 event_generator._sent_answers.add(answer)
                                 payload = json.dumps({"token": answer}, ensure_ascii=False)
@@ -154,6 +155,9 @@ async def chat(
 
             yield "data: [DONE]\n\n"
 
+        except asyncio.CancelledError:
+            logger.info("[Chat] Client disconnected (CancelledError)")
+            raise
         except Exception:
             logger.exception("[Chat] SSE streaming error")
             error_payload = json.dumps(

@@ -106,7 +106,7 @@ def test_process_refund_payment_not_found():
         # Celery 任务会在异常时调用 self.retry，但测试中 .run() 会直接抛出原始异常
         try:
             process_refund_payment.run(999, 99.9, "alipay")
-            assert False, "应抛出异常"
+            raise AssertionError("应抛出异常")
         except ValueError as e:
             assert "Refund application 999 not found" in str(e)
 
@@ -122,7 +122,7 @@ def test_notify_admin_audit_not_found():
     with patch("app.tasks.refund_tasks.async_session_maker", maker):
         try:
             notify_admin_audit.run(999)
-            assert False, "应抛出异常"
+            raise AssertionError("应抛出异常")
         except ValueError as e:
             assert "Audit log 999 not found" in str(e)
 
@@ -145,6 +145,6 @@ def test_notify_admin_audit_commit_exception():
     with patch("app.tasks.refund_tasks.async_session_maker", maker):
         try:
             notify_admin_audit.run(5)
-            assert False, "应抛出异常"
+            raise AssertionError("应抛出异常")
         except Exception as e:
             assert "DB write failed" in str(e)

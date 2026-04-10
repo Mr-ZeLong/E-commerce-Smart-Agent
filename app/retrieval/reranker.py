@@ -22,14 +22,16 @@ class QwenReranker:
     ):
         # Use the correct DashScope rerank endpoint, not the OpenAI chat endpoint
         self.base_url = (base_url or "https://dashscope.aliyuncs.com/compatible-api/v1").rstrip("/")
-        self.api_key = api_key or getattr(settings, "DASHSCOPE_API_KEY", None) or settings.OPENAI_API_KEY
+        self.api_key = (
+            api_key or getattr(settings, "DASHSCOPE_API_KEY", None) or settings.OPENAI_API_KEY
+        )
         self.model = model or settings.RERANK_MODEL
         self.timeout = timeout
         self.max_document_chars = max_document_chars
 
     def _truncate(self, text: str) -> str:
         if len(text) > self.max_document_chars:
-            return text[:self.max_document_chars]
+            return text[: self.max_document_chars]
         return text
 
     async def rerank(

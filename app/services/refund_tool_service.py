@@ -1,6 +1,7 @@
 """
 Refund Tool Service: 封装 LangGraph Tools 所需的数据库交互与业务逻辑
 """
+
 from sqlmodel import select
 
 from app.core.database import async_session_maker
@@ -22,9 +23,7 @@ async def check_refund_eligibility(order_sn: str, user_id: int) -> str:
         if not order:
             return f"❌ 未找到订单 {order_sn}，或您无权访问此订单。"
 
-        is_eligible, message = await RefundEligibilityChecker.check_eligibility(
-            order, session
-        )
+        is_eligible, message = await RefundEligibilityChecker.check_eligibility(order, session)
 
         if is_eligible:
             return (
@@ -36,17 +35,11 @@ async def check_refund_eligibility(order_sn: str, user_id: int) -> str:
                 f"检查结果：{message}"
             )
         else:
-            return (
-                f"❌ 订单 {order_sn} 不符合退货条件。\n"
-                f"拒绝原因：{message}"
-            )
+            return f"❌ 订单 {order_sn} 不符合退货条件。\n拒绝原因：{message}"
 
 
 async def submit_refund_application(
-    order_sn: str,
-    user_id: int,
-    reason_detail: str,
-    reason_category: str | None = None
+    order_sn: str, user_id: int, reason_detail: str, reason_category: str | None = None
 ) -> str:
     """提交退货申请。"""
     async with async_session_maker() as session:
@@ -62,7 +55,7 @@ async def submit_refund_application(
             user_id=user_id,
             reason_detail=reason_detail,
             reason_category=category,
-            session=session
+            session=session,
         )
 
         if success and refund_data:
@@ -89,9 +82,7 @@ async def query_refund_status(user_id: int, refund_id: int | None = None) -> str
     async with async_session_maker() as session:
         if refund_id:
             refund = await RefundApplicationService.get_refund_by_id(
-                refund_id=refund_id,
-                user_id=user_id,
-                session=session
+                refund_id=refund_id, user_id=user_id, session=session
             )
 
             if not refund:
@@ -112,19 +103,19 @@ async def query_refund_status(user_id: int, refund_id: int | None = None) -> str
                 f"  - 退款金额：¥{refund.refund_amount}\n"
                 f"  - 申请时间：{refund.created_at.strftime('%Y-%m-%d %H:%M')}\n"
                 f"  - 退货原因：{refund.reason_detail}\n\n"
-                f"{(
-                    '审核信息：\n  - 审核时间：'
-                    + refund.reviewed_at.strftime('%Y-%m-%d %H:%M')
-                    if refund.reviewed_at
-                    else '⏳ 审核中，请耐心等待'
-                )}\n"
+                f"{
+                    (
+                        '审核信息：\n  - 审核时间：' + refund.reviewed_at.strftime('%Y-%m-%d %H:%M')
+                        if refund.reviewed_at
+                        else '⏳ 审核中，请耐心等待'
+                    )
+                }\n"
                 f"{('  - 审核备注：' + refund.admin_note) if refund.admin_note else ''}"
             )
 
         else:
             refund_list = await RefundApplicationService.get_user_refund_applications(
-                user_id=user_id,
-                session=session
+                user_id=user_id, session=session
             )
 
             if not refund_list:
@@ -142,7 +133,7 @@ async def query_refund_status(user_id: int, refund_id: int | None = None) -> str
                     "APPROVED": "✅",
                     "REJECTED": "❌",
                     "COMPLETED": "🎉",
-                    "CANCELLED": "🚫"
+                    "CANCELLED": "🚫",
                 }.get(refund.status, "❓")
 
                 result_text += (

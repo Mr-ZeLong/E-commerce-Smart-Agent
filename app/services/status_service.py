@@ -56,7 +56,7 @@ class StatusService:
                         "risk_level": latest_audit.risk_level,
                         "trigger_reason": latest_audit.trigger_reason,
                     },
-                    timestamp=latest_audit.created_at.isoformat()
+                    timestamp=latest_audit.created_at.isoformat(),
                 )
             elif latest_audit.action == AuditAction.APPROVE:
                 return StatusResponse(
@@ -65,9 +65,11 @@ class StatusService:
                     message="审核通过，正在处理退款.. .",
                     data={
                         "admin_comment": latest_audit.admin_comment,
-                        "reviewed_at": latest_audit.reviewed_at.isoformat() if latest_audit.reviewed_at else None,
+                        "reviewed_at": latest_audit.reviewed_at.isoformat()
+                        if latest_audit.reviewed_at
+                        else None,
                     },
-                    timestamp=latest_audit.updated_at.isoformat()
+                    timestamp=latest_audit.updated_at.isoformat(),
                 )
             elif latest_audit.action == AuditAction.REJECT:
                 return StatusResponse(
@@ -76,9 +78,11 @@ class StatusService:
                     message=f"审核未通过:  {latest_audit.admin_comment or '请联系客服'}",
                     data={
                         "admin_comment": latest_audit.admin_comment,
-                        "reviewed_at": latest_audit.reviewed_at.isoformat() if latest_audit.reviewed_at else None,
+                        "reviewed_at": latest_audit.reviewed_at.isoformat()
+                        if latest_audit.reviewed_at
+                        else None,
                     },
-                    timestamp=latest_audit.updated_at.isoformat()
+                    timestamp=latest_audit.updated_at.isoformat(),
                 )
 
         # 4. No audit log found – return PROCESSING
@@ -87,5 +91,5 @@ class StatusService:
             status="PROCESSING",
             message="正在处理您的请求...",
             data={},
-            timestamp=latest_message.created_at.isoformat() if latest_message else ""
+            timestamp=latest_message.created_at.isoformat() if latest_message else "",
         )

@@ -27,10 +27,7 @@ class PolicyAgent(BaseAgent):
     """
 
     def __init__(self):
-        super().__init__(
-            name="policy",
-            system_prompt=POLICY_SYSTEM_PROMPT
-        )
+        super().__init__(name="policy", system_prompt=POLICY_SYSTEM_PROMPT)
 
     async def process(self, state: dict[str, Any]) -> AgentResult:
         """处理政策咨询"""
@@ -41,16 +38,11 @@ class PolicyAgent(BaseAgent):
 
         # 构建 RetrievalResult（使用新的统一封装）
         retrieval_result = RetrievalResult(
-            chunks=chunks,
-            similarities=similarities,
-            sources=sources
+            chunks=chunks, similarities=similarities, sources=sources
         )
 
         # Step 2: 构建消息并生成回复
-        messages = self._create_messages(
-            question,
-            context={"context": chunks}
-        )
+        messages = self._create_messages(question, context={"context": chunks})
 
         # 标记为用户可见的输出
         response = await self._call_llm(messages, tags=["user_visible"])
@@ -65,17 +57,14 @@ class PolicyAgent(BaseAgent):
             updated_state={
                 "retrieval_result": retrieval_result,  # 使用新的统一封装
                 "context": chunks,  # 向后兼容
-                "answer": response
+                "answer": response,
             },
             confidence=confidence,
             needs_human=needs_human,
             transfer_reason=transfer_reason,
         )
 
-    async def _retrieve_knowledge(
-        self,
-        question: str
-    ) -> tuple[list[str], list[float], list[str]]:
+    async def _retrieve_knowledge(self, question: str) -> tuple[list[str], list[float], list[str]]:
         retriever = get_retriever()
         results = await retriever.retrieve(question)
         chunks = [r.content for r in results]
@@ -83,5 +72,3 @@ class PolicyAgent(BaseAgent):
         sources = [r.source for r in results]
         logger.info(f"[PolicyAgent] 检索到 {len(results)} 条有效结果")
         return chunks, similarities, sources
-
-

@@ -67,7 +67,9 @@ class HybridRetriever:
 
         # Try rerank; on failure return RRF/dense results with original scores
         try:
-            reranked = await self.reranker.rerank(rewritten, documents, top_n=settings.RETRIEVER_FINAL_TOPK)
+            reranked = await self.reranker.rerank(
+                rewritten, documents, top_n=settings.RETRIEVER_FINAL_TOPK
+            )
         except Exception:
             reranked = None
 
@@ -78,7 +80,7 @@ class HybridRetriever:
                     results.append(self._to_chunk(scored_points[r.index], r.score))
         else:
             # Fallback: return top results from Qdrant with their original scores
-            for point in scored_points[:settings.RETRIEVER_FINAL_TOPK]:
+            for point in scored_points[: settings.RETRIEVER_FINAL_TOPK]:
                 results.append(self._to_chunk(point, point.score))
 
         return results

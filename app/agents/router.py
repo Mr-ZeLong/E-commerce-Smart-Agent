@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class Intent(str, Enum):
     """意图枚举（向后兼容）"""
+
     ORDER = "ORDER"
     POLICY = "POLICY"
     REFUND = "REFUND"
@@ -42,6 +43,7 @@ class RouterState(TypedDict, total=False):
         intent: 向后兼容的意图枚举
         next_agent: 下一个路由的Agent名称
     """
+
     question: str
     thread_id: str
     user_id: str | int
@@ -86,6 +88,7 @@ class IntentRouterAgent(BaseAgent):
         """初始化IntentRouterAgent。"""
         super().__init__(name="intent_router", system_prompt=None)
         from app.core.redis import get_redis_client
+
         self.intent_service = IntentRecognitionService(redis_client=get_redis_client())
         logger.debug("IntentRouterAgent initialized")
 
@@ -112,8 +115,7 @@ class IntentRouterAgent(BaseAgent):
         user_id = router_state.get("user_id")
 
         logger.info(
-            "Processing query for user_id=%s, session_id=%s, query='%s'",
-            user_id, session_id, query
+            "Processing query for user_id=%s, session_id=%s, query='%s'", user_id, session_id, query
         )
 
         # 意图识别
@@ -125,16 +127,14 @@ class IntentRouterAgent(BaseAgent):
         )
         logger.info(
             "Intent recognized: primary=%s, confidence=%.2f",
-            result.primary_intent, result.confidence
+            result.primary_intent,
+            result.confidence,
         )
 
         # 映射到向后兼容的意图格式
         legacy_intent = self._map_to_legacy_intent(result)
         next_agent = self._route_by_intent(result)
-        logger.debug(
-            "Routing decision: legacy_intent=%s, next_agent=%s",
-            legacy_intent, next_agent
-        )
+        logger.debug("Routing decision: legacy_intent=%s, next_agent=%s", legacy_intent, next_agent)
 
         # 需要澄清
         if result.needs_clarification or result.missing_slots:
@@ -155,7 +155,7 @@ class IntentRouterAgent(BaseAgent):
                     # 向后兼容字段
                     "intent": legacy_intent,
                     "next_agent": next_agent,
-                }
+                },
             )
 
         # 意图清晰，路由到对应Agent
@@ -173,21 +173,21 @@ class IntentRouterAgent(BaseAgent):
         # 对于闲聊/OTHER意图，直接返回问候回复（向后兼容行为）
         if legacy_intent == Intent.OTHER:
             logger.info("OTHER intent detected, returning greeting response")
-            return AgentResult(
-                response=self.GREETING_RESPONSE,
-                updated_state=dict(updated_state)
-            )
+            return AgentResult(response=self.GREETING_RESPONSE, updated_state=dict(updated_state))
 
-        if next_agent == "supervisor" and result.primary_intent in (IntentCategory.PRODUCT, IntentCategory.RECOMMENDATION):
+        if next_agent == "supervisor" and result.primary_intent in (
+            IntentCategory.PRODUCT,
+            IntentCategory.RECOMMENDATION,
+        ):
             return AgentResult(
                 response="抱歉，目前暂时不支持商品查询和推荐服务，已为您转接人工客服。",
-                updated_state=dict(updated_state)
+                updated_state=dict(updated_state),
             )
 
         logger.info("Routing to agent: %s", next_agent)
         return AgentResult(
             response="",  # 由下一个Agent生成
-            updated_state=dict(updated_state)
+            updated_state=dict(updated_state),
         )
 
     def _route_by_intent(self, result: IntentResult) -> str:
@@ -202,8 +202,7 @@ class IntentRouterAgent(BaseAgent):
         mapping = _INTENT_MAPPINGS.get(result.primary_intent)
         target_agent = mapping["agent"] if mapping else "supervisor"
         logger.debug(
-            "Routing map: primary_intent=%s -> target_agent=%s",
-            result.primary_intent, target_agent
+            "Routing map: primary_intent=%s -> target_agent=%s", result.primary_intent, target_agent
         )
         return target_agent
 
@@ -221,7 +220,6 @@ class IntentRouterAgent(BaseAgent):
             return mapping["legacy"]
         logger.warning("Unknown primary_intent=%s, defaulting to OTHER", result.primary_intent)
         return Intent.OTHER
-
 
 
 # 向后兼容别名

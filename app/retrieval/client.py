@@ -22,7 +22,9 @@ class QdrantKnowledgeClient:
         elif url == ":memory:":
             self.client = AsyncQdrantClient(location=":memory:", timeout=settings.QDRANT_TIMEOUT)
         else:
-            self.client = AsyncQdrantClient(url=url, api_key=api_key, timeout=settings.QDRANT_TIMEOUT)
+            self.client = AsyncQdrantClient(
+                url=url, api_key=api_key, timeout=settings.QDRANT_TIMEOUT
+            )
 
     async def aclose(self) -> None:
         await self.client.close()
@@ -37,9 +39,7 @@ class QdrantKnowledgeClient:
             vectors_config={
                 "dense": VectorParams(size=settings.EMBEDDING_DIM, distance=Distance.COSINE)
             },
-            sparse_vectors_config={
-                "sparse": SparseVectorParams(modifier=Modifier.IDF)
-            },
+            sparse_vectors_config={"sparse": SparseVectorParams(modifier=Modifier.IDF)},
         )
 
     async def recreate_collection(self) -> None:

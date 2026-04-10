@@ -3,7 +3,7 @@ from typing import Any
 
 from app.confidence.signals import ConfidenceSignals
 from app.core.config import settings
-from app.models.state import AgentState
+from app.models.state import AgentStatePartial
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +12,7 @@ class ConfidenceEvaluator:
     """负责置信度评估"""
 
     async def evaluate(
-        self,
-        question: str,
-        answer: str,
-        history: list,
-        retrieval_result: Any | None
+        self, question: str, answer: str, history: list, retrieval_result: Any | None
     ) -> dict:
         """
         计算置信度并返回评估结果字典，包含：
@@ -26,8 +22,8 @@ class ConfidenceEvaluator:
         - transfer_reason
         - audit_level
         """
-        # 构建临时状态用于信号计算
-        temp_state: AgentState = {
+        # 构建临时状态用于信号计算（仅作为信号计算器的输入字典，无需满足完整 AgentState 约束）
+        temp_state: AgentStatePartial = {
             "question": question,
             "history": history,
             "retrieval_result": retrieval_result,
@@ -40,9 +36,9 @@ class ConfidenceEvaluator:
         # 计算加权总分
         weights = settings.CONFIDENCE.default_weights
         overall_score = (
-            signals["rag"].score * weights["rag"] +
-            signals["llm"].score * weights["llm"] +
-            signals["emotion"].score * weights["emotion"]
+            signals["rag"].score * weights["rag"]
+            + signals["llm"].score * weights["llm"]
+            + signals["emotion"].score * weights["emotion"]
         )
 
         # 确定审核级别

@@ -97,7 +97,12 @@ async def test_submit_refund_application_success():
             return_value=(
                 True,
                 "退货申请已提交（申请编号：7），等待审核",
-                {"refund_id": 7, "amount": 199.0, "status": RefundStatus.PENDING, "reason_detail": "质量问题"},
+                {
+                    "refund_id": 7,
+                    "amount": 199.0,
+                    "status": RefundStatus.PENDING,
+                    "reason_detail": "质量问题",
+                },
             ),
         ),
     ):
@@ -129,9 +134,7 @@ async def test_submit_refund_application_failure():
             return_value=(False, "该订单不符合退货条件：已超过退货期限", None),
         ),
     ):
-        result = await refund_tool_service.submit_refund_application(
-            "SN20240001", 1, "不想要了"
-        )
+        result = await refund_tool_service.submit_refund_application("SN20240001", 1, "不想要了")
 
     assert "❌" in result
     assert "退货申请失败" in result

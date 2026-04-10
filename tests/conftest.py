@@ -1,3 +1,5 @@
+import tests._db_config  # noqa: F401, I001
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -23,7 +25,5 @@ async def db_setup():
 @pytest_asyncio.fixture
 async def client():
     limiter.reset()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

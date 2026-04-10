@@ -479,9 +479,7 @@ class TestMultiIntentProcessorProcess:
         assert result.sub_intents[0].primary_intent == IntentCategory.ORDER
 
         # 验证分类器被调用时history被转换为context dict
-        mock_classifier.classify.assert_called_once_with(
-            "查询订单", {"history": history}
-        )
+        mock_classifier.classify.assert_called_once_with("查询订单", {"history": history})
 
     @pytest.mark.asyncio
     async def test_process_classifier_returns_none(self) -> None:

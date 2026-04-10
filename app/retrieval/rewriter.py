@@ -29,9 +29,9 @@ class QueryRewriter:
 
     async def rewrite(self, query: str) -> str:
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content=REWRITE_PROMPT.format(question=query))
-            ])
+            response = await self.llm.ainvoke(
+                [SystemMessage(content=REWRITE_PROMPT.format(question=query))]
+            )
             text = str(response.content).strip()
             for line in text.splitlines():
                 line = line.strip()

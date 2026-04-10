@@ -56,19 +56,22 @@ class TestExplicitSwitchDetection:
     """测试显式话题切换检测"""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("keyword", [
-        "换个话题",
-        "另外",
-        "还有",
-        "对了",
-        "顺便问",
-        "不说这个",
-        "问别的",
-        "还有一个问题",
-        "by the way",
-        "另外问一下",
-        "再问一个",
-    ])
+    @pytest.mark.parametrize(
+        "keyword",
+        [
+            "换个话题",
+            "另外",
+            "还有",
+            "对了",
+            "顺便问",
+            "不说这个",
+            "问别的",
+            "还有一个问题",
+            "by the way",
+            "另外问一下",
+            "再问一个",
+        ],
+    )
     async def test_explicit_switch_keywords(self, detector, order_query_result, keyword):
         """测试各种显式切换关键词"""
         result = await detector.detect(
@@ -138,9 +141,7 @@ class TestImplicitSwitchDetection:
         assert result.should_reset_context is False
 
     @pytest.mark.asyncio
-    async def test_confidence_drop_below_threshold(
-        self, detector, order_query_result
-    ):
+    async def test_confidence_drop_below_threshold(self, detector, order_query_result):
         """测试置信度下降但未超过阈值"""
         # 前一个意图置信度 0.9，当前 0.7，下降 0.2 < 0.3 阈值
         slight_drop_result = IntentResult(
@@ -159,9 +160,7 @@ class TestImplicitSwitchDetection:
         assert result.is_switch is False or "兼容" in result.reason
 
     @pytest.mark.asyncio
-    async def test_intent_change_with_low_confidence(
-        self, detector, order_query_result
-    ):
+    async def test_intent_change_with_low_confidence(self, detector, order_query_result):
         """测试意图变化且置信度低"""
         # 意图变化且置信度低于 0.5 阈值
         # Note: confidence_drop = 0.9 - 0.4 = 0.5 > 0.3, so it triggers confidence drop first
@@ -180,12 +179,13 @@ class TestImplicitSwitchDetection:
         assert result.is_switch is True
         assert result.switch_type == "implicit"
         # Could be either "置信度下降" or "意图变化" depending on which triggers first
-        assert ("置信度下降" in result.reason or "意图变化" in result.reason)
+        assert "置信度下降" in result.reason or "意图变化" in result.reason
         assert result.should_reset_context is False
 
     @pytest.mark.asyncio
     async def test_intent_change_with_high_confidence_incompatible(
-        self, detector, order_query_result, product_query_result):
+        self, detector, order_query_result, product_query_result
+    ):
         """测试意图变化但置信度高（不兼容意图）"""
         # ORDER/QUERY 和 PRODUCT/QUERY 不在兼容性矩阵中
         # 即使置信度高，不兼容意图也会触发切换
@@ -253,9 +253,7 @@ class TestIntentCompatibility:
         assert result.should_reset_context is False
 
     @pytest.mark.asyncio
-    async def test_incompatible_intents(
-        self, detector, order_query_result
-    ):
+    async def test_incompatible_intents(self, detector, order_query_result):
         """测试不兼容意图触发切换"""
         # Create an incompatible intent with similar confidence to avoid confidence drop trigger
         # ORDER/QUERY 和 ACCOUNT/QUERY 不在兼容性矩阵中
@@ -322,9 +320,7 @@ class TestEdgeCases:
     """测试边界情况"""
 
     @pytest.mark.asyncio
-    async def test_exact_confidence_drop_threshold(
-        self, detector, order_query_result
-    ):
+    async def test_exact_confidence_drop_threshold(self, detector, order_query_result):
         """测试恰好等于置信度下降阈值"""
         # Note: Due to floating point, 0.9 - 0.6 = 0.30000000000000004 > 0.3
         # So this actually triggers the confidence drop detection
@@ -346,9 +342,7 @@ class TestEdgeCases:
         assert "置信度下降" in result.reason
 
     @pytest.mark.asyncio
-    async def test_exact_confidence_threshold(
-        self, detector, order_query_result
-    ):
+    async def test_exact_confidence_threshold(self, detector, order_query_result):
         """测试恰好等于置信度阈值"""
         # 意图变化且置信度恰好为 0.5
         exact_threshold_result = IntentResult(

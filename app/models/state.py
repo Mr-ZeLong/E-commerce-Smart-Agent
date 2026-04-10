@@ -7,6 +7,7 @@ from typing import Annotated, Any, TypedDict
 @dataclass
 class RetrievalResult:
     """统一封装检索结果"""
+
     chunks: list[str]
     similarities: list[float]
     sources: list[str]
@@ -77,7 +78,16 @@ class AgentState(TypedDict):
     refund_step: str | None
 
 
+class AgentStatePartial(TypedDict, total=False):
+    """Agent 状态部分定义，用于仅需填充部分字段的场景（如信号计算）"""
+
+    question: str
+    history: Annotated[list[dict], operator.add]
+    retrieval_result: RetrievalResult | None
+
+
 # ========== 状态转换工具函数 ==========
+
 
 def normalize_state(state: dict) -> dict:
     """

@@ -11,15 +11,13 @@ from app.core.config import settings
 engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 
 # 2. 创建 Session 工厂
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
+async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 
 # 3. FastAPI 依赖注入函数 (Dependency)
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
+
 
 # engine and session factory are ready for use

@@ -39,9 +39,7 @@ class TestWebsocketSecurity:
         thread_id = "my-thread"
         expected_scoped = build_thread_id(7, thread_id)
 
-        with self.client.websocket_connect(
-            f"/api/v1/ws/{thread_id}?token={token}"
-        ) as websocket:
+        with self.client.websocket_connect(f"/api/v1/ws/{thread_id}?token={token}"):
             assert 7 in manager.active_connections
             assert expected_scoped in manager.active_connections[7]
 
@@ -51,11 +49,10 @@ class TestWebsocketSecurity:
         token_b = create_access_token(user_id=2, is_admin=False)
         thread_id = "shared-thread"
 
-        with self.client.websocket_connect(
-            f"/api/v1/ws/{thread_id}?token={token_a}"
-        ) as websocket_a, self.client.websocket_connect(
-            f"/api/v1/ws/{thread_id}?token={token_b}"
-        ) as websocket_b:
+        with (
+            self.client.websocket_connect(f"/api/v1/ws/{thread_id}?token={token_a}"),
+            self.client.websocket_connect(f"/api/v1/ws/{thread_id}?token={token_b}"),
+        ):
             scoped_a = build_thread_id(1, thread_id)
             scoped_b = build_thread_id(2, thread_id)
 
@@ -65,9 +62,10 @@ class TestWebsocketSecurity:
 
     def test_invalid_token_does_not_leak_details(self):
         """无效 Token 时不应向客户端暴露内部错误详情。"""
-        with pytest.raises(WebSocketDisconnect) as exc_info, self.client.websocket_connect(
-            "/api/v1/ws/some-thread?token=bad-token"
-        ) as websocket:
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            self.client.websocket_connect("/api/v1/ws/some-thread?token=bad-token") as websocket,
+        ):
             websocket.receive_text()
 
         assert exc_info.value.code == 1008
@@ -75,9 +73,10 @@ class TestWebsocketSecurity:
 
     def test_admin_invalid_token_does_not_leak_details(self):
         """管理员端点无效 Token 时不应向客户端暴露内部错误详情。"""
-        with pytest.raises(WebSocketDisconnect) as exc_info, self.client.websocket_connect(
-            "/api/v1/ws/admin/1?token=bad-token"
-        ) as websocket:
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            self.client.websocket_connect("/api/v1/ws/admin/1?token=bad-token") as websocket,
+        ):
             websocket.receive_text()
 
         assert exc_info.value.code == 1008
@@ -86,9 +85,10 @@ class TestWebsocketSecurity:
     def test_admin_id_mismatch_does_not_leak_details(self):
         """管理员 ID 不匹配时不应向客户端暴露内部错误详情。"""
         token = create_access_token(user_id=5, is_admin=True)
-        with pytest.raises(WebSocketDisconnect) as exc_info, self.client.websocket_connect(
-            f"/api/v1/ws/admin/999?token={token}"
-        ) as websocket:
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            self.client.websocket_connect(f"/api/v1/ws/admin/999?token={token}") as websocket,
+        ):
             websocket.receive_text()
 
         assert exc_info.value.code == 1008
@@ -98,12 +98,14 @@ class TestWebsocketSecurity:
         """非认证相关的异常应返回 Connection error。"""
         token = create_access_token(user_id=1, is_admin=False)
 
-        with pytest.raises(WebSocketDisconnect) as exc_info, patch(
-            "app.api.v1.websocket.manager.connect_user",
-            side_effect=RuntimeError("boom"),
-        ), self.client.websocket_connect(
-            f"/api/v1/ws/some-thread?token={token}"
-        ) as websocket:
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            patch(
+                "app.api.v1.websocket.manager.connect_user",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.client.websocket_connect(f"/api/v1/ws/some-thread?token={token}") as websocket,
+        ):
             websocket.receive_text()
 
         assert exc_info.value.code == 1008

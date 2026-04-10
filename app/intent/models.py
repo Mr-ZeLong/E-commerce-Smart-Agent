@@ -10,6 +10,7 @@ from typing import Any
 
 class IntentCategory(str, Enum):
     """一级意图：业务域"""
+
     ORDER = "ORDER"
     AFTER_SALES = "AFTER_SALES"
     POLICY = "POLICY"
@@ -26,6 +27,7 @@ class IntentCategory(str, Enum):
 
 class IntentAction(str, Enum):
     """二级意图：动作类型"""
+
     QUERY = "QUERY"
     APPLY = "APPLY"
     MODIFY = "MODIFY"
@@ -38,6 +40,7 @@ class IntentAction(str, Enum):
 
 class SlotPriority(str, Enum):
     """槽位优先级"""
+
     P0 = "P0"  # 必须
     P1 = "P1"  # 重要
     P2 = "P2"  # 可选
@@ -46,6 +49,7 @@ class SlotPriority(str, Enum):
 @dataclass
 class Slot:
     """槽位定义"""
+
     name: str
     description: str
     priority: SlotPriority
@@ -56,6 +60,7 @@ class Slot:
 @dataclass
 class IntentResult:
     """意图识别结果"""
+
     primary_intent: IntentCategory
     secondary_intent: IntentAction
     tertiary_intent: str | None = None
@@ -83,6 +88,7 @@ class IntentResult:
 @dataclass
 class ClarificationState:
     """澄清状态"""
+
     session_id: str
     current_intent: IntentResult | None = None
     clarification_round: int = 0

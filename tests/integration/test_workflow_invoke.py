@@ -58,9 +58,7 @@ async def test_workflow_order_query():
         (),
         {
             "response": "订单状态：已发货",
-            "updated_state": {
-                "order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}
-            },
+            "updated_state": {"order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}},
             "needs_human": False,
             "transfer_reason": None,
         },

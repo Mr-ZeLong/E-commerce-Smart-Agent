@@ -3,6 +3,7 @@
 WebSocket 连接管理器
 负责维护客户端连接、广播消息、状态同步
 """
+
 import asyncio
 import logging
 
@@ -139,12 +140,14 @@ class ConnectionManager:
 
         # 如果是需要审核的状态，同时通知管理员
         if status == "WAITING_ADMIN":
-            await self.broadcast_to_admins({
-                "type": "new_audit_task",
-                "thread_id":  thread_id,
-                "data": data,
-                "timestamp": utc_now().isoformat(),
-            })
+            await self.broadcast_to_admins(
+                {
+                    "type": "new_audit_task",
+                    "thread_id": thread_id,
+                    "data": data,
+                    "timestamp": utc_now().isoformat(),
+                }
+            )
 
 
 # 全局单例

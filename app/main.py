@@ -34,11 +34,13 @@ async def lifespan(app: FastAPI):
     # Shutdown: close cached Qdrant client if it was created
     try:
         from app.retrieval import get_retriever
+
         retriever = get_retriever()
         await retriever.qdrant_client.aclose()
         logger.info(" Qdrant client closed.")
     except Exception:
         logger.warning("⚠️  Failed to close Qdrant client during shutdown")
+
 
 if "*" in settings.CORS_ORIGINS:
     raise RuntimeError(
@@ -60,7 +62,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty: ignore
 
 formatter = logging.Formatter(
     "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
@@ -83,6 +85,7 @@ async def correlation_id_middleware(request: Request, call_next):
     response.headers["X-Correlation-ID"] = cid
     return response
 
+
 # 1. 配置跨域
 app.add_middleware(
     CORSMiddleware,
@@ -103,24 +106,33 @@ app.include_router(admin_router, prefix=settings.API_V1_STR, tags=["Admin"])
 app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocket"])
 
 # 3. 静态文件托管
-frontend_dist_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'dist')
+frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
 if os.path.exists(frontend_dist_path):
-    @app.get('/app/{full_path:path}')
+
+    @app.get("/app/{full_path:path}")
     async def serve_customer_spa(full_path: str):
-        return FileResponse(os.path.join(frontend_dist_path, 'customer', 'index.html'))
+        return FileResponse(os.path.join(frontend_dist_path, "customer", "index.html"))
 
-    app.mount('/app', StaticFiles(directory=os.path.join(frontend_dist_path, 'customer'), html=True), name='customer_app')
+    app.mount(
+        "/app",
+        StaticFiles(directory=os.path.join(frontend_dist_path, "customer"), html=True),
+        name="customer_app",
+    )
 
-    @app.get('/admin/{full_path:path}')
+    @app.get("/admin/{full_path:path}")
     async def serve_admin_spa(full_path: str):
-        return FileResponse(os.path.join(frontend_dist_path, 'admin', 'index.html'))
+        return FileResponse(os.path.join(frontend_dist_path, "admin", "index.html"))
 
-    app.mount('/admin', StaticFiles(directory=os.path.join(frontend_dist_path, 'admin'), html=True), name='admin_app')
+    app.mount(
+        "/admin",
+        StaticFiles(directory=os.path.join(frontend_dist_path, "admin"), html=True),
+        name="admin_app",
+    )
 
-    @app.get('/')
+    @app.get("/")
     async def root():
-        return RedirectResponse(url='/app')
+        return RedirectResponse(url="/app")
 
 
 @app.get("/health")
@@ -136,6 +148,6 @@ async def health_check():
             "退货申请",
             "人工审核",
             "实时状态同步",
-            "管理员工作台"
-        ]
+            "管理员工作台",
+        ],
     }

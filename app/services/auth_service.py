@@ -14,15 +14,14 @@ from app.models.user import User
 
 def create_user_token(user: User) -> str:
     """Wrap create_access_token and return the JWT string for a user."""
-    return create_access_token(user_id=user.id, is_admin=user.is_admin)  # type: ignore[arg-type]
+    assert user.id is not None
+    return create_access_token(user_id=user.id, is_admin=user.is_admin)
 
 
 class AuthService:
     """Service layer for authentication operations."""
 
-    async def authenticate_user(
-        self, session: AsyncSession, username: str, password: str
-    ) -> User:
+    async def authenticate_user(self, session: AsyncSession, username: str, password: str) -> User:
         """
         Query user by username and verify credentials.
 

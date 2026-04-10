@@ -29,9 +29,7 @@ class TestAuthenticateUser:
     @pytest.mark.asyncio
     async def test_user_not_found_raises_401(self):
         mock_session = AsyncMock()
-        mock_session.exec = AsyncMock(
-            return_value=MagicMock(first=MagicMock(return_value=None))
-        )
+        mock_session.exec = AsyncMock(return_value=MagicMock(first=MagicMock(return_value=None)))
 
         service = AuthService()
         with pytest.raises(HTTPException) as exc_info:
@@ -81,13 +79,13 @@ class TestRegisterUser:
     async def test_success_creates_user(self):
         mock_session = AsyncMock()
         mock_session.begin = MagicMock(return_value=AsyncMock())
-        mock_session.exec = AsyncMock(
-            return_value=MagicMock(first=MagicMock(return_value=None))
-        )
+        mock_session.exec = AsyncMock(return_value=MagicMock(first=MagicMock(return_value=None)))
         mock_session.add = MagicMock()
 
         service = AuthService()
-        with patch("app.services.auth_service.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        with patch(
+            "app.services.auth_service.asyncio.to_thread", new_callable=AsyncMock
+        ) as mock_to_thread:
             mock_to_thread.return_value = "hashed_password"
             user = await service.register_user(
                 mock_session,

@@ -8,12 +8,12 @@ authors = [
     { name = "Dev", email = "wangweiqiang24@mails.ucas.edu.cn" }
 ]
 dependencies = [
-    "fastapi>=0.128.0",
+    "fastapi>=0.115.0,<0.120.0",
     "uvicorn[standard]>=0.40.0",
     "python-multipart>=0.0.21",
     "sqlmodel>=0.0.31",
     "asyncpg>=0.31.0",
-    "psycopg2>=2.9.11",
+    "psycopg2-binary>=2.9.11",
     "pydantic-settings>=2.12.0",
     "httpx>=0.28.1",
     "redis>=7.1.0",
@@ -24,12 +24,14 @@ dependencies = [
     "langchain-community>=0.4.1",
     "langchain-text-splitters>=0.3.0",
     "pypdf>=6.6.0",
+    "typer<0.16.0",  # Prevent pulling annotated-doc typosquatting via huggingface-hub
     "tenacity>=9.1.2",
     "pyjwt>=2.10.1",
     "langgraph-checkpoint-redis>=0.3.2",
     "celery>=5.6.2",
+    "click-plugins==1.1.1",  # Pin to avoid malicious 1.1.1.2 version
     "websockets>=14.1",
-    "bcrypt>=4.0.1",
+    "bcrypt>=4.0.1,<5.0",
     "email-validator>=2.3.0",
     "qdrant-client>=1.16.0",
     "fastembed>=0.6.0",
@@ -54,12 +56,13 @@ dev = [
     "ty>=0.0.29",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=6.0.0",
 ]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-exclude = ["migrations/", "scripts/", "test/", "celery_worker.py"]
+exclude = ["migrations/", "scripts/", "celery_worker.py"]
 
 [tool.ruff.lint]
 select = [

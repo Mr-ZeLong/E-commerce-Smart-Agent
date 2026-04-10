@@ -2,6 +2,7 @@
 """
 LangGraph Tools: Agent 可调用的工具函数
 """
+
 from typing import Annotated
 
 from langchain_core.tools import tool
@@ -21,10 +22,11 @@ from app.services.refund_tool_service import (
 # 工具 1: 检查退货资格
 # ==========================================
 
+
 @tool
 async def check_refund_eligibility(
-    order_sn:  Annotated[str, Field(description="订单号，格式如 SN20240001")],
-    user_id: Annotated[int, Field(description="当前登录用户的ID")]
+    order_sn: Annotated[str, Field(description="订单号，格式如 SN20240001")],
+    user_id: Annotated[int, Field(description="当前登录用户的ID")],
 ) -> str:
     """
     检查订单是否符合退货条件。
@@ -44,6 +46,7 @@ async def check_refund_eligibility(
 # 工具 2: 提交退货申请
 # ==========================================
 
+
 @tool
 async def submit_refund_application(
     order_sn: Annotated[str, Field(description="订单号，格式如 SN20240001")],
@@ -55,8 +58,8 @@ async def submit_refund_application(
             description="退货原因分类，可选值: "
             "QUALITY_ISSUE(质量问题), SIZE_NOT_FIT(尺码不合适), "
             "NOT_AS_DESCRIBED(与描述不符), CHANGED_MIND(不想要了), OTHER(其他)"
-        )
-    ] = None
+        ),
+    ] = None,
 ) -> str:
     """
     提交退货申请。
@@ -81,13 +84,13 @@ async def submit_refund_application(
 # 工具 3: 查询退货申请状态
 # ==========================================
 
+
 @tool
 async def query_refund_status(
     user_id: Annotated[int, Field(description="当前登录用户的ID")],
     refund_id: Annotated[
-        int | None,
-        Field(description="退货申请编号，如果不提供则返回用户所有退货申请")
-    ] = None
+        int | None, Field(description="退货申请编号，如果不提供则返回用户所有退货申请")
+    ] = None,
 ) -> str:
     """
     查询退货申请状态。
@@ -109,8 +112,4 @@ async def query_refund_status(
 # ==========================================
 
 # 将所有工具放入列表，供 LangGraph 使用
-refund_tools = [
-    check_refund_eligibility,
-    submit_refund_application,
-    query_refund_status
-]
+refund_tools = [check_refund_eligibility, submit_refund_application, query_refund_status]

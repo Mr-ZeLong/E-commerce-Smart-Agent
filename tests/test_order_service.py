@@ -27,13 +27,16 @@ async def test_get_order_for_user_with_order_sn(order_service: OrderService):
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(
-        "app.services.order_service.async_session_maker",
-        return_value=mock_session,
-    ) as mock_maker, patch(
-        "app.services.order_service.get_order_by_sn",
-        new_callable=AsyncMock,
-        return_value=mock_order,
+    with (
+        patch(
+            "app.services.order_service.async_session_maker",
+            return_value=mock_session,
+        ) as mock_maker,
+        patch(
+            "app.services.order_service.get_order_by_sn",
+            new_callable=AsyncMock,
+            return_value=mock_order,
+        ),
     ):
         result = await order_service.get_order_for_user("SN20240001", 1)
 
@@ -114,7 +117,12 @@ async def test_handle_refund_request_success(order_service: OrderService):
             return_value=(
                 True,
                 "退货申请已提交（申请编号：7），等待审核",
-                {"refund_id": 7, "amount": 199.0, "status": RefundStatus.PENDING, "reason_detail": "质量问题"},
+                {
+                    "refund_id": 7,
+                    "amount": 199.0,
+                    "status": RefundStatus.PENDING,
+                    "reason_detail": "质量问题",
+                },
             ),
         ),
         patch(

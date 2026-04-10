@@ -166,9 +166,7 @@ class TestProcessAdminDecision:
     @pytest.mark.asyncio
     async def test_404_for_missing_audit_log(self):
         mock_session = AsyncMock()
-        mock_session.exec = AsyncMock(
-            return_value=_make_exec_result(None)
-        )
+        mock_session.exec = AsyncMock(return_value=_make_exec_result(None))
 
         service = AdminService()
         with pytest.raises(AuditNotFoundError):
@@ -186,9 +184,7 @@ class TestProcessAdminDecision:
         mock_audit_log = MagicMock(spec=AuditLog)
         mock_audit_log.action = AuditAction.APPROVE
 
-        mock_session.exec = AsyncMock(
-            return_value=_make_exec_result(mock_audit_log)
-        )
+        mock_session.exec = AsyncMock(return_value=_make_exec_result(mock_audit_log))
 
         service = AdminService()
         with pytest.raises(AuditAlreadyProcessedError):

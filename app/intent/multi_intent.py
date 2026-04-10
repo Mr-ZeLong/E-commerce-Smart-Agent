@@ -67,7 +67,6 @@ class MultiIntentProcessor:
         "还有",
         "另外",
         "以及",
-
         "，然后",
         "。另外",
         "。还有",
@@ -96,9 +95,7 @@ class MultiIntentProcessor:
             ValueError: 如果mode参数无效
         """
         if mode not in self.VALID_MODES:
-            raise ValueError(
-                f"Invalid mode: {mode}. Must be one of {self.VALID_MODES}"
-            )
+            raise ValueError(f"Invalid mode: {mode}. Must be one of {self.VALID_MODES}")
 
         self.classifier = classifier
         self.mode = mode
@@ -170,9 +167,7 @@ class MultiIntentProcessor:
         for i, segment in enumerate(segments):
             if self.classifier:
                 try:
-                    logger.debug(
-                        "Classifying segment %d/%d: %s", i + 1, len(segments), segment
-                    )
+                    logger.debug("Classifying segment %d/%d: %s", i + 1, len(segments), segment)
                     result = await self.classifier.classify(segment.strip(), context)
                     if result:
                         sub_intents.append(result)

@@ -3,7 +3,7 @@
 认证 API - 登录、注册
 """
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -21,12 +21,14 @@ def get_auth_service() -> AuthService:
 
 class LoginRequest(BaseModel):
     """登录请求"""
+
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
     password: str = Field(..., min_length=6, description="密码")
 
 
 class RegisterRequest(BaseModel):
     """注册请求"""
+
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
     password: str = Field(..., min_length=6, description="密码")
     email: EmailStr = Field(..., description="邮箱")
@@ -36,6 +38,7 @@ class RegisterRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     """Token 响应"""
+
     access_token: str
     token_type: str = "bearer"
     user_id: int
@@ -46,6 +49,7 @@ class TokenResponse(BaseModel):
 
 class UserInfoResponse(BaseModel):
     """用户信息响应"""
+
     user_id: int
     username: str
     email: str
@@ -66,10 +70,12 @@ async def login(
 ):
     """用户登录 - 验证用户名和密码，返回 JWT Token"""
     user = await service.authenticate_user(session, body.username, body.password)
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="用户 ID 缺失，请联系管理员")
     token = create_user_token(user)
     return TokenResponse(
         access_token=token,
-        user_id=user.id,  # type: ignore[arg-type]
+        user_id=user.id,
         username=user.username,
         full_name=user.full_name,
         is_admin=user.is_admin,
@@ -94,10 +100,12 @@ async def register(
         full_name=body.full_name,
         phone=body.phone,
     )
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="用户 ID 缺失，请联系管理员")
     token = create_user_token(user)
     return TokenResponse(
         access_token=token,
-        user_id=user.id,  # type: ignore[arg-type]
+        user_id=user.id,
         username=user.username,
         full_name=user.full_name,
         is_admin=user.is_admin,
@@ -112,8 +120,10 @@ async def get_current_user_info(
 ):
     """获取当前登录用户信息"""
     user = await service.get_user_info(session, current_user_id)
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="用户 ID 缺失，请联系管理员")
     return UserInfoResponse(
-        user_id=user.id,  # type: ignore[arg-type]
+        user_id=user.id,
         username=user.username,
         email=user.email,
         full_name=user.full_name,

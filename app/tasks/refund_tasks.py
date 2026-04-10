@@ -2,6 +2,7 @@
 """
 退款相关异步任务
 """
+
 import asyncio
 import concurrent.futures
 import logging
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class DatabaseTask(Task):
     """支持异步数据库操作的 Celery Task 基类"""
+
     _session = None
 
     def run_async(self, coro):
@@ -36,13 +38,9 @@ class DatabaseTask(Task):
 
 
 @celery_app.task(
-    bind=True,
-    base=DatabaseTask,
-    name="refund.send_sms",
-    max_retries=3,
-    default_retry_delay=60
+    bind=True, base=DatabaseTask, name="refund.send_sms", max_retries=3, default_retry_delay=60
 )
-def send_refund_sms(self, refund_id: int, phone:  str, message: str) -> dict[str, Any]:
+def send_refund_sms(self, refund_id: int, phone: str, message: str) -> dict[str, Any]:
     """
     发送退款通知短信
 
@@ -57,6 +55,7 @@ def send_refund_sms(self, refund_id: int, phone:  str, message: str) -> dict[str
 
         # 模拟短信发送
         import time
+
         time.sleep(2)
 
         # 记录发送成功
@@ -78,9 +77,11 @@ def send_refund_sms(self, refund_id: int, phone:  str, message: str) -> dict[str
     base=DatabaseTask,
     name="refund.process_payment",
     max_retries=3,
-    default_retry_delay=120
+    default_retry_delay=120,
 )
-def process_refund_payment(self, refund_id: int, amount: float, payment_method: str) -> dict[str, Any]:
+def process_refund_payment(
+    self, refund_id: int, amount: float, payment_method: str
+) -> dict[str, Any]:
     """
     调用支付网关执行退款
 
@@ -89,6 +90,7 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
         amount: 退款金额
         payment_method: 支付方式
     """
+
     async def _process():
         try:
             async with async_session_maker() as session:
@@ -106,6 +108,7 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
 
                 # 模拟支付网关调用
                 import time
+
                 time.sleep(3)
 
                 # 更新退款状态
@@ -132,12 +135,7 @@ def process_refund_payment(self, refund_id: int, amount: float, payment_method: 
         raise self.retry(exc=exc)
 
 
-@celery_app.task(
-    bind=True,
-    base=DatabaseTask,
-    name="refund.notify_admin",
-    max_retries=2
-)
+@celery_app.task(bind=True, base=DatabaseTask, name="refund.notify_admin", max_retries=2)
 def notify_admin_audit(self, audit_log_id: int) -> dict[str, Any]:
     """
     通知管理员有新的审核任务
@@ -145,6 +143,7 @@ def notify_admin_audit(self, audit_log_id: int) -> dict[str, Any]:
     Args:
         audit_log_id: 审计日志ID
     """
+
     async def _notify():
         async with async_session_maker() as session:
             # 查询审计日志

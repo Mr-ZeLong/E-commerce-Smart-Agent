@@ -15,6 +15,7 @@ from app.intent.slot_validator import SlotValidationResult, SlotValidator
 @dataclass
 class ClarificationResponse:
     """澄清响应"""
+
     response: str
     state: ClarificationState
     is_complete: bool = False
@@ -40,17 +41,25 @@ class ClarificationEngine:
 
     # 用户拒绝关键词
     REFUSAL_KEYWORDS = [
-        "不知道", "不记得", "没有", "不想说", "不方便",
-        "算了", "不用了", "不用", "别问了", "随便",
+        "不知道",
+        "不记得",
+        "没有",
+        "不想说",
+        "不方便",
+        "算了",
+        "不用了",
+        "不用",
+        "别问了",
+        "随便",
     ]
 
     def __init__(self, slot_validator: SlotValidator | None = None):
         self.slot_validator = slot_validator or SlotValidator()
         self.degradation_strategies = [
-            self._degradation_optional,      # 策略1: 设为可选
-            self._degradation_infer,         # 策略2: 智能推断
-            self._degradation_skip,          # 策略3: 跳过
-            self._degradation_escalate,      # 策略4: 转人工
+            self._degradation_optional,  # 策略1: 设为可选
+            self._degradation_infer,  # 策略2: 智能推断
+            self._degradation_skip,  # 策略3: 跳过
+            self._degradation_escalate,  # 策略4: 转人工
         ]
 
     async def generate_clarification(
@@ -125,11 +134,13 @@ class ClarificationEngine:
         # TODO: 实现LLM槽位提取以处理 "我的订单号是 SN001" -> "SN001"
         if state.pending_slot:
             state.collected_slots[state.pending_slot] = user_response.strip()
-            state.clarification_history.append({
-                "slot": state.pending_slot,
-                "value": user_response.strip(),
-                "type": "provided",
-            })
+            state.clarification_history.append(
+                {
+                    "slot": state.pending_slot,
+                    "value": user_response.strip(),
+                    "type": "provided",
+                }
+            )
             state.pending_slot = None
 
         # 检查是否完成
@@ -138,8 +149,12 @@ class ClarificationEngine:
 
             # 构建临时结果用于验证
             temp_result = IntentResult(
-                primary_intent=state.current_intent.primary_intent if state.current_intent else None,  # type: ignore
-                secondary_intent=state.current_intent.secondary_intent if state.current_intent else None,  # type: ignore
+                primary_intent=state.current_intent.primary_intent
+                if state.current_intent
+                else None,  # type: ignore
+                secondary_intent=state.current_intent.secondary_intent
+                if state.current_intent
+                else None,  # type: ignore
                 slots=state.collected_slots,
             )
 
@@ -165,12 +180,10 @@ class ClarificationEngine:
 
     def _generate_question(self, slot_name: str, suggestions: list[str]) -> str:
         """生成询问问题"""
-        base_question = self.SLOT_QUESTION_TEMPLATES.get(
-            slot_name, f"请问{slot_name}是什么？"
-        )
+        base_question = self.SLOT_QUESTION_TEMPLATES.get(slot_name, f"请问{slot_name}是什么？")
 
         if suggestions:
-            suggestion_text = " / ".join(suggestions[:self.MAX_SUGGESTIONS])
+            suggestion_text = " / ".join(suggestions[: self.MAX_SUGGESTIONS])
             return f"{base_question}（可选：{suggestion_text}）"
 
         return base_question

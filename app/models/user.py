@@ -2,17 +2,19 @@
 """
 用户模型 - 支持真实登录认证
 """
+
 from datetime import datetime
 
 import bcrypt
 from sqlalchemy import text
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import naive_utc_now, utc_now
+from app.core.utils import naive_utc_now
 
 
 class User(SQLModel, table=True):
     """用户表"""
+
     __tablename__ = "users"
 
     id: int | None = Field(default=None, primary_key=True)
@@ -35,15 +37,15 @@ class User(SQLModel, table=True):
     # 时间戳
     created_at: datetime = Field(
         default_factory=naive_utc_now,
-        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")},
     )
 
     updated_at: datetime = Field(
         default_factory=naive_utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
-            "onupdate": text("CURRENT_TIMESTAMP")
-        }
+            "onupdate": text("CURRENT_TIMESTAMP"),
+        },
     )
 
     @staticmethod

@@ -12,16 +12,24 @@ async def test_retriever_orchestrates_all_steps():
 
     qdrant_client = AsyncMock()
     qdrant_client.query_hybrid.return_value = [
-        type("P", (), {
-            "id": 1,
-            "score": 0.1,
-            "payload": {"content": "c1", "source": "s1", "meta_data": {}},
-        })(),
-        type("P", (), {
-            "id": 2,
-            "score": 0.05,
-            "payload": {"content": "c2", "source": "s2", "meta_data": {}},
-        })(),
+        type(
+            "P",
+            (),
+            {
+                "id": 1,
+                "score": 0.1,
+                "payload": {"content": "c1", "source": "s1", "meta_data": {}},
+            },
+        )(),
+        type(
+            "P",
+            (),
+            {
+                "id": 2,
+                "score": 0.05,
+                "payload": {"content": "c2", "source": "s2", "meta_data": {}},
+            },
+        )(),
     ]
 
     dense_embedder = AsyncMock()
@@ -58,11 +66,15 @@ async def test_retriever_fallback_to_dense_when_sparse_fails():
 
     qdrant_client = AsyncMock()
     qdrant_client.query_dense.return_value = [
-        type("P", (), {
-            "id": 1,
-            "score": 0.2,
-            "payload": {"content": "dense_only", "source": "s1"},
-        })(),
+        type(
+            "P",
+            (),
+            {
+                "id": 1,
+                "score": 0.2,
+                "payload": {"content": "dense_only", "source": "s1"},
+            },
+        )(),
     ]
 
     dense_embedder = AsyncMock()
@@ -97,11 +109,15 @@ async def test_retriever_fallback_to_qdrant_scores_when_rerank_fails():
 
     qdrant_client = AsyncMock()
     qdrant_client.query_hybrid.return_value = [
-        type("P", (), {
-            "id": 1,
-            "score": 0.77,
-            "payload": {"content": "c1", "source": "s1", "meta_data": {}},
-        })(),
+        type(
+            "P",
+            (),
+            {
+                "id": 1,
+                "score": 0.77,
+                "payload": {"content": "c1", "source": "s1", "meta_data": {}},
+            },
+        )(),
     ]
 
     dense_embedder = AsyncMock()

@@ -68,22 +68,17 @@ class TestRecognizeMethod:
     @pytest.mark.asyncio
     async def test_recognize_safe_query_single_intent(self, service):
         """测试安全查询的单意图识别"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            service.multi_intent_processor, "process", new_callable=AsyncMock
-        ) as mock_multi, \
-             patch.object(
-            service.classifier, "classify", new_callable=AsyncMock
-        ) as mock_classify, \
-             patch.object(
-            service.slot_validator, "validate"
-        ) as mock_validate, \
-             patch.object(
-            service.topic_switch_detector, "detect", new_callable=AsyncMock
-        ) as mock_detect:
-
+        with (
+            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
+            patch.object(
+                service.multi_intent_processor, "process", new_callable=AsyncMock
+            ) as mock_multi,
+            patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
+            patch.object(service.slot_validator, "validate") as mock_validate,
+            patch.object(
+                service.topic_switch_detector, "detect", new_callable=AsyncMock
+            ) as mock_detect,
+        ):
             # 设置安全检查结果
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
@@ -110,9 +105,7 @@ class TestRecognizeMethod:
             )
 
             # 设置话题切换检测结果
-            mock_detect.return_value = MagicMock(
-                is_switch=False, should_reset_context=False
-            )
+            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
 
             result = await service.recognize("查询订单SN001", "session_123")
 
@@ -124,9 +117,7 @@ class TestRecognizeMethod:
     @pytest.mark.asyncio
     async def test_recognize_unsafe_query(self, service):
         """测试不安全查询的处理"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety:
+        with patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety:
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=False,
                 risk_level="high",
@@ -200,19 +191,18 @@ class TestRecognizeMethod:
         }
         mock_redis_service.redis.get.return_value = json.dumps(state_data)
 
-        with patch.object(
-            mock_redis_service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            mock_redis_service.multi_intent_processor, "process", new_callable=AsyncMock
-        ) as mock_multi, \
-             patch.object(
-            mock_redis_service.slot_validator, "validate"
-        ) as mock_validate, \
-             patch.object(
-            mock_redis_service.topic_switch_detector, "detect", new_callable=AsyncMock
-        ) as mock_detect:
-
+        with (
+            patch.object(
+                mock_redis_service.safety_filter, "check", new_callable=AsyncMock
+            ) as mock_safety,
+            patch.object(
+                mock_redis_service.multi_intent_processor, "process", new_callable=AsyncMock
+            ) as mock_multi,
+            patch.object(mock_redis_service.slot_validator, "validate") as mock_validate,
+            patch.object(
+                mock_redis_service.topic_switch_detector, "detect", new_callable=AsyncMock
+            ) as mock_detect,
+        ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -234,9 +224,7 @@ class TestRecognizeMethod:
                 is_complete=True, missing_slots=[], missing_p0_slots=[]
             )
 
-            mock_detect.return_value = MagicMock(
-                is_switch=True, should_reset_context=True
-            )
+            mock_detect.return_value = MagicMock(is_switch=True, should_reset_context=True)
 
             result = await mock_redis_service.recognize("我要退货", "session_123")
 
@@ -253,19 +241,14 @@ class TestRecognizeMethod:
     @pytest.mark.asyncio
     async def test_recognize_needs_clarification(self, service):
         """测试需要澄清的情况"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            service.classifier, "classify", new_callable=AsyncMock
-        ) as mock_classify, \
-             patch.object(
-            service.slot_validator, "validate"
-        ) as mock_validate, \
-             patch.object(
-            service.topic_switch_detector, "detect", new_callable=AsyncMock
-        ) as mock_detect:
-
+        with (
+            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
+            patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
+            patch.object(service.slot_validator, "validate") as mock_validate,
+            patch.object(
+                service.topic_switch_detector, "detect", new_callable=AsyncMock
+            ) as mock_detect,
+        ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -280,9 +263,7 @@ class TestRecognizeMethod:
                 missing_slots=["order_sn", "action_type"],
                 missing_p0_slots=["order_sn", "action_type"],
             )
-            mock_detect.return_value = MagicMock(
-                is_switch=False, should_reset_context=False
-            )
+            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
 
             result = await service.recognize("我要申请售后", "session_123")
 
@@ -293,19 +274,16 @@ class TestRecognizeMethod:
     @pytest.mark.asyncio
     async def test_recognize_multi_intent(self, service):
         """测试多意图处理"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            service.multi_intent_processor, "process", new_callable=AsyncMock
-        ) as mock_multi, \
-             patch.object(
-            service.slot_validator, "validate"
-        ) as mock_validate, \
-             patch.object(
-            service.topic_switch_detector, "detect", new_callable=AsyncMock
-        ) as mock_detect:
-
+        with (
+            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
+            patch.object(
+                service.multi_intent_processor, "process", new_callable=AsyncMock
+            ) as mock_multi,
+            patch.object(service.slot_validator, "validate") as mock_validate,
+            patch.object(
+                service.topic_switch_detector, "detect", new_callable=AsyncMock
+            ) as mock_detect,
+        ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -326,9 +304,7 @@ class TestRecognizeMethod:
             mock_validate.return_value = SlotValidationResult(
                 is_complete=True, missing_slots=[], missing_p0_slots=[]
             )
-            mock_detect.return_value = MagicMock(
-                is_switch=False, should_reset_context=False
-            )
+            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
 
             result = await service.recognize("查询订单SN001，另外我要退货", "session_123")
 
@@ -429,13 +405,16 @@ class TestClarifyMethod:
         }
         mock_redis_service.redis.get.return_value = json.dumps(state_data)
 
-        with patch.object(
-            mock_redis_service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            mock_redis_service.clarification_engine, "handle_user_response", new_callable=AsyncMock
-        ) as mock_handle:
-
+        with (
+            patch.object(
+                mock_redis_service.safety_filter, "check", new_callable=AsyncMock
+            ) as mock_safety,
+            patch.object(
+                mock_redis_service.clarification_engine,
+                "handle_user_response",
+                new_callable=AsyncMock,
+            ) as mock_handle,
+        ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -772,9 +751,7 @@ class TestSafetyFilterIntegration:
     @pytest.mark.asyncio
     async def test_recognize_with_injection_attack(self, service):
         """测试注入攻击的处理"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety:
+        with patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety:
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=False,
                 risk_level="high",
@@ -790,9 +767,7 @@ class TestSafetyFilterIntegration:
     @pytest.mark.asyncio
     async def test_recognize_with_code_injection(self, service):
         """测试代码注入的处理"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety:
+        with patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety:
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=False,
                 risk_level="medium",
@@ -815,9 +790,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_recognize_empty_query(self, service):
         """测试空查询"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety:
+        with patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety:
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -839,19 +812,16 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_recognize_with_none_slots(self, service):
         """测试处理slots为None的情况"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            service.multi_intent_processor, "process", new_callable=AsyncMock
-        ) as mock_multi, \
-             patch.object(
-            service.slot_validator, "validate"
-        ) as mock_validate, \
-             patch.object(
-            service.topic_switch_detector, "detect", new_callable=AsyncMock
-        ) as mock_detect:
-
+        with (
+            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
+            patch.object(
+                service.multi_intent_processor, "process", new_callable=AsyncMock
+            ) as mock_multi,
+            patch.object(service.slot_validator, "validate") as mock_validate,
+            patch.object(
+                service.topic_switch_detector, "detect", new_callable=AsyncMock
+            ) as mock_detect,
+        ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -872,9 +842,7 @@ class TestEdgeCases:
             mock_validate.return_value = SlotValidationResult(
                 is_complete=True, missing_slots=[], missing_p0_slots=[]
             )
-            mock_detect.return_value = MagicMock(
-                is_switch=False, should_reset_context=False
-            )
+            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
 
             result = await service.recognize("查询订单", "session_123")
 
@@ -885,22 +853,17 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_multi_intent_with_empty_sub_intents(self, service):
         """测试多意图但子意图为空列表"""
-        with patch.object(
-            service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety, \
-             patch.object(
-            service.multi_intent_processor, "process", new_callable=AsyncMock
-        ) as mock_multi, \
-             patch.object(
-            service.classifier, "classify", new_callable=AsyncMock
-        ) as mock_classify, \
-             patch.object(
-            service.slot_validator, "validate"
-        ) as mock_validate, \
-             patch.object(
-            service.topic_switch_detector, "detect", new_callable=AsyncMock
-        ) as mock_detect:
-
+        with (
+            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
+            patch.object(
+                service.multi_intent_processor, "process", new_callable=AsyncMock
+            ) as mock_multi,
+            patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
+            patch.object(service.slot_validator, "validate") as mock_validate,
+            patch.object(
+                service.topic_switch_detector, "detect", new_callable=AsyncMock
+            ) as mock_detect,
+        ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
             )
@@ -922,9 +885,7 @@ class TestEdgeCases:
             mock_validate.return_value = SlotValidationResult(
                 is_complete=True, missing_slots=[], missing_p0_slots=[]
             )
-            mock_detect.return_value = MagicMock(
-                is_switch=False, should_reset_context=False
-            )
+            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
 
             result = await service.recognize("查询订单", "session_123")
 

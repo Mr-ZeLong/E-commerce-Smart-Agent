@@ -1,12 +1,13 @@
 # app/confidence/signals.py
 import asyncio
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.config import settings
 from app.core.llm_factory import create_openai_llm
 from app.core.utils import clamp_score
-from app.models.state import AgentState
 
 NEGATIVE_WORDS = frozenset(settings.NEGATIVE_WORDS)
 URGENT_WORDS = frozenset(settings.URGENT_WORDS)
@@ -16,6 +17,7 @@ POSITIVE_WORDS = frozenset(settings.POSITIVE_WORDS)
 @dataclass
 class SignalResult:
     """信号计算结果"""
+
     score: float
     reason: str
     metadata: dict | None = None
@@ -41,9 +43,9 @@ class RAGSignal:
         def _extract_tokens(text: str) -> set[str]:
             """提取中英文混合 token：中文字符单独提取，英文按空格分词保留长度>2的词。"""
             # 提取中文字符
-            chinese_chars = set(re.findall(r'[\u4e00-\u9fff]', text))
+            chinese_chars = set(re.findall(r"[\u4e00-\u9fff]", text))
             # 提取英文/数字词（长度>2）
-            words = {w.lower() for w in re.findall(r'[a-zA-Z0-9]+', text) if len(w) > 2}
+            words = {w.lower() for w in re.findall(r"[a-zA-Z0-9]+", text) if len(w) > 2}
             return chinese_chars | words
 
         query_tokens = _extract_tokens(query)
@@ -64,7 +66,7 @@ class RAGSignal:
                 "max_similarity": max_sim,
                 "avg_similarity": avg_sim,
                 "coverage": coverage,
-            }
+            },
         )
 
 
@@ -86,7 +88,7 @@ class LLMSignal:
         text = text.strip()
 
         # 优先匹配带百分号的
-        percent_match = re.search(r'(\d+\.?\d*)\s*%', text)
+        percent_match = re.search(r"(\d+\.?\d*)\s*%", text)
         if percent_match:
             try:
                 value = float(percent_match.group(1))
@@ -97,9 +99,9 @@ class LLMSignal:
 
         # 匹配其他格式
         patterns = [
-            r'置信度[：:]\s*(\d+\.?\d*)',
-            r'分数[是:：]\s*(\d+\.?\d*)',
-            r'(\d+\.?\d*)',
+            r"置信度[：:]\s*(\d+\.?\d*)",
+            r"分数[是:：]\s*(\d+\.?\d*)",
+            r"(\d+\.?\d*)",
         ]
 
         for pattern in patterns:
@@ -137,9 +139,9 @@ class LLMSignal:
                 # 标记为内部调用，避免被转发给用户
                 response = await self.llm.ainvoke(
                     [{"role": "user", "content": prompt}],
-                    config={"tags": ["confidence_eval", "internal"]}
+                    config={"tags": ["confidence_eval", "internal"]},
                 )
-                raw_text = response.content if hasattr(response, 'content') else str(response)
+                raw_text = response.content if hasattr(response, "content") else str(response)
 
                 score = self._parse_confidence_score(str(raw_text))
 
@@ -147,7 +149,7 @@ class LLMSignal:
                     return SignalResult(
                         score=score,
                         reason=f"LLM自评估(尝试{attempt + 1})",
-                        metadata={"raw_response": raw_text[:200]}
+                        metadata={"raw_response": raw_text[:200]},
                     )
 
                 if attempt < max_retries - 1:
@@ -161,7 +163,7 @@ class LLMSignal:
         return SignalResult(
             score=0.5,
             reason="解析失败，使用默认值",
-            metadata={"error": str(last_error) if last_error else "parse_failed"}
+            metadata={"error": str(last_error) if last_error else "parse_failed"},
         )
 
 
@@ -178,8 +180,8 @@ class EmotionSignal:
         """检测用户情感状态"""
         recent_history = history[-history_rounds:] if len(history) >= history_rounds else history
 
-        all_texts = [msg.get('content', '') for msg in recent_history] + [query]
-        all_text = ' '.join(all_texts).lower()
+        all_texts = [msg.get("content", "") for msg in recent_history] + [query]
+        all_text = " ".join(all_texts).lower()
 
         negative_count = sum(1 for w in NEGATIVE_WORDS if w in all_text)
         urgent_count = sum(1 for w in URGENT_WORDS if w in all_text)
@@ -211,22 +213,21 @@ class EmotionSignal:
                 "negative_count": negative_count,
                 "urgent_count": urgent_count,
                 "positive_count": positive_count,
-            }
+            },
         )
 
 
 class ConfidenceSignals:
     """置信度信号计算器（修复 asyncio.gather 使用）"""
 
-    def __init__(self, state: AgentState):
+    def __init__(self, state: Mapping[str, Any]):
         self.state = state
         self.rag_signal = RAGSignal()
         self.llm_signal = LLMSignal()
         self.emotion_signal = EmotionSignal()
 
     async def _calculate_with_timeout(
-        self,
-        generated_answer: str | None = None
+        self, generated_answer: str | None = None
     ) -> dict[str, SignalResult]:
         """内部计算逻辑"""
         retrieval_result = self.state.get("retrieval_result")
@@ -261,11 +262,11 @@ class ConfidenceSignals:
 
         # === 阶段 2: 智能跳过 LLMSignal ===
         should_skip_llm = (
-            settings.CONFIDENCE.SKIP_LLM_ON_CLEAR_RAG and
-            generated_answer is None and
-            (
-                results["rag"].score >= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_HIGH or
-                results["rag"].score <= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_LOW
+            settings.CONFIDENCE.SKIP_LLM_ON_CLEAR_RAG
+            and generated_answer is None
+            and (
+                results["rag"].score >= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_HIGH
+                or results["rag"].score <= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_LOW
             )
         )
 
@@ -274,7 +275,7 @@ class ConfidenceSignals:
             results["llm"] = SignalResult(
                 score=results["rag"].score,
                 reason=f"RAG信号明确({results['rag'].score:.2f})，跳过LLM",
-                metadata={"skipped": True}
+                metadata={"skipped": True},
             )
         elif generated_answer:
             context = retrieval_result.chunks if retrieval_result else []
@@ -288,17 +289,14 @@ class ConfidenceSignals:
 
         return results
 
-    async def calculate_all(
-        self,
-        generated_answer: str | None = None
-    ) -> dict[str, SignalResult]:
+    async def calculate_all(self, generated_answer: str | None = None) -> dict[str, SignalResult]:
         """
         计算所有信号（带超时控制）
         """
         try:
             return await asyncio.wait_for(
                 self._calculate_with_timeout(generated_answer),
-                timeout=settings.CONFIDENCE.CALCULATION_TIMEOUT_SECONDS
+                timeout=settings.CONFIDENCE.CALCULATION_TIMEOUT_SECONDS,
             )
         except TimeoutError:
             # 超时返回保守估计

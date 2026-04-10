@@ -27,9 +27,7 @@ async def test_check_eligibility_pass():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(
-            mock_order, mock_session
-        )
+        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is True
         assert msg == "订单符合退货条件"
 
@@ -43,9 +41,7 @@ async def test_check_eligibility_reject_by_order_status():
     mock_order.items = []
     mock_session = AsyncMock()
 
-    result, msg = await RefundEligibilityChecker.check_eligibility(
-        mock_order, mock_session
-    )
+    result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
     assert result is False
     assert "订单状态为" in msg and "PENDING" in msg
 
@@ -68,9 +64,7 @@ async def test_check_eligibility_reject_by_existing_refund():
         new_callable=AsyncMock,
         return_value=existing_refund,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(
-            mock_order, mock_session
-        )
+        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is False
         assert "已存在退货申请" in msg
 
@@ -90,9 +84,7 @@ async def test_check_eligibility_reject_by_time_limit():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(
-            mock_order, mock_session
-        )
+        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is False
         assert "已超过退货期限" in msg
 
@@ -112,9 +104,7 @@ async def test_check_eligibility_reject_by_category():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(
-            mock_order, mock_session
-        )
+        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is False
         assert "包含不可退货商品" in msg
 

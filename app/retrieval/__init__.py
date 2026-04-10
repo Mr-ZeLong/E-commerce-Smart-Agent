@@ -23,4 +23,3 @@ def get_retriever() -> HybridRetriever:
         reranker=QwenReranker(),
         rewriter=QueryRewriter(),
     )
-

@@ -400,7 +400,9 @@ class TestSafetyFilterSemantic:
         safety_filter.llm.ainvoke = AsyncMock(return_value=mock_response)
 
         # Query must be > 50 characters to trigger semantic check
-        result = await safety_filter.check("这是一个很长的正常查询，用于测试语义安全检测功能，内容应该是完全安全的，没有任何问题，请仔细检查确认。")
+        result = await safety_filter.check(
+            "这是一个很长的正常查询，用于测试语义安全检测功能，内容应该是完全安全的，没有任何问题，请仔细检查确认。"
+        )
         assert result.is_safe is True
         safety_filter.llm.ainvoke.assert_called_once()
 
@@ -412,7 +414,9 @@ class TestSafetyFilterSemantic:
         safety_filter.llm.ainvoke = AsyncMock(return_value=mock_response)
 
         # Query must be > 50 characters to trigger semantic check, avoid injection patterns
-        result = await safety_filter.check("这是一个很长的查询，内容包含一些不当的请求，可能存在问题需要仔细审查，请检查确认安全性问题，非常感谢。")
+        result = await safety_filter.check(
+            "这是一个很长的查询，内容包含一些不当的请求，可能存在问题需要仔细审查，请检查确认安全性问题，非常感谢。"
+        )
         assert result.is_safe is False
         assert result.risk_level == "high"
         assert result.risk_type == "semantic"
@@ -425,7 +429,9 @@ class TestSafetyFilterSemantic:
         safety_filter.llm.ainvoke = AsyncMock(return_value=mock_response)
 
         # Query must be > 50 characters, avoid injection patterns like "ignore"
-        result = await safety_filter.check("This is a very long query that contains some questionable content that needs review carefully.")
+        result = await safety_filter.check(
+            "This is a very long query that contains some questionable content that needs review carefully."
+        )
         assert result.is_safe is False
         assert result.risk_type == "semantic"
 
@@ -434,7 +440,9 @@ class TestSafetyFilterSemantic:
         """测试语义检测异常处理"""
         safety_filter.llm.ainvoke = AsyncMock(side_effect=Exception("LLM error"))
 
-        result = await safety_filter.check("这是一个很长的查询，用于测试异常情况处理，确保系统能够优雅地处理错误。")
+        result = await safety_filter.check(
+            "这是一个很长的查询，用于测试异常情况处理，确保系统能够优雅地处理错误。"
+        )
         # 异常时不应阻止查询，应视为安全
         assert result.is_safe is True
 
@@ -442,7 +450,9 @@ class TestSafetyFilterSemantic:
     async def test_semantic_check_no_llm(self):
         """测试无LLM时跳过语义检测"""
         safety_filter = SafetyFilter(llm=None)
-        result = await safety_filter.check("这是一个很长的查询，但没有配置LLM，所以应该跳过语义检测。")
+        result = await safety_filter.check(
+            "这是一个很长的查询，但没有配置LLM，所以应该跳过语义检测。"
+        )
         assert result.is_safe is True
 
 

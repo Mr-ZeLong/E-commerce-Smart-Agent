@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class AuditTask(BaseModel):
     """审核任务"""
+
     audit_log_id: int
     thread_id: str
     user_id: int
@@ -18,12 +19,14 @@ class AuditTask(BaseModel):
 
 class AdminDecisionRequest(BaseModel):
     """管理员决策请求"""
+
     action: Literal["APPROVE", "REJECT"]
     admin_comment: str | None = None
 
 
 class AdminDecisionResponse(BaseModel):
     """管理员决策响应"""
+
     success: bool
     message: str
     audit_log_id: int
@@ -32,6 +35,7 @@ class AdminDecisionResponse(BaseModel):
 
 class TaskStatsResponse(BaseModel):
     """任务统计响应"""
+
     risk_tasks: int
     confidence_tasks: int
     manual_tasks: int

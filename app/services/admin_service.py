@@ -46,9 +46,10 @@ def _build_audit_tasks(audit_logs: Sequence[AuditLog]) -> list[AuditTask]:
 
 async def _count_pending_by_trigger(session: AsyncSession, trigger_type: AuditTriggerType) -> int:
     """统计指定触发类型的待审核任务数量"""
-    stmt = select(func.count()).select_from(AuditLog).where(
-        AuditLog.action == AuditAction.PENDING,
-        AuditLog.trigger_type == trigger_type
+    stmt = (
+        select(func.count())
+        .select_from(AuditLog)
+        .where(AuditLog.action == AuditAction.PENDING, AuditLog.trigger_type == trigger_type)
     )
     result = await session.exec(stmt)
     return result.one()
@@ -67,11 +68,15 @@ class AdminService:
         self.manager = manager
         self.build_thread_id = build_thread_id
 
-    async def get_pending_tasks(self, session: AsyncSession, risk_level: str | None = None) -> list[AuditTask]:
+    async def get_pending_tasks(
+        self, session: AsyncSession, risk_level: str | None = None
+    ) -> list[AuditTask]:
         """获取待审核任务列表"""
-        stmt = select(AuditLog).where(
-            AuditLog.action == AuditAction.PENDING
-        ).order_by(desc(AuditLog.created_at))
+        stmt = (
+            select(AuditLog)
+            .where(AuditLog.action == AuditAction.PENDING)
+            .order_by(desc(AuditLog.created_at))
+        )
 
         if risk_level:
             stmt = stmt.where(AuditLog.risk_level == risk_level)
@@ -83,10 +88,14 @@ class AdminService:
 
     async def get_confidence_pending_tasks(self, session: AsyncSession) -> list[AuditTask]:
         """获取置信度触发的待审核任务"""
-        stmt = select(AuditLog).where(
-            AuditLog.action == AuditAction.PENDING,
-            AuditLog.trigger_type == AuditTriggerType.CONFIDENCE
-        ).order_by(desc(AuditLog.created_at))
+        stmt = (
+            select(AuditLog)
+            .where(
+                AuditLog.action == AuditAction.PENDING,
+                AuditLog.trigger_type == AuditTriggerType.CONFIDENCE,
+            )
+            .order_by(desc(AuditLog.created_at))
+        )
 
         result = await session.exec(stmt)
         audit_logs = result.all()
@@ -94,10 +103,12 @@ class AdminService:
         tasks = []
         for log in audit_logs:
             confidence_meta = log.confidence_metadata or {}
-            tasks.append(_build_audit_task(
-                log,
-                trigger_reason=f"置信度不足: {confidence_meta.get('confidence_score', 0):.2f}"
-            ))
+            tasks.append(
+                _build_audit_task(
+                    log,
+                    trigger_reason=f"置信度不足: {confidence_meta.get('confidence_score', 0):.2f}",
+                )
+            )
         return tasks
 
     async def get_all_pending_tasks(self, session: AsyncSession) -> TaskStatsResponse:
@@ -110,7 +121,7 @@ class AdminService:
             risk_tasks=risk_count,
             confidence_tasks=conf_count,
             manual_tasks=manual_count,
-            total=risk_count + conf_count + manual_count
+            total=risk_count + conf_count + manual_count,
         )
 
     async def process_admin_decision(
@@ -122,9 +133,7 @@ class AdminService:
         current_admin_id: int,
     ) -> AdminDecisionResponse:
         """处理管理员决策"""
-        result = await session.exec(
-            select(AuditLog).where(AuditLog.id == audit_log_id)
-        )
+        result = await session.exec(select(AuditLog).where(AuditLog.id == audit_log_id))
         audit_log = result.one_or_none()
 
         if not audit_log:
@@ -163,14 +172,14 @@ class AdminService:
                     self.process_refund_payment.delay(
                         refund_id=refund.id,
                         amount=float(refund.refund_amount),
-                        payment_method="原支付方式"
+                        payment_method="原支付方式",
                     )
 
                     if phone:
                         self.send_refund_sms.delay(
                             refund_id=refund.id,
                             phone=phone,
-                            message=f"您的退款申请已通过，退款金额¥{refund.refund_amount}将在3-5个工作日退回。"
+                            message=f"您的退款申请已通过，退款金额¥{refund.refund_amount}将在3-5个工作日退回。",
                         )
 
                 else:
@@ -181,7 +190,11 @@ class AdminService:
 
                 session.add(refund)
 
-        status_message = " 审核通过，资金将在3-5个工作日内原路退回" if action_enum == AuditAction.APPROVE else f" 审核未通过: {admin_comment}"
+        status_message = (
+            " 审核通过，资金将在3-5个工作日内原路退回"
+            if action_enum == AuditAction.APPROVE
+            else f" 审核未通过: {admin_comment}"
+        )
 
         message_card = MessageCard(
             thread_id=audit_log.thread_id,
@@ -209,7 +222,7 @@ class AdminService:
                 data={
                     "message": status_message,
                     "admin_comment": admin_comment,
-                }
+                },
             )
         except Exception:
             logger.exception("Failed to notify status change via WebSocket")

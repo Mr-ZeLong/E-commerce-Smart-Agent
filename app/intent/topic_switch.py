@@ -14,6 +14,7 @@ from app.intent.models import IntentResult
 @dataclass
 class TopicSwitchResult:
     """话题切换检测结果"""
+
     is_switch: bool
     switch_type: str | None  # "explicit", "implicit", "compatible"
     confidence: float
@@ -26,9 +27,17 @@ class TopicSwitchDetector:
 
     # 显式切换关键词
     EXPLICIT_SWITCH_KEYWORDS = [
-        "换个话题", "另外", "还有", "对了", "顺便问",
-        "不说这个", "问别的", "还有一个问题",
-        "by the way", "另外问一下", "再问一个",
+        "换个话题",
+        "另外",
+        "还有",
+        "对了",
+        "顺便问",
+        "不说这个",
+        "问别的",
+        "还有一个问题",
+        "by the way",
+        "另外问一下",
+        "再问一个",
     ]
 
     # 置信度阈值
@@ -65,16 +74,12 @@ class TopicSwitchDetector:
 
         # 2. 隐式切换检测
         if previous_result:
-            implicit_result = self._detect_implicit_switch(
-                current_result, previous_result, query
-            )
+            implicit_result = self._detect_implicit_switch(current_result, previous_result, query)
             if implicit_result.is_switch:
                 return implicit_result
 
             # 3. 意图兼容性检查
-            compatibility_result = self._check_compatibility(
-                current_result, previous_result
-            )
+            compatibility_result = self._check_compatibility(current_result, previous_result)
             # Return compatibility result (either compatible or incompatible)
             return compatibility_result
 
@@ -172,4 +177,3 @@ class TopicSwitchDetector:
             reason=f"意图不兼容: {previous_intent} -> {current_intent}",
             should_reset_context=True,
         )
-

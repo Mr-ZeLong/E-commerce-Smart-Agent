@@ -28,14 +28,20 @@ class TestCORSDangerousComboBlock:
         """Wildcard CORS origins combined with allow_credentials=True must fail fast."""
         monkeypatch.setattr(settings, "CORS_ORIGINS", ["*"])
 
-        with pytest.raises(RuntimeError, match=r"CORS allow_origins=\['\*'\] combined with allow_credentials=True is not allowed"):
+        with pytest.raises(
+            RuntimeError,
+            match=r"CORS allow_origins=\['\*'\] combined with allow_credentials=True is not allowed",
+        ):
             importlib.import_module(MODULE_NAME)
 
     def test_mixed_origins_with_wildcard_raises_runtime_error(self, monkeypatch):
         """Mixed CORS origins containing wildcard must also fail fast."""
         monkeypatch.setattr(settings, "CORS_ORIGINS", ["*", "http://localhost"])
 
-        with pytest.raises(RuntimeError, match=r"CORS allow_origins=\['\*'\] combined with allow_credentials=True is not allowed"):
+        with pytest.raises(
+            RuntimeError,
+            match=r"CORS allow_origins=\['\*'\] combined with allow_credentials=True is not allowed",
+        ):
             importlib.import_module(MODULE_NAME)
 
 
@@ -52,10 +58,14 @@ class TestOpenAPIDocsControl:
         assert app.docs_url is None
         assert app.redoc_url is None
 
-        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             for path in ("/docs", "/redoc", "/openapi.json"):
                 response = await client.get(path)
-                assert response.status_code == 404, f"Expected 404 for {path}, got {response.status_code}"
+                assert response.status_code == 404, (
+                    f"Expected 404 for {path}, got {response.status_code}"
+                )
 
     @pytest.mark.asyncio
     async def test_openapi_docs_enabled_when_configured(self, monkeypatch):
@@ -69,7 +79,11 @@ class TestOpenAPIDocsControl:
         assert app.docs_url == "/docs"
         assert app.redoc_url == "/redoc"
 
-        async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             for path in ("/docs", "/redoc", "/openapi.json"):
                 response = await client.get(path)
-                assert response.status_code == 200, f"Expected 200 for {path}, got {response.status_code}"
+                assert response.status_code == 200, (
+                    f"Expected 200 for {path}, got {response.status_code}"
+                )

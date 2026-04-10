@@ -93,9 +93,7 @@ class IntentRecognitionService:
         state = await self._load_session_state(session_id)
 
         # 4. 多意图处理
-        multi_result = await self.multi_intent_processor.process(
-            query, conversation_history
-        )
+        multi_result = await self.multi_intent_processor.process(query, conversation_history)
 
         if multi_result.is_multi_intent and len(multi_result.sub_intents) > 0:
             result = multi_result.sub_intents[0]
@@ -105,7 +103,11 @@ class IntentRecognitionService:
             # 如果有更多意图，标记在后续处理队列中
             if len(multi_result.sub_intents) > 1:
                 result.slots["pending_intents"] = [
-                    {"primary_intent": si.primary_intent.value, "secondary_intent": si.secondary_intent.value, "slots": si.slots}
+                    {
+                        "primary_intent": si.primary_intent.value,
+                        "secondary_intent": si.secondary_intent.value,
+                        "slots": si.slots,
+                    }
                     for si in multi_result.sub_intents[1:]
                 ]
         else:

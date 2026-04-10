@@ -27,18 +27,26 @@ async def test_query_hybrid_returns_scored_points_with_payloads():
     )
     await knowledge_client.ensure_collection()
 
-    await knowledge_client.upsert_chunks([
-        models.PointStruct(
-            id=1,
-            vector={"dense": [0.1] * 1024, "sparse": models.SparseVector(indices=[0], values=[1.0])},
-            payload={"content": "doc1", "source": "s1"},
-        ),
-        models.PointStruct(
-            id=2,
-            vector={"dense": [0.2] * 1024, "sparse": models.SparseVector(indices=[0], values=[1.0])},
-            payload={"content": "doc2", "source": "s2"},
-        ),
-    ])
+    await knowledge_client.upsert_chunks(
+        [
+            models.PointStruct(
+                id=1,
+                vector={
+                    "dense": [0.1] * 1024,
+                    "sparse": models.SparseVector(indices=[0], values=[1.0]),
+                },
+                payload={"content": "doc1", "source": "s1"},
+            ),
+            models.PointStruct(
+                id=2,
+                vector={
+                    "dense": [0.2] * 1024,
+                    "sparse": models.SparseVector(indices=[0], values=[1.0]),
+                },
+                payload={"content": "doc2", "source": "s2"},
+            ),
+        ]
+    )
 
     results = await knowledge_client.query_hybrid(
         dense_vector=[0.1] * 1024,

@@ -131,4 +131,8 @@ class TestUserRefusalHandling:
 
         assert "action_type" in initial_state.pending_slot
         # 验证建议选项显示在问题中
-        assert "可选" in response.response or "REFUND" in response.response or "退货" in response.response
+        assert (
+            "可选" in response.response
+            or "REFUND" in response.response
+            or "退货" in response.response
+        )

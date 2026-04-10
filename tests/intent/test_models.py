@@ -1,6 +1,5 @@
 """测试数据模型"""
 
-
 from app.intent.models import (
     ClarificationState,
     IntentAction,
@@ -15,9 +14,18 @@ class TestIntentCategory:
     def test_enum_values(self):
         """测试所有12个IntentCategory值"""
         expected_values = {
-            "ORDER", "AFTER_SALES", "POLICY", "ACCOUNT",
-            "PROMOTION", "PAYMENT", "LOGISTICS", "PRODUCT",
-            "RECOMMENDATION", "CART", "COMPLAINT", "OTHER"
+            "ORDER",
+            "AFTER_SALES",
+            "POLICY",
+            "ACCOUNT",
+            "PROMOTION",
+            "PAYMENT",
+            "LOGISTICS",
+            "PRODUCT",
+            "RECOMMENDATION",
+            "CART",
+            "COMPLAINT",
+            "OTHER",
         }
         actual_values = {e.value for e in IntentCategory}
         assert actual_values == expected_values
@@ -31,8 +39,14 @@ class TestIntentAction:
     def test_enum_values(self):
         """测试所有8个IntentAction值"""
         expected_values = {
-            "QUERY", "APPLY", "MODIFY", "CANCEL",
-            "CONSULT", "ADD", "REMOVE", "COMPARE"
+            "QUERY",
+            "APPLY",
+            "MODIFY",
+            "CANCEL",
+            "CONSULT",
+            "ADD",
+            "REMOVE",
+            "COMPARE",
         }
         actual_values = {e.value for e in IntentAction}
         assert actual_values == expected_values

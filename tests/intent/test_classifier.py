@@ -46,22 +46,23 @@ def create_mock_response_with_tool_calls(tool_args: dict):
     mock_response = MagicMock()
     arguments = json.dumps(tool_args) if isinstance(tool_args, dict) else tool_args
     mock_response.additional_kwargs = {
-        "tool_calls": [{
-            "id": "call_123",
-            "type": "function",
-            "function": {
-                "name": "classify_intent",
-                "arguments": arguments
+        "tool_calls": [
+            {
+                "id": "call_123",
+                "type": "function",
+                "function": {"name": "classify_intent", "arguments": arguments},
             }
-        }]
+        ]
     }
     # 新版 API: response.tool_calls
-    mock_response.tool_calls = [{
-        "name": "classify_intent",
-        "args": tool_args if isinstance(tool_args, dict) else json.loads(arguments),
-        "id": "call_123",
-        "type": "tool_call",
-    }]
+    mock_response.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": tool_args if isinstance(tool_args, dict) else json.loads(arguments),
+            "id": "call_123",
+            "type": "tool_call",
+        }
+    ]
     return mock_response
 
 
@@ -85,7 +86,7 @@ async def test_function_calling_success(classifier, mock_llm):
         "secondary_intent": "QUERY",
         "tertiary_intent": "ORDER_TRACKING_DETAIL",
         "confidence": 0.95,
-        "slots": {"order_sn": "SN20240001"}
+        "slots": {"order_sn": "SN20240001"},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -113,13 +114,17 @@ async def test_function_calling_no_tool_calls(classifier, mock_llm):
     mock_response_no_tools.content = ""
 
     # 第二层：JSON解析成功
-    json_response = create_mock_response_with_content(json.dumps({
-        "primary_intent": "AFTER_SALES",
-        "secondary_intent": "APPLY",
-        "tertiary_intent": "REFUND",
-        "confidence": 0.88,
-        "slots": {"reason": "不喜欢"}
-    }))
+    json_response = create_mock_response_with_content(
+        json.dumps(
+            {
+                "primary_intent": "AFTER_SALES",
+                "secondary_intent": "APPLY",
+                "tertiary_intent": "REFUND",
+                "confidence": 0.88,
+                "slots": {"reason": "不喜欢"},
+            }
+        )
+    )
 
     # 设置Mock - 第一次调用无工具，第二次调用返回JSON
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
@@ -139,17 +144,23 @@ async def test_function_calling_exception_fallback(classifier, mock_llm):
     """测试Function Calling异常时降级"""
     # 第一层：Function Calling抛出异常
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=[
-        Exception("Function calling failed"),
-        # 降级到JSON解析
-        create_mock_response_with_content(json.dumps({
-            "primary_intent": "POLICY",
-            "secondary_intent": "CONSULT",
-            "tertiary_intent": "POLICY_SHIPPING_FEE",
-            "confidence": 0.85,
-            "slots": {}
-        }))
-    ])
+    mock_llm.ainvoke = AsyncMock(
+        side_effect=[
+            Exception("Function calling failed"),
+            # 降级到JSON解析
+            create_mock_response_with_content(
+                json.dumps(
+                    {
+                        "primary_intent": "POLICY",
+                        "secondary_intent": "CONSULT",
+                        "tertiary_intent": "POLICY_SHIPPING_FEE",
+                        "confidence": 0.85,
+                        "slots": {},
+                    }
+                )
+            ),
+        ]
+    )
 
     # 执行测试
     result = await classifier.classify("运费怎么算")
@@ -170,13 +181,17 @@ async def test_json_parsing_success(classifier, mock_llm):
     mock_response_no_tools.additional_kwargs = {}
     mock_response_no_tools.content = ""
 
-    json_response = create_mock_response_with_content(json.dumps({
-        "primary_intent": "PRODUCT",
-        "secondary_intent": "QUERY",
-        "tertiary_intent": "PRODUCT_STOCK",
-        "confidence": 0.82,
-        "slots": {"product_name": "iPhone 15"}
-    }))
+    json_response = create_mock_response_with_content(
+        json.dumps(
+            {
+                "primary_intent": "PRODUCT",
+                "secondary_intent": "QUERY",
+                "tertiary_intent": "PRODUCT_STOCK",
+                "confidence": 0.82,
+                "slots": {"product_name": "iPhone 15"},
+            }
+        )
+    )
 
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
     mock_llm.ainvoke = AsyncMock(side_effect=[mock_response_no_tools, json_response])
@@ -229,10 +244,9 @@ async def test_json_parsing_invalid_json_fallback(classifier, mock_llm):
     """测试JSON解析失败时降级到规则匹配"""
     # 所有LLM调用都失败
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=[
-        Exception("Function calling failed"),
-        Exception("JSON parsing failed")
-    ])
+    mock_llm.ainvoke = AsyncMock(
+        side_effect=[Exception("Function calling failed"), Exception("JSON parsing failed")]
+    )
 
     # 执行测试 - 使用规则能匹配的关键词
     result = await classifier.classify("我想查订单状态")
@@ -344,7 +358,7 @@ async def test_valid_tertiary_intent(classifier, mock_llm):
         "secondary_intent": "APPLY",
         "tertiary_intent": "REFUND",  # 合法的三级意图
         "confidence": 0.90,
-        "slots": {}
+        "slots": {},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -364,7 +378,7 @@ async def test_invalid_tertiary_intent_filtered(classifier, mock_llm):
         "secondary_intent": "APPLY",
         "tertiary_intent": "INVALID_TERTIARY",  # 非法的三级意图
         "confidence": 0.90,
-        "slots": {}
+        "slots": {},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -385,7 +399,7 @@ async def test_none_tertiary_intent_allowed(classifier, mock_llm):
         "secondary_intent": "QUERY",
         "tertiary_intent": None,
         "confidence": 0.85,
-        "slots": {"order_sn": "SN123"}
+        "slots": {"order_sn": "SN123"},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -408,7 +422,7 @@ def test_validate_intent_result_valid(classifier):
         tertiary_intent="ORDER_TRACKING_DETAIL",
         confidence=0.85,
         slots={},
-        raw_query="测试"
+        raw_query="测试",
     )
 
     is_valid, error_msg = classifier.validate_intent_result(result)
@@ -424,7 +438,7 @@ def test_validate_intent_result_invalid_primary(classifier):
         secondary_intent=IntentAction.QUERY,
         confidence=0.85,
         slots={},
-        raw_query="测试"
+        raw_query="测试",
     )
 
     is_valid, error_msg = classifier.validate_intent_result(result)
@@ -441,7 +455,7 @@ def test_validate_intent_result_invalid_tertiary(classifier):
         tertiary_intent="INVALID_TERTIARY",
         confidence=0.85,
         slots={},
-        raw_query="测试"
+        raw_query="测试",
     )
 
     is_valid, error_msg = classifier.validate_intent_result(result)
@@ -457,7 +471,7 @@ def test_validate_intent_result_invalid_confidence(classifier):
         secondary_intent=IntentAction.QUERY,
         confidence=1.5,  # 超出范围
         slots={},
-        raw_query="测试"
+        raw_query="测试",
     )
 
     is_valid, error_msg = classifier.validate_intent_result(result)
@@ -484,7 +498,7 @@ async def test_fallback_wrapper_validation_failure(classifier_with_fallback, moc
     invalid_result.slots = {}
     invalid_result.raw_query = "test"
 
-    with patch.object(classifier_with_fallback.classifier, 'classify', return_value=invalid_result):
+    with patch.object(classifier_with_fallback.classifier, "classify", return_value=invalid_result):
         # 使用不会匹配任何规则的关键词
         result = await classifier_with_fallback.classify("xyz_invalid_query_123")
 
@@ -501,7 +515,7 @@ async def test_fallback_wrapper_low_confidence(classifier_with_fallback, mock_ll
         "secondary_intent": "QUERY",
         "tertiary_intent": None,
         "confidence": 0.4,  # 低置信度
-        "slots": {}
+        "slots": {},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -522,7 +536,7 @@ async def test_fallback_wrapper_high_confidence(classifier_with_fallback, mock_l
         "secondary_intent": "APPLY",
         "tertiary_intent": "REFUND",
         "confidence": 0.95,
-        "slots": {"order_sn": "SN123"}
+        "slots": {"order_sn": "SN123"},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -546,7 +560,7 @@ async def test_classification_with_context(classifier, mock_llm):
         "secondary_intent": "QUERY",
         "tertiary_intent": "ORDER_TRACKING_DETAIL",
         "confidence": 0.90,
-        "slots": {"order_sn": "SN20240001"}
+        "slots": {"order_sn": "SN20240001"},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 
@@ -556,7 +570,7 @@ async def test_classification_with_context(classifier, mock_llm):
     context = {
         "session_id": "sess_123",
         "history": "用户之前查询过订单",
-        "user_info": {"vip": True}
+        "user_info": {"vip": True},
     }
 
     result = await classifier.classify("那个订单到哪了", context=context)
@@ -587,7 +601,7 @@ async def test_very_long_query(classifier, mock_llm):
         "secondary_intent": "CONSULT",
         "tertiary_intent": None,
         "confidence": 0.80,
-        "slots": {"complaint_content": "很长的内容"}
+        "slots": {"complaint_content": "很长的内容"},
     }
     mock_response = create_mock_response_with_tool_calls(tool_args)
 

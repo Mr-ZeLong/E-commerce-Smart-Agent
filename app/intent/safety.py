@@ -22,41 +22,55 @@ class SafetyConfig:
     """安全过滤器配置"""
 
     # 敏感关键词列表
-    sensitive_keywords: list[str] = field(default_factory=lambda: [
-        "密码", "password", "passwd", "pwd",
-        "信用卡", "credit card", "cvv",
-        "身份证", "id card", "身份证号",
-        "银行卡", "bank card",
-    ])
+    sensitive_keywords: list[str] = field(
+        default_factory=lambda: [
+            "密码",
+            "password",
+            "passwd",
+            "pwd",
+            "信用卡",
+            "credit card",
+            "cvv",
+            "身份证",
+            "id card",
+            "身份证号",
+            "银行卡",
+            "bank card",
+        ]
+    )
 
     # Prompt注入检测模式
-    injection_patterns: list[str] = field(default_factory=lambda: [
-        r"忽略.*指令",
-        r"忽略.*提示",
-        r"ignore.*instruction",
-        r"ignore.*prompt",
-        r"system.*prompt",
-        r"你是.*吗",
-        r"你现在.*角色",
-        r"扮演.*角色",
-        r"假装.*是",
-        r"forget.*previous",
-        r"不要.*遵守",
-        r"绕过.*限制",
-        r"越狱",
-        r"jailbreak",
-        r"DAN",
-    ])
+    injection_patterns: list[str] = field(
+        default_factory=lambda: [
+            r"忽略.*指令",
+            r"忽略.*提示",
+            r"ignore.*instruction",
+            r"ignore.*prompt",
+            r"system.*prompt",
+            r"你是.*吗",
+            r"你现在.*角色",
+            r"扮演.*角色",
+            r"假装.*是",
+            r"forget.*previous",
+            r"不要.*遵守",
+            r"绕过.*限制",
+            r"越狱",
+            r"jailbreak",
+            r"DAN",
+        ]
+    )
 
     # 代码执行检测 - 核心模式（默认启用）
-    code_patterns: list[str] = field(default_factory=lambda: [
-        r"```[\s\S]*?```",  # 代码块
-        r"import\s+\w+",    # Python import
-        r"exec\s*\(",       # exec函数
-        r"eval\s*\(",       # eval函数
-        r"<script",         # script标签
-        r"javascript:",     # javascript协议
-    ])
+    code_patterns: list[str] = field(
+        default_factory=lambda: [
+            r"```[\s\S]*?```",  # 代码块
+            r"import\s+\w+",  # Python import
+            r"exec\s*\(",  # exec函数
+            r"eval\s*\(",  # eval函数
+            r"<script",  # script标签
+            r"javascript:",  # javascript协议
+        ]
+    )
 
     # 行内代码检测（可选，敏感度较高）
     enable_inline_code_check: bool = False
@@ -71,24 +85,26 @@ class SafetyResponseTemplate:
     """安全拒绝响应模板"""
 
     # 中英文模板
-    templates: dict[str, dict[str, str]] = field(default_factory=lambda: {
-        "keyword": {
-            "zh": "检测到敏感信息，为了您的安全，请勿在对话中分享密码、银行卡号等敏感内容。",
-            "en": "Sensitive information detected. For your security, please do not share passwords, bank card numbers, or other sensitive content in the conversation.",
-        },
-        "injection": {
-            "zh": "检测到潜在的指令注入尝试，此请求已被拦截。",
-            "en": "Potential prompt injection attempt detected. This request has been blocked.",
-        },
-        "code": {
-            "zh": "检测到代码内容，出于安全考虑，请避免在对话中执行代码。",
-            "en": "Code content detected. For security reasons, please avoid executing code in the conversation.",
-        },
-        "semantic": {
-            "zh": "检测到潜在的安全风险，此请求已被拦截。",
-            "en": "Potential security risk detected. This request has been blocked.",
-        },
-    })
+    templates: dict[str, dict[str, str]] = field(
+        default_factory=lambda: {
+            "keyword": {
+                "zh": "检测到敏感信息，为了您的安全，请勿在对话中分享密码、银行卡号等敏感内容。",
+                "en": "Sensitive information detected. For your security, please do not share passwords, bank card numbers, or other sensitive content in the conversation.",
+            },
+            "injection": {
+                "zh": "检测到潜在的指令注入尝试，此请求已被拦截。",
+                "en": "Potential prompt injection attempt detected. This request has been blocked.",
+            },
+            "code": {
+                "zh": "检测到代码内容，出于安全考虑，请避免在对话中执行代码。",
+                "en": "Code content detected. For security reasons, please avoid executing code in the conversation.",
+            },
+            "semantic": {
+                "zh": "检测到潜在的安全风险，此请求已被拦截。",
+                "en": "Potential security risk detected. This request has been blocked.",
+            },
+        }
+    )
 
     def get_rejection_response(self, risk_type: str, language: str = "zh") -> str:
         """获取拒绝响应模板
@@ -108,6 +124,7 @@ class SafetyResponseTemplate:
 @dataclass
 class SafetyCheckResult:
     """安全检查结果"""
+
     is_safe: bool
     risk_level: RiskLevel
     risk_type: RiskType | None
@@ -150,7 +167,9 @@ class SafetyFilter:
         """
         # ReDoS防护：检查查询长度
         if len(query) > self.config.max_query_length:
-            logger.warning(f"Query too long: {len(query)} characters, max allowed: {self.config.max_query_length}")
+            logger.warning(
+                f"Query too long: {len(query)} characters, max allowed: {self.config.max_query_length}"
+            )
             return SafetyCheckResult(
                 is_safe=False,
                 risk_level="high",
@@ -302,8 +321,10 @@ class SafetyFilter:
         """清理查询（去除潜在危险内容）"""
         # ReDoS防护：检查查询长度
         if len(query) > self.config.max_query_length:
-            logger.warning(f"Query too long in sanitize: {len(query)} characters, truncating to {self.config.max_query_length}")
-            query = query[:self.config.max_query_length]
+            logger.warning(
+                f"Query too long in sanitize: {len(query)} characters, truncating to {self.config.max_query_length}"
+            )
+            query = query[: self.config.max_query_length]
 
         sanitized = query
 

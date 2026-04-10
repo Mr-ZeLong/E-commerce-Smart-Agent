@@ -13,6 +13,7 @@ from app.core.utils import clamp_score
 # ========== 转人工原因常量 ==========
 class TransferReason:
     """转人工原因代码"""
+
     CONFIDENCE_LOW = "confidence_low"
     SYSTEM_ERROR = "system_error"
     USER_REQUEST = "user_request"

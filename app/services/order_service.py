@@ -24,11 +24,7 @@ logger = logging.getLogger(__name__)
 class OrderService:
     """订单服务层：封装订单查询与退款申请的数据库交互和副作用"""
 
-    async def get_order_for_user(
-        self,
-        order_sn: str | None,
-        user_id: int
-    ) -> dict | None:
+    async def get_order_for_user(self, order_sn: str | None, user_id: int) -> dict | None:
         """查询用户订单，返回序列化后的字典或 None。"""
         try:
             async with async_session_maker() as session:
@@ -55,10 +51,7 @@ class OrderService:
             return None
 
     async def handle_refund_request(
-        self,
-        question: str,
-        user_id: int,
-        thread_id: str = ""
+        self, question: str, user_id: int, thread_id: str = ""
     ) -> AgentResult:
         """处理退货申请，封装数据库事务与 Celery 副作用。"""
         order_sn = extract_order_sn(question)
@@ -66,7 +59,7 @@ class OrderService:
         if not order_sn:
             return AgentResult(
                 response="请提供订单号以便处理退货申请。例如：我要退货，订单号 SN20240001",
-                updated_state={"refund_flow_active": False}
+                updated_state={"refund_flow_active": False},
             )
 
         reason_category = classify_refund_reason(question)
@@ -77,13 +70,13 @@ class OrderService:
             if not order:
                 return AgentResult(
                     response=f"未找到订单 {order_sn}，请确认订单号是否正确。",
-                    updated_state={"refund_flow_active": False}
+                    updated_state={"refund_flow_active": False},
                 )
 
             if order.id is None:
                 return AgentResult(
                     response="订单数据异常，请稍后重试。",
-                    updated_state={"refund_flow_active": False}
+                    updated_state={"refund_flow_active": False},
                 )
 
             success, message, refund_data = await process_refund_for_order(
@@ -91,16 +84,13 @@ class OrderService:
                 user_id=user_id,
                 reason_detail=reason_detail,
                 reason_category=reason_category,
-                session=session
+                session=session,
             )
 
             if not success:
                 return AgentResult(
                     response=message,
-                    updated_state={
-                        "order_data": order.model_dump(),
-                        "refund_flow_active": False
-                    }
+                    updated_state={"order_data": order.model_dump(), "refund_flow_active": False},
                 )
 
             # 退款申请创建成功后，执行风控审计
@@ -119,12 +109,12 @@ class OrderService:
 
             updated_state: dict[str, Any] = {
                 "order_data": order.model_dump(),
-                "refund_flow_active": True
+                "refund_flow_active": True,
             }
             if refund_data is not None:
                 updated_state["refund_data"] = {
                     "refund_id": refund_data["refund_id"],
-                    "amount": refund_data["amount"]
+                    "amount": refund_data["amount"],
                 }
 
             await session.commit()
@@ -133,7 +123,4 @@ class OrderService:
             if audit is not None:
                 notify_admin_audit.delay(audit.id)
 
-            return AgentResult(
-                response=f"✅ {message}",
-                updated_state=updated_state
-            )
+            return AgentResult(response=f"✅ {message}", updated_state=updated_state)

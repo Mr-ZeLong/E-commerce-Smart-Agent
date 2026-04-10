@@ -27,10 +27,7 @@ class OrderAgent(BaseAgent):
     """
 
     def __init__(self, order_service: OrderService | None = None):
-        super().__init__(
-            name="order",
-            system_prompt=ORDER_SYSTEM_PROMPT
-        )
+        super().__init__(name="order", system_prompt=ORDER_SYSTEM_PROMPT)
         self.order_service = order_service or OrderService()
 
     async def process(self, state: dict[str, Any]) -> AgentResult:
@@ -41,8 +38,7 @@ class OrderAgent(BaseAgent):
 
         if user_id is None:
             return AgentResult(
-                response="抱歉，无法识别用户身份，请重新登录。",
-                updated_state={"order_data": None}
+                response="抱歉，无法识别用户身份，请重新登录。", updated_state={"order_data": None}
             )
 
         if intent == "REFUND":
@@ -51,11 +47,7 @@ class OrderAgent(BaseAgent):
         else:
             return await self._handle_order_query(question, user_id)
 
-    async def _handle_order_query(
-        self,
-        question: str,
-        user_id: int
-    ) -> AgentResult:
+    async def _handle_order_query(self, question: str, user_id: int) -> AgentResult:
         """处理订单查询"""
         order_sn = extract_order_sn(question)
         order_data = await self.order_service.get_order_for_user(order_sn, user_id)
@@ -63,27 +55,17 @@ class OrderAgent(BaseAgent):
         if not order_data:
             return AgentResult(
                 response="抱歉，未找到相关订单信息。请确认订单号是否正确，或尝试查询'我的订单'。",
-                updated_state={"order_data": None}
+                updated_state={"order_data": None},
             )
 
         response = self._format_order_response(order_data)
 
-        return AgentResult(
-            response=response,
-            updated_state={"order_data": order_data}
-        )
+        return AgentResult(response=response, updated_state={"order_data": order_data})
 
-    async def _handle_refund(
-        self,
-        question: str,
-        user_id: int,
-        thread_id: str = ""
-    ) -> AgentResult:
+    async def _handle_refund(self, question: str, user_id: int, thread_id: str = "") -> AgentResult:
         """处理退货申请"""
         return await self.order_service.handle_refund_request(
-            question=question,
-            user_id=user_id,
-            thread_id=thread_id
+            question=question, user_id=user_id, thread_id=thread_id
         )
 
     def _format_order_response(self, order: dict) -> str:

@@ -3,17 +3,11 @@ FROM python:3.13-slim
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+# Pin uv version for reproducible builds. Update manually after testing.
+COPY --from=ghcr.io/astral-sh/uv:0.6.5@sha256:562193a4a9d398f8aedddcb223e583da394ee735de36b5815f8f1d22cb49be15 /uv /bin/uv
 
 # Set working directory
 WORKDIR /app
-
-# Install system dependencies for some Python packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files first for layer caching
 COPY pyproject.toml uv.lock ./

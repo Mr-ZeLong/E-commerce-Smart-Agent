@@ -147,7 +147,9 @@ async def test_get_admin_tasks_all_returns_stats(client):
     admin, token = await create_admin_user()
     user = await create_regular_user()
     order, refund = await create_order_and_refund(user)
-    await create_audit_log(user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING)
+    await create_audit_log(
+        user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING
+    )
 
     response = await client.get(
         "/api/v1/admin/tasks-all",

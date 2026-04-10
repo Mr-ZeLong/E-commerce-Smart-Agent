@@ -2,6 +2,7 @@
 """
 WebSocket 路由
 """
+
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
@@ -95,10 +96,7 @@ async def admin_websocket_endpoint(
     try:
         token_admin_id = verify_admin_token(token)
         if token_admin_id != admin_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin ID mismatch"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin ID mismatch")
 
         # 建立连接
         await manager.connect_admin(websocket, admin_id)

@@ -15,11 +15,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentResult:
     """Agent 处理结果"""
-    response: str                           # 回复内容
-    updated_state: dict | None = None       # 需要更新的状态字段
-    confidence: float | None = None         # 置信度分数（可选）
-    needs_human: bool = False               # 是否需要转人工
-    transfer_reason: str | None = None      # 转人工原因
+
+    response: str  # 回复内容
+    updated_state: dict | None = None  # 需要更新的状态字段
+    confidence: float | None = None  # 置信度分数（可选）
+    needs_human: bool = False  # 是否需要转人工
+    transfer_reason: str | None = None  # 转人工原因
 
 
 class BaseAgent(ABC):
@@ -30,7 +31,7 @@ class BaseAgent(ABC):
         name: str,
         system_prompt: str | None = None,
         llm_model: str | None = None,
-        llm: ChatOpenAI | None = None
+        llm: ChatOpenAI | None = None,
     ):
         self.name = name
         self.system_prompt = system_prompt
@@ -46,10 +47,7 @@ class BaseAgent(ABC):
         pass
 
     async def _call_llm(
-        self,
-        messages: list,
-        temperature: float | None = None,
-        tags: list[str] | None = None
+        self, messages: list, temperature: float | None = None, tags: list[str] | None = None
     ) -> str:
         """调用 LLM"""
         try:
@@ -68,29 +66,19 @@ class BaseAgent(ABC):
             logger.error(f"[{self.name}] LLM 调用失败: {e}")
             raise
 
-    def _create_messages(
-        self,
-        user_message: str,
-        context: dict | None = None
-    ) -> list:
+    def _create_messages(self, user_message: str, context: dict | None = None) -> list:
         """创建消息列表"""
         messages = []
         if self.system_prompt:
             messages.append(SystemMessage(content=self.system_prompt))
         if context:
-            enhanced_message = self._build_contextual_message(
-                user_message, context
-            )
+            enhanced_message = self._build_contextual_message(user_message, context)
             messages.append(HumanMessage(content=enhanced_message))
         else:
             messages.append(HumanMessage(content=user_message))
         return messages
 
-    def _build_contextual_message(
-        self,
-        question: str,
-        context: dict
-    ) -> str:
+    def _build_contextual_message(self, question: str, context: dict) -> str:
         """构建带上下文的用户消息"""
         parts = []
         if context.get("context"):

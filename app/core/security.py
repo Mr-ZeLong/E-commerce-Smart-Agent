@@ -34,7 +34,7 @@ def _decode_token(
     token: str,
     *,
     headers: dict[str, str] | None = None,
-    missing_user_detail: str = "Invalid token: missing user ID"
+    missing_user_detail: str = "Invalid token: missing user ID",
 ) -> dict:
     """
     统一的 JWT decode、验证 sub 字段、处理异常。
@@ -88,7 +88,7 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
     payload = _decode_token(
         token,
         headers={"WWW-Authenticate": "Bearer"},
-        missing_user_detail="Invalid token:  missing user ID"
+        missing_user_detail="Invalid token:  missing user ID",
     )
     return int(payload["sub"])
 
@@ -106,10 +106,7 @@ async def get_current_user_id_ws(token: str) -> int:
     Raises:
         HTTPException: Token 无效时抛出
     """
-    payload = _decode_token(
-        token,
-        missing_user_detail="Invalid token: missing user ID"
-    )
+    payload = _decode_token(token, missing_user_detail="Invalid token: missing user ID")
     return int(payload["sub"])
 
 
@@ -133,8 +130,7 @@ def verify_admin_token(token: str) -> int:
 
     if not is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
         )
 
     return int(payload["sub"])

@@ -136,34 +136,46 @@ class IntentClassifier:
                 "primary_intent": {
                     "type": "string",
                     "enum": [
-                        "ORDER", "AFTER_SALES", "POLICY", "PRODUCT",
-                        "RECOMMENDATION", "CART", "ACCOUNT", "PROMOTION",
-                        "PAYMENT", "LOGISTICS", "COMPLAINT", "OTHER"
+                        "ORDER",
+                        "AFTER_SALES",
+                        "POLICY",
+                        "PRODUCT",
+                        "RECOMMENDATION",
+                        "CART",
+                        "ACCOUNT",
+                        "PROMOTION",
+                        "PAYMENT",
+                        "LOGISTICS",
+                        "COMPLAINT",
+                        "OTHER",
                     ],
-                    "description": "一级意图：业务域"
+                    "description": "一级意图：业务域",
                 },
                 "secondary_intent": {
                     "type": "string",
-                    "enum": ["QUERY", "APPLY", "MODIFY", "CANCEL", "CONSULT", "ADD", "REMOVE", "COMPARE"],
-                    "description": "二级意图：动作类型"
+                    "enum": [
+                        "QUERY",
+                        "APPLY",
+                        "MODIFY",
+                        "CANCEL",
+                        "CONSULT",
+                        "ADD",
+                        "REMOVE",
+                        "COMPARE",
+                    ],
+                    "description": "二级意图：动作类型",
                 },
-                "tertiary_intent": {
-                    "type": "string",
-                    "description": "三级意图：具体场景(可选)"
-                },
+                "tertiary_intent": {"type": "string", "description": "三级意图：具体场景(可选)"},
                 "confidence": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1,
-                    "description": "置信度(0-1)"
+                    "description": "置信度(0-1)",
                 },
-                "slots": {
-                    "type": "object",
-                    "description": "提取的槽位信息"
-                }
+                "slots": {"type": "object", "description": "提取的槽位信息"},
             },
-            "required": ["primary_intent", "secondary_intent", "confidence", "slots"]
-        }
+            "required": ["primary_intent", "secondary_intent", "confidence", "slots"],
+        },
     }
 
     # 规则匹配关键词
@@ -186,7 +198,7 @@ class IntentClassifier:
             r"^(运费|邮费|快递费).*(多少|怎么算|政策)",
             r"(退换货|退货).*(政策|规则)",
             r"多久.*(到|发货|送达)",
-            r"支持.*(退换|退货)"
+            r"支持.*(退换|退货)",
         ],
         ("AFTER_SALES", "CONSULT"): [
             r"(退货|退款|换货).*(政策|规则|条件|多久)",
@@ -196,37 +208,23 @@ class IntentClassifier:
         ("PRODUCT", "QUERY"): [
             r"(商品|产品|东西).*(有货|库存|价格|多少钱)",
             r"这个.*(怎么样|好不好)",
-            r"有.*(货|库存)"
+            r"有.*(货|库存)",
         ],
-        ("PRODUCT", "COMPARE"): [
-            r"(对比|比较|哪个好|区别)",
-            r"和.*(比|区别)"
-        ],
+        ("PRODUCT", "COMPARE"): [r"(对比|比较|哪个好|区别)", r"和.*(比|区别)"],
         ("RECOMMENDATION", "CONSULT"): [
             r"推荐.*(商品|东西|产品)",
             r"有.*(推荐|好的)",
-            r"适合.*(我|用)"
+            r"适合.*(我|用)",
         ],
-        ("CART", "QUERY"): [
-            r"购物车.*(看|查|有什么)",
-            r"我的购物车"
-        ],
-        ("CART", "ADD"): [
-            r"(加|放|添加).*(购物车|车里)",
-            r"购物车.*(加|添)"
-        ],
-        ("CART", "REMOVE"): [
-            r"(删|移除|清空).*(购物车|车里)"
-        ],
+        ("CART", "QUERY"): [r"购物车.*(看|查|有什么)", r"我的购物车"],
+        ("CART", "ADD"): [r"(加|放|添加).*(购物车|车里)", r"购物车.*(加|添)"],
+        ("CART", "REMOVE"): [r"(删|移除|清空).*(购物车|车里)"],
         ("LOGISTICS", "QUERY"): [
             r"(物流|快递|包裹).*(哪|状态|进度)",
             r"到哪.*(了|了没)",
-            r"什么时候.*(到|送达)"
+            r"什么时候.*(到|送达)",
         ],
-        ("OTHER", "CONSULT"): [
-            r"^(你好|您好|hi|hello|在吗|有人吗)",
-            r"谢谢|再见|拜拜"
-        ]
+        ("OTHER", "CONSULT"): [r"^(你好|您好|hi|hello|在吗|有人吗)", r"谢谢|再见|拜拜"],
     }
 
     def __init__(self, llm: ChatOpenAI | None = None):
@@ -282,9 +280,7 @@ class IntentClassifier:
         return self._classify_with_rules(query)
 
     async def _classify_with_function_calling(
-        self,
-        query: str,
-        context: dict[str, Any] | None = None
+        self, query: str, context: dict[str, Any] | None = None
     ) -> IntentResult | None:
         """
         Layer 1: 使用Function Calling分类
@@ -301,7 +297,7 @@ class IntentClassifier:
         # 绑定工具并强制使用classify_intent函数
         llm_with_tools = self.llm.bind_tools(
             [self._intent_function],
-            tool_choice={"type": "function", "function": {"name": "classify_intent"}}
+            tool_choice={"type": "function", "function": {"name": "classify_intent"}},
         )
 
         response = await llm_with_tools.ainvoke(messages)
@@ -310,7 +306,11 @@ class IntentClassifier:
         tool_calls = getattr(response, "tool_calls", None) or []
         if not tool_calls or not isinstance(tool_calls, (list, tuple)):
             # 兼容旧版 API
-            tool_calls = response.additional_kwargs.get("tool_calls", []) if hasattr(response, "additional_kwargs") else []
+            tool_calls = (
+                response.additional_kwargs.get("tool_calls", [])
+                if hasattr(response, "additional_kwargs")
+                else []
+            )
         if not tool_calls:
             return None
 
@@ -326,9 +326,7 @@ class IntentClassifier:
         return self._parse_result(result_data, query)
 
     async def _classify_with_json(
-        self,
-        query: str,
-        context: dict[str, Any] | None = None
+        self, query: str, context: dict[str, Any] | None = None
     ) -> IntentResult | None:
         """
         Layer 2: 使用普通LLM + JSON解析
@@ -346,7 +344,7 @@ class IntentClassifier:
         content = str(response.content)
 
         # 提取JSON部分
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if not json_match:
             return None
 
@@ -375,7 +373,7 @@ class IntentClassifier:
                         tertiary_intent=None,
                         confidence=self.RULE_MATCH_CONFIDENCE,
                         slots={"matched_pattern": pattern.pattern},
-                        raw_query=query
+                        raw_query=query,
                     )
 
         # 默认返回OTHER/CONSULT
@@ -385,13 +383,11 @@ class IntentClassifier:
             tertiary_intent=None,
             confidence=self.DEFAULT_FALLBACK_CONFIDENCE,
             slots={},
-            raw_query=query
+            raw_query=query,
         )
 
     def _create_messages(
-        self,
-        query: str,
-        context: dict[str, Any] | None = None
+        self, query: str, context: dict[str, Any] | None = None
     ) -> list[SystemMessage | HumanMessage]:
         """
         创建消息列表
@@ -403,14 +399,14 @@ class IntentClassifier:
         Returns:
             消息列表
         """
-        messages: list[SystemMessage | HumanMessage] = [
-            SystemMessage(content=self.SYSTEM_PROMPT)
-        ]
+        messages: list[SystemMessage | HumanMessage] = [SystemMessage(content=self.SYSTEM_PROMPT)]
 
         if context:
             # 添加上下文信息
             context_str = self._format_context(context)
-            messages.append(HumanMessage(content=f"上下文信息:\n{context_str}\n\n用户输入: {query}"))
+            messages.append(
+                HumanMessage(content=f"上下文信息:\n{context_str}\n\n用户输入: {query}")
+            )
         else:
             messages.append(HumanMessage(content=f"用户输入: {query}"))
 
@@ -466,7 +462,7 @@ class IntentClassifier:
                 tertiary_intent=tertiary,
                 confidence=confidence,
                 slots=slots,
-                raw_query=query
+                raw_query=query,
             )
         except (KeyError, ValueError, TypeError):
             return None
@@ -491,13 +487,10 @@ class IntentClassifier:
 
         # 验证三级意图
         if result.tertiary_intent and not validate_tertiary_intent(
-            result.primary_intent,
-            result.secondary_intent,
-            result.tertiary_intent
+            result.primary_intent, result.secondary_intent, result.tertiary_intent
         ):
             allowed = TERTIARY_INTENT_CONFIG.get(
-                (result.primary_intent.value, result.secondary_intent.value),
-                {}
+                (result.primary_intent.value, result.secondary_intent.value), {}
             ).get("tertiary_intents", [])
             return False, f"无效的三级意图: {result.tertiary_intent}, 允许的值: {allowed}"
 
@@ -515,10 +508,7 @@ class IntentClassifierWithFallback:
         self.classifier = IntentClassifier(llm)
 
     async def classify(
-        self,
-        query: str,
-        context: dict[str, Any] | None = None,
-        min_confidence: float = 0.5
+        self, query: str, context: dict[str, Any] | None = None, min_confidence: float = 0.5
     ) -> IntentResult:
         """
         分类用户意图，包含完整验证
@@ -569,6 +559,5 @@ class IntentClassifierWithFallback:
         }
 
         return clarification_map.get(
-            (primary, secondary),
-            "抱歉，我没有完全理解您的意思，能否再说详细一些？"
+            (primary, secondary), "抱歉，我没有完全理解您的意思，能否再说详细一些？"
         )

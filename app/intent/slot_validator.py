@@ -15,6 +15,7 @@ from app.intent.models import IntentResult, SlotPriority
 @dataclass
 class SlotValidationResult:
     """槽位验证结果"""
+
     is_complete: bool  # 是否完整（所有P0槽位已填充）
     missing_slots: list[str] = field(default_factory=list)  # 缺失的槽位列表
     missing_p0_slots: list[str] = field(default_factory=list)  # 缺失的P0槽位
@@ -176,11 +177,7 @@ class SlotValidator:
         Returns:
             str | None: 下一个缺失的槽位名称，如果没有则返回None
         """
-        all_missing = (
-            result.missing_p0_slots +
-            result.missing_p1_slots +
-            result.missing_p2_slots
-        )
+        all_missing = result.missing_p0_slots + result.missing_p1_slots + result.missing_p2_slots
         return all_missing[0] if all_missing else None
 
     def merge_slots(

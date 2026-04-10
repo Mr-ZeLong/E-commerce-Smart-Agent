@@ -72,27 +72,33 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         # 构建异步连接字符串: postgresql+asyncpg://...
-        return str(PostgresDsn.build(
-            scheme="postgresql+asyncpg",
-            username=self.POSTGRES_USER,
-            password=self.POSTGRES_PASSWORD,
-            host=self.POSTGRES_SERVER,
-            port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
-        ))
+        return str(
+            PostgresDsn.build(
+                scheme="postgresql+asyncpg",
+                username=self.POSTGRES_USER,
+                password=self.POSTGRES_PASSWORD,
+                host=self.POSTGRES_SERVER,
+                port=self.POSTGRES_PORT,
+                path=self.POSTGRES_DB,
+            )
+        )
 
     # Redis
     REDIS_HOST: str
     REDIS_PORT: int
+    REDIS_PASSWORD: str
 
     @computed_field
     @property
     def REDIS_URL(self) -> str:
-        return str(RedisDsn.build(
-            scheme="redis",
-            host=self.REDIS_HOST,
-            port=self.REDIS_PORT,
-        ))
+        return str(
+            RedisDsn.build(
+                scheme="redis",
+                host=self.REDIS_HOST,
+                port=self.REDIS_PORT,
+                password=self.REDIS_PASSWORD,
+            )
+        )
 
     # LLM (Qwen)
     OPENAI_BASE_URL: str
@@ -173,7 +179,9 @@ class Settings(BaseSettings):
 
     # Refund rules
     REFUND_DEADLINE_DAYS: int = 7
-    NON_REFUNDABLE_CATEGORIES: list[str] = Field(default_factory=lambda: ["内衣", "食品", "定制商品"])
+    NON_REFUNDABLE_CATEGORIES: list[str] = Field(
+        default_factory=lambda: ["内衣", "食品", "定制商品"]
+    )
 
     # Confidence thresholds
     HIGH_CONFIDENCE_THRESHOLD: float = 0.8
@@ -185,18 +193,64 @@ class Settings(BaseSettings):
     CONFIDENCE_RETRY_THRESHOLD: float = 0.3
 
     # Emotion signal word lists
-    NEGATIVE_WORDS: list[str] = Field(default_factory=lambda: [
-        "生气", "愤怒", "不满", "投诉", "差评", "退款", "骗子", "垃圾", "太差",
-        "失望", "欺骗", "坑", "忽悠", "恶劣", "糟糕", "气愤", "恼火", "心烦"
-    ])
-    URGENT_WORDS: list[str] = Field(default_factory=lambda: [
-        "马上", "立刻", "现在", "急", "紧急", "hurry", "urgent", "asap",
-        "立即", "赶紧", "赶快", "快点", "等着", "急用"
-    ])
-    POSITIVE_WORDS: list[str] = Field(default_factory=lambda: [
-        "谢谢", "感谢", "满意", "好评", "不错", "好用", "推荐", "喜欢",
-        "完美", "优秀", "棒", "赞", "给力", "靠谱"
-    ])
+    NEGATIVE_WORDS: list[str] = Field(
+        default_factory=lambda: [
+            "生气",
+            "愤怒",
+            "不满",
+            "投诉",
+            "差评",
+            "退款",
+            "骗子",
+            "垃圾",
+            "太差",
+            "失望",
+            "欺骗",
+            "坑",
+            "忽悠",
+            "恶劣",
+            "糟糕",
+            "气愤",
+            "恼火",
+            "心烦",
+        ]
+    )
+    URGENT_WORDS: list[str] = Field(
+        default_factory=lambda: [
+            "马上",
+            "立刻",
+            "现在",
+            "急",
+            "紧急",
+            "hurry",
+            "urgent",
+            "asap",
+            "立即",
+            "赶紧",
+            "赶快",
+            "快点",
+            "等着",
+            "急用",
+        ]
+    )
+    POSITIVE_WORDS: list[str] = Field(
+        default_factory=lambda: [
+            "谢谢",
+            "感谢",
+            "满意",
+            "好评",
+            "不错",
+            "好用",
+            "推荐",
+            "喜欢",
+            "完美",
+            "优秀",
+            "棒",
+            "赞",
+            "给力",
+            "靠谱",
+        ]
+    )
 
     # Intent classification thresholds
     FUNCTION_CALLING_THRESHOLD: float = 0.7
@@ -204,5 +258,6 @@ class Settings(BaseSettings):
 
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
+
 
 settings = Settings()  # type: ignore

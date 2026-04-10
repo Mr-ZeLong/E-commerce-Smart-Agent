@@ -3,6 +3,7 @@
 原 SupervisorAgent 和 AgentOrchestrator 的逻辑已直接下沉到这些节点中。
 业务逻辑层（PolicyAgent/OrderAgent 等）保持不变。
 """
+
 import logging
 from typing import Any, Literal, cast
 
@@ -44,7 +45,9 @@ def _get_order_agent() -> OrderAgent:
     return _order_agent
 
 
-async def router_node(state: AgentState) -> Command[Literal["policy_agent", "order_agent", "decider_node"]]:
+async def router_node(
+    state: AgentState,
+) -> Command[Literal["policy_agent", "order_agent", "decider_node"]]:
     """意图识别与路由节点（原 Supervisor + Orchestrator 的路由部分）"""
     router = _get_router_agent()
     router_result = await router.process(cast(dict[str, Any], state))
@@ -54,28 +57,30 @@ async def router_node(state: AgentState) -> Command[Literal["policy_agent", "ord
 
     # 直接回复场景（闲聊、问候、澄清）
     if router_result.response:
-        return Command(
-            goto="decider_node",
-            update={"answer": router_result.response, **updated}
-        )
+        return Command(goto="decider_node", update={"answer": router_result.response, **updated})
 
     if state.get("retry_requested"):
         # 如果重试后仍然要路由到同一个 specialist，直接转人工
         next_agent = updated.get("next_agent")
         current_agent = state.get("current_agent")
-        if next_agent and current_agent and (
-            (next_agent == "policy" and current_agent == "policy_agent") or
-            (next_agent == "order" and current_agent == "order_agent") or
-            (next_agent == "supervisor" and current_agent == "policy_agent")
+        if (
+            next_agent
+            and current_agent
+            and (
+                (next_agent == "policy" and current_agent == "policy_agent")
+                or (next_agent == "order" and current_agent == "order_agent")
+                or (next_agent == "supervisor" and current_agent == "policy_agent")
+            )
         ):
             return Command(
                 goto="decider_node",
                 update={
-                    "answer": router_result.response or "系统对该问题没有足够把握，已为您转接人工客服。",
+                    "answer": router_result.response
+                    or "系统对该问题没有足够把握，已为您转接人工客服。",
                     "needs_human_transfer": True,
                     "transfer_reason": "confidence_retry_routed_to_same_agent",
                     **updated,
-                }
+                },
             )
         # 否则清除 retry_requested 继续正常路由
         updated["retry_requested"] = False
@@ -88,7 +93,7 @@ async def router_node(state: AgentState) -> Command[Literal["policy_agent", "ord
                 "answer": "无法确定处理该请求的专业代理，请尝试换一种方式描述您的问题。",
                 "needs_human_transfer": True,
                 **updated,
-            }
+            },
         )
 
     if iteration > settings.MAX_ROUTER_ITERATIONS:
@@ -98,7 +103,7 @@ async def router_node(state: AgentState) -> Command[Literal["policy_agent", "ord
             update={
                 "answer": "系统处理步数过多，请联系人工客服。",
                 "needs_human_transfer": True,
-            }
+            },
         )
 
     if next_agent == "policy" or next_agent == "supervisor":
@@ -108,7 +113,7 @@ async def router_node(state: AgentState) -> Command[Literal["policy_agent", "ord
     else:
         return Command(
             goto="decider_node",
-            update={"answer": router_result.response or "暂不支持该类型请求", **updated}
+            update={"answer": router_result.response or "暂不支持该类型请求", **updated},
         )
 
 
@@ -155,11 +160,11 @@ async def evaluator_node(state: AgentState) -> Command[Literal["decider_node", "
     )
 
     # 极低置信度且未超限，返回 router 重试一次
-    if eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES:
-        return Command(
-            goto="router_node",
-            update={"retry_requested": True, **eval_result}
-        )
+    if (
+        eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD
+        and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES
+    ):
+        return Command(goto="router_node", update={"retry_requested": True, **eval_result})
 
     return Command(goto="decider_node", update=eval_result)
 

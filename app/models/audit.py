@@ -3,6 +3,7 @@
 v4.0 新增：审计日志模型
 记录人工审核流程的完整上下文
 """
+
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -11,11 +12,12 @@ from sqlalchemy import JSON, Column, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import naive_utc_now, utc_now
+from app.core.utils import naive_utc_now
 
 
 class RiskLevel(str, Enum):
     """风险等级"""
+
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -24,6 +26,7 @@ class RiskLevel(str, Enum):
 
 class AuditAction(str, Enum):
     """审核动作"""
+
     APPROVE = "APPROVE"
     REJECT = "REJECT"
     ESCALATE = "ESCALATE"
@@ -32,13 +35,15 @@ class AuditAction(str, Enum):
 
 class AuditTriggerType(str, Enum):
     """审核触发类型"""
-    RISK = "RISK"                    # 金额风险触发
-    CONFIDENCE = "CONFIDENCE"        # 置信度不足触发
-    MANUAL = "MANUAL"                # 用户主动要求
+
+    RISK = "RISK"  # 金额风险触发
+    CONFIDENCE = "CONFIDENCE"  # 置信度不足触发
+    MANUAL = "MANUAL"  # 用户主动要求
 
 
 class AuditLog(SQLModel, table=True):
     """审计日志表 - 记录所有需要人工介入的决策"""
+
     __tablename__ = "audit_logs"
 
     id: int | None = Field(default=None, primary_key=True)
@@ -55,82 +60,71 @@ class AuditLog(SQLModel, table=True):
 
     # 触发原因
     trigger_reason: str = Field(
-        sa_column=Column(Text, nullable=False),
-        description="触发人工审核的原因"
+        sa_column=Column(Text, nullable=False), description="触发人工审核的原因"
     )
 
     # 风险等级
     risk_level: RiskLevel = Field(
-        default=RiskLevel.LOW,
-        sa_column=Column(String, index=True, nullable=False)
+        default=RiskLevel.LOW, sa_column=Column(String, index=True, nullable=False)
     )
 
     # 审核状态
     action: AuditAction = Field(
-        default=AuditAction.PENDING,
-        sa_column=Column(String, index=True, nullable=False)
+        default=AuditAction.PENDING, sa_column=Column(String, index=True, nullable=False)
     )
 
     # 审核级别
     audit_level: str | None = Field(
         default=None,
         sa_column=Column(String(16), nullable=True),
-        description="审核级别 (none/auto/manual)"
+        description="审核级别 (none/auto/manual)",
     )
 
     # 触发类型
     trigger_type: AuditTriggerType = Field(
         default=AuditTriggerType.RISK,
-        sa_column=Column(SAEnum(AuditTriggerType, name='audittriggertype'), index=True, nullable=False),
-        description="触发审核的类型"
+        sa_column=Column(
+            SAEnum(AuditTriggerType, name="audittriggertype"), index=True, nullable=False
+        ),
+        description="触发审核的类型",
     )
 
     # 置信度评估元数据
     confidence_metadata: dict[str, Any] | None = Field(
-        default=None,
-        sa_column=Column(JSON, nullable=True),
-        description="置信度评估元数据"
+        default=None, sa_column=Column(JSON, nullable=True), description="置信度评估元数据"
     )
 
     # 管理员信息
     admin_id: int | None = Field(default=None, index=True, description="审核管理员ID")
     admin_comment: str | None = Field(
-        default=None,
-        sa_column=Column(Text),
-        description="管理员备注"
+        default=None, sa_column=Column(Text), description="管理员备注"
     )
 
     # 上下文快照 (保存触发时的完整对话历史和订单详情)
-    context_snapshot:  dict[str, Any] = Field(
-        sa_column=Column(JSON, nullable=False),
-        description="触发时的上下文快照"
+    context_snapshot: dict[str, Any] = Field(
+        sa_column=Column(JSON, nullable=False), description="触发时的上下文快照"
     )
 
     # 决策结果元数据
-    decision_metadata:  dict[str, Any] | None = Field(
-        default={},
-        sa_column=Column(JSON),
-        description="决策相关的元数据"
+    decision_metadata: dict[str, Any] | None = Field(
+        default={}, sa_column=Column(JSON), description="决策相关的元数据"
     )
 
     # 时间戳
     created_at: datetime = Field(
         default_factory=naive_utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")},
-        description="创建时间（触发审核时间）"
+        description="创建时间（触发审核时间）",
     )
 
-    reviewed_at: datetime | None = Field(
-        default=None,
-        description="审核完成时间"
-    )
+    reviewed_at: datetime | None = Field(default=None, description="审核完成时间")
 
     updated_at: datetime = Field(
         default_factory=naive_utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
-            "onupdate": text("CURRENT_TIMESTAMP")
-        }
+            "onupdate": text("CURRENT_TIMESTAMP"),
+        },
     )
 
     model_config = {"use_enum_values": True}

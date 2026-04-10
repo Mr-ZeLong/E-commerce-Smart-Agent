@@ -17,7 +17,7 @@ from app.models.refund import RefundApplication, RefundReason, RefundStatus
 # 允许退货的订单状态
 ALLOWED_ORDER_STATUSES = [
     OrderStatus.DELIVERED,  # 已签收
-    OrderStatus.SHIPPED     # 已发货（可选，根据业务决定）
+    OrderStatus.SHIPPED,  # 已发货（可选，根据业务决定）
 ]
 
 
@@ -25,14 +25,12 @@ ALLOWED_ORDER_STATUSES = [
 # 退货资格校验引擎
 # ==========================================
 
+
 class RefundEligibilityChecker:
     """退货资格校验器（纯 Python 硬逻辑，不依赖 LLM）"""
 
     @staticmethod
-    async def check_eligibility(
-        order: Order,
-        session: AsyncSession
-    ) -> tuple[bool, str]:
+    async def check_eligibility(order: Order, session: AsyncSession) -> tuple[bool, str]:
         """
         检查订单是否可以退货
 
@@ -45,11 +43,13 @@ class RefundEligibilityChecker:
             return False, f"订单状态为 {order.status}，只有已发货或已签收的订单才能退货"
 
         # ========== 规则 2: 检查是否已有退货申请 ==========
+        assert order.id is not None
         existing_refund = await RefundEligibilityChecker._check_existing_refund(
-            order.id, session  # ty:ignore[invalid-argument-type]
+            order.id,
+            session,
         )
         if existing_refund:
-            return False, f"该订单已存在退货申请（状态：{existing_refund. status}）"
+            return False, f"该订单已存在退货申请（状态：{existing_refund.status}）"
 
         # ========== 规则 3: 检查退货时效 ==========
         # 以订单创建时间或签收时间为准（这里用 created_at，实际应该用 delivered_at）
@@ -67,19 +67,20 @@ class RefundEligibilityChecker:
 
     @staticmethod
     async def _check_existing_refund(
-        order_id:  int,
-        session: AsyncSession
+        order_id: int, session: AsyncSession
     ) -> RefundApplication | None:
         """检查是否已有退货申请"""
         stmt = select(RefundApplication).where(
             RefundApplication.order_id == order_id,
-            RefundApplication.status. in_([  # type: ignore
-                RefundStatus. PENDING,
-                RefundStatus. APPROVED
-            ])
+            RefundApplication.status.in_(  # ty: ignore
+                [
+                    RefundStatus.PENDING,
+                    RefundStatus.APPROVED,
+                ]
+            ),
         )
         result = await session.exec(stmt)
-        return result. first()
+        return result.first()
 
     @staticmethod
     def _check_time_limit(order: Order) -> tuple[bool, str]:
@@ -104,7 +105,7 @@ class RefundEligibilityChecker:
         return True, f"在退货期限内（已过 {days_passed} 天）"
 
     @staticmethod
-    def _check_category(order:  Order) -> tuple[bool, str]:
+    def _check_category(order: Order) -> tuple[bool, str]:
         """检查商品类别（预留扩展）"""
         # 检查订单中是否包含不可退货的商品
         for item in order.items:
@@ -113,7 +114,10 @@ class RefundEligibilityChecker:
             # 简单的字符串匹配（实际应该用商品分类字段）
             for non_refundable in settings.NON_REFUNDABLE_CATEGORIES:
                 if non_refundable in item_name:
-                    return False, f"订单包含不可退货商品：{item_name}（{non_refundable}类商品不支持退货）"
+                    return (
+                        False,
+                        f"订单包含不可退货商品：{item_name}（{non_refundable}类商品不支持退货）",
+                    )
 
         return True, "商品类别符合退货条件"
 
@@ -121,6 +125,7 @@ class RefundEligibilityChecker:
 # ==========================================
 # 退货申请创建服务
 # ==========================================
+
 
 class RefundApplicationService:
     """退货申请服务"""
@@ -131,7 +136,7 @@ class RefundApplicationService:
         user_id: int,
         reason_detail: str,
         reason_category: RefundReason | None,
-        session: AsyncSession
+        session: AsyncSession,
     ) -> tuple[bool, str, RefundApplication | None]:
         """
         创建退货申请
@@ -150,7 +155,7 @@ class RefundApplicationService:
         # ========== 步骤 1: 查询订单 ==========
         stmt = select(Order).where(
             Order.id == order_id,
-            Order.user_id == user_id  # 🔒 安全校验：只能退自己的订单
+            Order.user_id == user_id,  # 🔒 安全校验：只能退自己的订单
         )
         result = await session.exec(stmt)
         order = result.first()
@@ -190,9 +195,7 @@ class RefundApplicationService:
 
     @staticmethod
     async def get_user_refund_applications(
-        user_id: int,
-        session: AsyncSession,
-        status: RefundStatus | None = None
+        user_id: int, session: AsyncSession, status: RefundStatus | None = None
     ) -> list[RefundApplication]:
         """
         查询用户的退货申请列表
@@ -202,9 +205,7 @@ class RefundApplicationService:
             session: 数据库会话
             status: 筛选状态（可选）
         """
-        stmt = select(RefundApplication).where(
-            RefundApplication.user_id == user_id
-        )
+        stmt = select(RefundApplication).where(RefundApplication.user_id == user_id)
 
         if status:
             stmt = stmt.where(RefundApplication.status == status)
@@ -212,36 +213,27 @@ class RefundApplicationService:
         stmt = stmt.order_by(RefundApplication.created_at.desc())  # type: ignore
 
         result = await session.exec(stmt)
-        return list(result. all())
+        return list(result.all())
 
     @staticmethod
     async def get_refund_by_id(
-        refund_id: int,
-        user_id: int,
-        session: AsyncSession
+        refund_id: int, user_id: int, session: AsyncSession
     ) -> RefundApplication | None:
         """
         根据ID查询退货申请（带权限校验）
         """
         stmt = select(RefundApplication).where(
             RefundApplication.id == refund_id,
-            RefundApplication.user_id == user_id  # 🔒 只能查自己的
+            RefundApplication.user_id == user_id,  # 🔒 只能查自己的
         )
         result = await session.exec(stmt)
         return result.first()
 
 
-async def get_order_by_sn(
-    order_sn: str,
-    user_id: int,
-    session: AsyncSession
-) -> Order | None:
+async def get_order_by_sn(order_sn: str, user_id: int, session: AsyncSession) -> Order | None:
     """按订单号查询订单（统一转大写处理）"""
     normalized_sn = order_sn.strip().upper()
-    stmt = select(Order).where(
-        Order.order_sn == normalized_sn,
-        Order.user_id == user_id
-    )
+    stmt = select(Order).where(Order.order_sn == normalized_sn, Order.user_id == user_id)
     result = await session.exec(stmt)
     return result.first()
 
@@ -288,7 +280,7 @@ async def process_refund_for_order(
     user_id: int,
     reason_detail: str,
     reason_category: RefundReason | None,
-    session: AsyncSession
+    session: AsyncSession,
 ) -> tuple[bool, str, dict | None]:
     """
     为指定订单处理退款申请。
@@ -304,9 +296,7 @@ async def process_refund_for_order(
     if order.id is None:
         return False, "订单数据异常，请稍后重试。", None
 
-    is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(
-        order, session
-    )
+    is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(order, session)
     if not is_eligible:
         return False, f"该订单不符合退货条件：{eligibility_msg}", None
 
@@ -315,7 +305,7 @@ async def process_refund_for_order(
         user_id=user_id,
         reason_detail=reason_detail,
         reason_category=reason_category,
-        session=session
+        session=session,
     )
 
     if success and refund_app is not None:
