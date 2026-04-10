@@ -407,9 +407,10 @@ class AgentState(TypedDict):
 - `make_agent_state`：删除 `context`、`audit_required`、`audit_type` 参数
 
 **Checkpoint 兼容性处理（审阅补充）**:
-1. 在 `main.py` lifespan 启动时，明确声明：**v4.1 不保证与 v4.0 checkpoint 的会话恢复兼容性**。
-2. 若必须保留历史会话，在 `chat.py` 从 checkpoint 恢复状态时增加一次性桥接：若旧状态包含 `context` 但缺少 `retrieval_result`，自动转换。
-3. 推荐在首次部署时运行 Redis 清理脚本，删除旧格式 checkpoint（如 `thread:*` 键）。
+1. **已确认决策**：采用"彻底清理"策略，不保留旧字段桥接代码。
+2. 在 `main.py` lifespan 启动时，明确声明：**v4.1 不保证与 v4.0 checkpoint 的会话恢复兼容性**。
+3. 首次部署时运行 Redis 清理脚本，删除旧格式 checkpoint（如 `thread:*` 键）。
+4. 不增加运行时桥接逻辑，避免引入新的兼容层。
 
 **验收标准**:
 - `grep -r "audit_required\|audit_type\|normalize_state\|get_audit_required\|get_audit_level_from_old\|\"context\"\b" app/ tests/` 返回 0 结果
@@ -656,7 +657,7 @@ class IntentRouterAgent:
 - `typescript`: `~6.0.2` → `~5.8.2`（6.0.2 为开发版/非稳定版）
 
 **补充（审阅补充）**:
-- `react-router-dom: ^7.14.0` 为 v7 框架级数据 API，与 v6 行为有差异。若当前代码未使用 v7 特性，建议降级至 `^6.30.0` 或评估全面迁移。
+- **`react-router-dom` 已确认降级为 `^6.30.0`**。v7 为框架级数据 API，当前代码未使用 v7 特性，降级可避免不可预期的路由行为。
 - 同步将 `tsconfig.json` 中的 `"ignoreDeprecations": "6.0"` 移除。
 
 执行 `cd frontend && npm install` 验证。
@@ -936,6 +937,15 @@ class Settings(BaseSettings):
    - 所有文件改为 `from app.core.config import get_settings`
    - 在函数内部调用 `settings = get_settings()`
    - 这也能帮助解决部分循环依赖问题
+
+---
+
+## 6.5 已确认关键决策
+
+1. **`react-router-dom` 版本**: **选 A**，降级至 `^6.30.0`。当前代码未使用 v7 的 loader/action，降级可避免不可预期的路由行为，减少改造风险。
+2. **Checkpoint 兼容性**: **选 A**，首次部署时直接清空 Redis 中所有旧 checkpoint。不计改造成本，优先彻底清理，不保留旧字段桥接代码。这意味着 v4.0 的历史会话不可恢复。
+3. **JWT 存储迁移**: 本次仅执行阶段 1（`localStorage` → `sessionStorage`），阶段 2（`httpOnly` Cookie）作为未来演进方向，不纳入本次改造。
+4. **`apiFetch` schema 策略**: `schema` 为必填参数，强制所有 API 调用都有运行时校验。
 
 ---
 
