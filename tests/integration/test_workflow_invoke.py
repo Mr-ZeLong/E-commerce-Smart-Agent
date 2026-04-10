@@ -4,7 +4,7 @@ import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.graph.workflow import workflow
-from app.models.state import AgentState
+from app.models.state import make_agent_state
 
 
 @pytest.mark.asyncio
@@ -13,32 +13,10 @@ async def test_workflow_order_query():
     checkpointer = MemorySaver()
     app_graph = workflow.compile(checkpointer=checkpointer)
 
-    initial_state: AgentState = {
-        "question": "帮我查下订单 SN20240001",
-        "user_id": 1,
-        "thread_id": "1__test_order",
-        "history": [],
-        "context": [],
-        "order_data": None,
-        "answer": "",
-        "intent": None,
-        "current_agent": None,
-        "next_agent": None,
-        "iteration_count": 0,
-        "retry_requested": False,
-        "retrieval_result": None,
-        "messages": [],
-        "audit_level": None,
-        "audit_required": False,
-        "audit_type": None,
-        "audit_log_id": None,
-        "audit_reason": None,
-        "confidence_score": None,
-        "confidence_signals": None,
-        "refund_flow_active": None,
-        "refund_order_sn": None,
-        "refund_step": None,
-    }
+    initial_state = make_agent_state(
+        question="帮我查下订单 SN20240001",
+        thread_id="1__test_order",
+    )
 
     mock_router = AsyncMock()
     mock_router.process.return_value = type(
@@ -89,32 +67,10 @@ async def test_workflow_policy_query():
     checkpointer = MemorySaver()
     app_graph = workflow.compile(checkpointer=checkpointer)
 
-    initial_state: AgentState = {
-        "question": "运费怎么算？",
-        "user_id": 1,
-        "thread_id": "1__test_policy",
-        "history": [],
-        "context": [],
-        "order_data": None,
-        "answer": "",
-        "intent": None,
-        "current_agent": None,
-        "next_agent": None,
-        "iteration_count": 0,
-        "retry_requested": False,
-        "retrieval_result": None,
-        "messages": [],
-        "audit_level": None,
-        "audit_required": False,
-        "audit_type": None,
-        "audit_log_id": None,
-        "audit_reason": None,
-        "confidence_score": None,
-        "confidence_signals": None,
-        "refund_flow_active": None,
-        "refund_order_sn": None,
-        "refund_step": None,
-    }
+    initial_state = make_agent_state(
+        question="运费怎么算？",
+        thread_id="1__test_policy",
+    )
 
     mock_router = AsyncMock()
     mock_router.process.return_value = type(

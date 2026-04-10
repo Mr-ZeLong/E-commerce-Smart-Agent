@@ -5,6 +5,7 @@ from langgraph.types import Command
 
 from app.agents.base import AgentResult
 from app.graph import nodes as graph_nodes
+from app.models.state import make_agent_state
 
 
 @pytest.fixture(autouse=True)
@@ -29,13 +30,11 @@ async def test_router_node_direct_response():
     )
     graph_nodes._router_agent = mock_agent
 
-    state = {
-        "question": "你好",
-        "user_id": 1,
-        "thread_id": "t1",
-        "history": [],
-        "iteration_count": 0,
-    }
+    state = make_agent_state(
+        question="你好",
+        thread_id="t1",
+        iteration_count=0,
+    )
     result = await graph_nodes.router_node(state)
 
     assert isinstance(result, Command)
@@ -54,13 +53,11 @@ async def test_router_node_routes_to_policy():
     )
     graph_nodes._router_agent = mock_agent
 
-    state = {
-        "question": "运费怎么算",
-        "user_id": 1,
-        "thread_id": "t2",
-        "history": [],
-        "iteration_count": 0,
-    }
+    state = make_agent_state(
+        question="运费怎么算",
+        thread_id="t2",
+        iteration_count=0,
+    )
     result = await graph_nodes.router_node(state)
 
     assert isinstance(result, Command)
@@ -79,13 +76,11 @@ async def test_router_node_routes_to_order():
     )
     graph_nodes._router_agent = mock_agent
 
-    state = {
-        "question": "我的订单到哪了",
-        "user_id": 1,
-        "thread_id": "t3",
-        "history": [],
-        "iteration_count": 0,
-    }
+    state = make_agent_state(
+        question="我的订单到哪了",
+        thread_id="t3",
+        iteration_count=0,
+    )
     result = await graph_nodes.router_node(state)
 
     assert isinstance(result, Command)
@@ -103,13 +98,11 @@ async def test_router_node_iteration_exceeded():
     )
     graph_nodes._router_agent = mock_agent
 
-    state = {
-        "question": "我的订单",
-        "user_id": 1,
-        "thread_id": "t4",
-        "history": [],
-        "iteration_count": 6,
-    }
+    state = make_agent_state(
+        question="我的订单",
+        thread_id="t4",
+        iteration_count=6,
+    )
     result = await graph_nodes.router_node(state)
 
     assert isinstance(result, Command)
@@ -128,13 +121,11 @@ async def test_router_node_missing_next_agent():
     )
     graph_nodes._router_agent = mock_agent
 
-    state = {
-        "question": "xxx",
-        "user_id": 1,
-        "thread_id": "t5",
-        "history": [],
-        "iteration_count": 0,
-    }
+    state = make_agent_state(
+        question="xxx",
+        thread_id="t5",
+        iteration_count=0,
+    )
     result = await graph_nodes.router_node(state)
 
     assert isinstance(result, Command)
@@ -152,7 +143,7 @@ async def test_policy_node():
     )
     graph_nodes._policy_agent = mock_agent
 
-    state = {"question": "运费", "user_id": 1, "thread_id": "t6", "history": []}
+    state = make_agent_state(question="运费", thread_id="t6")
     result = await graph_nodes.policy_node(state)
 
     assert isinstance(result, Command)
@@ -171,7 +162,7 @@ async def test_order_node():
     )
     graph_nodes._order_agent = mock_agent
 
-    state = {"question": "订单", "user_id": 1, "thread_id": "t7", "history": []}
+    state = make_agent_state(question="订单", thread_id="t7")
     result = await graph_nodes.order_node(state)
 
     assert isinstance(result, Command)
@@ -192,7 +183,7 @@ async def test_policy_node_needs_human():
     )
     graph_nodes._policy_agent = mock_agent
 
-    state = {"question": "投诉", "user_id": 1, "thread_id": "t8", "history": []}
+    state = make_agent_state(question="投诉", thread_id="t8")
     result = await graph_nodes.policy_node(state)
 
     assert result.update["needs_human_transfer"] is True
@@ -202,11 +193,12 @@ async def test_policy_node_needs_human():
 @pytest.mark.asyncio
 async def test_evaluator_node_skips_when_needs_human():
     """evaluator_node 在 needs_human_transfer 为 True 时直接跳过"""
-    state = {
-        "answer": "请转人工",
-        "needs_human_transfer": True,
-        "iteration_count": 1,
-    }
+    state = make_agent_state(
+        question="转人工",
+        answer="请转人工",
+        iteration_count=1,
+    )
+    state["needs_human_transfer"] = True
     result = await graph_nodes.evaluator_node(state)
 
     assert isinstance(result, Command)
@@ -228,12 +220,11 @@ async def test_evaluator_node_low_confidence_retries():
         graph_nodes.ConfidenceEvaluator, "evaluate", new_callable=AsyncMock
     ) as mock_eval:
         mock_eval.return_value = eval_result
-        state = {
-            "answer": "不确定",
-            "question": "怎么退货",
-            "history": [],
-            "iteration_count": 1,
-        }
+        state = make_agent_state(
+            answer="不确定",
+            question="怎么退货",
+            iteration_count=1,
+        )
         result = await graph_nodes.evaluator_node(state)
 
     assert isinstance(result, Command)
@@ -255,12 +246,11 @@ async def test_evaluator_node_high_confidence_goes_to_decider():
         graph_nodes.ConfidenceEvaluator, "evaluate", new_callable=AsyncMock
     ) as mock_eval:
         mock_eval.return_value = eval_result
-        state = {
-            "answer": "运费满100免运费",
-            "question": "运费怎么算",
-            "history": [],
-            "iteration_count": 1,
-        }
+        state = make_agent_state(
+            answer="运费满100免运费",
+            question="运费怎么算",
+            iteration_count=1,
+        )
         result = await graph_nodes.evaluator_node(state)
 
     assert isinstance(result, Command)
@@ -282,12 +272,11 @@ async def test_evaluator_node_boundary_confidence_retries():
         graph_nodes.ConfidenceEvaluator, "evaluate", new_callable=AsyncMock
     ) as mock_eval:
         mock_eval.return_value = eval_result
-        state = {
-            "answer": "一般",
-            "question": "问题",
-            "history": [],
-            "iteration_count": 1,
-        }
+        state = make_agent_state(
+            answer="一般",
+            question="问题",
+            iteration_count=1,
+        )
         result = await graph_nodes.evaluator_node(state)
 
     assert result.goto == "decider_node"
@@ -295,15 +284,16 @@ async def test_evaluator_node_boundary_confidence_retries():
 
 def test_decider_node_normal():
     """decider_node 正常返回决策结果"""
-    state = {
-        "answer": "运费满100免运费",
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-        "confidence_score": 0.85,
-        "confidence_signals": {"rag": {"score": 0.9}},
-        "intent": "POLICY",
-    }
+    state = make_agent_state(
+        question="运费",
+        answer="运费满100免运费",
+        audit_level="none",
+        confidence_score=0.85,
+        confidence_signals={"rag": {"score": 0.9}},
+        intent="POLICY",
+    )
+    state["needs_human_transfer"] = False
+    state["transfer_reason"] = None
     result = graph_nodes.decider_node(state)
 
     assert result["answer"] == "运费满100免运费"
@@ -315,15 +305,16 @@ def test_decider_node_normal():
 
 def test_decider_node_transfer():
     """decider_node 在需要转人工时返回正确字段"""
-    state = {
-        "answer": "请转人工",
-        "needs_human_transfer": True,
-        "transfer_reason": "specialist_requested_transfer",
-        "audit_level": "manual",
-        "confidence_score": 0.0,
-        "confidence_signals": {},
-        "intent": "ORDER",
-    }
+    state = make_agent_state(
+        question="投诉",
+        answer="请转人工",
+        audit_level="manual",
+        confidence_score=0.0,
+        confidence_signals={},
+        intent="ORDER",
+    )
+    state["needs_human_transfer"] = True
+    state["transfer_reason"] = "specialist_requested_transfer"
     result = graph_nodes.decider_node(state)
 
     assert result["needs_human_transfer"] is True
