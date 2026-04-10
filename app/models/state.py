@@ -68,6 +68,10 @@ class AgentState(TypedDict):
     confidence_score: float | None
     confidence_signals: dict | None
 
+    # ========== 人工接管 ==========
+    needs_human_transfer: bool
+    transfer_reason: str | None
+
     # ========== 生成结果 ==========
     messages: Annotated[list[dict[str, Any]], operator.add]
     answer: str
@@ -158,6 +162,8 @@ def make_agent_state(
     refund_flow_active: bool | None = None,
     refund_order_sn: str | None = None,
     refund_step: str | None = None,
+    needs_human_transfer: bool = False,
+    transfer_reason: str | None = None,
 ) -> AgentState:
     """Create a fully-populated AgentState for tests."""
     return {
@@ -185,4 +191,6 @@ def make_agent_state(
         "refund_flow_active": refund_flow_active,
         "refund_order_sn": refund_order_sn,
         "refund_step": refund_step,
+        "needs_human_transfer": needs_human_transfer,
+        "transfer_reason": transfer_reason,
     }

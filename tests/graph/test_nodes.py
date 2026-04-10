@@ -39,6 +39,7 @@ async def test_router_node_direct_response():
 
     assert isinstance(result, Command)
     assert result.goto == "decider_node"
+    assert result.update is not None
     assert result.update["answer"] == "您好！"
     assert result.update["iteration_count"] == 1
 
@@ -62,6 +63,7 @@ async def test_router_node_routes_to_policy():
 
     assert isinstance(result, Command)
     assert result.goto == "policy_agent"
+    assert result.update is not None
     assert result.update["next_agent"] == "policy"
     assert result.update["iteration_count"] == 1
 
@@ -85,6 +87,7 @@ async def test_router_node_routes_to_order():
 
     assert isinstance(result, Command)
     assert result.goto == "order_agent"
+    assert result.update is not None
     assert result.update["next_agent"] == "order"
 
 
@@ -107,6 +110,7 @@ async def test_router_node_iteration_exceeded():
 
     assert isinstance(result, Command)
     assert result.goto == "decider_node"
+    assert result.update is not None
     assert "系统处理步数过多" in result.update["answer"]
     assert result.update["needs_human_transfer"] is True
 
@@ -130,6 +134,7 @@ async def test_router_node_missing_next_agent():
 
     assert isinstance(result, Command)
     assert result.goto == "decider_node"
+    assert result.update is not None
     assert result.update["needs_human_transfer"] is True
 
 
@@ -148,6 +153,7 @@ async def test_policy_node():
 
     assert isinstance(result, Command)
     assert result.goto == "evaluator_node"
+    assert result.update is not None
     assert result.update["answer"] == "运费满100免运费"
     assert result.update["context"] == ["policy chunk"]
 
@@ -167,6 +173,7 @@ async def test_order_node():
 
     assert isinstance(result, Command)
     assert result.goto == "evaluator_node"
+    assert result.update is not None
     assert result.update["answer"] == "您的订单已发货"
     assert result.update["order_data"]["status"] == "shipped"
 
@@ -186,6 +193,7 @@ async def test_policy_node_needs_human():
     state = make_agent_state(question="投诉", thread_id="t8")
     result = await graph_nodes.policy_node(state)
 
+    assert result.update is not None
     assert result.update["needs_human_transfer"] is True
     assert result.update["transfer_reason"] == "policy_specialist_request"
 
@@ -197,8 +205,8 @@ async def test_evaluator_node_skips_when_needs_human():
         question="转人工",
         answer="请转人工",
         iteration_count=1,
+        needs_human_transfer=True,
     )
-    state["needs_human_transfer"] = True
     result = await graph_nodes.evaluator_node(state)
 
     assert isinstance(result, Command)
@@ -229,6 +237,7 @@ async def test_evaluator_node_low_confidence_retries():
 
     assert isinstance(result, Command)
     assert result.goto == "router_node"
+    assert result.update is not None
     assert result.update["confidence_score"] == 0.2
 
 
@@ -255,6 +264,7 @@ async def test_evaluator_node_high_confidence_goes_to_decider():
 
     assert isinstance(result, Command)
     assert result.goto == "decider_node"
+    assert result.update is not None
     assert result.update["confidence_score"] == 0.85
 
 
@@ -291,9 +301,9 @@ def test_decider_node_normal():
         confidence_score=0.85,
         confidence_signals={"rag": {"score": 0.9}},
         intent="POLICY",
+        needs_human_transfer=False,
+        transfer_reason=None,
     )
-    state["needs_human_transfer"] = False
-    state["transfer_reason"] = None
     result = graph_nodes.decider_node(state)
 
     assert result["answer"] == "运费满100免运费"
@@ -312,9 +322,9 @@ def test_decider_node_transfer():
         confidence_score=0.0,
         confidence_signals={},
         intent="ORDER",
+        needs_human_transfer=True,
+        transfer_reason="specialist_requested_transfer",
     )
-    state["needs_human_transfer"] = True
-    state["transfer_reason"] = "specialist_requested_transfer"
     result = graph_nodes.decider_node(state)
 
     assert result["needs_human_transfer"] is True
