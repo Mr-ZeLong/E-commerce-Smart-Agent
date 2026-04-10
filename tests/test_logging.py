@@ -36,7 +36,7 @@ class TestCorrelationIdFilter:
         result = filter_.filter(record)
 
         assert result is True
-        assert record.correlation_id == "abc123"
+        assert getattr(record, "correlation_id") == "abc123"  # noqa: B009
 
     def test_defaults_to_dash_when_no_correlation_id(self):
         filter_ = CorrelationIdFilter()
@@ -54,7 +54,7 @@ class TestCorrelationIdFilter:
         result = filter_.filter(record)
 
         assert result is True
-        assert record.correlation_id == "-"
+        assert getattr(record, "correlation_id") == "-"  # noqa: B009
 
 
 class TestSetCorrelationId:

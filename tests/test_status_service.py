@@ -32,6 +32,7 @@ class TestGetThreadStatus:
         assert isinstance(result, StatusResponse)
         assert result.status == "WAITING_ADMIN"
         assert result.thread_id == "42__thread-abc"
+        assert result.data is not None
         assert result.data["audit_log_id"] == 1
         assert result.data["risk_level"] == "HIGH"
 
@@ -56,6 +57,7 @@ class TestGetThreadStatus:
 
         assert isinstance(result, StatusResponse)
         assert result.status == "APPROVED"
+        assert result.data is not None
         assert result.data["admin_comment"] == "ok"
 
     @pytest.mark.asyncio
@@ -79,6 +81,7 @@ class TestGetThreadStatus:
 
         assert isinstance(result, StatusResponse)
         assert result.status == "REJECTED"
+        assert result.message is not None
         assert "invalid" in result.message
 
     @pytest.mark.asyncio
