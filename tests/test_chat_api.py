@@ -12,7 +12,7 @@ from app.core.security import create_access_token
 from app.models.user import User
 
 
-@pytest_asyncio.fixture(loop_scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def auth_token():
     unique = uuid.uuid4().hex[:8]
     username = f"chat_user_{unique}"
@@ -131,12 +131,15 @@ async def test_chat_503_when_app_graph_none(client, auth_token):
 async def test_chat_exception_handling(client, auth_token):
     """astream_events 抛出 Exception 时返回 SSE error payload"""
 
-    async def mock_astream_events(state, config, version):
-        raise RuntimeError("boom")
-        yield {}
+    class _ErrorIter:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise RuntimeError("boom")
 
     mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = mock_astream_events
+    mock_app_graph.astream_events = lambda state, config, version: _ErrorIter()
 
     with patch("app.graph.workflow.app_graph", mock_app_graph):
         response = await client.post(
@@ -153,12 +156,15 @@ async def test_chat_exception_handling(client, auth_token):
 async def test_chat_cancelled_error_propagates(client, auth_token):
     """astream_events 抛出 CancelledError 时重新抛出，不进入通用异常处理"""
 
-    async def mock_astream_events(state, config, version):
-        raise asyncio.CancelledError()
-        yield {}
+    class _CancelIter:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise asyncio.CancelledError()
 
     mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = mock_astream_events
+    mock_app_graph.astream_events = lambda state, config, version: _CancelIter()
 
     with patch("app.graph.workflow.app_graph", mock_app_graph):
         response = await client.post(
@@ -170,4 +176,5 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
     # CancelledError 被重新抛出后，ASGI 层中断流，客户端收到空响应
     # 与通用异常处理（返回 error payload）区分
     assert response.status_code == 200
+    # CancelledError causes the ASGI server to abort the stream, leaving the response body empty
     assert response.text == ""

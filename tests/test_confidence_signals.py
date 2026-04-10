@@ -217,11 +217,14 @@ class TestConfidenceSignals:
         with patch("app.confidence.signals.create_openai_llm", return_value=mock_llm):
             signals = ConfidenceSignals(retrieval_state)
 
+        async def _slow_calculate(generated_answer=None):
+            await asyncio.sleep(0.01)
+
         with (
             patch.object(
                 signals,
                 "_calculate_with_timeout",
-                new=lambda generated_answer=None: asyncio.sleep(10),
+                new=_slow_calculate,
             ),
             patch(
                 "app.confidence.signals.settings.CONFIDENCE.CALCULATION_TIMEOUT_SECONDS",
