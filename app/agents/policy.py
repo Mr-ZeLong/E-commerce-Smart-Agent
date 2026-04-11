@@ -1,13 +1,10 @@
 import logging
-from typing import TYPE_CHECKING, Any
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
-from app.models.state import AgentState
-
-if TYPE_CHECKING:
-    from app.retrieval.retriever import HybridRetriever
+from app.models.state import AgentProcessResult, AgentState
+from app.retrieval.retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +20,11 @@ POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 class PolicyAgent(BaseAgent):
     """政策专家 Agent"""
 
-    def __init__(self, retriever: "HybridRetriever", llm: ChatOpenAI):
+    def __init__(self, retriever: HybridRetriever, llm: BaseChatModel):
         super().__init__(name="policy", llm=llm, system_prompt=POLICY_SYSTEM_PROMPT)
         self.retriever = retriever
 
-    async def process(self, state: AgentState) -> dict[str, Any]:
+    async def process(self, state: AgentState) -> AgentProcessResult:
         question = state.get("question", "")
 
         chunks, similarities, sources = await self._retrieve_knowledge(question)

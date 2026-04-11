@@ -1,5 +1,5 @@
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
-from langchain_openai import ChatOpenAI
 
 REWRITE_PROMPT = """你是一个电商客服查询优化专家。请将用户的口语化问题改写成一个更适合文档检索的查询。
 要求：
@@ -12,7 +12,7 @@ REWRITE_PROMPT = """你是一个电商客服查询优化专家。请将用户的
 
 
 class QueryRewriter:
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: BaseChatModel):
         self.llm = llm
 
     async def rewrite(self, query: str) -> str:

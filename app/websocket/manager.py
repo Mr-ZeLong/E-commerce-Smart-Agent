@@ -136,6 +136,12 @@ class ConnectionManager:
             async with self._lock:
                 if thread_id in self.thread_subscribers:
                     self.thread_subscribers[thread_id] -= disconnected
+                for user_id, threads in list(self.active_connections.items()):
+                    for tid, ws in list(threads.items()):
+                        if ws in disconnected:
+                            del threads[tid]
+                    if not threads:
+                        del self.active_connections[user_id]
 
     async def broadcast_to_admins(self, message: dict):
         """广播消息给所有管理员"""

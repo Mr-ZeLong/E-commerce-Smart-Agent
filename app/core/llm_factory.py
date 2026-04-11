@@ -1,3 +1,4 @@
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
@@ -11,7 +12,7 @@ def create_openai_llm(
     timeout: float | None = None,
     max_retries: int | None = None,
     **kwargs,
-) -> ChatOpenAI:
+) -> BaseChatModel:
     """Create a ChatOpenAI instance with project defaults."""
     llm_kwargs: dict = {
         "base_url": settings.OPENAI_BASE_URL,

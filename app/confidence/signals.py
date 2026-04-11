@@ -1,11 +1,12 @@
 # app/confidence/signals.py
 import asyncio
+import re
 from collections.abc import Mapping
 from typing import Any
 
 from langchain_core.exceptions import LangChainException
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -14,6 +15,13 @@ from app.core.utils import clamp_score
 NEGATIVE_WORDS = frozenset(settings.NEGATIVE_WORDS)
 URGENT_WORDS = frozenset(settings.URGENT_WORDS)
 POSITIVE_WORDS = frozenset(settings.POSITIVE_WORDS)
+
+
+def _extract_tokens(text: str) -> set[str]:
+    """提取中英文混合 token：中文字符单独提取，英文按空格分词保留长度>2的词。"""
+    chinese_chars = set(re.findall(r"[\u4e00-\u9fff]", text))
+    words = {w.lower() for w in re.findall(r"[a-zA-Z0-9]+", text) if len(w) > 2}
+    return chinese_chars | words
 
 
 class LLMConfidenceScore(BaseModel):
@@ -34,19 +42,11 @@ async def calculate_rag_signal(
     query: str,
 ) -> SignalResult:
     """基于检索质量计算置信度"""
-    import re
-
     if not similarities:
         return SignalResult(score=0.0, reason="无检索结果")
 
     avg_sim = sum(similarities) / len(similarities)
     max_sim = max(similarities)
-
-    def _extract_tokens(text: str) -> set[str]:
-        """提取中英文混合 token：中文字符单独提取，英文按空格分词保留长度>2的词。"""
-        chinese_chars = set(re.findall(r"[\u4e00-\u9fff]", text))
-        words = {w.lower() for w in re.findall(r"[a-zA-Z0-9]+", text) if len(w) > 2}
-        return chinese_chars | words
 
     query_tokens = _extract_tokens(query)
     covered_tokens = set()
@@ -72,7 +72,7 @@ async def calculate_llm_signal(
     query: str,
     context: list[str],
     generated_answer: str,
-    llm: ChatOpenAI,
+    llm: BaseChatModel,
 ) -> SignalResult:
     """计算 LLM 自我评估信号"""
     structured_llm = llm.with_structured_output(LLMConfidenceScore, method="json_mode")
@@ -146,69 +146,73 @@ async def calculate_emotion_signal(
 async def calculate_confidence_signals(
     state: Mapping[str, Any],
     generated_answer: str | None = None,
-    llm: ChatOpenAI | None = None,
+    llm: BaseChatModel | None = None,
 ) -> dict[str, SignalResult]:
     """计算所有置信度信号（带超时控制）"""
-
-    async def _calculate() -> dict[str, SignalResult]:
-        retrieval_result = state.get("retrieval_result")
-        query = state.get("question", "")
-        history = state.get("history", [])
-
-        results: dict[str, SignalResult] = {}
-
-        if retrieval_result:
-            rag_coro = calculate_rag_signal(
-                similarities=retrieval_result["similarities"],
-                chunks=retrieval_result["chunks"],
-                query=query,
-            )
-            emotion_coro = calculate_emotion_signal(
-                query=query,
-                history=history,
-                history_rounds=settings.CONFIDENCE.EMOTION_HISTORY_ROUNDS,
-            )
-            results["rag"], results["emotion"] = await asyncio.gather(rag_coro, emotion_coro)
-        else:
-            results["emotion"] = await calculate_emotion_signal(
-                query=query,
-                history=history,
-                history_rounds=settings.CONFIDENCE.EMOTION_HISTORY_ROUNDS,
-            )
-            results["rag"] = SignalResult(score=0.0, reason="无检索结果")
-
-        should_skip_llm = (
-            settings.CONFIDENCE.SKIP_LLM_ON_CLEAR_RAG
-            and generated_answer is None
-            and (
-                results["rag"].score >= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_HIGH
-                or results["rag"].score <= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_LOW
-            )
-        )
-
-        if should_skip_llm:
-            results["llm"] = SignalResult(
-                score=results["rag"].score,
-                reason=f"RAG信号明确({results['rag'].score:.2f})，跳过LLM",
-                metadata={"skipped": True},
-            )
-        elif generated_answer and llm is not None:
-            context = retrieval_result["chunks"] if retrieval_result else []
-            results["llm"] = await calculate_llm_signal(
-                query=query,
-                context=context,
-                generated_answer=generated_answer,
-                llm=llm,
-            )
-        else:
-            results["llm"] = SignalResult(score=0.5, reason="等待生成结果")
-
-        return results
-
     try:
         return await asyncio.wait_for(
-            _calculate(),
+            _calculate_confidence_signals(state, generated_answer, llm),
             timeout=settings.CONFIDENCE.CALCULATION_TIMEOUT_SECONDS,
         )
     except TimeoutError as exc:
         raise RuntimeError("Confidence signal calculation timed out") from exc
+
+
+async def _calculate_confidence_signals(
+    state: Mapping[str, Any],
+    generated_answer: str | None,
+    llm: BaseChatModel | None,
+) -> dict[str, SignalResult]:
+    retrieval_result = state.get("retrieval_result")
+    query = state.get("question", "")
+    history = state.get("history", [])
+
+    results: dict[str, SignalResult] = {}
+
+    if retrieval_result:
+        rag_coro = calculate_rag_signal(
+            similarities=retrieval_result["similarities"],
+            chunks=retrieval_result["chunks"],
+            query=query,
+        )
+        emotion_coro = calculate_emotion_signal(
+            query=query,
+            history=history,
+            history_rounds=settings.CONFIDENCE.EMOTION_HISTORY_ROUNDS,
+        )
+        results["rag"], results["emotion"] = await asyncio.gather(rag_coro, emotion_coro)
+    else:
+        results["emotion"] = await calculate_emotion_signal(
+            query=query,
+            history=history,
+            history_rounds=settings.CONFIDENCE.EMOTION_HISTORY_ROUNDS,
+        )
+        results["rag"] = SignalResult(score=0.0, reason="无检索结果")
+
+    should_skip_llm = (
+        settings.CONFIDENCE.SKIP_LLM_ON_CLEAR_RAG
+        and generated_answer is None
+        and (
+            results["rag"].score >= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_HIGH
+            or results["rag"].score <= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_LOW
+        )
+    )
+
+    if should_skip_llm:
+        results["llm"] = SignalResult(
+            score=results["rag"].score,
+            reason=f"RAG信号明确({results['rag'].score:.2f})，跳过LLM",
+            metadata={"skipped": True},
+        )
+    elif generated_answer and llm is not None:
+        context = retrieval_result["chunks"] if retrieval_result else []
+        results["llm"] = await calculate_llm_signal(
+            query=query,
+            context=context,
+            generated_answer=generated_answer,
+            llm=llm,
+        )
+    else:
+        results["llm"] = SignalResult(score=0.5, reason="等待生成结果")
+
+    return results

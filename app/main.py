@@ -28,10 +28,20 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     _setup_logging()
     logger.info(" Starting E-commerce Smart Agent v4.1...")
+
+    if "*" in settings.CORS_ORIGINS:
+        raise RuntimeError(
+            "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
+            "Please restrict CORS_ORIGINS to specific domains."
+        )
+
+    from langgraph.checkpoint.redis import AsyncRedisSaver
+
     from app.agents.evaluator import ConfidenceEvaluator
     from app.agents.order import OrderAgent
     from app.agents.policy import PolicyAgent
     from app.agents.router import IntentRouterAgent
+    from app.core.database import async_engine
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
     from app.graph.workflow import compile_app_graph
@@ -41,29 +51,38 @@ async def lifespan(app: FastAPI):
 
     app.state.manager = ConnectionManager()
 
-    llm = create_openai_llm()
-    eval_llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
-    intent_service = IntentRecognitionService(llm=llm, redis_client=create_redis_client())
-    router_agent = IntentRouterAgent(intent_service=intent_service, llm=llm)
-    policy_agent = PolicyAgent(retriever=create_retriever(llm=llm), llm=llm)
-    order_agent = OrderAgent(order_service=OrderService(), llm=llm)
-    evaluator = ConfidenceEvaluator(llm=eval_llm)
+    redis_client = None
+    retriever = None
+    try:
+        redis_client = create_redis_client()
+        checkpointer = AsyncRedisSaver(redis_client=redis_client)
+        await checkpointer.setup()
 
-    if "*" in settings.CORS_ORIGINS:
-        raise RuntimeError(
-            "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
-            "Please restrict CORS_ORIGINS to specific domains."
+        llm = create_openai_llm()
+        eval_llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
+        intent_service = IntentRecognitionService(llm=llm, redis_client=redis_client)
+        router_agent = IntentRouterAgent(intent_service=intent_service, llm=llm)
+        retriever = create_retriever(llm=llm)
+        policy_agent = PolicyAgent(retriever=retriever, llm=llm)
+        order_agent = OrderAgent(order_service=OrderService(), llm=llm)
+        evaluator = ConfidenceEvaluator(llm=eval_llm)
+
+        app.state.app_graph = await compile_app_graph(
+            router_agent=router_agent,
+            policy_agent=policy_agent,
+            order_agent=order_agent,
+            evaluator=evaluator,
+            checkpointer=checkpointer,
         )
-
-    app.state.app_graph = await compile_app_graph(
-        router_agent=router_agent,
-        policy_agent=policy_agent,
-        order_agent=order_agent,
-        evaluator=evaluator,
-    )
-    logger.info(" Infrastructure is ready.")
-    yield
-    logger.info("Shutting down...")
+        logger.info(" Infrastructure is ready.")
+        yield
+    finally:
+        logger.info("Shutting down...")
+        if redis_client is not None:
+            await redis_client.close()
+        if retriever is not None:
+            await retriever.qdrant_client.aclose()
+        await async_engine.dispose()
 
 
 def _setup_logging() -> None:

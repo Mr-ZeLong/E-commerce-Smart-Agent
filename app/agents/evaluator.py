@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.confidence.signals import calculate_confidence_signals
 from app.core.config import settings
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class ConfidenceEvaluator:
     """负责置信度评估"""
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: BaseChatModel):
         self.llm = llm
 
     async def evaluate(

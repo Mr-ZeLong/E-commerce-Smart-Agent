@@ -205,6 +205,38 @@ async def test_evaluator_node_low_confidence_retries():
     assert result.goto == "router_node"
     assert result.update is not None
     assert result.update["confidence_score"] == 0.2
+    assert "needs_human_transfer" not in result.update
+    assert "audit_level" not in result.update
+    assert "transfer_reason" not in result.update
+
+
+@pytest.mark.asyncio
+async def test_evaluator_node_retry_excludes_transfer_flags():
+    """即使 evaluator 返回 needs_human_transfer=True，retry 更新中也不应包含该标志"""
+    eval_result = {
+        "confidence_score": 0.1,
+        "confidence_signals": {"rag": {"score": 0.1, "reason": "缺失"}},
+        "needs_human_transfer": True,
+        "transfer_reason": "置信度不足",
+        "audit_level": "manual",
+    }
+    mock_eval = _mock_agent()
+    mock_eval.evaluate.return_value = eval_result
+
+    node = build_evaluator_node(mock_eval)
+    state = make_agent_state(
+        answer="不确定",
+        question="怎么退货",
+        iteration_count=1,
+    )
+    result = await node(state)
+
+    assert result.goto == "router_node"
+    assert result.update is not None
+    assert result.update["confidence_score"] == 0.1
+    assert "needs_human_transfer" not in result.update
+    assert "audit_level" not in result.update
+    assert "transfer_reason" not in result.update
 
 
 @pytest.mark.asyncio
@@ -290,3 +322,19 @@ def test_decider_node_transfer():
     assert result["needs_human_transfer"] is True
     assert result["transfer_reason"] == "specialist_requested_transfer"
     assert result["audit_level"] == "manual"
+
+
+def test_decider_node_direct_response_from_router():
+    """router 直接回答（问候/澄清）confidence_score 为 None 时不应误判为 missing_evaluation"""
+    state = make_agent_state(
+        question="你好",
+        answer="您好！有什么可以帮您？",
+        needs_human_transfer=False,
+    )
+    result = decider_node(state)
+
+    assert result["needs_human_transfer"] is False
+    assert result["transfer_reason"] is None
+    assert result["audit_level"] == "auto"
+    assert result["confidence_score"] == 1.0
+    assert result["answer"] == "您好！有什么可以帮您？"

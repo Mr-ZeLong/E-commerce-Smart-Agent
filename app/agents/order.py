@@ -1,10 +1,9 @@
 import logging
-from typing import Any
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
-from app.models.state import AgentState
+from app.models.state import AgentProcessResult, AgentState
 from app.services.order_service import OrderService
 from app.utils.order_utils import extract_order_sn
 
@@ -22,11 +21,11 @@ ORDER_SYSTEM_PROMPT = """你是专业的电商订单处理助手。
 class OrderAgent(BaseAgent):
     """订单专家 Agent"""
 
-    def __init__(self, order_service: OrderService, llm: ChatOpenAI):
+    def __init__(self, order_service: OrderService, llm: BaseChatModel):
         super().__init__(name="order", llm=llm, system_prompt=ORDER_SYSTEM_PROMPT)
         self.order_service = order_service
 
-    async def process(self, state: AgentState) -> dict[str, Any]:
+    async def process(self, state: AgentState) -> AgentProcessResult:
         question = state.get("question", "")
         user_id = state.get("user_id")
         intent_result = state.get("intent_result") or {}
@@ -46,7 +45,7 @@ class OrderAgent(BaseAgent):
         else:
             return await self._handle_order_query(question, user_id)
 
-    async def _handle_order_query(self, question: str, user_id: int) -> dict[str, Any]:
+    async def _handle_order_query(self, question: str, user_id: int) -> AgentProcessResult:
         order_sn = extract_order_sn(question)
         order_data = await self.order_service.get_order_for_user(order_sn, user_id)
 
@@ -61,7 +60,7 @@ class OrderAgent(BaseAgent):
 
     async def _handle_refund(
         self, question: str, user_id: int, thread_id: str = ""
-    ) -> dict[str, Any]:
+    ) -> AgentProcessResult:
         return await self.order_service.handle_refund_request(
             question=question, user_id=user_id, thread_id=thread_id
         )

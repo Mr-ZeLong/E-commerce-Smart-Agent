@@ -1,6 +1,7 @@
 """LangGraph 1.0+ 节点函数"""
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
 from langgraph.types import Command
@@ -17,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 def build_router_node(
     agent: IntentRouterAgent,
-) -> Any:
+) -> Callable[
+    [AgentState], Awaitable[Command[Literal["policy_agent", "order_agent", "decider_node"]]]
+]:
     async def router_node(
         state: AgentState,
     ) -> Command[Literal["policy_agent", "order_agent", "decider_node"]]:
@@ -41,7 +44,9 @@ def build_router_node(
     return router_node
 
 
-def build_policy_node(agent: PolicyAgent) -> Any:
+def build_policy_node(
+    agent: PolicyAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def policy_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
         updates: dict[str, Any] = {"answer": result.get("response", "")}
@@ -53,7 +58,9 @@ def build_policy_node(agent: PolicyAgent) -> Any:
     return policy_node
 
 
-def build_order_node(agent: OrderAgent) -> Any:
+def build_order_node(
+    agent: OrderAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def order_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
         updates: dict[str, Any] = {"answer": result.get("response", "")}
@@ -65,7 +72,9 @@ def build_order_node(agent: OrderAgent) -> Any:
     return order_node
 
 
-def build_evaluator_node(evaluator: ConfidenceEvaluator) -> Any:
+def build_evaluator_node(
+    evaluator: ConfidenceEvaluator,
+) -> Callable[[AgentState], Awaitable[Command[Literal["decider_node", "router_node"]]]]:
     async def evaluator_node(
         state: AgentState,
     ) -> Command[Literal["decider_node", "router_node"]]:
@@ -83,7 +92,14 @@ def build_evaluator_node(evaluator: ConfidenceEvaluator) -> Any:
             eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD
             and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES
         ):
-            return Command(goto="router_node", update={"retry_requested": True, **eval_result})
+            return Command(
+                goto="router_node",
+                update={
+                    "retry_requested": True,
+                    "confidence_score": eval_result["confidence_score"],
+                    "confidence_signals": eval_result.get("confidence_signals"),
+                },
+            )
 
         return Command(goto="decider_node", update=eval_result)
 
@@ -95,7 +111,7 @@ def decider_node(state: AgentState) -> dict:
         return {
             "answer": state.get("answer", ""),
             "confidence_score": state.get("confidence_score") or 0.0,
-            "confidence_signals": {},
+            "confidence_signals": state.get("confidence_signals") or {},
             "needs_human_transfer": True,
             "transfer_reason": state.get("transfer_reason") or "specialist_requested_transfer",
             "audit_level": "manual",
@@ -109,6 +125,17 @@ def decider_node(state: AgentState) -> dict:
             "audit_level": state.get("audit_level"),
             "confidence_score": state.get("confidence_score"),
             "confidence_signals": state.get("confidence_signals"),
+        }
+
+    # 来自 router 的直接回答（如问候、澄清）未经过 evaluator，confidence_score 为 None
+    if state.get("answer"):
+        return {
+            "answer": state.get("answer", ""),
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "auto",
+            "confidence_score": 1.0,
+            "confidence_signals": {},
         }
 
     return {

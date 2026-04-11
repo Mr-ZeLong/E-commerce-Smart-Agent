@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.utils import utc_now
-from app.models.audit import AuditLog
+from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 
@@ -136,6 +136,7 @@ class RefundApplicationService:
         reason_detail: str,
         reason_category: RefundReason | None,
         session: AsyncSession,
+        order: Order | None = None,
     ) -> tuple[bool, str, RefundApplication | None]:
         """
         创建退货申请
@@ -146,18 +147,20 @@ class RefundApplicationService:
             reason_detail:  退货原因详细描述
             reason_category: 退货原因分类
             session: 数据库会话
+            order: 已查询到的订单对象（可选，传入可避免重复查询）
 
         返回:
             (是否成功, 消息, 退货申请对象)
         """
 
-        # ========== 步骤 1: 查询订单 ==========
-        stmt = select(Order).where(
-            Order.id == order_id,
-            Order.user_id == user_id,  # 🔒 安全校验：只能退自己的订单
-        )
-        result = await session.exec(stmt)
-        order = result.first()
+        # ========== 步骤 1: 查询订单（若未提供） ==========
+        if order is None:
+            stmt = select(Order).where(
+                Order.id == order_id,
+                Order.user_id == user_id,  # 🔒 安全校验：只能退自己的订单
+            )
+            result = await session.exec(stmt)
+            order = result.first()
 
         if not order:
             return False, "订单不存在或无权访问", None
@@ -248,9 +251,6 @@ class RefundRiskService:
         user_id: int,
         thread_id: str,
     ) -> AuditLog | None:
-        from app.core.config import settings
-        from app.models.audit import AuditAction, AuditTriggerType, RiskLevel
-
         amount = float(refund.refund_amount)
         if amount >= settings.HIGH_RISK_REFUND_AMOUNT:
             risk_level = RiskLevel.HIGH
@@ -282,24 +282,29 @@ async def process_refund_for_order(
     reason_detail: str,
     reason_category: RefundReason | None,
     session: AsyncSession,
-) -> tuple[bool, str, dict | None]:
+    order: Order | None = None,
+) -> tuple[bool, str, dict | None, RefundApplication | None]:
     """
     为指定订单处理退款申请。
 
+    参数:
+        order: 若已查询到订单对象，可直接传入以避免重复查询
+
     返回:
-        (是否成功, 消息, refund_data_dict_or_none)
+        (是否成功, 消息, refund_data_dict_or_none, refund_app_or_none)
         refund_data_dict 包含键: refund_id, amount, status, reason_detail
     """
-    order = await get_order_by_sn(order_sn, user_id, session)
-    if not order:
-        return False, f"未找到订单 {order_sn}，或您无权访问此订单。", None
+    if order is None:
+        order = await get_order_by_sn(order_sn, user_id, session)
+        if not order:
+            return False, f"未找到订单 {order_sn}，或您无权访问此订单。", None, None
 
     if order.id is None:
-        return False, "订单数据异常，请稍后重试。", None
+        return False, "订单数据异常，请稍后重试。", None, None
 
     is_eligible, eligibility_msg = await RefundEligibilityChecker.check_eligibility(order, session)
     if not is_eligible:
-        return False, f"该订单不符合退货条件：{eligibility_msg}", None
+        return False, f"该订单不符合退货条件：{eligibility_msg}", None, None
 
     success, message, refund_app = await RefundApplicationService.create_refund_application(
         order_id=order.id,
@@ -307,6 +312,7 @@ async def process_refund_for_order(
         reason_detail=reason_detail,
         reason_category=reason_category,
         session=session,
+        order=order,
     )
 
     if success and refund_app is not None:
@@ -316,8 +322,8 @@ async def process_refund_for_order(
             "status": refund_app.status,
             "reason_detail": refund_app.reason_detail,
         }
-        return True, message, refund_data
+        return True, message, refund_data, refund_app
     elif success:
-        return True, message, None
+        return True, message, None, refund_app
     else:
-        return False, message, None
+        return False, message, None, None

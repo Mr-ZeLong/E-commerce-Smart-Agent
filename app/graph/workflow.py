@@ -1,9 +1,7 @@
 import logging
 
-from langgraph.checkpoint.redis import AsyncRedisSaver
 from langgraph.graph import END, START, StateGraph
 
-from app.core.config import settings
 from app.graph.nodes import (
     build_evaluator_node,
     build_order_node,
@@ -17,13 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 def create_workflow(router_agent, policy_agent, order_agent, evaluator):
-    # LangGraph type stubs don't fully support TypedDict state schemas.
     workflow = StateGraph(AgentState)  # type: ignore
 
-    workflow.add_node("router_node", build_router_node(router_agent))
-    workflow.add_node("policy_agent", build_policy_node(policy_agent))
-    workflow.add_node("order_agent", build_order_node(order_agent))
-    workflow.add_node("evaluator_node", build_evaluator_node(evaluator))
+    workflow.add_node("router_node", build_router_node(router_agent))  # type: ignore
+    workflow.add_node("policy_agent", build_policy_node(policy_agent))  # type: ignore
+    workflow.add_node("order_agent", build_order_node(order_agent))  # type: ignore
+    workflow.add_node("evaluator_node", build_evaluator_node(evaluator))  # type: ignore
     workflow.add_node("decider_node", decider_node)
 
     workflow.add_edge(START, "router_node")
@@ -35,12 +32,9 @@ def create_workflow(router_agent, policy_agent, order_agent, evaluator):
     return workflow
 
 
-async def compile_app_graph(router_agent, policy_agent, order_agent, evaluator):
+async def compile_app_graph(router_agent, policy_agent, order_agent, evaluator, checkpointer):
     """编译 LangGraph（1.0+）"""
     logger.info("Compiling LangGraph 1.0+ multi-agent workflow...")
-
-    checkpointer = AsyncRedisSaver(redis_url=settings.REDIS_URL)
-    await checkpointer.setup()
 
     workflow = create_workflow(router_agent, policy_agent, order_agent, evaluator)
     compiled = workflow.compile(checkpointer=checkpointer)

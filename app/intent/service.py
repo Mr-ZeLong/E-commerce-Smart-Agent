@@ -7,7 +7,7 @@ import json
 import logging
 
 import redis.asyncio as aioredis
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.intent.clarification import ClarificationEngine, ClarificationResponse
 from app.intent.classifier import IntentClassifier
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class IntentRecognitionService:
     def __init__(
         self,
-        llm: ChatOpenAI,
+        llm: BaseChatModel,
         redis_client: aioredis.Redis,
         result_cache_ttl: int = 300,
         session_cache_ttl: int = 1800,

@@ -40,6 +40,13 @@
 | 认证 | JWT (PyJWT) + bcrypt | `app/core/security.py` |
 | 限流 | slowapi | `app/core/limiter.py` |
 | 日志 | Python `logging` + Correlation ID | `app/core/logging.py` |
+| 稀疏嵌入 | fastembed>=0.6.0 | `app/retrieval/sparse_embedder.py` |
+| 重试机制 | tenacity>=9.1.2 | 多处 LLM 调用 |
+| HTTP 客户端 | httpx>=0.28.1 | 通用异步 HTTP |
+| 表单解析 | python-multipart>=0.0.21 | FastAPI 文件上传 |
+| 邮箱校验 | email-validator>=2.3.0 | Pydantic 字段验证 |
+| 社区集成 | langchain-community>=0.4.1 | 文档加载器等 |
+| WebSocket 服务端 | websockets>=14.1 | `app/api/v1/websocket.py` |
 
 ### 前端
 
@@ -96,6 +103,7 @@
 │   │   ├── workflow.py             # 编译 StateGraph
 │   │   └── nodes.py                # router_node / policy_agent / order_agent / evaluator_node / decider_node
 │   ├── confidence/                 # 置信度信号模块
+│   │   ├── __init__.py
 │   │   └── signals.py              # 置信度评估信号计算
 │   ├── utils/                      # 通用工具函数
 │   │   └── order_utils.py          # 订单相关工具
@@ -124,7 +132,6 @@
 │   │   └── sparse_embedder.py      # 稀疏嵌入
 │   ├── services/                   # 业务服务层
 │   │   ├── refund_service.py       # 退货业务逻辑
-│   │   ├── refund_tool_service.py  # 退款工具服务
 │   │   ├── status_service.py       # 状态服务
 │   │   ├── order_service.py        # 订单服务
 │   │   ├── admin_service.py        # 管理员服务
@@ -142,9 +149,19 @@
 │   ├── index.html                  # C端入口
 │   ├── admin.html                  # B端入口
 │   ├── vite.config.ts              # 多页面 Rollup 配置
+│   ├── tailwind.config.ts          # Tailwind CSS 配置
+│   ├── tsconfig.json               # TypeScript 配置
+│   ├── tsconfig.node.json          # Vite Node 类型配置
+│   ├── components.json             # shadcn/ui 组件注册表
+│   ├── postcss.config.mjs          # PostCSS 配置
+│   ├── eslint.config.js            # ESLint 配置
+│   ├── playwright.config.ts        # Playwright E2E 配置
+│   ├── package.json                # npm 依赖
+│   ├── package-lock.json           # npm 锁定文件
 │   └── src/
 │       ├── apps/customer/          # C端用户聊天应用
 │       ├── apps/admin/             # B端管理员后台
+│       ├── assets/                 # 前端静态资源
 │       ├── components/ui/          # shadcn/ui 组件
 │       ├── lib/                    # API 客户端、工具函数
 │       ├── stores/                 # Zustand Store
@@ -156,24 +173,37 @@
 │   ├── _db_config.py               # 测试数据库配置
 │   ├── test_*.py                   # API/Service 测试
 │   ├── agents/                     # Agent 单元测试
+│   │   └── __init__.py
 │   ├── graph/                      # LangGraph 测试
+│   │   └── __init__.py
 │   ├── intent/                     # 意图模块测试
+│   │   └── __init__.py
 │   ├── retrieval/                  # RAG 检索测试
+│   │   └── __init__.py
 │   └── integration/                # 集成测试
 │
 ├── scripts/                        # 辅助脚本
+│   ├── __init__.py
 │   ├── seed_data.py                # 数据库初始化数据
 │   ├── seed_large_data.py          # 大批量测试数据
 │   ├── etl_qdrant.py               # 知识库 ETL（PDF/Markdown → Qdrant）
 │   └── verify_db.py                # 数据库验证
 │
+├── docs/                           # 项目文档
+│   └── resume-guide.md             # 简历写作指南
+│
 ├── migrations/                     # Alembic 迁移脚本
 ├── data/                           # 静态数据（示例政策文档）
+├── assets/                         # 截图与静态资源
+├── .github/                        # GitHub Actions 工作流
 ├── docker-compose.yaml             # 本地/容器编排
 ├── Dockerfile                      # 基于 python:3.13-slim + uv
 ├── start.sh                        # 本地一键启动脚本
 ├── start_worker.sh                 # 单独启动 Celery Worker
-└── pyproject.toml                  # Python 项目配置
+├── architecture.md                 # 系统架构文档
+├── alembic.ini                     # Alembic 迁移配置
+├── pyproject.toml                  # Python 项目配置
+└── uv.lock                         # uv 依赖锁定文件
 ```
 
 ---
@@ -185,6 +215,10 @@
 关键变量：
 
 ```bash
+# 应用
+PROJECT_NAME=E-commerce Smart Agent
+API_V1_STR=/api/v1
+
 # 数据库
 POSTGRES_SERVER=localhost
 POSTGRES_PORT=5432
@@ -328,7 +362,7 @@ uv run pytest tests/integration/
 - `tests/conftest.py`：提供全局 fixtures（如 `client`、`db_session`、`mock_redis`）
 - `tests/_db_config.py`：测试数据库连接与配置覆盖
 - API 层测试：`test_auth_api.py`、`test_chat_api.py`、`test_admin_api.py`、`test_websocket.py`、`test_auth_rate_limit.py`
-- Service 层测试：`test_order_service.py`、`test_refund_service.py`、`test_admin_service.py`、`test_auth_service.py`、`test_status_service.py`、`test_refund_tool_service.py`
+- Service 层测试：`test_order_service.py`、`test_refund_service.py`、`test_admin_service.py`、`test_auth_service.py`、`test_status_service.py`
 - 工具/安全测试：`test_security.py`、`test_main_security.py`、`test_logging.py`、`test_chat_utils.py`、`test_refund_tasks.py`、`test_users.py`、`test_confidence_signals.py`
 - 模块单元测试：`tests/agents/`、`tests/graph/`、`tests/intent/`、`tests/retrieval/`
 - 集成测试：`tests/integration/test_workflow_invoke.py` — LangGraph 工作流集成测试

@@ -10,7 +10,7 @@ import re
 from typing import Literal
 
 from langchain_core.exceptions import LangChainException
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -158,7 +158,7 @@ class SafetyCheckResult(BaseModel):
 class SafetyFilter:
     """安全过滤器"""
 
-    def __init__(self, llm: ChatOpenAI, config: SafetyConfig):
+    def __init__(self, llm: BaseChatModel, config: SafetyConfig):
         self.llm = llm
         self.config = config
         self._response_template = SafetyResponseTemplate()

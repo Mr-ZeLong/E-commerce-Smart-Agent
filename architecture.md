@@ -398,8 +398,11 @@ flowchart TB
 ```
 E-commerce-Smart-Agent/
 ├── 📄 README.md                    # 项目文档
+├── 📄 architecture.md              # 系统架构文档
 ├── 📄 .env.example                 # 环境变量模板
+├── 📄 alembic.ini                  # Alembic 迁移配置
 ├── 📄 pyproject.toml               # Python 项目配置 (uv)
+├── 📄 uv.lock                      # uv 依赖锁定文件
 ├── 📄 docker-compose.yaml          # 容器编排配置
 ├── 📄 celery_worker.py             # Celery Worker 启动脚本
 │
@@ -446,6 +449,7 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 evaluator.py         # ConfidenceEvaluator
 │   │
 │   ├── 📁 confidence/              # 置信度信号模块
+│   │   ├── 📄 __init__.py
 │   │   └── 📄 signals.py           # 置信度评估信号计算
 │   │
 │   ├── 📁 utils/                   # 通用工具函数
@@ -472,7 +476,6 @@ E-commerce-Smart-Agent/
 │   │
 │   ├── 📁 services/                # 业务服务层
 │   │   ├── 📄 refund_service.py    # 退货业务逻辑
-│   │   ├── 📄 refund_tool_service.py # 退款工具服务
 │   │   ├── 📄 status_service.py    # 状态服务
 │   │   ├── 📄 order_service.py     # 订单服务
 │   │   ├── 📄 admin_service.py     # 管理员服务
@@ -492,9 +495,15 @@ E-commerce-Smart-Agent/
 │
 ├── 📁 frontend/                    # React 前端 (Vite + TypeScript)
 │   ├── 📄 package.json             # npm 依赖配置
+│   ├── 📄 package-lock.json        # npm 锁定文件
 │   ├── 📄 vite.config.ts           # Vite 多页面配置
 │   ├── 📄 tailwind.config.ts       # Tailwind CSS 配置
 │   ├── 📄 tsconfig.json            # TypeScript 配置
+│   ├── 📄 tsconfig.node.json       # Vite Node 类型配置
+│   ├── 📄 components.json          # shadcn/ui 组件注册表
+│   ├── 📄 postcss.config.mjs       # PostCSS 配置
+│   ├── 📄 eslint.config.js         # ESLint 配置
+│   ├── 📄 playwright.config.ts     # Playwright E2E 配置
 │   ├── 📄 index.html               # C端入口
 │   ├── 📄 admin.html               # B端入口
 │   │
@@ -538,6 +547,8 @@ E-commerce-Smart-Agent/
 │       │   │   ├── 📄 skeleton.tsx
 │       │   │   └── 📄 textarea.tsx
 │       │
+│       ├── 📁 assets/              # 前端静态资源
+│       │   └── 📄 react.svg        # React Logo
 │       ├── 📁 lib/                 # 共享基础设施
 │       │   ├── 📄 api.ts           # 统一 API 客户端
 │       │   ├── 📄 risk.ts          # 风险等级配置
@@ -554,9 +565,11 @@ E-commerce-Smart-Agent/
 │
 ├── 📄 start.sh                     # 本地一键启动脚本
 ├── 📄 start_worker.sh              # 单独启动 Celery Worker
+├── 📄 Dockerfile                   # 容器构建配置
 ├── 📄 alembic.ini                  # Alembic 迁移配置
 │
 ├── 📁 scripts/                     # 辅助脚本
+│   ├── 📄 __init__.py
 │   ├── 📄 seed_data.py             # 数据库初始化数据
 │   ├── 📄 seed_large_data.py       # 大批量测试数据
 │   ├── 📄 etl_qdrant.py            # 知识库 ETL (PDF/Markdown → Qdrant)
@@ -567,9 +580,18 @@ E-commerce-Smart-Agent/
 │   └── 📁 versions/
 │       └── 📄 *.py                 # 迁移脚本
 │
+├── 📁 assets/                      # 截图与静态资源
+│
 ├── 📁 data/                        # 静态数据
 │   ├── 📄 shipping_policy.md       # 示例政策文档
 │   └── 📄 return_policy.md         # 退货政策文档
+│
+├── 📁 docs/                        # 项目文档
+│   └── 📄 resume-guide.md          # 简历写作指南
+│
+├── 📁 .github/                     # GitHub Actions 工作流
+│   └── 📁 workflows/
+│       └── 📄 ci.yml               # CI 配置
 │
 └── 📁 tests/                       # 测试文件
     ├── 📄 conftest.py              # pytest 全局 fixtures
@@ -584,7 +606,6 @@ E-commerce-Smart-Agent/
     ├── 📄 test_admin_service.py    # 管理员服务测试
     ├── 📄 test_auth_service.py     # 认证服务测试
     ├── 📄 test_status_service.py   # 状态服务测试
-    ├── 📄 test_refund_tool_service.py # 退款工具服务测试
     ├── 📄 test_security.py         # 安全测试
     ├── 📄 test_main_security.py    # 主应用安全测试
     ├── 📄 test_logging.py          # 日志测试
@@ -593,9 +614,13 @@ E-commerce-Smart-Agent/
     ├── 📄 test_users.py            # 用户模型测试
     ├── 📄 test_confidence_signals.py # 置信度信号测试
     ├── 📁 agents/                  # Agent 单元测试
+    │   └── 📄 __init__.py
     ├── 📁 graph/                   # LangGraph 测试
+    │   └── 📄 __init__.py
     ├── 📁 intent/                  # 意图模块测试
+    │   └── 📄 __init__.py
     ├── 📁 retrieval/               # RAG 检索测试
+    │   └── 📄 __init__.py
     └── 📁 integration/             # 集成测试
 ```
 

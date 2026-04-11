@@ -6,8 +6,8 @@ import logging
 import re
 from typing import Any
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
 from app.intent.config import validate_tertiary_intent
@@ -42,34 +42,12 @@ class IntentClassifier:
             "properties": {
                 "primary_intent": {
                     "type": "string",
-                    "enum": [
-                        "ORDER",
-                        "AFTER_SALES",
-                        "POLICY",
-                        "PRODUCT",
-                        "RECOMMENDATION",
-                        "CART",
-                        "ACCOUNT",
-                        "PROMOTION",
-                        "PAYMENT",
-                        "LOGISTICS",
-                        "COMPLAINT",
-                        "OTHER",
-                    ],
+                    "enum": [c.value for c in IntentCategory],
                     "description": "一级意图",
                 },
                 "secondary_intent": {
                     "type": "string",
-                    "enum": [
-                        "QUERY",
-                        "APPLY",
-                        "MODIFY",
-                        "CANCEL",
-                        "CONSULT",
-                        "ADD",
-                        "REMOVE",
-                        "COMPARE",
-                    ],
+                    "enum": [a.value for a in IntentAction],
                     "description": "二级意图",
                 },
                 "tertiary_intent": {"type": "string", "description": "三级意图"},
@@ -131,7 +109,7 @@ class IntentClassifier:
         ("OTHER", "CONSULT"): [r"^(你好|您好|hi|hello|在吗|有人吗)", r"谢谢|再见|拜拜"],
     }
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: BaseChatModel):
         self.llm = llm
         self._compiled_rules = {
             key: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
@@ -181,7 +159,7 @@ class IntentClassifier:
         messages = self._create_messages(query, context)
         llm_with_tools = self.llm.bind_tools(
             [self.INTENT_FUNCTION_SCHEMA],
-            tool_choice={"type": "function", "function": {"name": "classify_intent"}},
+            tool_choice={"type": "function", "function": {"name": "classify_intent"}},  # type: ignore
         )
         response = await llm_with_tools.ainvoke(messages)
         tool_calls = response.tool_calls or []

@@ -1,6 +1,13 @@
 # app/models/state.py
 import operator
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, NotRequired, TypedDict
+
+
+class AgentProcessResult(TypedDict):
+    """Agent.process() 的统一返回类型"""
+
+    response: str
+    updated_state: NotRequired[dict[str, Any]]
 
 
 class AgentState(TypedDict):

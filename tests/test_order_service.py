@@ -122,6 +122,7 @@ async def test_handle_refund_request_success(order_service: OrderService):
                     "status": RefundStatus.PENDING,
                     "reason_detail": "质量问题",
                 },
+                mock_refund_app,
             ),
         ),
         patch(
@@ -249,7 +250,7 @@ async def test_handle_refund_request_refund_failed(order_service: OrderService):
         patch(
             "app.services.order_service.process_refund_for_order",
             new_callable=AsyncMock,
-            return_value=(False, "超期", None),
+            return_value=(False, "超期", None, None),
         ),
     ):
         result = await order_service.handle_refund_request(

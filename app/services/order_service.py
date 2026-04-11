@@ -8,7 +8,7 @@ from sqlmodel import desc, select
 
 from app.core.database import async_session_maker
 from app.models.order import Order
-from app.models.refund import RefundApplication
+from app.models.state import AgentProcessResult
 from app.services.refund_service import (
     RefundRiskService,
     get_order_by_sn,
@@ -46,7 +46,7 @@ class OrderService:
 
     async def handle_refund_request(
         self, question: str, user_id: int, thread_id: str = ""
-    ) -> dict[str, Any]:
+    ) -> AgentProcessResult:
         """处理退货申请，封装数据库事务与 Celery 副作用。"""
         order_sn = extract_order_sn(question)
 
@@ -57,7 +57,7 @@ class OrderService:
             }
 
         reason_category = classify_refund_reason(question)
-        reason_detail = reason_category.value if reason_category else question
+        reason_detail = question
 
         async with async_session_maker() as session:
             order = await get_order_by_sn(order_sn, user_id, session)
@@ -73,12 +73,13 @@ class OrderService:
                     "updated_state": {"refund_flow_active": False},
                 }
 
-            success, message, refund_data = await process_refund_for_order(
+            success, message, refund_data, refund_app = await process_refund_for_order(
                 order_sn=order_sn,
                 user_id=user_id,
                 reason_detail=reason_detail,
                 reason_category=reason_category,
                 session=session,
+                order=order,
             )
 
             if not success:
@@ -90,19 +91,11 @@ class OrderService:
                     },
                 }
 
-            # 退款申请创建成功后，执行风控审计
             audit = None
-            if refund_data is not None:
-                refund_result = await session.exec(
-                    select(RefundApplication).where(
-                        RefundApplication.id == refund_data["refund_id"]
-                    )
+            if refund_app is not None:
+                audit = await RefundRiskService.assess_and_create_audit(
+                    session, refund_app, order, user_id, thread_id
                 )
-                refund = refund_result.one_or_none()
-                if refund:
-                    audit = await RefundRiskService.assess_and_create_audit(
-                        session, refund, order, user_id, thread_id
-                    )
 
             updated_state: dict[str, Any] = {
                 "order_data": order.model_dump(),

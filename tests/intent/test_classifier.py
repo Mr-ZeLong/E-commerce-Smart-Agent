@@ -12,7 +12,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.intent.classifier import IntentClassifier
 from app.intent.models import IntentAction, IntentCategory, IntentResult
@@ -23,7 +23,7 @@ from app.intent.models import IntentAction, IntentCategory, IntentResult
 @pytest.fixture
 def mock_llm():
     """创建Mock LLM"""
-    mock = MagicMock(spec=ChatOpenAI)
+    mock = MagicMock(spec=BaseChatModel)
     mock.with_structured_output = MagicMock(return_value=mock)
     return mock
 

@@ -221,3 +221,41 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
     assert response.status_code == 200
     assert response.text == ""
     assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS
+
+
+@pytest.mark.asyncio
+async def test_chat_generic_error_handled(client, auth_token):
+    """astream_events 抛出未捕获通用异常时，SSE 流应返回错误消息并正常结束"""
+
+    received_state = {}
+
+    class _ErrorIter:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise RuntimeError("模拟内部错误")
+
+    def _make_error_iter(state, config, version):
+        received_state.update(state)
+        return _ErrorIter()
+
+    mock_app_graph = AsyncMock()
+    mock_app_graph.astream_events = _make_error_iter
+
+    original = getattr(app.state, "app_graph", None)
+    app.state.app_graph = mock_app_graph
+    try:
+        response = await client.post(
+            "/api/v1/chat",
+            json={"question": "测试", "thread_id": "thread-6"},
+            headers={"Authorization": f"Bearer {auth_token}"},
+        )
+    finally:
+        app.state.app_graph = original
+
+    assert response.status_code == 200
+    text = response.text
+    assert '"error"' in text
+    assert "[DONE]" in text
+    assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS

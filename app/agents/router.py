@@ -1,13 +1,12 @@
 import logging
-from typing import Any
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
 from app.core.config import settings
 from app.intent.models import IntentCategory, IntentResult
 from app.intent.service import IntentRecognitionService
-from app.models.state import AgentState
+from app.models.state import AgentProcessResult, AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +28,12 @@ class IntentRouterAgent(BaseAgent):
         "您好！我是您的智能客服助手，可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？"
     )
 
-    def __init__(self, intent_service: IntentRecognitionService, llm: ChatOpenAI) -> None:
+    def __init__(self, intent_service: IntentRecognitionService, llm: BaseChatModel) -> None:
         super().__init__(name="intent_router", llm=llm, system_prompt=None)
         self.intent_service = intent_service
         logger.debug("IntentRouterAgent initialized")
 
-    async def process(self, state: AgentState) -> dict[str, Any]:
+    async def process(self, state: AgentState) -> AgentProcessResult:
         query = state.get("question", "")
         session_id = state.get("thread_id", "")
         user_id = state.get("user_id")

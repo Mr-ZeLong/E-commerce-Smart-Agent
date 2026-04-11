@@ -138,5 +138,13 @@ async def chat(
         except (ConnectionResetError, BrokenPipeError):
             logger.info("[Chat] Client disconnected during SSE streaming")
             return
+        except Exception:
+            logger.exception("[Chat] Unhandled error during SSE streaming")
+            error_payload = json.dumps(
+                {"error": "聊天服务出现内部错误，请稍后重试。"},
+                ensure_ascii=False,
+            )
+            yield f"data: {error_payload}\n\n"
+            yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

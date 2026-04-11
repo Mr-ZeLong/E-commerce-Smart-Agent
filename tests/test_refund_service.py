@@ -224,7 +224,7 @@ async def test_process_refund_for_order_success():
             return_value=(True, "申请已提交", mock_refund),
         ),
     ):
-        success, msg, data = await process_refund_for_order(
+        success, msg, data, refund_app = await process_refund_for_order(
             order_sn="ORD2024001",
             user_id=100,
             reason_detail="不喜欢",
@@ -237,6 +237,7 @@ async def test_process_refund_for_order_success():
         assert data["amount"] == 199.0
         assert data["status"] == RefundStatus.PENDING
         assert data["reason_detail"] == "不喜欢"
+        assert refund_app is not None
 
 
 @pytest.mark.asyncio
@@ -247,7 +248,7 @@ async def test_process_refund_for_order_not_found():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        success, msg, data = await process_refund_for_order(
+        success, msg, data, refund_app = await process_refund_for_order(
             order_sn="ORD999",
             user_id=100,
             reason_detail="不喜欢",
@@ -257,6 +258,7 @@ async def test_process_refund_for_order_not_found():
         assert success is False
         assert "未找到订单" in msg
         assert data is None
+        assert refund_app is None
 
 
 @pytest.mark.asyncio
@@ -279,7 +281,7 @@ async def test_process_refund_for_order_not_eligible():
             return_value=(False, "订单已超过退货期限"),
         ),
     ):
-        success, msg, data = await process_refund_for_order(
+        success, msg, data, refund_app = await process_refund_for_order(
             order_sn="ORD2024001",
             user_id=100,
             reason_detail="不喜欢",
@@ -290,6 +292,7 @@ async def test_process_refund_for_order_not_eligible():
         assert "不符合退货条件" in msg
         assert "订单已超过退货期限" in msg
         assert data is None
+        assert refund_app is None
 
 
 @pytest.mark.asyncio
