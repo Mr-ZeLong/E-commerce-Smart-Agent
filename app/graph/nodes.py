@@ -6,8 +6,11 @@ from typing import Any, Literal
 
 from langgraph.types import Command
 
+from app.agents.account import AccountAgent
 from app.agents.evaluator import ConfidenceEvaluator
+from app.agents.logistics import LogisticsAgent
 from app.agents.order import OrderAgent
+from app.agents.payment import PaymentAgent
 from app.agents.policy import PolicyAgent
 from app.agents.router import IntentRouterAgent
 from app.core.config import settings
@@ -19,11 +22,32 @@ logger = logging.getLogger(__name__)
 def build_router_node(
     agent: IntentRouterAgent,
 ) -> Callable[
-    [AgentState], Awaitable[Command[Literal["policy_agent", "order_agent", "decider_node"]]]
+    [AgentState],
+    Awaitable[
+        Command[
+            Literal[
+                "policy_agent",
+                "order_agent",
+                "logistics",
+                "account",
+                "payment",
+                "decider_node",
+            ]
+        ]
+    ],
 ]:
     async def router_node(
         state: AgentState,
-    ) -> Command[Literal["policy_agent", "order_agent", "decider_node"]]:
+    ) -> Command[
+        Literal[
+            "policy_agent",
+            "order_agent",
+            "logistics",
+            "account",
+            "payment",
+            "decider_node",
+        ]
+    ]:
         result = await agent.process(state)
         updated = dict(result.get("updated_state") or {})
 
@@ -35,6 +59,12 @@ def build_router_node(
             return Command(goto="policy_agent", update=updated)
         elif next_agent == "order_agent":
             return Command(goto="order_agent", update=updated)
+        elif next_agent == "logistics":
+            return Command(goto="logistics", update=updated)
+        elif next_agent == "account":
+            return Command(goto="account", update=updated)
+        elif next_agent == "payment":
+            return Command(goto="payment", update=updated)
         else:
             return Command(
                 goto="decider_node",
@@ -70,6 +100,48 @@ def build_order_node(
         return Command(goto="evaluator_node", update=updates)
 
     return order_node
+
+
+def build_logistics_node(
+    agent: LogisticsAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def logistics_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        updates: dict[str, Any] = {"answer": result.get("response", "")}
+        if result.get("updated_state"):
+            updates.update(result["updated_state"])
+        updates["current_agent"] = "logistics"
+        return Command(goto="evaluator_node", update=updates)
+
+    return logistics_node
+
+
+def build_account_node(
+    agent: AccountAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def account_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        updates: dict[str, Any] = {"answer": result.get("response", "")}
+        if result.get("updated_state"):
+            updates.update(result["updated_state"])
+        updates["current_agent"] = "account"
+        return Command(goto="evaluator_node", update=updates)
+
+    return account_node
+
+
+def build_payment_node(
+    agent: PaymentAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def payment_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        updates: dict[str, Any] = {"answer": result.get("response", "")}
+        if result.get("updated_state"):
+            updates.update(result["updated_state"])
+        updates["current_agent"] = "payment"
+        return Command(goto="evaluator_node", update=updates)
+
+    return payment_node
 
 
 def build_evaluator_node(

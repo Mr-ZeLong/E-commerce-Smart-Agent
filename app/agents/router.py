@@ -14,9 +14,14 @@ _INTENT_MAPPINGS: dict[IntentCategory, str] = {
     IntentCategory.ORDER: "order_agent",
     IntentCategory.AFTER_SALES: "order_agent",
     IntentCategory.POLICY: "policy_agent",
+    IntentCategory.LOGISTICS: "logistics",
+    IntentCategory.ACCOUNT: "account",
+    IntentCategory.PAYMENT: "payment",
     IntentCategory.PRODUCT: "supervisor",
     IntentCategory.RECOMMENDATION: "supervisor",
     IntentCategory.CART: "order_agent",
+    IntentCategory.PROMOTION: "supervisor",
+    IntentCategory.COMPLAINT: "supervisor",
     IntentCategory.OTHER: "supervisor",
 }
 
@@ -97,6 +102,9 @@ class IntentRouterAgent(BaseAgent):
             if current_agent and (
                 (next_agent == "policy_agent" and current_agent == "policy_agent")
                 or (next_agent == "order_agent" and current_agent == "order_agent")
+                or (next_agent == "logistics" and current_agent == "logistics")
+                or (next_agent == "account" and current_agent == "account")
+                or (next_agent == "payment" and current_agent == "payment")
                 or (next_agent == "supervisor" and current_agent == "policy_agent")
             ):
                 return {

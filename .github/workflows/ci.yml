@@ -110,5 +110,12 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check app tests
 
+      - name: Run evaluation tests (tests/evaluation/)
+        run: uv run pytest tests/evaluation/ -v -s
+        env:
+          OPENAI_API_KEY: sk-test
+          OPENAI_BASE_URL: http://localhost:8000/v1
+          DASHSCOPE_API_KEY: ""
+
       - name: Run tests with coverage
         run: uv run pytest --cov=app --cov-fail-under=75

@@ -10,12 +10,14 @@ from alembic import context
 # 1. 引入配置和模型
 from app.core.config import settings
 from sqlmodel import SQLModel
+
 # 导入所有模型以确保被注册
 from app.models.order import Order
 from app.models.refund import RefundApplication
 from app.models.audit import AuditLog
 from app.models.message import MessageCard
 from app.models.user import User
+from app.models.observability import GraphExecutionLog, GraphNodeLog
 # ==========================================
 
 config = context.config
@@ -24,6 +26,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = SQLModel.metadata
+
 
 # =========================================================
 # 强制处理数据库 URL 协议
@@ -35,6 +38,7 @@ def get_url():
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
+
 
 # 将处理后的 URL 注入配置
 config.set_main_option("sqlalchemy.url", get_url())
@@ -50,7 +54,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         # 💡 忽略 vector 类型检查，防止 alembic 在 --autogenerate 时因为不认识 vector 而删除它
         # 仅在某些旧版本 alembic 需要，保留以防万一
-        compare_type=True, 
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -60,10 +64,10 @@ def run_migrations_offline() -> None:
 def do_run_migrations(connection: Connection) -> None:
     """执行迁移"""
     context.configure(
-        connection=connection, 
+        connection=connection,
         target_metadata=target_metadata,
         # 💡 启用类型比较，否则 Alembic 可能会忽略字段类型的变化（如 varchar 长度变化）
-        compare_type=True
+        compare_type=True,
     )
 
     with context.begin_transaction():

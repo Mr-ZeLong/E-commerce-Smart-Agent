@@ -13,6 +13,9 @@ async def test_workflow_compiles():
         router_agent=AsyncMock(),
         policy_agent=AsyncMock(),
         order_agent=AsyncMock(),
+        logistics_agent=AsyncMock(),
+        account_agent=AsyncMock(),
+        payment_agent=AsyncMock(),
         evaluator=AsyncMock(),
     ).compile(checkpointer=checkpointer)
     assert app_graph is not None

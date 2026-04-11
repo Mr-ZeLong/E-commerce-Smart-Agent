@@ -479,7 +479,25 @@ class User(SQLModel, table=True):
 - Agent 实例在 `app/main.py` 的 `lifespan` 中初始化，通过依赖注入传递给 `nodes.py` 中的 builder 函数（`build_router_node`、`build_policy_node` 等）
 
 工作流节点顺序：
-`router_node` → (`policy_agent` | `order_agent`) → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
+`router_node` → (`policy_agent` | `order_agent` | `logistics` | `account` | `payment`) → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
+
+### 4.1 Tool-Based Agent 舰队（Phase 1 新增）
+
+Phase 1 引入了三个基于 `BaseTool` + `ToolRegistry` 的专家 Agent，用于处理高频轻量查询：
+
+- **LogisticsAgent** (`app/agents/logistics.py` + `app/tools/logistics_tool.py`)
+  - 处理 `LOGISTICS` 意图，查询 `Order.tracking_number` 与物流状态。
+  - 行为规则：必须按 `user_id` 过滤订单；若订单不存在返回明确的 "未找到相关订单"；物流状态在 Phase 1 以 mock 数据返回。
+
+- **AccountAgent** (`app/agents/account.py` + `app/tools/account_tool.py`)
+  - 处理 `ACCOUNT` 意图，查询用户资料、会员等级、账户余额与优惠券。
+  - 行为规则：仅返回当前登录用户的资料；余额/优惠券在 Phase 1 以 mock 数据返回；会员等级字段通过 Alembic 迁移添加，默认值为 `standard`。
+
+- **PaymentAgent** (`app/agents/payment.py` + `app/tools/payment_tool.py`)
+  - 处理 `PAYMENT` 意图，查询支付状态、发票信息、退款支付记录。
+  - 行为规则：查询 `RefundApplication` 与 `Order` 表必须按 `user_id` 过滤；支付网关/发票状态在 Phase 1 以 mock 数据返回。
+
+所有 Agent 均通过 `ToolRegistry` 动态注册 tool，由 `app/main.py` lifespan 初始化并注入到 LangGraph 工作流中。每个 Agent 的节点均标记 `metadata={"tags": ["user_visible"]}`，确保 SSE 流式输出可正确转发。
 
 ### 5. 日志规范
 

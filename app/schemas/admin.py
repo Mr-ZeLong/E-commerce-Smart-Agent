@@ -40,3 +40,35 @@ class TaskStatsResponse(BaseModel):
     confidence_tasks: int
     manual_tasks: int
     total: int
+
+
+class ConversationThreadResponse(BaseModel):
+    """会话线程摘要"""
+
+    thread_id: str
+    user_id: int | None
+    message_count: int
+    last_updated: str
+    intent_category: str | None = None
+
+
+class ConversationMessageResponse(BaseModel):
+    """会话消息"""
+
+    id: int
+    thread_id: str
+    sender_type: str
+    sender_id: int | None
+    content: dict[str, Any]
+    message_type: str
+    created_at: str
+    meta_data: dict[str, Any] | None = None
+
+
+class ConversationListResponse(BaseModel):
+    """会话列表响应"""
+
+    threads: list[ConversationThreadResponse]
+    total: int
+    offset: int
+    limit: int

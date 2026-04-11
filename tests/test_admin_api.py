@@ -8,7 +8,8 @@ from app.core.database import async_session_maker
 from app.core.security import create_access_token
 from app.core.utils import build_thread_id
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
-from app.models.message import MessageCard
+from app.models.message import MessageCard, MessageType
+from app.models.observability import GraphExecutionLog
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
@@ -31,7 +32,7 @@ async def create_admin_user() -> tuple[User, str]:
         await session.commit()
         await session.refresh(user)
         assert user.id is not None
-        token = create_access_token(user_id=user.id, is_admin=True)
+        token = create_access_token(user_id=user.id or 0, is_admin=True)
         return user, token
 
 
@@ -93,7 +94,7 @@ async def create_audit_log(
 ) -> AuditLog:
     async with async_session_maker() as session:
         assert user.id is not None
-        thread_id = build_thread_id(user.id, f"test_thread_{uuid.uuid4().hex[:8]}")
+        thread_id = build_thread_id(user.id or 0, f"test_thread_{uuid.uuid4().hex[:8]}")
         log = AuditLog(
             thread_id=thread_id,
             user_id=user.id,
@@ -109,6 +110,25 @@ async def create_audit_log(
         await session.commit()
         await session.refresh(log)
         return log
+
+
+async def create_message_cards(user: User, thread_id: str, count: int = 3) -> list[MessageCard]:
+    async with async_session_maker() as session:
+        messages = []
+        for i in range(count):
+            msg = MessageCard(
+                thread_id=thread_id,
+                sender_id=user.id,
+                sender_type="user" if i % 2 == 0 else "agent",
+                content={"text": f"Message {i}"},
+                message_type=MessageType.TEXT,
+            )
+            messages.append(msg)
+            session.add(msg)
+        await session.commit()
+        for msg in messages:
+            await session.refresh(msg)
+        return messages
 
 
 @pytest.mark.asyncio
@@ -133,7 +153,7 @@ async def test_get_admin_tasks_returns_pending_tasks_for_admin(client):
 async def test_get_admin_tasks_rejects_non_admin_token(client):
     user = await create_regular_user()
     assert user.id is not None
-    token = create_access_token(user_id=user.id, is_admin=False)
+    token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.get(
         "/api/v1/admin/tasks",
@@ -310,7 +330,7 @@ async def test_admin_decision_rejects_non_admin_token(client):
     audit_log = await create_audit_log(
         user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING
     )
-    token = create_access_token(user_id=user.id, is_admin=False)
+    token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.post(
         f"/api/v1/admin/resume/{audit_log.id}",
@@ -319,3 +339,122 @@ async def test_admin_decision_rejects_non_admin_token(client):
     )
     assert response.status_code == 403
     assert "Admin privileges required" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_get_conversations_returns_threads(client):
+    admin, token = await create_admin_user()
+    user = await create_regular_user()
+    thread_id = build_thread_id(user.id or 0, f"conv_{uuid.uuid4().hex[:8]}")
+    await create_message_cards(user, thread_id, count=3)
+
+    response = await client.get(
+        "/api/v1/admin/conversations",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "threads" in data
+    assert data["total"] >= 1
+    thread_ids = [t["thread_id"] for t in data["threads"]]
+    assert thread_id in thread_ids
+
+
+@pytest.mark.asyncio
+async def test_get_conversations_filters_by_user_id(client):
+    admin, token = await create_admin_user()
+    user1 = await create_regular_user()
+    user2 = await create_regular_user()
+    thread1 = build_thread_id(user1.id or 0, f"conv_{uuid.uuid4().hex[:8]}")
+    thread2 = build_thread_id(user2.id or 0, f"conv_{uuid.uuid4().hex[:8]}")
+    await create_message_cards(user1, thread1, count=2)
+    await create_message_cards(user2, thread2, count=2)
+
+    response = await client.get(
+        f"/api/v1/admin/conversations?user_id={user1.id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    thread_ids = [t["thread_id"] for t in data["threads"]]
+    assert thread1 in thread_ids
+    assert thread2 not in thread_ids
+
+
+@pytest.mark.asyncio
+async def test_get_conversations_filters_by_intent_category(client):
+    admin, token = await create_admin_user()
+    user = await create_regular_user()
+    thread1 = build_thread_id(user.id or 0, f"conv_{uuid.uuid4().hex[:8]}")
+    thread2 = build_thread_id(user.id or 0, f"conv_{uuid.uuid4().hex[:8]}")
+    await create_message_cards(user, thread1, count=2)
+    await create_message_cards(user, thread2, count=2)
+
+    async with async_session_maker() as session:
+        log1 = GraphExecutionLog(
+            thread_id=thread1,
+            user_id=user.id or 0,
+            intent_category="ORDER",
+        )
+        log2 = GraphExecutionLog(
+            thread_id=thread2,
+            user_id=user.id or 0,
+            intent_category="POLICY",
+        )
+        session.add(log1)
+        session.add(log2)
+        await session.commit()
+
+    response = await client.get(
+        "/api/v1/admin/conversations?intent_category=ORDER",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    thread_ids = [t["thread_id"] for t in data["threads"]]
+    assert thread1 in thread_ids
+    assert thread2 not in thread_ids
+
+
+@pytest.mark.asyncio
+async def test_get_conversation_messages_returns_trajectory(client):
+    admin, token = await create_admin_user()
+    user = await create_regular_user()
+    thread_id = build_thread_id(user.id or 0, f"conv_{uuid.uuid4().hex[:8]}")
+    messages = await create_message_cards(user, thread_id, count=3)
+
+    response = await client.get(
+        f"/api/v1/admin/conversations/{thread_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 3
+    returned_ids = [m["id"] for m in data]
+    for msg in messages:
+        assert msg.id in returned_ids
+
+
+@pytest.mark.asyncio
+async def test_get_conversations_rejects_non_admin_token(client):
+    user = await create_regular_user()
+    token = create_access_token(user_id=user.id or 0, is_admin=False)
+
+    response = await client.get(
+        "/api/v1/admin/conversations",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_conversation_messages_rejects_non_admin_token(client):
+    user = await create_regular_user()
+    token = create_access_token(user_id=user.id or 0, is_admin=False)
+
+    response = await client.get(
+        "/api/v1/admin/conversations/nonexistent-thread",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403

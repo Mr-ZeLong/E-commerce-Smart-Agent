@@ -1,0 +1,150 @@
+{"query": "查询订单SN20240001的状态", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240001"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto"}
+{"query": "帮我看看订单20240002到哪了", "expected_intent": "ORDER", "expected_slots": {"order_sn": "20240002"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto"}
+{"query": "我的订单什么时候发货", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "发货", "expected_audit_level": "medium"}
+{"query": "订单号SN20240003的商品到了吗", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240003"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto"}
+{"query": "我想取消订单SN20240004", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240004"}, "expected_answer_fragment": "取消", "expected_audit_level": "medium"}
+{"query": "修改订单SN20240005的收货地址", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240005"}, "expected_answer_fragment": "地址", "expected_audit_level": "medium"}
+{"query": "查询最近的一笔订单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "订单", "expected_audit_level": "auto"}
+{"query": "订单SN20240006为什么还没发货", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240006"}, "expected_answer_fragment": "发货", "expected_audit_level": "medium"}
+{"query": "帮我查一下我在你们平台买的上一单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "订单", "expected_audit_level": "auto"}
+{"query": "订单SN20240007可以合并发货吗", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240007"}, "expected_answer_fragment": "合并", "expected_audit_level": "medium"}
+{"query": "我想确认订单SN20240008的付款状态", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240008"}, "expected_answer_fragment": "付款", "expected_audit_level": "auto"}
+{"query": "我的订单被拆分了请问怎么回事", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "拆分", "expected_audit_level": "medium"}
+{"query": "订单SN20240009的备注内容是什么", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240009"}, "expected_answer_fragment": "备注", "expected_audit_level": "auto"}
+{"query": "我要申请退货订单号是SN20240010", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240010"}, "expected_answer_fragment": "退货", "expected_audit_level": "medium"}
+{"query": "商品到货发现有破损我要退款", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "商品破损"}, "expected_answer_fragment": "退款", "expected_audit_level": "medium"}
+{"query": "订单SN20240011的售后进度如何", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240011"}, "expected_answer_fragment": "售后", "expected_audit_level": "auto"}
+{"query": "我想换货买大了", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "尺码不合适"}, "expected_answer_fragment": "换货", "expected_audit_level": "medium"}
+{"query": "申请七天无理由退货", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "七天无理由退货"}, "expected_answer_fragment": "退货", "expected_audit_level": "auto"}
+{"query": "退款什么时候到账", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "退款", "expected_audit_level": "medium"}
+{"query": "订单SN20240012维修服务怎么申请", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240012"}, "expected_answer_fragment": "维修", "expected_audit_level": "medium"}
+{"query": "退货物流单号填错了怎么改", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "物流单号", "expected_audit_level": "medium"}
+{"query": "我的售后申请被拒绝了原因是什么", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "拒绝", "expected_audit_level": "manual"}
+{"query": "订单SN20240013的退款金额不对", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240013"}, "expected_answer_fragment": "退款金额", "expected_audit_level": "medium"}
+{"query": "售后电话是多少", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "电话", "expected_audit_level": "auto"}
+{"query": "我想撤销售后申请SN20240014", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240014"}, "expected_answer_fragment": "撤销", "expected_audit_level": "medium"}
+{"query": "商品质保期多久", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "质保", "expected_audit_level": "auto"}
+{"query": "你们的退换货政策是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "退换货政策", "expected_audit_level": "auto"}
+{"query": "运费险怎么理赔", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "运费险", "expected_audit_level": "auto"}
+{"query": "会员积分有效期是多久", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "积分", "expected_audit_level": "auto"}
+{"query": "隐私政策里我的数据会共享给谁", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "隐私政策", "expected_audit_level": "medium"}
+{"query": "平台支持price match吗", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "price match", "expected_audit_level": "auto"}
+{"query": "发货时效承诺是多久", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "发货时效", "expected_audit_level": "auto"}
+{"query": "三包政策具体包含什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "三包", "expected_audit_level": "auto"}
+{"query": "满减活动和折扣券能叠加吗", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "叠加", "expected_audit_level": "auto"}
+{"query": "国际订单的关税怎么算", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "关税", "expected_audit_level": "medium"}
+{"query": "取消订单后多久退款", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "退款", "expected_audit_level": "auto"}
+{"query": "平台对假货的赔偿标准是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "赔偿", "expected_audit_level": "medium"}
+{"query": "预售商品的规则是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "预售", "expected_audit_level": "auto"}
+{"query": "投诉商家的处理流程是怎样的", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "投诉", "expected_audit_level": "auto"}
+{"query": "我的账户余额是多少", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "余额", "expected_audit_level": "auto"}
+{"query": "怎么修改登录密码", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "密码", "expected_audit_level": "auto"}
+{"query": "绑定手机号换成13800138000", "expected_intent": "ACCOUNT", "expected_slots": {"phone": "13800138000"}, "expected_answer_fragment": "手机号", "expected_audit_level": "medium"}
+{"query": "我想注销账号", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "注销", "expected_audit_level": "manual"}
+{"query": "会员等级怎么提升", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "会员等级", "expected_audit_level": "auto"}
+{"query": "我的优惠券在哪里看", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "优惠券", "expected_audit_level": "auto"}
+{"query": "账户被冻结了怎么办", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "冻结", "expected_audit_level": "manual"}
+{"query": "如何设置支付密码", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "支付密码", "expected_audit_level": "auto"}
+{"query": "积分兑换记录查询", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "积分", "expected_audit_level": "auto"}
+{"query": "实名认证怎么弄", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "实名认证", "expected_audit_level": "medium"}
+{"query": "我的收货地址列表", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "地址", "expected_audit_level": "auto"}
+{"query": "账户安全中心入口", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "安全", "expected_audit_level": "auto"}
+{"query": "怎么修改绑定的邮箱", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "邮箱", "expected_audit_level": "auto"}
+{"query": "今天有什么优惠活动", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "优惠", "expected_audit_level": "auto"}
+{"query": "满300减50的活动到几号结束", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "满减", "expected_audit_level": "auto"}
+{"query": "新人礼包怎么领取", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "新人礼包", "expected_audit_level": "auto"}
+{"query": "会员日折扣是多少", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "会员日", "expected_audit_level": "auto"}
+{"query": "这个商品有秒杀吗", "expected_intent": "PROMOTION", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "秒杀", "expected_audit_level": "auto"}
+{"query": "优惠券SN2024PROMO01怎么用", "expected_intent": "PROMOTION", "expected_slots": {"coupon_code": "SN2024PROMO01"}, "expected_answer_fragment": "优惠券", "expected_audit_level": "auto"}
+{"query": "双11预售什么时候开始", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "预售", "expected_audit_level": "auto"}
+{"query": "邀请好友有什么奖励", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "邀请", "expected_audit_level": "auto"}
+{"query": "品牌清仓活动入口", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "清仓", "expected_audit_level": "auto"}
+{"query": "拼团活动规则是什么", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "拼团", "expected_audit_level": "auto"}
+{"query": "签到领积分的规则", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "签到", "expected_audit_level": "auto"}
+{"query": "限时折扣商品列表", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "限时折扣", "expected_audit_level": "auto"}
+{"query": "返利活动怎么参与", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "返利", "expected_audit_level": "auto"}
+{"query": "支持哪些支付方式", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "支付方式", "expected_audit_level": "auto"}
+{"query": "微信支付失败了怎么办", "expected_intent": "PAYMENT", "expected_slots": {"payment_method": "微信支付"}, "expected_answer_fragment": "支付失败", "expected_audit_level": "medium"}
+{"query": "订单SN20240015可以改支付宝付款吗", "expected_intent": "PAYMENT", "expected_slots": {"order_sn": "SN20240015"}, "expected_answer_fragment": "支付宝", "expected_audit_level": "medium"}
+{"query": "分期付款的利率是多少", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "分期", "expected_audit_level": "auto"}
+{"query": "花呗可以用吗", "expected_intent": "PAYMENT", "expected_slots": {"payment_method": "花呗"}, "expected_answer_fragment": "花呗", "expected_audit_level": "auto"}
+{"query": "为什么扣款了但订单没生成", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "扣款", "expected_audit_level": "medium"}
+{"query": "退款会原路返回吗", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "原路返回", "expected_audit_level": "auto"}
+{"query": "支付时提示风控拦截", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "风控", "expected_audit_level": "manual"}
+{"query": "企业转账怎么操作", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "转账", "expected_audit_level": "medium"}
+{"query": "信用卡支付有手续费吗", "expected_intent": "PAYMENT", "expected_slots": {"payment_method": "信用卡"}, "expected_answer_fragment": "手续费", "expected_audit_level": "auto"}
+{"query": "如何开具发票", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "发票", "expected_audit_level": "medium"}
+{"query": "支付密码忘了怎么办", "expected_intent": "PAYMENT", "expected_slots": {}, "expected_answer_fragment": "支付密码", "expected_audit_level": "auto"}
+{"query": "数字人民币支持吗", "expected_intent": "PAYMENT", "expected_slots": {"payment_method": "数字人民币"}, "expected_answer_fragment": "数字人民币", "expected_audit_level": "auto"}
+{"query": "快递单号SF20240001到哪了", "expected_intent": "LOGISTICS", "expected_slots": {"tracking_number": "SF20240001"}, "expected_answer_fragment": "物流", "expected_audit_level": "auto"}
+{"query": "我的包裹为什么卡在转运中心", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "转运中心", "expected_audit_level": "medium"}
+{"query": "预计什么时候送达", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "送达", "expected_audit_level": "auto"}
+{"query": "物流信息显示已签收但我没收到", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "签收", "expected_audit_level": "medium"}
+{"query": "可以指定顺丰快递吗", "expected_intent": "LOGISTICS", "expected_slots": {"carrier": "顺丰"}, "expected_answer_fragment": "顺丰", "expected_audit_level": "auto"}
+{"query": "修改配送时间为周末", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "配送时间", "expected_audit_level": "medium"}
+{"query": "自提点地址在哪里", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "自提点", "expected_audit_level": "auto"}
+{"query": "偏远地区加运费吗", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "偏远地区", "expected_audit_level": "medium"}
+{"query": "物流停滞三天了怎么办", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "停滞", "expected_audit_level": "medium"}
+{"query": "冷链配送支持哪些城市", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "冷链", "expected_audit_level": "auto"}
+{"query": "送货上门还是放驿站", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "驿站", "expected_audit_level": "auto"}
+{"query": "国际物流清关要多久", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "清关", "expected_audit_level": "medium"}
+{"query": "这款手机有黑色吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这款手机"}, "expected_answer_fragment": "颜色", "expected_audit_level": "auto"}
+{"query": "商品的保质期多久", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "保质期", "expected_audit_level": "auto"}
+{"query": "有没有更大容量的版本", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "容量", "expected_audit_level": "auto"}
+{"query": "产品的成分表是什么", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "产品"}, "expected_answer_fragment": "成分", "expected_audit_level": "auto"}
+{"query": "这个商品通过了哪些认证", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "认证", "expected_audit_level": "auto"}
+{"query": "商品尺寸是多少厘米", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "尺寸", "expected_audit_level": "auto"}
+{"query": "充电功率多少瓦", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "充电器"}, "expected_answer_fragment": "功率", "expected_audit_level": "auto"}
+{"query": "支持七天无理由吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "七天无理由", "expected_audit_level": "auto"}
+{"query": "产地是哪里", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "产地", "expected_audit_level": "auto"}
+{"query": "有没有套装组合", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "套装", "expected_audit_level": "auto"}
+{"query": "商品重量是多少", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "重量", "expected_audit_level": "auto"}
+{"query": "保修期多久", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "保修", "expected_audit_level": "auto"}
+{"query": "给我推荐一款降噪耳机", "expected_intent": "RECOMMENDATION", "expected_slots": {"product_name": "降噪耳机"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "2000元左右的手机哪个好", "expected_intent": "RECOMMENDATION", "expected_slots": {"budget": "2000元左右"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "适合送礼的护肤品套装", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "送礼"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "跑步穿的鞋有推荐吗", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "跑步"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "性价比高的笔记本电脑", "expected_intent": "RECOMMENDATION", "expected_slots": {"product_name": "笔记本电脑"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "学生党用的平价背包", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "学生党"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "送给妈妈的生日礼物推荐", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "生日礼物"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "露营需要买哪些装备", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "露营"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "冬天保暖外套推荐", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "冬天保暖"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "办公桌收纳好物", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "办公收纳"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "新手爸妈必买清单", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "新手爸妈"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "健身初学者需要的器材", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "健身初学者"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
+{"query": "我的购物车里有几件商品", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "购物车", "expected_audit_level": "auto"}
+{"query": "帮我把这件商品加入购物车", "expected_intent": "CART", "expected_slots": {"product_name": "这件商品"}, "expected_answer_fragment": "加入", "expected_audit_level": "auto"}
+{"query": "清空购物车", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "清空", "expected_audit_level": "auto"}
+{"query": "购物车商品降价了吗", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "降价", "expected_audit_level": "auto"}
+{"query": "把购物车里的零食删掉", "expected_intent": "CART", "expected_slots": {"product_name": "零食"}, "expected_answer_fragment": "删除", "expected_audit_level": "auto"}
+{"query": "购物车结算时运费怎么算", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "运费", "expected_audit_level": "auto"}
+{"query": "购物车商品库存不足怎么办", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "库存", "expected_audit_level": "medium"}
+{"query": "找回之前加购的商品", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "加购", "expected_audit_level": "auto"}
+{"query": "购物车能分组结算吗", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "分组", "expected_audit_level": "auto"}
+{"query": "购物车里的商品失效了", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "失效", "expected_audit_level": "medium"}
+{"query": "如何把购物车商品移入收藏夹", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "收藏夹", "expected_audit_level": "auto"}
+{"query": "购物车数量上限是多少", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "上限", "expected_audit_level": "auto"}
+{"query": "我要投诉商家服务态度差", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_target": "商家", "complaint_reason": "服务态度差"}, "expected_answer_fragment": "投诉", "expected_audit_level": "manual"}
+{"query": "客服一直不回复我", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "客服不回复"}, "expected_answer_fragment": "客服", "expected_audit_level": "manual"}
+{"query": "商家发错货了还不承认", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_target": "商家", "complaint_reason": "发错货不承认"}, "expected_answer_fragment": "发错货", "expected_audit_level": "manual"}
+{"query": "平台判定偏袒卖家", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_target": "平台"}, "expected_answer_fragment": "偏袒", "expected_audit_level": "manual"}
+{"query": "虚假宣传我要举报", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "虚假宣传"}, "expected_answer_fragment": "举报", "expected_audit_level": "manual"}
+{"query": "收到货少了配件", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "少配件"}, "expected_answer_fragment": "少配件", "expected_audit_level": "medium"}
+{"query": "商家拒绝开发票", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_target": "商家", "complaint_reason": "拒绝开发票"}, "expected_answer_fragment": "发票", "expected_audit_level": "manual"}
+{"query": "客服挂断我电话", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "客服挂电话"}, "expected_answer_fragment": "客服", "expected_audit_level": "manual"}
+{"query": "物流暴力运输导致破损", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_target": "物流", "complaint_reason": "暴力运输"}, "expected_answer_fragment": "破损", "expected_audit_level": "medium"}
+{"query": "订单被无故取消", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "无故取消"}, "expected_answer_fragment": "取消", "expected_audit_level": "manual"}
+{"query": "价格欺诈", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "价格欺诈"}, "expected_answer_fragment": "欺诈", "expected_audit_level": "manual"}
+{"query": "隐私被泄露", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "隐私泄露"}, "expected_answer_fragment": "隐私", "expected_audit_level": "manual"}
+{"query": "你好", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "你好", "expected_audit_level": "auto"}
+{"query": "谢谢", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "不客气", "expected_audit_level": "auto"}
+{"query": "你是机器人吗", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "智能", "expected_audit_level": "auto"}
+{"query": "再见", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "再见", "expected_audit_level": "auto"}
+{"query": "今天天气怎么样", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "天气", "expected_audit_level": "auto"}
+{"query": "帮我搜一下网络热梗", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "热梗", "expected_audit_level": "auto"}
+{"query": "你会说英语吗", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "语言", "expected_audit_level": "auto"}
+{"query": "推荐一部好看的电影", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "电影", "expected_audit_level": "auto"}
+{"query": "怎么做饭好吃", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "做饭", "expected_audit_level": "auto"}
+{"query": "附近有什么好玩的", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "附近", "expected_audit_level": "auto"}
+{"query": "你能帮我写作业吗", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "作业", "expected_audit_level": "auto"}
+{"query": "明天是什么节气", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "节气", "expected_audit_level": "auto"}

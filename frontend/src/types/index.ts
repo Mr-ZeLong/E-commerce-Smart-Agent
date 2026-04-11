@@ -50,10 +50,82 @@ export interface TaskStats {
   high_risk: number
 }
 
+export interface SessionMetrics {
+  '24h': number
+  '7d': number
+  '30d': number
+}
+
+export interface TransferMetric {
+  final_agent: string
+  total: number
+  transfers: number
+  transfer_rate: number
+}
+
+export interface ConfidenceMetric {
+  final_agent: string
+  avg_confidence: number | null
+}
+
+export interface LatencyMetric {
+  node_name: string
+  p99_latency_ms: number | null
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
   isStreaming?: boolean
+}
+
+export interface ConversationThread {
+  thread_id: string
+  user_id: number | null
+  message_count: number
+  last_updated: string
+  intent_category?: string | null
+}
+
+export interface ConversationMessage {
+  id: number
+  thread_id: string
+  sender_type: string
+  sender_id: number | null
+  content: Record<string, unknown>
+  message_type: string
+  created_at: string
+  meta_data?: Record<string, unknown> | null
+}
+
+export interface ConversationList {
+  threads: ConversationThread[]
+  total: number
+  offset: number
+  limit: number
+}
+
+export interface GoldenRecord {
+  query: string
+  expected_intent: string
+  expected_slots: Record<string, string>
+  expected_answer_fragment: string
+  expected_audit_level?: string
+}
+
+export interface EvaluationDatasetResponse {
+  total: number
+  limit: number
+  offset: number
+  records: GoldenRecord[]
+}
+
+export interface EvaluationResults {
+  intent_accuracy: number
+  slot_recall: number
+  rag_precision: number
+  answer_correctness: number
+  total_records: number
 }

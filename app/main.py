@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from opentelemetry import trace
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -19,6 +20,7 @@ from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
+from app.observability.otel_setup import instrument_fastapi, setup_otel_tracing
 from app.websocket.manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,9 @@ async def lifespan(app: FastAPI):
     _setup_logging()
     logger.info(" Starting E-commerce Smart Agent v4.1...")
 
+    setup_otel_tracing()
+    instrument_fastapi(app)
+
     if "*" in settings.CORS_ORIGINS:
         raise RuntimeError(
             "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
@@ -37,8 +42,11 @@ async def lifespan(app: FastAPI):
 
     from langgraph.checkpoint.redis import AsyncRedisSaver
 
+    from app.agents.account import AccountAgent
     from app.agents.evaluator import ConfidenceEvaluator
+    from app.agents.logistics import LogisticsAgent
     from app.agents.order import OrderAgent
+    from app.agents.payment import PaymentAgent
     from app.agents.policy import PolicyAgent
     from app.agents.router import IntentRouterAgent
     from app.core.database import async_engine
@@ -48,8 +56,15 @@ async def lifespan(app: FastAPI):
     from app.intent.service import IntentRecognitionService
     from app.retrieval import create_retriever
     from app.services.order_service import OrderService
+    from app.tools import AccountTool, LogisticsTool, PaymentTool
+    from app.tools.registry import ToolRegistry
 
     app.state.manager = ConnectionManager()
+    tool_registry = ToolRegistry()
+    tool_registry.register(LogisticsTool())
+    tool_registry.register(AccountTool())
+    tool_registry.register(PaymentTool())
+    app.state.tool_registry = tool_registry
 
     redis_client = None
     retriever = None
@@ -65,12 +80,20 @@ async def lifespan(app: FastAPI):
         retriever = create_retriever(llm=llm)
         policy_agent = PolicyAgent(retriever=retriever, llm=llm)
         order_agent = OrderAgent(order_service=OrderService(), llm=llm)
+        logistics_agent = LogisticsAgent(tool_registry=tool_registry, llm=llm)
+        account_agent = AccountAgent(tool_registry=tool_registry, llm=llm)
+        payment_agent = PaymentAgent(tool_registry=tool_registry, llm=llm)
         evaluator = ConfidenceEvaluator(llm=eval_llm)
 
+        app.state.intent_service = intent_service
+        app.state.llm = llm
         app.state.app_graph = await compile_app_graph(
             router_agent=router_agent,
             policy_agent=policy_agent,
             order_agent=order_agent,
+            logistics_agent=logistics_agent,
+            account_agent=account_agent,
+            payment_agent=payment_agent,
             evaluator=evaluator,
             checkpointer=checkpointer,
         )
@@ -139,7 +162,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Rate limiting middleware
+
+# 2. OpenTelemetry trace-id response middleware (after CORS)
+@app.middleware("http")
+async def trace_id_middleware(request: Request, call_next):
+    response = await call_next(request)
+    span = trace.get_current_span()
+    span_context = span.get_span_context()
+    if span_context.is_valid:
+        trace_id = format(span_context.trace_id, "032x")
+        response.headers["X-Trace-ID"] = trace_id
+    return response
+
+
+# 3. Rate limiting middleware
 app.add_middleware(SlowAPIMiddleware)
 
 # 3. 注册路由

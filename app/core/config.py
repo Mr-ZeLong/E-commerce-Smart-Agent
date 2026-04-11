@@ -135,6 +135,12 @@ class Settings(BaseSettings):
     RERANK_TIMEOUT: float = 10.0
     REWRITE_TIMEOUT: float = 5.0
 
+    # LangSmith / LangChain tracing
+    LANGCHAIN_TRACING_V2: bool = False
+    LANGSMITH_API_KEY: str = ""
+    LANGSMITH_PROJECT: str = "ecommerce-smart-agent"
+    LANGSMITH_OTEL_ENABLED: bool = False
+
     # Retriever
     RETRIEVER_DENSE_TOPK: int = 15
     RETRIEVER_SPARSE_TOPK: int = 15
