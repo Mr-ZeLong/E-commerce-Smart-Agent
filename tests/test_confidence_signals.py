@@ -10,7 +10,6 @@ from app.confidence.signals import (
     RAGSignal,
     SignalResult,
 )
-from app.models.state import RetrievalResult
 
 
 class TestRAGSignal:
@@ -168,9 +167,7 @@ class TestConfidenceSignals:
         return {
             "question": "test question",
             "history": [],
-            "retrieval_result": RetrievalResult(
-                chunks=["chunk1"], similarities=[0.8], sources=["s1"]
-            ),
+            "retrieval_result": {"chunks": ["chunk1"], "similarities": [0.8], "sources": ["s1"]},
         }
 
     @pytest.fixture

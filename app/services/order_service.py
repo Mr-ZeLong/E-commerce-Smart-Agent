@@ -6,7 +6,6 @@ from typing import Any
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlmodel import select
 
-from app.agents.base import AgentResult
 from app.core.database import async_session_maker
 from app.models.order import Order
 from app.models.refund import RefundApplication
@@ -52,15 +51,15 @@ class OrderService:
 
     async def handle_refund_request(
         self, question: str, user_id: int, thread_id: str = ""
-    ) -> AgentResult:
+    ) -> dict[str, Any]:
         """处理退货申请，封装数据库事务与 Celery 副作用。"""
         order_sn = extract_order_sn(question)
 
         if not order_sn:
-            return AgentResult(
-                response="请提供订单号以便处理退货申请。例如：我要退货，订单号 SN20240001",
-                updated_state={"refund_flow_active": False},
-            )
+            return {
+                "response": "请提供订单号以便处理退货申请。例如：我要退货，订单号 SN20240001",
+                "updated_state": {"refund_flow_active": False},
+            }
 
         reason_category = classify_refund_reason(question)
         reason_detail = reason_category.value if reason_category else question
@@ -68,16 +67,16 @@ class OrderService:
         async with async_session_maker() as session:
             order = await get_order_by_sn(order_sn, user_id, session)
             if not order:
-                return AgentResult(
-                    response=f"未找到订单 {order_sn}，请确认订单号是否正确。",
-                    updated_state={"refund_flow_active": False},
-                )
+                return {
+                    "response": f"未找到订单 {order_sn}，请确认订单号是否正确。",
+                    "updated_state": {"refund_flow_active": False},
+                }
 
             if order.id is None:
-                return AgentResult(
-                    response="订单数据异常，请稍后重试。",
-                    updated_state={"refund_flow_active": False},
-                )
+                return {
+                    "response": "订单数据异常，请稍后重试。",
+                    "updated_state": {"refund_flow_active": False},
+                }
 
             success, message, refund_data = await process_refund_for_order(
                 order_sn=order_sn,
@@ -88,10 +87,13 @@ class OrderService:
             )
 
             if not success:
-                return AgentResult(
-                    response=message,
-                    updated_state={"order_data": order.model_dump(), "refund_flow_active": False},
-                )
+                return {
+                    "response": message,
+                    "updated_state": {
+                        "order_data": order.model_dump(),
+                        "refund_flow_active": False,
+                    },
+                }
 
             # 退款申请创建成功后，执行风控审计
             audit = None
@@ -123,4 +125,4 @@ class OrderService:
             if audit is not None:
                 notify_admin_audit.delay(audit.id)
 
-            return AgentResult(response=f"✅ {message}", updated_state=updated_state)
+            return {"response": f"✅ {message}", "updated_state": updated_state}

@@ -6,6 +6,7 @@
 import asyncio
 import concurrent.futures
 import logging
+import time
 from typing import Any
 
 from celery import Task
@@ -54,8 +55,6 @@ def send_refund_sms(self, refund_id: int, phone: str, message: str) -> dict[str,
         logger.info(f"📱 [SMS] 发送短信到 {phone}: {message}")
 
         # 模拟短信发送
-        import time
-
         time.sleep(2)
 
         # 记录发送成功
@@ -95,10 +94,10 @@ def process_refund_payment(
         try:
             async with async_session_maker() as session:
                 # 查询退款申请
-                result = await session.execute(  # ty:ignore[deprecated]
+                result = await session.exec(
                     select(RefundApplication).where(RefundApplication.id == refund_id)
                 )
-                refund = result.scalar_one_or_none()
+                refund = result.one_or_none()
 
                 if not refund:
                     raise ValueError(f"Refund application {refund_id} not found")
@@ -107,9 +106,7 @@ def process_refund_payment(
                 logger.info(f"💰 [Payment] 退款 ¥{amount} 到 {payment_method}")
 
                 # 模拟支付网关调用
-                import time
-
-                time.sleep(3)
+                await asyncio.sleep(3)
 
                 # 更新退款状态
                 refund.status = RefundStatus.COMPLETED
@@ -147,10 +144,8 @@ def notify_admin_audit(self, audit_log_id: int) -> dict[str, Any]:
     async def _notify():
         async with async_session_maker() as session:
             # 查询审计日志
-            result = await session.execute(  # ty:ignore[deprecated]
-                select(AuditLog).where(AuditLog.id == audit_log_id)
-            )
-            audit_log = result.scalar_one_or_none()
+            result = await session.exec(select(AuditLog).where(AuditLog.id == audit_log_id))
+            audit_log = result.one_or_none()
 
             if not audit_log:
                 raise ValueError(f"Audit log {audit_log_id} not found")

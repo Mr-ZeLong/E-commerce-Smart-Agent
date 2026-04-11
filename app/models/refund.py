@@ -68,7 +68,7 @@ class RefundApplication(SQLModel, table=True):
     admin_note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 
     # 审核人ID（预留字段）
-    reviewed_by: int | None = Field(default=None)
+    reviewed_by: int | None = Field(default=None, foreign_key="users.id")
 
     # 审核时间
     reviewed_at: datetime | None = Field(default=None)

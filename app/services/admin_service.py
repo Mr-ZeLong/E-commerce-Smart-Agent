@@ -56,13 +56,7 @@ async def _count_pending_by_trigger(session: AsyncSession, trigger_type: AuditTr
 
 
 class AdminService:
-    def __init__(
-        self,
-        process_refund_payment=process_refund_payment,
-        send_refund_sms=send_refund_sms,
-        manager=manager,
-        build_thread_id=build_thread_id,
-    ):
+    def __init__(self):
         self.process_refund_payment = process_refund_payment
         self.send_refund_sms = send_refund_sms
         self.manager = manager
@@ -133,7 +127,9 @@ class AdminService:
         current_admin_id: int,
     ) -> AdminDecisionResponse:
         """处理管理员决策"""
-        result = await session.exec(select(AuditLog).where(AuditLog.id == audit_log_id))
+        result = await session.exec(
+            select(AuditLog).where(AuditLog.id == audit_log_id).with_for_update()
+        )
         audit_log = result.one_or_none()
 
         if not audit_log:
@@ -154,6 +150,9 @@ class AdminService:
         user = user_result.one_or_none()
         phone = user.phone if user and getattr(user, "phone", None) else None
 
+        payment_task_kwargs: dict[str, object] | None = None
+        sms_task_kwargs: dict[str, object] | None = None
+
         if audit_log.refund_application_id:
             refund_result = await session.exec(
                 select(RefundApplication).where(
@@ -169,18 +168,18 @@ class AdminService:
                     refund.reviewed_by = current_admin_id
                     refund.reviewed_at = naive_utc_now()
 
-                    self.process_refund_payment.delay(
-                        refund_id=refund.id,
-                        amount=float(refund.refund_amount),
-                        payment_method="原支付方式",
-                    )
+                    payment_task_kwargs = {
+                        "refund_id": refund.id,
+                        "amount": float(refund.refund_amount),
+                        "payment_method": "原支付方式",
+                    }
 
                     if phone:
-                        self.send_refund_sms.delay(
-                            refund_id=refund.id,
-                            phone=phone,
-                            message=f"您的退款申请已通过，退款金额¥{refund.refund_amount}将在3-5个工作日退回。",
-                        )
+                        sms_task_kwargs = {
+                            "refund_id": refund.id,
+                            "phone": phone,
+                            "message": f"您的退款申请已通过，退款金额¥{refund.refund_amount}将在3-5个工作日退回。",
+                        }
 
                 else:
                     refund.status = RefundStatus.REJECTED
@@ -214,6 +213,11 @@ class AdminService:
         session.add(message_card)
 
         await session.commit()
+
+        if payment_task_kwargs is not None:
+            self.process_refund_payment.delay(**payment_task_kwargs)
+        if sms_task_kwargs is not None:
+            self.send_refund_sms.delay(**sms_task_kwargs)
 
         try:
             await self.manager.notify_status_change(

@@ -5,6 +5,7 @@ WebSocket 连接管理器
 """
 
 import asyncio
+import contextlib
 import logging
 
 from fastapi import WebSocket
@@ -27,34 +28,53 @@ class ConnectionManager:
         # 线程订阅: {thread_id:  Set[WebSocket]}
         self.thread_subscribers: dict[str, set[WebSocket]] = {}
 
+        # 用于保护内部字典结构的一致性。所有 I/O 操作（send/close）均在锁外执行，
+        # 因此全局锁不会阻塞网络传输；替换为更细粒度锁的收益有限，暂保留全局锁。
         self._lock = asyncio.Lock()
 
     async def connect_user(self, websocket: WebSocket, user_id: int, thread_id: str):
         """用户连接"""
         await websocket.accept()
 
+        old_ws: WebSocket | None = None
         async with self._lock:
             if user_id not in self.active_connections:
                 self.active_connections[user_id] = {}
 
+            old_ws = self.active_connections[user_id].get(thread_id)
             self.active_connections[user_id][thread_id] = websocket
 
             # 订阅线程
             if thread_id not in self.thread_subscribers:
                 self.thread_subscribers[thread_id] = set()
+            if old_ws:
+                self.thread_subscribers[thread_id].discard(old_ws)
             self.thread_subscribers[thread_id].add(websocket)
+
+        if old_ws:
+            with contextlib.suppress(Exception):
+                await old_ws.close()
 
         logger.info(f" [WS] 用户 {user_id} 连接到会话 {thread_id}")
 
     async def connect_admin(self, websocket: WebSocket, admin_id: int):
         """管理员连接"""
         await websocket.accept()
+
+        old_ws: WebSocket | None = None
         async with self._lock:
+            old_ws = self.admin_connections.get(admin_id)
             self.admin_connections[admin_id] = websocket
+
+        if old_ws:
+            with contextlib.suppress(Exception):
+                await old_ws.close()
+
         logger.info(f" [WS] 管理员 {admin_id} 已连接")
 
     async def disconnect_user(self, user_id: int, thread_id: str):
         """断开用户连接"""
+        ws = None
         async with self._lock:
             if user_id in self.active_connections:
                 ws = self.active_connections[user_id].pop(thread_id, None)
@@ -64,12 +84,20 @@ class ConnectionManager:
                 if not self.active_connections[user_id]:
                     del self.active_connections[user_id]
 
+        if ws:
+            with contextlib.suppress(Exception):
+                await ws.close()
+
         logger.info(f" [WS] 用户 {user_id} 断开会话 {thread_id}")
 
     async def disconnect_admin(self, admin_id: int):
         """断开管理员连接"""
+        ws = None
         async with self._lock:
-            self.admin_connections.pop(admin_id, None)
+            ws = self.admin_connections.pop(admin_id, None)
+        if ws:
+            with contextlib.suppress(Exception):
+                await ws.close()
         logger.info(f" [WS] 管理员 {admin_id} 已断开")
 
     async def send_to_user(self, user_id: int, thread_id: str, message: dict):

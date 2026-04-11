@@ -4,59 +4,15 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, EmailStr, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
 from app.core.limiter import limiter
-from app.core.security import get_current_user_id
-from app.services.auth_service import AuthService, create_user_token
+from app.core.security import create_access_token, get_current_user_id
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserInfoResponse
+from app.services.auth_service import AuthService
 
 router = APIRouter()
-
-
-def get_auth_service() -> AuthService:
-    return AuthService()
-
-
-class LoginRequest(BaseModel):
-    """登录请求"""
-
-    username: str = Field(..., min_length=3, max_length=50, description="用户名")
-    password: str = Field(..., min_length=6, description="密码")
-
-
-class RegisterRequest(BaseModel):
-    """注册请求"""
-
-    username: str = Field(..., min_length=3, max_length=50, description="用户名")
-    password: str = Field(..., min_length=6, description="密码")
-    email: EmailStr = Field(..., description="邮箱")
-    full_name: str = Field(..., min_length=2, max_length=100, description="真实姓名")
-    phone: str | None = Field(default=None, description="手机号")
-
-
-class TokenResponse(BaseModel):
-    """Token 响应"""
-
-    access_token: str
-    token_type: str = "bearer"
-    user_id: int
-    username: str
-    full_name: str
-    is_admin: bool
-
-
-class UserInfoResponse(BaseModel):
-    """用户信息响应"""
-
-    user_id: int
-    username: str
-    email: str
-    full_name: str
-    phone: str | None
-    is_admin: bool
-    created_at: str
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -66,13 +22,13 @@ async def login(
     response: Response,
     body: LoginRequest,
     session: AsyncSession = Depends(get_session),
-    service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(AuthService),
 ):
     """用户登录 - 验证用户名和密码，返回 JWT Token"""
     user = await service.authenticate_user(session, body.username, body.password)
     if user.id is None:
         raise HTTPException(status_code=500, detail="用户 ID 缺失，请联系管理员")
-    token = create_user_token(user)
+    token = create_access_token(user.id, is_admin=user.is_admin)
     return TokenResponse(
         access_token=token,
         user_id=user.id,
@@ -89,9 +45,8 @@ async def register(
     response: Response,
     body: RegisterRequest,
     session: AsyncSession = Depends(get_session),
-    service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(AuthService),
 ):
-    """用户注册 - 创建新用户并返回 JWT Token"""
     user = await service.register_user(
         session,
         username=body.username,
@@ -102,7 +57,7 @@ async def register(
     )
     if user.id is None:
         raise HTTPException(status_code=500, detail="用户 ID 缺失，请联系管理员")
-    token = create_user_token(user)
+    token = create_access_token(user.id, is_admin=user.is_admin)
     return TokenResponse(
         access_token=token,
         user_id=user.id,
@@ -116,7 +71,7 @@ async def register(
 async def get_current_user_info(
     current_user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-    service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(AuthService),
 ):
     """获取当前登录用户信息"""
     user = await service.get_user_info(session, current_user_id)

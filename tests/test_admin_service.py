@@ -53,12 +53,11 @@ class TestProcessAdminDecision:
         mock_manager = AsyncMock()
         mock_build_thread_id = MagicMock(return_value="built_thread")
 
-        service = AdminService(
-            process_refund_payment=mock_payment,
-            send_refund_sms=mock_sms,
-            manager=mock_manager,
-            build_thread_id=mock_build_thread_id,
-        )
+        service = AdminService()
+        service.process_refund_payment = mock_payment
+        service.send_refund_sms = mock_sms
+        service.manager = mock_manager
+        service.build_thread_id = mock_build_thread_id
 
         result = await service.process_admin_decision(
             mock_session,
@@ -136,12 +135,11 @@ class TestProcessAdminDecision:
         mock_manager = AsyncMock()
         mock_build_thread_id = MagicMock(return_value="built_thread")
 
-        service = AdminService(
-            process_refund_payment=mock_payment,
-            send_refund_sms=mock_sms,
-            manager=mock_manager,
-            build_thread_id=mock_build_thread_id,
-        )
+        service = AdminService()
+        service.process_refund_payment = mock_payment
+        service.send_refund_sms = mock_sms
+        service.manager = mock_manager
+        service.build_thread_id = mock_build_thread_id
 
         result = await service.process_admin_decision(
             mock_session,

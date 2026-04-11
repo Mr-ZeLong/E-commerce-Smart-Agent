@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from langchain_core.messages import HumanMessage
+
 from app.core.config import settings
 from app.core.llm_factory import create_openai_llm
 from app.core.utils import clamp_score
@@ -138,7 +140,7 @@ class LLMSignal:
             try:
                 # 标记为内部调用，避免被转发给用户
                 response = await self.llm.ainvoke(
-                    [{"role": "user", "content": prompt}],
+                    [HumanMessage(content=prompt)],
                     config={"tags": ["confidence_eval", "internal"]},
                 )
                 raw_text = response.content if hasattr(response, "content") else str(response)
@@ -240,8 +242,8 @@ class ConfidenceSignals:
         if retrieval_result:
             # 正确创建 coroutine 并使用 asyncio.gather
             rag_coro = self.rag_signal.calculate(
-                similarities=retrieval_result.similarities,
-                chunks=retrieval_result.chunks,
+                similarities=retrieval_result["similarities"],
+                chunks=retrieval_result["chunks"],
                 query=query,
             )
             emotion_coro = self.emotion_signal.calculate(
@@ -278,7 +280,7 @@ class ConfidenceSignals:
                 metadata={"skipped": True},
             )
         elif generated_answer:
-            context = retrieval_result.chunks if retrieval_result else []
+            context = retrieval_result["chunks"] if retrieval_result else []
             results["llm"] = await self.llm_signal.calculate(
                 query=query,
                 context=context,

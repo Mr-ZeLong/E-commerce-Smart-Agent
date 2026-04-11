@@ -6,7 +6,7 @@
 
 ## 项目概览
 
-**E-commerce Smart Agent v4.0** 是一个全栈·沉浸式人机协作智能客服系统。核心能力包括：
+**E-commerce Smart Agent v4.1** 是一个全栈·沉浸式人机协作智能客服系统。核心能力包括：
 
 - 基于 LLM（通义千问/Qwen）的智能问答（订单查询、政策咨询）
 - LangGraph 显式节点编排的退货申请工作流
@@ -95,14 +95,13 @@
 │   │   └── state.py                # AgentState TypedDict
 │   ├── graph/                      # LangGraph 工作流
 │   │   ├── workflow.py             # 编译 StateGraph
-│   │   ├── nodes.py                # router_node / policy_agent / order_agent / evaluator_node / decider_node
-│   │   └── tools.py                # 工具函数（订单查询、退款创建等）
+│   │   └── nodes.py                # router_node / policy_agent / order_agent / evaluator_node / decider_node
 │   ├── confidence/                 # 置信度信号模块
 │   │   └── signals.py              # 置信度评估信号计算
 │   ├── utils/                      # 通用工具函数
 │   │   └── order_utils.py          # 订单相关工具
 │   ├── agents/                     # Agent 实现层
-│   │   ├── base.py                 # Agent 基类与 AgentResult
+│   │   ├── base.py                 # Agent 基类
 │   │   ├── router.py               # IntentRouterAgent
 │   │   ├── order.py                # OrderAgent
 │   │   ├── policy.py               # PolicyAgent
@@ -136,7 +135,9 @@
 │   ├── websocket/                  # WebSocket 连接管理
 │   │   └── manager.py              # ConnectionManager（广播/单发）
 │   └── schemas/                    # 共享 Schema
-│       ├── admin.py, status.py
+│       ├── auth.py                 # 认证相关 Schema
+│       ├── admin.py                # 管理员相关 Schema
+│       └── status.py               # 状态查询 Schema
 │
 ├── frontend/                       # React 前端
 │   ├── index.html                  # C端入口
@@ -421,15 +422,16 @@ class User(SQLModel, table=True):
 
 - 所有路由以 `/api/v1` 为前缀（由 `settings.API_V1_STR` 控制）
 - 路由文件位于 `app/api/v1/`
-- Pydantic Schema 尽量放在 `app/api/v1/schemas.py` 或 `app/schemas/`
+- Pydantic Schema 放在 `app/schemas/`（如 `auth.py`、`admin.py`、`status.py`）
+- 服务依赖直接通过 `Depends(ClassName)` 注入，无需工厂函数
 
 ### 4. LangGraph 工作流
 
-- `app/graph/workflow.py`：编译图，赋值给 `workflow_module.app_graph`
+- `app/graph/workflow.py`：编译图并返回，由 `app/main.py` 存储在 `app.state.app_graph`
 - `app/main.py` 的 `lifespan` 在启动时调用 `compile_app_graph()`
 - 节点定义在 `app/graph/nodes.py`
 - 状态定义在 `app/models/state.py`
-- 工具函数在 `app/graph/tools.py`
+- Agent 实例在 `nodes.py` 模块级别直接初始化（无单例 getters）
 
 工作流节点顺序：
 `router_node` → (`policy_agent` | `order_agent`) → `evaluator_node` → `decider_node` → `END`

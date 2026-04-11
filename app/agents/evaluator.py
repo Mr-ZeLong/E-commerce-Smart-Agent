@@ -3,7 +3,6 @@ from typing import Any
 
 from app.confidence.signals import ConfidenceSignals
 from app.core.config import settings
-from app.models.state import AgentStatePartial
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +21,8 @@ class ConfidenceEvaluator:
         - transfer_reason
         - audit_level
         """
-        # 构建临时状态用于信号计算（仅作为信号计算器的输入字典，无需满足完整 AgentState 约束）
-        temp_state: AgentStatePartial = {
+        # 构建临时状态用于信号计算（仅作为信号计算器的输入字典）
+        temp_state: dict[str, Any] = {
             "question": question,
             "history": history,
             "retrieval_result": retrieval_result,

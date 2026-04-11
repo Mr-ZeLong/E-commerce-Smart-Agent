@@ -61,14 +61,14 @@ class MessageCard(SQLModel, table=True):
     )
 
     # 发送者 (user_id 或 system)
-    sender_id: int | None = Field(default=None, index=True)
+    sender_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     sender_type: str = Field(default="user", max_length=32)  # user | agent | admin | system
 
     # 接收者
     receiver_id: int | None = Field(default=None, index=True)
 
     # 元数据（可扩展）
-    meta_data: dict[str, Any] | None = Field(default={}, sa_column=Column(JSON))
+    meta_data: dict[str, Any] | None = Field(default_factory=dict, sa_column=Column(JSON))
 
     # 时间戳
     created_at: datetime = Field(

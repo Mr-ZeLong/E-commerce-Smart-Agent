@@ -183,10 +183,6 @@ class Settings(BaseSettings):
         default_factory=lambda: ["内衣", "食品", "定制商品"]
     )
 
-    # Confidence thresholds
-    HIGH_CONFIDENCE_THRESHOLD: float = 0.8
-    MEDIUM_CONFIDENCE_THRESHOLD: float = 0.6
-
     # Graph routing limits
     MAX_ROUTER_ITERATIONS: int = 5
     MAX_EVALUATOR_RETRIES: int = 3

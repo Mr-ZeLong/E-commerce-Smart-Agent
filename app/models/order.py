@@ -32,7 +32,7 @@ class Order(SQLModel, table=True):
     )
 
     total_amount: float = Field(sa_column=Column(Numeric(precision=10, scale=2)))
-    items: list[dict] = Field(default=[], sa_column=Column(JSON))
+    items: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
 
     tracking_number: str | None = Field(default=None, index=True)
     shipping_address: str = Field(description="下单时的详细地址快照")

@@ -29,17 +29,14 @@ workflow.add_edge("order_agent", "evaluator_node")
 workflow.add_edge("evaluator_node", "decider_node")
 workflow.add_edge("decider_node", END)
 
-app_graph = None
-
 
 async def compile_app_graph():
     """编译 LangGraph（1.0+）"""
-    global app_graph
     logger.info("Compiling LangGraph 1.0+ multi-agent workflow...")
 
     checkpointer = AsyncRedisSaver(redis_url=settings.REDIS_URL)
     await checkpointer.setup()
 
-    app_graph = workflow.compile(checkpointer=checkpointer)
+    compiled = workflow.compile(checkpointer=checkpointer)
     logger.info("LangGraph compiled successfully")
-    return app_graph
+    return compiled

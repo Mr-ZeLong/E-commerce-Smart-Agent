@@ -8,14 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import create_access_token
 from app.models.user import User
-
-
-def create_user_token(user: User) -> str:
-    """Wrap create_access_token and return the JWT string for a user."""
-    assert user.id is not None
-    return create_access_token(user_id=user.id, is_admin=user.is_admin)
 
 
 class AuthService:

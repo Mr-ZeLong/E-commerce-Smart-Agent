@@ -182,10 +182,10 @@ async def test_admin_decision_approve_updates_all_records(client):
     )
 
     with (
-        patch("app.api.v1.admin.process_refund_payment") as mock_payment,
-        patch("app.api.v1.admin.send_refund_sms") as mock_sms,
+        patch("app.services.admin_service.process_refund_payment") as mock_payment,
+        patch("app.services.admin_service.send_refund_sms") as mock_sms,
         patch(
-            "app.api.v1.admin.manager.notify_status_change", new_callable=AsyncMock
+            "app.services.admin_service.manager.notify_status_change", new_callable=AsyncMock
         ) as mock_notify,
     ):
         response = await client.post(
@@ -238,10 +238,10 @@ async def test_admin_decision_reject_updates_records(client):
     )
 
     with (
-        patch("app.api.v1.admin.process_refund_payment") as mock_payment,
-        patch("app.api.v1.admin.send_refund_sms") as mock_sms,
+        patch("app.services.admin_service.process_refund_payment") as mock_payment,
+        patch("app.services.admin_service.send_refund_sms") as mock_sms,
         patch(
-            "app.api.v1.admin.manager.notify_status_change", new_callable=AsyncMock
+            "app.services.admin_service.manager.notify_status_change", new_callable=AsyncMock
         ) as mock_notify,
     ):
         response = await client.post(

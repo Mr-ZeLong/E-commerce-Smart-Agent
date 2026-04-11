@@ -15,16 +15,12 @@ from app.services.status_service import StatusService
 router = APIRouter()
 
 
-def get_status_service() -> StatusService:
-    return StatusService()
-
-
 @router.get("/status/{thread_id}", response_model=StatusResponse)
 async def get_thread_status(
     thread_id: str,
     current_user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-    service: StatusService = Depends(get_status_service),
+    service: StatusService = Depends(StatusService),
 ):
     """
     获取会话状态

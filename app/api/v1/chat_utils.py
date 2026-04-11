@@ -44,9 +44,9 @@ def get_confidence_level(score: float) -> str:
     # 确保分数在有效范围内
     score = clamp_score(score)
 
-    if score >= settings.HIGH_CONFIDENCE_THRESHOLD:
+    if score >= settings.CONFIDENCE.HIGH_THRESHOLD:
         return "high"
-    elif score >= settings.MEDIUM_CONFIDENCE_THRESHOLD:
+    elif score >= settings.CONFIDENCE.MEDIUM_THRESHOLD:
         return "medium"
     else:
         return "low"

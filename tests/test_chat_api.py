@@ -1,7 +1,7 @@
 import asyncio
 import json
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -9,6 +9,7 @@ from langchain_core.messages import AIMessageChunk
 
 from app.core.database import async_session_maker
 from app.core.security import create_access_token
+from app.main import app
 from app.models.user import User
 
 
@@ -56,12 +57,16 @@ async def test_chat_normal_streaming(client, auth_token):
     mock_app_graph = AsyncMock()
     mock_app_graph.astream_events = mock_astream_events
 
-    with patch("app.graph.workflow.app_graph", mock_app_graph):
+    original = getattr(app.state, "app_graph", None)
+    app.state.app_graph = mock_app_graph
+    try:
         response = await client.post(
             "/api/v1/chat",
             json={"question": "测试问题", "thread_id": "thread-1"},
             headers={"Authorization": f"Bearer {auth_token}"},
         )
+    finally:
+        app.state.app_graph = original
 
     assert response.status_code == 200
     text = response.text
@@ -93,12 +98,16 @@ async def test_chat_metadata_streaming(client, auth_token):
     mock_app_graph = AsyncMock()
     mock_app_graph.astream_events = mock_astream_events
 
-    with patch("app.graph.workflow.app_graph", mock_app_graph):
+    original = getattr(app.state, "app_graph", None)
+    app.state.app_graph = mock_app_graph
+    try:
         response = await client.post(
             "/api/v1/chat",
             json={"question": "测试", "thread_id": "thread-2"},
             headers={"Authorization": f"Bearer {auth_token}"},
         )
+    finally:
+        app.state.app_graph = original
 
     assert response.status_code == 200
     text = response.text
@@ -106,7 +115,6 @@ async def test_chat_metadata_streaming(client, auth_token):
     assert '"confidence_score": 0.85' in text
     assert '"confidence_level": "high"' in text
     assert "[DONE]" in text
-    # 元数据应在 [DONE] 之前
     metadata_pos = text.find('"type": "metadata"')
     done_pos = text.find("[DONE]")
     assert metadata_pos != -1
@@ -117,12 +125,16 @@ async def test_chat_metadata_streaming(client, auth_token):
 @pytest.mark.asyncio
 async def test_chat_503_when_app_graph_none(client, auth_token):
     """app_graph 为 None 时返回 503"""
-    with patch("app.graph.workflow.app_graph", None):
+    original = getattr(app.state, "app_graph", None)
+    app.state.app_graph = None
+    try:
         response = await client.post(
             "/api/v1/chat",
             json={"question": "测试", "thread_id": "thread-3"},
             headers={"Authorization": f"Bearer {auth_token}"},
         )
+    finally:
+        app.state.app_graph = original
 
     assert response.status_code == 503
     assert "not fully initialized" in response.json()["detail"]
@@ -142,12 +154,16 @@ async def test_chat_exception_handling(client, auth_token):
     mock_app_graph = AsyncMock()
     mock_app_graph.astream_events = lambda state, config, version: _ErrorIter()
 
-    with patch("app.graph.workflow.app_graph", mock_app_graph):
+    original = getattr(app.state, "app_graph", None)
+    app.state.app_graph = mock_app_graph
+    try:
         response = await client.post(
             "/api/v1/chat",
             json={"question": "测试", "thread_id": "thread-4"},
             headers={"Authorization": f"Bearer {auth_token}"},
         )
+    finally:
+        app.state.app_graph = original
 
     assert response.status_code == 200
     assert '{"error": "系统处理出现问题，请稍后重试"}' in response.text
@@ -167,15 +183,16 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
     mock_app_graph = AsyncMock()
     mock_app_graph.astream_events = lambda state, config, version: _CancelIter()
 
-    with patch("app.graph.workflow.app_graph", mock_app_graph):
+    original = getattr(app.state, "app_graph", None)
+    app.state.app_graph = mock_app_graph
+    try:
         response = await client.post(
             "/api/v1/chat",
             json={"question": "测试", "thread_id": "thread-5"},
             headers={"Authorization": f"Bearer {auth_token}"},
         )
+    finally:
+        app.state.app_graph = original
 
-    # CancelledError 被重新抛出后，ASGI 层中断流，客户端收到空响应
-    # 与通用异常处理（返回 error payload）区分
     assert response.status_code == 200
-    # CancelledError causes the ASGI server to abort the stream, leaving the response body empty
     assert response.text == ""

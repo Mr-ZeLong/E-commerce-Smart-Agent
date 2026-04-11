@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException, status
 
 from app.models.user import User
-from app.services.auth_service import AuthService, create_user_token
+from app.services.auth_service import AuthService
 
 
 class TestAuthenticateUser:
@@ -185,17 +185,3 @@ class TestGetUserInfo:
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert "用户不存在" in exc_info.value.detail
-
-
-class TestCreateUserToken:
-    def test_returns_jwt_string(self):
-        mock_user = MagicMock(spec=User)
-        mock_user.id = 1
-        mock_user.is_admin = False
-
-        with patch("app.services.auth_service.create_access_token") as mock_create:
-            mock_create.return_value = "fake.jwt.token"
-            token = create_user_token(mock_user)
-
-        assert token == "fake.jwt.token"
-        mock_create.assert_called_once_with(user_id=1, is_admin=False)

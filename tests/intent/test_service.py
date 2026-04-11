@@ -75,9 +75,7 @@ class TestRecognizeMethod:
             ) as mock_multi,
             patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
             patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(
-                service.topic_switch_detector, "detect", new_callable=AsyncMock
-            ) as mock_detect,
+            patch.object(service.topic_switch_detector, "detect") as mock_detect,
         ):
             # 设置安全检查结果
             mock_safety.return_value = SafetyCheckResult(
@@ -198,10 +196,11 @@ class TestRecognizeMethod:
             patch.object(
                 mock_redis_service.multi_intent_processor, "process", new_callable=AsyncMock
             ) as mock_multi,
-            patch.object(mock_redis_service.slot_validator, "validate") as mock_validate,
             patch.object(
-                mock_redis_service.topic_switch_detector, "detect", new_callable=AsyncMock
-            ) as mock_detect,
+                mock_redis_service.classifier, "classify", new_callable=AsyncMock
+            ) as mock_classify,
+            patch.object(mock_redis_service.slot_validator, "validate") as mock_validate,
+            patch.object(mock_redis_service.topic_switch_detector, "detect") as mock_detect,
         ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
@@ -219,6 +218,7 @@ class TestRecognizeMethod:
                 sub_intents=[mock_result],
                 shared_slots={},
             )
+            mock_classify.return_value = mock_result
 
             mock_validate.return_value = SlotValidationResult(
                 is_complete=True, missing_slots=[], missing_p0_slots=[]
@@ -245,9 +245,7 @@ class TestRecognizeMethod:
             patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
             patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
             patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(
-                service.topic_switch_detector, "detect", new_callable=AsyncMock
-            ) as mock_detect,
+            patch.object(service.topic_switch_detector, "detect") as mock_detect,
         ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
@@ -280,9 +278,7 @@ class TestRecognizeMethod:
                 service.multi_intent_processor, "process", new_callable=AsyncMock
             ) as mock_multi,
             patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(
-                service.topic_switch_detector, "detect", new_callable=AsyncMock
-            ) as mock_detect,
+            patch.object(service.topic_switch_detector, "detect") as mock_detect,
         ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
@@ -818,9 +814,7 @@ class TestEdgeCases:
                 service.multi_intent_processor, "process", new_callable=AsyncMock
             ) as mock_multi,
             patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(
-                service.topic_switch_detector, "detect", new_callable=AsyncMock
-            ) as mock_detect,
+            patch.object(service.topic_switch_detector, "detect") as mock_detect,
         ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"
@@ -860,9 +854,7 @@ class TestEdgeCases:
             ) as mock_multi,
             patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
             patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(
-                service.topic_switch_detector, "detect", new_callable=AsyncMock
-            ) as mock_detect,
+            patch.object(service.topic_switch_detector, "detect") as mock_detect,
         ):
             mock_safety.return_value = SafetyCheckResult(
                 is_safe=True, risk_level="low", risk_type=None, reason="安全"

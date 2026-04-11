@@ -436,11 +436,10 @@ E-commerce-Smart-Agent/
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
 │   │   ├── 📄 workflow.py          # 工作流定义与编译
-│   │   ├── 📄 nodes.py             # router_node / policy_agent / order_agent / evaluator_node / decider_node
-│   │   └── 📄 tools.py             # 工具函数
+│   │   └── 📄 nodes.py             # router_node / policy_agent / order_agent / evaluator_node / decider_node
 │   │
 │   ├── 📁 agents/                  # Agent 实现层
-│   │   ├── 📄 base.py              # Agent 基类与 AgentResult
+│   │   ├── 📄 base.py              # Agent 基类
 │   │   ├── 📄 router.py            # IntentRouterAgent
 │   │   ├── 📄 order.py             # 订单 Agent
 │   │   ├── 📄 policy.py            # 政策 Agent
@@ -480,6 +479,7 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 auth_service.py      # 认证服务
 │   │
 │   ├── 📁 schemas/                 # 共享 Schema
+│   │   ├── 📄 auth.py
 │   │   ├── 📄 admin.py
 │   │   └── 📄 status.py
 │   │

@@ -11,7 +11,7 @@ from app.tasks.refund_tasks import (
 def _make_async_session_mock():
     """构造一个支持 async with 的 mock session maker"""
     session = MagicMock()
-    session.execute = AsyncMock()
+    session.exec = AsyncMock()
     session.commit = AsyncMock()
     session.add = MagicMock()
 
@@ -40,10 +40,10 @@ class TestProcessRefundPayment:
         mock_refund.updated_at = None
 
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none = MagicMock(return_value=mock_refund)
+        mock_result.one_or_none = MagicMock(return_value=mock_refund)
 
         maker, session = _make_async_session_mock()
-        session.execute.return_value = mock_result
+        session.exec.return_value = mock_result
 
         with patch("app.tasks.refund_tasks.async_session_maker", maker):
             result = process_refund_payment.run(1, 99.9, "alipay")
@@ -67,10 +67,10 @@ class TestNotifyAdminAudit:
         mock_audit.thread_id = "thread-abc"
 
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none = MagicMock(return_value=mock_audit)
+        mock_result.one_or_none = MagicMock(return_value=mock_audit)
 
         maker, session = _make_async_session_mock()
-        session.execute.return_value = mock_result
+        session.exec.return_value = mock_result
 
         mock_message_instance = MagicMock()
 
@@ -97,10 +97,10 @@ class TestNotifyAdminAudit:
 def test_process_refund_payment_not_found():
     """退款记录不存在时抛出 ValueError 并重试"""
     mock_result = MagicMock()
-    mock_result.scalar_one_or_none = MagicMock(return_value=None)
+    mock_result.one_or_none = MagicMock(return_value=None)
 
     maker, session = _make_async_session_mock()
-    session.execute.return_value = mock_result
+    session.exec.return_value = mock_result
 
     with patch("app.tasks.refund_tasks.async_session_maker", maker):
         # Celery 任务会在异常时调用 self.retry，但测试中 .run() 会直接抛出原始异常
@@ -114,10 +114,10 @@ def test_process_refund_payment_not_found():
 def test_notify_admin_audit_not_found():
     """AuditLog 不存在时抛出 ValueError 并重试"""
     mock_result = MagicMock()
-    mock_result.scalar_one_or_none = MagicMock(return_value=None)
+    mock_result.one_or_none = MagicMock(return_value=None)
 
     maker, session = _make_async_session_mock()
-    session.execute.return_value = mock_result
+    session.exec.return_value = mock_result
 
     with patch("app.tasks.refund_tasks.async_session_maker", maker):
         try:
@@ -136,10 +136,10 @@ def test_notify_admin_audit_commit_exception():
     mock_audit.thread_id = "thread-abc"
 
     mock_result = MagicMock()
-    mock_result.scalar_one_or_none = MagicMock(return_value=mock_audit)
+    mock_result.one_or_none = MagicMock(return_value=mock_audit)
 
     maker, session = _make_async_session_mock()
-    session.execute.return_value = mock_result
+    session.exec.return_value = mock_result
     session.commit = AsyncMock(side_effect=Exception("DB write failed"))
 
     with patch("app.tasks.refund_tasks.async_session_maker", maker):

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
+from app.graph import nodes as graph_nodes
 from app.graph.workflow import workflow
 from app.models.state import make_agent_state
 
@@ -20,33 +21,25 @@ async def test_workflow_order_query():
     )
 
     mock_router = AsyncMock()
-    mock_router.process.return_value = type(
-        "R",
-        (),
-        {
-            "response": "",
-            "updated_state": {"intent": "ORDER", "next_agent": "order"},
-            "needs_human": False,
-            "transfer_reason": None,
-        },
-    )()
+    mock_router.process.return_value = {
+        "response": "",
+        "updated_state": {"next_agent": "order"},
+        "needs_human": False,
+        "transfer_reason": None,
+    }
 
     mock_agent = AsyncMock()
-    mock_agent.process.return_value = type(
-        "R",
-        (),
-        {
-            "response": "订单状态：已发货",
-            "updated_state": {"order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}},
-            "needs_human": False,
-            "transfer_reason": None,
-        },
-    )()
+    mock_agent.process.return_value = {
+        "response": "订单状态：已发货",
+        "updated_state": {"order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}},
+        "needs_human": False,
+        "transfer_reason": None,
+    }
 
     with (
-        patch("app.graph.nodes._get_router_agent", return_value=mock_router),
-        patch("app.graph.nodes._get_order_agent", return_value=mock_agent),
-        patch("app.graph.nodes.ConfidenceEvaluator.evaluate") as mock_eval,
+        patch.object(graph_nodes, "router_agent", mock_router),
+        patch.object(graph_nodes, "order_agent", mock_agent),
+        patch.object(graph_nodes.evaluator, "evaluate", new_callable=AsyncMock) as mock_eval,
     ):
         mock_eval.return_value = {
             "confidence_score": 0.9,
@@ -74,33 +67,25 @@ async def test_workflow_policy_query():
     )
 
     mock_router = AsyncMock()
-    mock_router.process.return_value = type(
-        "R",
-        (),
-        {
-            "response": "",
-            "updated_state": {"intent": "POLICY", "next_agent": "policy"},
-            "needs_human": False,
-            "transfer_reason": None,
-        },
-    )()
+    mock_router.process.return_value = {
+        "response": "",
+        "updated_state": {"next_agent": "policy"},
+        "needs_human": False,
+        "transfer_reason": None,
+    }
 
     mock_agent = AsyncMock()
-    mock_agent.process.return_value = type(
-        "R",
-        (),
-        {
-            "response": "满100免运费",
-            "updated_state": {"retrieval_result": None},
-            "needs_human": False,
-            "transfer_reason": None,
-        },
-    )()
+    mock_agent.process.return_value = {
+        "response": "满100免运费",
+        "updated_state": {"retrieval_result": None},
+        "needs_human": False,
+        "transfer_reason": None,
+    }
 
     with (
-        patch("app.graph.nodes._get_router_agent", return_value=mock_router),
-        patch("app.graph.nodes._get_policy_agent", return_value=mock_agent),
-        patch("app.graph.nodes.ConfidenceEvaluator.evaluate") as mock_eval,
+        patch.object(graph_nodes, "router_agent", mock_router),
+        patch.object(graph_nodes, "policy_agent", mock_agent),
+        patch.object(graph_nodes.evaluator, "evaluate", new_callable=AsyncMock) as mock_eval,
     ):
         mock_eval.return_value = {
             "confidence_score": 0.9,

@@ -12,6 +12,12 @@ from app.core.utils import utc_now
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login", auto_error=False)
 
 
+def extract_bearer_token(auth_header: str) -> str | None:
+    if auth_header.lower().startswith("bearer ") and len(auth_header) > 7:
+        return auth_header[7:]
+    return None
+
+
 def create_access_token(user_id: int, is_admin: bool = False) -> str:
     """
     生成 JWT Token
@@ -90,7 +96,14 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
         headers={"WWW-Authenticate": "Bearer"},
         missing_user_detail="Invalid token:  missing user ID",
     )
-    return int(payload["sub"])
+    try:
+        return int(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: malformed user ID",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 async def get_current_user_id_ws(token: str) -> int:
@@ -107,7 +120,13 @@ async def get_current_user_id_ws(token: str) -> int:
         HTTPException: Token 无效时抛出
     """
     payload = _decode_token(token, missing_user_detail="Invalid token: missing user ID")
-    return int(payload["sub"])
+    try:
+        return int(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: malformed user ID",
+        )
 
 
 def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
@@ -133,4 +152,11 @@ def verify_admin_token(token: str) -> int:
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
         )
 
-    return int(payload["sub"])
+    try:
+        return int(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: malformed user ID",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

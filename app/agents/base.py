@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -8,23 +7,13 @@ from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
 from app.core.llm_factory import create_openai_llm
+from app.models.state import AgentState
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class AgentResult:
-    """Agent 处理结果"""
-
-    response: str  # 回复内容
-    updated_state: dict | None = None  # 需要更新的状态字段
-    confidence: float | None = None  # 置信度分数（可选）
-    needs_human: bool = False  # 是否需要转人工
-    transfer_reason: str | None = None  # 转人工原因
-
-
 class BaseAgent(ABC):
-    """Agent 基类 - 所有 Specialist Agent 的抽象基类"""
+    """Agent 基类"""
 
     def __init__(
         self,
@@ -35,21 +24,18 @@ class BaseAgent(ABC):
     ):
         self.name = name
         self.system_prompt = system_prompt
-        # 支持依赖注入，便于测试时传入 mock LLM
         if llm is not None:
             self.llm = llm
         else:
             self.llm = create_openai_llm(model=llm_model or settings.LLM_MODEL)
 
     @abstractmethod
-    async def process(self, state: dict[str, Any]) -> AgentResult:
-        """处理用户请求"""
+    async def process(self, state: AgentState) -> dict[str, Any]:
         pass
 
     async def _call_llm(
         self, messages: list, temperature: float | None = None, tags: list[str] | None = None
     ) -> str:
-        """调用 LLM"""
         try:
             config: dict[str, Any] = {}
             if temperature is not None:
@@ -67,7 +53,6 @@ class BaseAgent(ABC):
             raise
 
     def _create_messages(self, user_message: str, context: dict | None = None) -> list:
-        """创建消息列表"""
         messages = []
         if self.system_prompt:
             messages.append(SystemMessage(content=self.system_prompt))
@@ -79,7 +64,6 @@ class BaseAgent(ABC):
         return messages
 
     def _build_contextual_message(self, question: str, context: dict) -> str:
-        """构建带上下文的用户消息"""
         parts = []
         if context.get("context"):
             parts.append("[参考信息]:")

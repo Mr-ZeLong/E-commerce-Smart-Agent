@@ -8,7 +8,7 @@ from app.core.config import settings
 
 # 1. 创建异步引擎
 # echo=True 会打印 SQL 日志，方便调试，生产环境请关掉
-engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True, pool_pre_ping=True)
 
 # 2. 创建 Session 工厂
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

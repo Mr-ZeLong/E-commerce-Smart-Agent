@@ -84,6 +84,20 @@ class IntentResult:
             "raw_query": self.raw_query,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict) -> IntentResult:
+        return cls(
+            primary_intent=IntentCategory(data["primary_intent"]),
+            secondary_intent=IntentAction(data["secondary_intent"]),
+            tertiary_intent=data.get("tertiary_intent"),
+            confidence=data.get("confidence", 0.0),
+            slots=data.get("slots", {}),
+            missing_slots=data.get("missing_slots", []),
+            needs_clarification=data.get("needs_clarification", False),
+            clarification_question=data.get("clarification_question"),
+            raw_query=data.get("raw_query", ""),
+        )
+
 
 @dataclass
 class ClarificationState:

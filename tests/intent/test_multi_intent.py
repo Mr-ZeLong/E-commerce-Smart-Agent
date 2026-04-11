@@ -8,7 +8,6 @@ import pytest
 
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 from app.intent.multi_intent import (
-    IntentClassifierProtocol,
     MultiIntentProcessor,
     MultiIntentResult,
 )
@@ -54,7 +53,7 @@ class TestMultiIntentProcessorInitialization:
         assert processor.classifier is None
         assert processor.mode == "cascade"
         assert processor.MAX_INTENTS == 2
-        assert len(processor.INTENT_SEPARATORS) > 0
+        assert len(processor.SEPARATORS) > 0
 
     def test_init_with_classifier(self) -> None:
         """测试带分类器初始化"""
@@ -72,11 +71,6 @@ class TestMultiIntentProcessorInitialization:
         """测试cascade模式初始化"""
         processor = MultiIntentProcessor(mode="cascade")
         assert processor.mode == "cascade"
-
-    def test_init_with_invalid_mode(self) -> None:
-        """测试无效模式初始化应抛出ValueError"""
-        with pytest.raises(ValueError, match="Invalid mode"):
-            MultiIntentProcessor(mode="invalid")
 
 
 class TestMultiIntentProcessorSplitQuery:
@@ -213,129 +207,6 @@ class TestMultiIntentProcessorExtractSharedSlots:
         )
         shared = processor._extract_shared_slots([intent1, intent2])
         assert shared == {"reason": "质量问题"}
-
-
-class TestMultiIntentProcessorDetermineExecutionOrder:
-    """测试执行顺序确定功能"""
-
-    def test_determine_order_empty(self) -> None:
-        """测试空意图列表"""
-        processor = MultiIntentProcessor()
-        order = processor._determine_execution_order([])
-        assert order == []
-
-    def test_determine_order_single(self) -> None:
-        """测试单意图顺序"""
-        processor = MultiIntentProcessor()
-        intent = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            confidence=0.9,
-        )
-        order = processor._determine_execution_order([intent])
-        assert order == [0]
-
-    def test_determine_order_multiple_by_confidence(self) -> None:
-        """测试多意图按置信度降序排序"""
-        processor = MultiIntentProcessor()
-        intent1 = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            confidence=0.7,
-        )
-        intent2 = IntentResult(
-            primary_intent=IntentCategory.AFTER_SALES,
-            secondary_intent=IntentAction.APPLY,
-            confidence=0.9,
-        )
-        order = processor._determine_execution_order([intent1, intent2])
-        # 按置信度降序：intent2 (0.9) 应该在 intent1 (0.7) 之前
-        assert order == [1, 0]
-
-    def test_determine_order_with_zero_confidence(self) -> None:
-        """测试包含零置信度的排序"""
-        processor = MultiIntentProcessor()
-        intent1 = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            confidence=0.0,
-        )
-        intent2 = IntentResult(
-            primary_intent=IntentCategory.AFTER_SALES,
-            secondary_intent=IntentAction.APPLY,
-            confidence=0.5,
-        )
-        order = processor._determine_execution_order([intent1, intent2])
-        assert order == [1, 0]
-
-
-class TestMultiIntentProcessorApplySharedSlots:
-    """测试共享槽位应用功能"""
-
-    def test_apply_shared_slots_empty(self) -> None:
-        """测试应用到空意图列表"""
-        processor = MultiIntentProcessor()
-        result = processor.apply_shared_slots([], {"shared": "value"})
-        assert result == []
-
-    def test_apply_shared_slots_to_single(self) -> None:
-        """测试应用到单意图"""
-        processor = MultiIntentProcessor()
-        intent = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            slots={"order_id": "123"},
-        )
-        result = processor.apply_shared_slots([intent], {"user_name": "张三"})
-        assert len(result) == 1
-        assert result[0].slots == {"user_name": "张三", "order_id": "123"}
-
-    def test_apply_shared_slots_merge(self) -> None:
-        """测试槽位合并（意图槽位优先）"""
-        processor = MultiIntentProcessor()
-        intent = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            slots={"order_id": "123"},  # 意图自己的槽位
-        )
-        result = processor.apply_shared_slots([intent], {"order_id": "999", "user_name": "张三"})
-        # 意图自己的槽位优先于共享槽位
-        assert result[0].slots == {"order_id": "123", "user_name": "张三"}
-
-    def test_apply_shared_slots_no_existing_slots(self) -> None:
-        """测试意图没有现有槽位"""
-        processor = MultiIntentProcessor()
-        intent = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            slots={},
-        )
-        result = processor.apply_shared_slots([intent], {"user_name": "张三"})
-        assert result[0].slots == {"user_name": "张三"}
-
-    def test_apply_shared_slots_preserves_other_fields(self) -> None:
-        """测试保留其他字段"""
-        processor = MultiIntentProcessor()
-        intent = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            tertiary_intent="ORDER_TRACKING",
-            confidence=0.9,
-            slots={"order_id": "123"},
-            missing_slots=["user_name"],
-            needs_clarification=True,
-            clarification_question="请问订单号是多少？",
-            raw_query="查询订单",
-        )
-        result = processor.apply_shared_slots([intent], {"shared": "value"})
-        assert result[0].primary_intent == IntentCategory.ORDER
-        assert result[0].secondary_intent == IntentAction.QUERY
-        assert result[0].tertiary_intent == "ORDER_TRACKING"
-        assert result[0].confidence == 0.9
-        assert result[0].missing_slots == ["user_name"]
-        assert result[0].needs_clarification is True
-        assert result[0].clarification_question == "请问订单号是多少？"
-        assert result[0].raw_query == "查询订单"
 
 
 class TestMultiIntentProcessorProcess:
@@ -562,27 +433,3 @@ class TestMultiIntentProcessorProcess:
         assert result.is_multi_intent is True
         assert len(result.sub_intents) == 1
         assert result.sub_intents[0].primary_intent == IntentCategory.ORDER
-
-
-class TestIntentClassifierProtocol:
-    """测试意图分类器协议"""
-
-    def test_protocol_definition(self) -> None:
-        """测试协议定义存在"""
-        # 验证协议可以被引用
-        assert callable(IntentClassifierProtocol)
-
-    @pytest.mark.asyncio
-    async def test_mock_implements_protocol(self) -> None:
-        """测试mock对象符合协议"""
-        mock_classifier = AsyncMock()
-        mock_classifier.classify.return_value = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-            confidence=0.9,
-        )
-
-        # 应该可以正常工作
-        result = await mock_classifier.classify("测试")
-        assert result is not None
-        assert result.primary_intent == IntentCategory.ORDER

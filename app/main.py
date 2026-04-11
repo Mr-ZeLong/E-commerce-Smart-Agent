@@ -11,9 +11,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-import app.graph.workflow as workflow_module
 from app.api.v1.admin import router as admin_router
-from app.api.v1.auth import router as auth_router  # v4.0 新增
+from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.status import router as status_router
 from app.api.v1.websocket import router as websocket_router
@@ -27,11 +26,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(" Starting E-commerce Smart Agent v4.0...")
-    workflow_module.app_graph = await compile_app_graph()
+    logger.info(" Starting E-commerce Smart Agent v4.1...")
+    app.state.app_graph = await compile_app_graph()
     logger.info(" Infrastructure is ready.")
     yield
-    # Shutdown: close cached Qdrant client if it was created
     try:
         from app.retrieval import get_retriever
 
@@ -54,8 +52,8 @@ openapi_url = "/openapi.json" if settings.ENABLE_OPENAPI_DOCS else None
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="4.0.0",
-    description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.0",
+    version="4.1.0",
+    description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.1",
     docs_url=docs_url,
     redoc_url=redoc_url,
     openapi_url=openapi_url,
@@ -139,7 +137,7 @@ if os.path.exists(frontend_dist_path):
 async def health_check():
     return {
         "status": "healthy",
-        "version": "v4.0",
+        "version": "v4.1",
         "features": [
             "用户登录认证",
             "多租户数据隔离",

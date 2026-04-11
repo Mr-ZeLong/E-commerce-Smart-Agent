@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from langchain_core.runnables import RunnableConfig
 
@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/chat")
-async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_user_id)):
+async def chat(
+    chat_request: ChatRequest,
+    http_request: Request,
+    current_user_id: int = Depends(get_current_user_id),
+):
     """
     聊天接口：支持订单查询和政策咨询
 
@@ -26,9 +30,7 @@ async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_
 
     v4.1 更新：流式响应结束时发送置信度元数据
     """
-    # 在函数内部导入，避免模块加载顺序问题
-    from app.graph.workflow import app_graph
-
+    app_graph = http_request.app.state.app_graph
     if app_graph is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -36,19 +38,16 @@ async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_
         )
 
     async def event_generator():
-        """SSE 流式响应生成器 - v4.1 支持置信度元数据"""
-        thread_id = build_thread_id(current_user_id, request.thread_id)
+        thread_id = build_thread_id(current_user_id, chat_request.thread_id)
         config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
         initial_state = {
-            "question": request.question,
+            "question": chat_request.question,
             "user_id": current_user_id,
             "thread_id": thread_id,
             "history": [],
-            "context": [],
             "order_data": None,
             "answer": "",
-            "intent": None,
             "current_agent": None,
             "next_agent": None,
             "iteration_count": 0,
@@ -56,8 +55,6 @@ async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_
             "retrieval_result": None,
             "messages": [],
             "audit_level": None,
-            "audit_required": False,
-            "audit_type": None,
             "audit_log_id": None,
             "audit_reason": None,
             "confidence_score": None,
@@ -69,6 +66,7 @@ async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_
 
         # v4.1: 用于收集最终状态中的置信度信息
         final_state = {}
+        sent_answers: set[str] = set()
 
         try:
             async for event in app_graph.astream_events(initial_state, config, version="v2"):
@@ -119,13 +117,8 @@ async def chat(request: ChatRequest, current_user_id: int = Depends(get_current_
                             and "answer" in output
                         ):
                             answer = output["answer"]
-                            if answer and answer not in getattr(
-                                event_generator, "_sent_answers", set()
-                            ):
-                                # 避免重复发送相同的 answer
-                                if not hasattr(event_generator, "_sent_answers"):
-                                    event_generator._sent_answers = set()
-                                event_generator._sent_answers.add(answer)
+                            if answer and answer not in sent_answers:
+                                sent_answers.add(answer)
                                 payload = json.dumps({"token": answer}, ensure_ascii=False)
                                 yield f"data: {payload}\n\n"
 

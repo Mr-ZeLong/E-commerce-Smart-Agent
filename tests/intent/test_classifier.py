@@ -8,12 +8,12 @@
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_openai import ChatOpenAI
 
-from app.intent.classifier import IntentClassifier, IntentClassifierWithFallback
+from app.intent.classifier import IntentClassifier
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
 # ========== Fixtures ==========
@@ -30,12 +30,6 @@ def mock_llm():
 def classifier(mock_llm):
     """创建带Mock LLM的分类器"""
     return IntentClassifier(llm=mock_llm)
-
-
-@pytest.fixture
-def classifier_with_fallback(mock_llm):
-    """创建带Fallback的分类器"""
-    return IntentClassifierWithFallback(llm=mock_llm)
 
 
 # ========== Helper Functions ==========
@@ -478,75 +472,6 @@ def test_validate_intent_result_invalid_confidence(classifier):
 
     assert is_valid is False
     assert "置信度超出范围" in error_msg
-
-
-# ========== IntentClassifierWithFallback Tests ==========
-
-
-@pytest.mark.asyncio
-async def test_fallback_wrapper_validation_failure(classifier_with_fallback, mock_llm):
-    """测试Fallback包装器在验证失败时降级"""
-    # 模拟一个场景：基础分类器返回了一个低置信度的结果，验证时发现问题
-    # 这里我们直接mock classifier.classify 返回一个无效的结果
-
-    # 创建一个模拟的无效结果（字符串而不是枚举）
-    invalid_result = MagicMock()
-    invalid_result.primary_intent = "INVALID_STRING"  # 应该是 IntentCategory
-    invalid_result.secondary_intent = "QUERY"  # 应该是 IntentAction
-    invalid_result.tertiary_intent = None
-    invalid_result.confidence = 0.9
-    invalid_result.slots = {}
-    invalid_result.raw_query = "test"
-
-    with patch.object(classifier_with_fallback.classifier, "classify", return_value=invalid_result):
-        # 使用不会匹配任何规则的关键词
-        result = await classifier_with_fallback.classify("xyz_invalid_query_123")
-
-        # 验证失败后应该降级，并保留validation_error
-        assert "validation_error" in result.slots
-        assert "无效的一级意图" in result.slots["validation_error"]
-
-
-@pytest.mark.asyncio
-async def test_fallback_wrapper_low_confidence(classifier_with_fallback, mock_llm):
-    """测试低置信度时标记需要澄清"""
-    tool_args = {
-        "primary_intent": "ORDER",
-        "secondary_intent": "QUERY",
-        "tertiary_intent": None,
-        "confidence": 0.4,  # 低置信度
-        "slots": {},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
-
-    result = await classifier_with_fallback.classify("模糊的问题", min_confidence=0.5)
-
-    assert result.needs_clarification is True
-    assert result.clarification_question is not None
-
-
-@pytest.mark.asyncio
-async def test_fallback_wrapper_high_confidence(classifier_with_fallback, mock_llm):
-    """测试高置信度时不需要澄清"""
-    tool_args = {
-        "primary_intent": "AFTER_SALES",
-        "secondary_intent": "APPLY",
-        "tertiary_intent": "REFUND",
-        "confidence": 0.95,
-        "slots": {"order_sn": "SN123"},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
-
-    result = await classifier_with_fallback.classify("我要退货")
-
-    assert result.needs_clarification is False
-    assert result.confidence == 0.95
 
 
 # ========== Context Tests ==========
