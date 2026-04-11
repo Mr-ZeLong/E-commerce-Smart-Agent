@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.order import OrderStatus
 from app.models.refund import RefundReason, RefundStatus
@@ -301,7 +302,7 @@ async def test_create_refund_application_flush_exception():
     mock_session = AsyncMock()
     mock_session.add = MagicMock()
     mock_session.exec = AsyncMock(return_value=MagicMock(first=MagicMock(return_value=mock_order)))
-    mock_session.flush = AsyncMock(side_effect=Exception("DB connection lost"))
+    mock_session.flush = AsyncMock(side_effect=SQLAlchemyError("DB connection lost"))
 
     with patch.object(
         RefundEligibilityChecker,

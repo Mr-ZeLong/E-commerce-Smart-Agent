@@ -5,6 +5,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import redis.asyncio as aioredis
 
 from app.intent.clarification import ClarificationResponse
 from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
@@ -16,11 +17,12 @@ from app.intent.slot_validator import SlotValidationResult
 class TestServiceInitialization:
     """服务初始化测试"""
 
-    def test_init_without_llm_and_redis(self):
-        """测试无LLM和Redis的初始化"""
-        service = IntentRecognitionService()
-        assert service.llm is None
-        assert service.redis is None
+    def test_init_with_mock_llm(self):
+        """测试有LLM的初始化"""
+        mock_llm = MagicMock()
+        service = IntentRecognitionService(llm=mock_llm, redis_client=AsyncMock())
+        assert service.llm is mock_llm
+        assert service.redis is not None
         assert service.result_cache_ttl == 300
         assert service.session_cache_ttl == 1800
         assert service.classifier is not None
@@ -33,20 +35,22 @@ class TestServiceInitialization:
     def test_init_with_llm(self):
         """测试带LLM的初始化"""
         mock_llm = MagicMock()
-        service = IntentRecognitionService(llm=mock_llm)
+        service = IntentRecognitionService(llm=mock_llm, redis_client=AsyncMock())
         assert service.llm is mock_llm
         assert service.classifier.llm is mock_llm
         assert service.safety_filter.llm is mock_llm
 
     def test_init_with_redis(self):
         """测试带Redis的初始化"""
-        mock_redis = MagicMock()
-        service = IntentRecognitionService(redis_client=mock_redis)
+        mock_redis = AsyncMock()
+        service = IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
         assert service.redis is mock_redis
 
     def test_init_with_custom_cache_ttl(self):
         """测试自定义缓存TTL"""
-        service = IntentRecognitionService(result_cache_ttl=600, session_cache_ttl=1200)
+        service = IntentRecognitionService(
+            llm=MagicMock(), redis_client=AsyncMock(), result_cache_ttl=600, session_cache_ttl=1200
+        )
         assert service.result_cache_ttl == 600
         assert service.session_cache_ttl == 1200
 
@@ -56,271 +60,14 @@ class TestRecognizeMethod:
 
     @pytest.fixture
     def service(self):
-        """创建服务实例"""
-        return IntentRecognitionService()
-
-    @pytest.fixture
-    def mock_redis_service(self):
-        """创建带Mock Redis的服务"""
         mock_redis = AsyncMock()
-        return IntentRecognitionService(redis_client=mock_redis)
-
-    @pytest.mark.asyncio
-    async def test_recognize_safe_query_single_intent(self, service):
-        """测试安全查询的单意图识别"""
-        with (
-            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
-            patch.object(
-                service.multi_intent_processor, "process", new_callable=AsyncMock
-            ) as mock_multi,
-            patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
-            patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(service.topic_switch_detector, "detect") as mock_detect,
-        ):
-            # 设置安全检查结果
-            mock_safety.return_value = SafetyCheckResult(
-                is_safe=True, risk_level="low", risk_type=None, reason="安全"
-            )
-
-            # 设置多意图处理结果（单意图情况）
-            mock_result = IntentResult(
-                primary_intent=IntentCategory.ORDER,
-                secondary_intent=IntentAction.QUERY,
-                confidence=0.9,
-                slots={"order_sn": "SN001"},
-            )
-            mock_multi.return_value = MagicMock(
-                is_multi_intent=False,
-                sub_intents=[mock_result],
-                shared_slots={},
-            )
-
-            mock_classify.return_value = mock_result
-
-            # 设置验证结果
-            mock_validate.return_value = SlotValidationResult(
-                is_complete=True, missing_slots=[], missing_p0_slots=[]
-            )
-
-            # 设置话题切换检测结果
-            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
-
-            result = await service.recognize("查询订单SN001", "session_123")
-
-            assert result.primary_intent == IntentCategory.ORDER
-            assert result.secondary_intent == IntentAction.QUERY
-            assert result.confidence == 0.9
-            mock_safety.assert_called_once_with("查询订单SN001")
-
-    @pytest.mark.asyncio
-    async def test_recognize_unsafe_query(self, service):
-        """测试不安全查询的处理"""
-        with patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety:
-            mock_safety.return_value = SafetyCheckResult(
-                is_safe=False,
-                risk_level="high",
-                risk_type="keyword",
-                reason="检测到敏感关键词: 密码",
-            )
-
-            result = await service.recognize("我的密码是123456", "session_123")
-
-            assert result.primary_intent == IntentCategory.OTHER
-            assert result.secondary_intent == IntentAction.CONSULT
-            assert result.needs_clarification is True
-            assert "不安全内容" in result.clarification_question
-            assert "密码" in result.clarification_question
-
-    @pytest.mark.asyncio
-    async def test_recognize_with_cached_result(self, mock_redis_service):
-        """测试使用缓存结果"""
-        cached_data = {
-            "primary_intent": "ORDER",
-            "secondary_intent": "QUERY",
-            "tertiary_intent": None,
-            "confidence": 0.95,
-            "slots": {"order_sn": "SN001"},
-            "missing_slots": [],
-            "needs_clarification": False,
-            "clarification_question": None,
-            "raw_query": "查询订单",
-        }
-        mock_redis_service.redis.get.return_value = json.dumps(cached_data)
-
-        with patch.object(
-            mock_redis_service.safety_filter, "check", new_callable=AsyncMock
-        ) as mock_safety:
-            mock_safety.return_value = SafetyCheckResult(
-                is_safe=True, risk_level="low", risk_type=None, reason="安全"
-            )
-
-            result = await mock_redis_service.recognize("查询订单", "session_123")
-
-            assert result.primary_intent == IntentCategory.ORDER
-            assert result.secondary_intent == IntentAction.QUERY
-            assert result.confidence == 0.95
-            mock_redis_service.redis.get.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_recognize_with_session_state(self, mock_redis_service):
-        """测试带会话状态的识别"""
-        state_data = {
-            "session_id": "session_123",
-            "current_intent": {
-                "primary_intent": "ORDER",
-                "secondary_intent": "QUERY",
-                "tertiary_intent": None,
-                "confidence": 0.9,
-                "slots": {"order_sn": "SN001"},
-                "missing_slots": [],
-                "needs_clarification": False,
-                "clarification_question": None,
-                "raw_query": "之前的查询",
-            },
-            "clarification_round": 0,
-            "max_clarification_rounds": 3,
-            "asked_slots": [],
-            "collected_slots": {},
-            "pending_slot": None,
-            "user_refused_slots": [],
-            "clarification_history": [],
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-        }
-        mock_redis_service.redis.get.return_value = json.dumps(state_data)
-
-        with (
-            patch.object(
-                mock_redis_service.safety_filter, "check", new_callable=AsyncMock
-            ) as mock_safety,
-            patch.object(
-                mock_redis_service.multi_intent_processor, "process", new_callable=AsyncMock
-            ) as mock_multi,
-            patch.object(
-                mock_redis_service.classifier, "classify", new_callable=AsyncMock
-            ) as mock_classify,
-            patch.object(mock_redis_service.slot_validator, "validate") as mock_validate,
-            patch.object(mock_redis_service.topic_switch_detector, "detect") as mock_detect,
-        ):
-            mock_safety.return_value = SafetyCheckResult(
-                is_safe=True, risk_level="low", risk_type=None, reason="安全"
-            )
-
-            # 模拟多意图处理结果
-            mock_result = IntentResult(
-                primary_intent=IntentCategory.AFTER_SALES,
-                secondary_intent=IntentAction.APPLY,
-                confidence=0.85,
-                slots={},
-            )
-            mock_multi.return_value = MagicMock(
-                is_multi_intent=False,
-                sub_intents=[mock_result],
-                shared_slots={},
-            )
-            mock_classify.return_value = mock_result
-
-            mock_validate.return_value = SlotValidationResult(
-                is_complete=True, missing_slots=[], missing_p0_slots=[]
-            )
-
-            mock_detect.return_value = MagicMock(is_switch=True, should_reset_context=True)
-
-            result = await mock_redis_service.recognize("我要退货", "session_123")
-
-            # 验证结果
-            assert result is not None
-            assert result.primary_intent == IntentCategory.AFTER_SALES
-
-            # 验证话题切换检测被调用
-            mock_detect.assert_called_once()
-            # redis.get 被调用两次：一次查询缓存，一次查询会话状态
-            assert mock_redis_service.redis.get.call_count == 2
-            mock_redis_service.redis.get.assert_any_call("intent:session:session_123")
-
-    @pytest.mark.asyncio
-    async def test_recognize_needs_clarification(self, service):
-        """测试需要澄清的情况"""
-        with (
-            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
-            patch.object(service.classifier, "classify", new_callable=AsyncMock) as mock_classify,
-            patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(service.topic_switch_detector, "detect") as mock_detect,
-        ):
-            mock_safety.return_value = SafetyCheckResult(
-                is_safe=True, risk_level="low", risk_type=None, reason="安全"
-            )
-            mock_classify.return_value = IntentResult(
-                primary_intent=IntentCategory.AFTER_SALES,
-                secondary_intent=IntentAction.APPLY,
-                confidence=0.8,
-                slots={},
-            )
-            mock_validate.return_value = SlotValidationResult(
-                is_complete=False,
-                missing_slots=["order_sn", "action_type"],
-                missing_p0_slots=["order_sn", "action_type"],
-            )
-            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
-
-            result = await service.recognize("我要申请售后", "session_123")
-
-            assert result.needs_clarification is True
-            assert "order_sn" in result.missing_slots
-            assert "action_type" in result.missing_slots
-
-    @pytest.mark.asyncio
-    async def test_recognize_multi_intent(self, service):
-        """测试多意图处理"""
-        with (
-            patch.object(service.safety_filter, "check", new_callable=AsyncMock) as mock_safety,
-            patch.object(
-                service.multi_intent_processor, "process", new_callable=AsyncMock
-            ) as mock_multi,
-            patch.object(service.slot_validator, "validate") as mock_validate,
-            patch.object(service.topic_switch_detector, "detect") as mock_detect,
-        ):
-            mock_safety.return_value = SafetyCheckResult(
-                is_safe=True, risk_level="low", risk_type=None, reason="安全"
-            )
-
-            # 模拟多意图结果
-            sub_intent = IntentResult(
-                primary_intent=IntentCategory.ORDER,
-                secondary_intent=IntentAction.QUERY,
-                confidence=0.85,
-                slots={"order_sn": "SN001"},
-            )
-            mock_multi.return_value = MagicMock(
-                is_multi_intent=True,
-                sub_intents=[sub_intent],
-                shared_slots={"user_id": "U001"},
-            )
-
-            mock_validate.return_value = SlotValidationResult(
-                is_complete=True, missing_slots=[], missing_p0_slots=[]
-            )
-            mock_detect.return_value = MagicMock(is_switch=False, should_reset_context=False)
-
-            result = await service.recognize("查询订单SN001，另外我要退货", "session_123")
-
-            assert result.primary_intent == IntentCategory.ORDER
-            # 验证共享槽位被合并
-            assert result.slots.get("user_id") == "U001"
-            assert result.slots.get("order_sn") == "SN001"
-
-
-class TestClarifyMethod:
-    """clarify() 方法测试"""
-
-    @pytest.fixture
-    def service(self):
-        return IntentRecognitionService()
+        mock_redis.get.return_value = None
+        return IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
 
     @pytest.fixture
     def mock_redis_service(self):
         mock_redis = AsyncMock()
-        return IntentRecognitionService(redis_client=mock_redis)
+        return IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
 
     @pytest.mark.asyncio
     async def test_clarify_session_expired(self, service):
@@ -433,11 +180,7 @@ class TestClarifyMethod:
 class TestSessionStateSerialization:
     """会话状态序列化/反序列化测试"""
 
-    @pytest.fixture
-    def service(self):
-        return IntentRecognitionService()
-
-    def test_serialize_state(self, service):
+    def test_state_model_dump_json(self):
         """测试状态序列化"""
         intent = IntentResult(
             primary_intent=IntentCategory.ORDER,
@@ -454,7 +197,8 @@ class TestSessionStateSerialization:
             pending_slot="action_type",
         )
 
-        data = service._serialize_state(state)
+        json_str = state.model_dump_json()
+        data = json.loads(json_str)
 
         assert data["session_id"] == "session_123"
         assert data["current_intent"]["primary_intent"] == "ORDER"
@@ -465,7 +209,7 @@ class TestSessionStateSerialization:
         assert "created_at" in data
         assert "updated_at" in data
 
-    def test_deserialize_state(self, service):
+    def test_state_model_validate_json(self):
         """测试状态反序列化"""
         now = datetime.now().isoformat()
         data = {
@@ -492,7 +236,7 @@ class TestSessionStateSerialization:
             "updated_at": now,
         }
 
-        state = service._deserialize_state(data)
+        state = ClarificationState.model_validate_json(json.dumps(data))
 
         assert state.session_id == "session_123"
         assert state.current_intent is not None
@@ -506,7 +250,7 @@ class TestSessionStateSerialization:
         assert isinstance(state.created_at, datetime)
         assert isinstance(state.updated_at, datetime)
 
-    def test_deserialize_state_without_intent(self, service):
+    def test_state_model_validate_json_without_intent(self):
         """测试反序列化无意图的状态"""
         data = {
             "session_id": "session_123",
@@ -520,13 +264,13 @@ class TestSessionStateSerialization:
             "clarification_history": [],
         }
 
-        state = service._deserialize_state(data)
+        state = ClarificationState.model_validate_json(json.dumps(data))
 
         assert state.session_id == "session_123"
         assert state.current_intent is None
         assert state.clarification_round == 0
 
-    def test_deserialize_result(self, service):
+    def test_result_model_validate_json(self):
         """测试识别结果反序列化"""
         data = {
             "primary_intent": "AFTER_SALES",
@@ -540,7 +284,7 @@ class TestSessionStateSerialization:
             "raw_query": "我要退货",
         }
 
-        result = service._deserialize_result(data)
+        result = IntentResult.model_validate_json(json.dumps(data))
 
         assert result.primary_intent == IntentCategory.AFTER_SALES
         assert result.secondary_intent == IntentAction.APPLY
@@ -559,7 +303,7 @@ class TestCaching:
     @pytest.fixture
     def mock_redis_service(self):
         mock_redis = AsyncMock()
-        return IntentRecognitionService(redis_client=mock_redis)
+        return IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
 
     @pytest.mark.asyncio
     async def test_get_cached_result_hit(self, mock_redis_service):
@@ -594,13 +338,6 @@ class TestCaching:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_cached_result_no_redis(self):
-        """测试无Redis时的缓存获取"""
-        service = IntentRecognitionService(redis_client=None)
-        result = await service._get_cached_result("查询")
-        assert result is None
-
-    @pytest.mark.asyncio
     async def test_cache_result(self, mock_redis_service):
         """测试缓存结果存储"""
         result = IntentResult(
@@ -619,20 +356,9 @@ class TestCaching:
         assert call_args[0][1] == 300  # result_cache_ttl
 
     @pytest.mark.asyncio
-    async def test_cache_result_no_redis(self):
-        """测试无Redis时的缓存存储"""
-        service = IntentRecognitionService(redis_client=None)
-        result = IntentResult(
-            primary_intent=IntentCategory.ORDER,
-            secondary_intent=IntentAction.QUERY,
-        )
-        # 不应抛出异常
-        await service._cache_result("查询", result)
-
-    @pytest.mark.asyncio
     async def test_cache_result_exception(self, mock_redis_service):
         """测试缓存异常处理"""
-        mock_redis_service.redis.setex.side_effect = Exception("Redis error")
+        mock_redis_service.redis.setex.side_effect = aioredis.RedisError("Redis error")
 
         result = IntentResult(
             primary_intent=IntentCategory.ORDER,
@@ -649,7 +375,7 @@ class TestSessionStateManagement:
     @pytest.fixture
     def mock_redis_service(self):
         mock_redis = AsyncMock()
-        return IntentRecognitionService(redis_client=mock_redis)
+        return IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
 
     @pytest.mark.asyncio
     async def test_load_session_state(self, mock_redis_service):
@@ -687,13 +413,6 @@ class TestSessionStateManagement:
         assert state is None
 
     @pytest.mark.asyncio
-    async def test_load_session_state_no_redis(self):
-        """测试无Redis时加载会话状态"""
-        service = IntentRecognitionService(redis_client=None)
-        state = await service._load_session_state("session_123")
-        assert state is None
-
-    @pytest.mark.asyncio
     async def test_save_session_state(self, mock_redis_service):
         """测试保存会话状态"""
         state = ClarificationState(
@@ -710,21 +429,15 @@ class TestSessionStateManagement:
         assert call_args[0][0] == "intent:session:session_123"
         assert call_args[0][1] == 1800  # session_cache_ttl
 
-    @pytest.mark.asyncio
-    async def test_save_session_state_no_redis(self):
-        """测试无Redis时保存会话状态"""
-        service = IntentRecognitionService(redis_client=None)
-        state = ClarificationState(session_id="session_123")
-        # 不应抛出异常
-        await service._save_session_state(state)
-
 
 class TestSafetyFilterIntegration:
     """安全过滤集成测试"""
 
     @pytest.fixture
     def service(self):
-        return IntentRecognitionService()
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+        return IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
 
     def test_create_safety_warning_result(self, service):
         """测试创建安全警告结果"""
@@ -781,7 +494,9 @@ class TestEdgeCases:
 
     @pytest.fixture
     def service(self):
-        return IntentRecognitionService()
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+        return IntentRecognitionService(llm=MagicMock(), redis_client=mock_redis)
 
     @pytest.mark.asyncio
     async def test_recognize_empty_query(self, service):

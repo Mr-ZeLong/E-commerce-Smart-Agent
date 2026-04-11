@@ -2,10 +2,10 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Numeric, String, Text, text
+from sqlalchemy import Column, DateTime, Numeric, String, Text, text
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import naive_utc_now
+from app.core.utils import utc_now
 
 
 # 1. 退货申请状态枚举
@@ -71,21 +71,27 @@ class RefundApplication(SQLModel, table=True):
     reviewed_by: int | None = Field(default=None, foreign_key="users.id")
 
     # 审核时间
-    reviewed_at: datetime | None = Field(default=None)
+    reviewed_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
     # 创建时间
     created_at: datetime = Field(
-        default_factory=naive_utc_now,
-        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")},
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        ),
     )
 
     # 更新时间
     updated_at: datetime = Field(
-        default_factory=naive_utc_now,
-        sa_column_kwargs={
-            "server_default": text("CURRENT_TIMESTAMP"),
-            "onupdate": text("CURRENT_TIMESTAMP"),
-        },
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+            onupdate=text("CURRENT_TIMESTAMP"),
+        ),
     )
 
     model_config = {"use_enum_values": True}

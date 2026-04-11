@@ -2,7 +2,7 @@
 管理员 API
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
@@ -18,12 +18,16 @@ from app.services.admin_service import AdminService, AuditAlreadyProcessedError,
 router = APIRouter()
 
 
+def get_admin_service(request: Request) -> AdminService:
+    return AdminService(manager=request.app.state.manager)
+
+
 @router.get("/admin/tasks", response_model=list[AuditTask])
 async def get_pending_tasks(
     risk_level: str | None = None,
     current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
-    service: AdminService = Depends(AdminService),
+    service: AdminService = Depends(get_admin_service),
 ):
     """获取待审核任务列表"""
     return await service.get_pending_tasks(session, risk_level)
@@ -33,7 +37,7 @@ async def get_pending_tasks(
 async def get_confidence_pending_tasks(
     current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
-    service: AdminService = Depends(AdminService),
+    service: AdminService = Depends(get_admin_service),
 ):
     """获取置信度触发的待审核任务"""
     return await service.get_confidence_pending_tasks(session)
@@ -43,7 +47,7 @@ async def get_confidence_pending_tasks(
 async def get_all_pending_tasks(
     current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
-    service: AdminService = Depends(AdminService),
+    service: AdminService = Depends(get_admin_service),
 ):
     """获取所有待审核任务（风险 + 置信度 + 手动）"""
     return await service.get_all_pending_tasks(session)
@@ -55,7 +59,7 @@ async def admin_decision(
     request: AdminDecisionRequest,
     current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
-    service: AdminService = Depends(AdminService),
+    service: AdminService = Depends(get_admin_service),
 ):
     """管理员决策接口"""
     try:

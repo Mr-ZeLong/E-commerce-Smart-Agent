@@ -30,5 +30,7 @@ def _configure_test_database() -> None:
     elif not original_db:
         os.environ["POSTGRES_DB"] = "test_ecommerce_agent"
 
+    os.environ.setdefault("RERANK_BASE_URL", "https://dashscope.aliyuncs.com/compatible-api/v1")
+
 
 _configure_test_database()

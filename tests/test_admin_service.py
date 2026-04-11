@@ -1,8 +1,8 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.models.audit import AuditAction, AuditLog, AuditTriggerType
+from app.models.audit import AuditAction, AuditLog
 from app.models.message import MessageCard
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
@@ -53,19 +53,19 @@ class TestProcessAdminDecision:
         mock_manager = AsyncMock()
         mock_build_thread_id = MagicMock(return_value="built_thread")
 
-        service = AdminService()
-        service.process_refund_payment = mock_payment
-        service.send_refund_sms = mock_sms
-        service.manager = mock_manager
-        service.build_thread_id = mock_build_thread_id
-
-        result = await service.process_admin_decision(
-            mock_session,
-            audit_log_id=1,
-            action="APPROVE",
-            admin_comment="Approved",
-            current_admin_id=99,
-        )
+        service = AdminService(manager=mock_manager)
+        with (
+            patch("app.services.admin_service.process_refund_payment", mock_payment),
+            patch("app.services.admin_service.send_refund_sms", mock_sms),
+            patch("app.services.admin_service.build_thread_id", mock_build_thread_id),
+        ):
+            result = await service.process_admin_decision(
+                mock_session,
+                audit_log_id=1,
+                action="APPROVE",
+                admin_comment="Approved",
+                current_admin_id=99,
+            )
 
         assert result.success is True
         assert result.action == "APPROVE"
@@ -135,19 +135,19 @@ class TestProcessAdminDecision:
         mock_manager = AsyncMock()
         mock_build_thread_id = MagicMock(return_value="built_thread")
 
-        service = AdminService()
-        service.process_refund_payment = mock_payment
-        service.send_refund_sms = mock_sms
-        service.manager = mock_manager
-        service.build_thread_id = mock_build_thread_id
-
-        result = await service.process_admin_decision(
-            mock_session,
-            audit_log_id=2,
-            action="REJECT",
-            admin_comment="Rejected",
-            current_admin_id=99,
-        )
+        service = AdminService(manager=mock_manager)
+        with (
+            patch("app.services.admin_service.process_refund_payment", mock_payment),
+            patch("app.services.admin_service.send_refund_sms", mock_sms),
+            patch("app.services.admin_service.build_thread_id", mock_build_thread_id),
+        ):
+            result = await service.process_admin_decision(
+                mock_session,
+                audit_log_id=2,
+                action="REJECT",
+                admin_comment="Rejected",
+                current_admin_id=99,
+            )
 
         assert result.success is True
         assert result.action == "REJECT"
@@ -166,7 +166,7 @@ class TestProcessAdminDecision:
         mock_session = AsyncMock()
         mock_session.exec = AsyncMock(return_value=_make_exec_result(None))
 
-        service = AdminService()
+        service = AdminService(manager=MagicMock())
         with pytest.raises(AuditNotFoundError):
             await service.process_admin_decision(
                 mock_session,
@@ -184,7 +184,7 @@ class TestProcessAdminDecision:
 
         mock_session.exec = AsyncMock(return_value=_make_exec_result(mock_audit_log))
 
-        service = AdminService()
+        service = AdminService(manager=MagicMock())
         with pytest.raises(AuditAlreadyProcessedError):
             await service.process_admin_decision(
                 mock_session,
@@ -226,7 +226,7 @@ class TestQueryMethods:
         result_mock.all.return_value = [mock_log1, mock_log2]
         mock_session.exec = AsyncMock(return_value=result_mock)
 
-        service = AdminService()
+        service = AdminService(manager=MagicMock())
         tasks = await service.get_pending_tasks(mock_session)
 
         assert len(tasks) == 2
@@ -252,7 +252,7 @@ class TestQueryMethods:
         result_mock.all.return_value = [mock_log]
         mock_session.exec = AsyncMock(return_value=result_mock)
 
-        service = AdminService()
+        service = AdminService(manager=MagicMock())
         tasks = await service.get_pending_tasks(mock_session, risk_level="HIGH")
 
         assert len(tasks) == 1
@@ -278,7 +278,7 @@ class TestQueryMethods:
         result_mock.all.return_value = [mock_log]
         mock_session.exec = AsyncMock(return_value=result_mock)
 
-        service = AdminService()
+        service = AdminService(manager=MagicMock())
         tasks = await service.get_confidence_pending_tasks(mock_session)
 
         assert len(tasks) == 1
@@ -289,20 +289,6 @@ class TestQueryMethods:
     async def test_get_all_pending_tasks(self):
         mock_session = AsyncMock()
 
-        result_mocks = {
-            AuditTriggerType.RISK: 2,
-            AuditTriggerType.CONFIDENCE: 3,
-            AuditTriggerType.MANUAL: 1,
-        }
-
-        async def exec_side_effect(stmt):
-            m = MagicMock()
-            m.one.return_value = result_mocks[AuditTriggerType.RISK]
-            # We need to detect which trigger type is being queried.
-            # The simplest way is to inspect the compiled statement or
-            # use a counter-based side effect since calls are ordered.
-            return m
-
         call_results = [
             MagicMock(one=MagicMock(return_value=2)),
             MagicMock(one=MagicMock(return_value=3)),
@@ -310,7 +296,7 @@ class TestQueryMethods:
         ]
         mock_session.exec = AsyncMock(side_effect=call_results)
 
-        service = AdminService()
+        service = AdminService(manager=MagicMock())
         stats = await service.get_all_pending_tasks(mock_session)
 
         assert isinstance(stats, TaskStatsResponse)

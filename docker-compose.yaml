@@ -61,7 +61,7 @@ services:
   celery_worker: 
     build: .
     container_name: ecommerce_celery_worker
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 -E
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo -E
     depends_on:
       db:
         condition: service_healthy

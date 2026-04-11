@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from langchain_openai import ChatOpenAI
+
 from app.agents.base import BaseAgent
 from app.models.state import AgentState
 from app.services.order_service import OrderService
@@ -20,9 +22,9 @@ ORDER_SYSTEM_PROMPT = """你是专业的电商订单处理助手。
 class OrderAgent(BaseAgent):
     """订单专家 Agent"""
 
-    def __init__(self, order_service: OrderService | None = None):
-        super().__init__(name="order", system_prompt=ORDER_SYSTEM_PROMPT)
-        self.order_service = order_service or OrderService()
+    def __init__(self, order_service: OrderService, llm: ChatOpenAI):
+        super().__init__(name="order", llm=llm, system_prompt=ORDER_SYSTEM_PROMPT)
+        self.order_service = order_service
 
     async def process(self, state: AgentState) -> dict[str, Any]:
         question = state.get("question", "")

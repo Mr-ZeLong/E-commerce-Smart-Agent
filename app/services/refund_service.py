@@ -1,7 +1,8 @@
 # app/services/refund_service.py
-from datetime import UTC
+import logging
 
-from sqlmodel import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import desc, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -9,6 +10,8 @@ from app.core.utils import utc_now
 from app.models.audit import AuditLog
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
+
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # 退货规则配置
@@ -43,7 +46,8 @@ class RefundEligibilityChecker:
             return False, f"订单状态为 {order.status}，只有已发货或已签收的订单才能退货"
 
         # ========== 规则 2: 检查是否已有退货申请 ==========
-        assert order.id is not None
+        if order.id is None:
+            return False, "订单数据异常，请稍后重试。"
         existing_refund = await RefundEligibilityChecker._check_existing_refund(
             order.id,
             session,
@@ -72,11 +76,9 @@ class RefundEligibilityChecker:
         """检查是否已有退货申请"""
         stmt = select(RefundApplication).where(
             RefundApplication.order_id == order_id,
-            RefundApplication.status.in_(  # ty: ignore
-                [
-                    RefundStatus.PENDING,
-                    RefundStatus.APPROVED,
-                ]
+            or_(
+                RefundApplication.status == RefundStatus.PENDING,
+                RefundApplication.status == RefundStatus.APPROVED,
             ),
         )
         result = await session.exec(stmt)
@@ -91,9 +93,6 @@ class RefundEligibilityChecker:
         # 注意：这里应该用 delivered_at（签收时间），但示例数据没有这个字段
         # 实际业务中需要在 Order 模型中添加 delivered_at 字段
         order_time = order.created_at
-        if order_time.tzinfo is None:
-            # 如果 order_time 是 naive，假设它是 UTC
-            order_time = order_time.replace(tzinfo=UTC)
         days_passed = (now - order_time).days
 
         if days_passed > settings.REFUND_DEADLINE_DAYS:
@@ -190,7 +189,9 @@ class RefundApplicationService:
 
             return True, f"退货申请已提交（申请编号：{refund_app.id}），等待审核", refund_app
 
-        except Exception as e:
+        except SQLAlchemyError as e:
+            await session.rollback()
+            logger.exception("Failed to create refund application")
             return False, f"提交失败：{str(e)}", None
 
     @staticmethod
@@ -210,7 +211,7 @@ class RefundApplicationService:
         if status:
             stmt = stmt.where(RefundApplication.status == status)
 
-        stmt = stmt.order_by(RefundApplication.created_at.desc())  # type: ignore
+        stmt = stmt.order_by(desc(RefundApplication.created_at))
 
         result = await session.exec(stmt)
         return list(result.all())

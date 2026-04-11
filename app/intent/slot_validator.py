@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from app.intent.config import SLOT_PRIORITY_CONFIG
 from app.intent.models import IntentResult
 
 
-@dataclass
-class SlotValidationResult:
+class SlotValidationResult(BaseModel):
     is_complete: bool
-    missing_slots: list[str] = field(default_factory=list)
-    missing_p0_slots: list[str] = field(default_factory=list)
-    missing_p1_slots: list[str] = field(default_factory=list)
-    missing_p2_slots: list[str] = field(default_factory=list)
-    filled_slots: list[str] = field(default_factory=list)
-    suggestions: dict[str, list[str]] = field(default_factory=dict)
+    missing_slots: list[str] = Field(default_factory=list)
+    missing_p0_slots: list[str] = Field(default_factory=list)
+    missing_p1_slots: list[str] = Field(default_factory=list)
+    missing_p2_slots: list[str] = Field(default_factory=list)
+    filled_slots: list[str] = Field(default_factory=list)
+    suggestions: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class SlotValidator:

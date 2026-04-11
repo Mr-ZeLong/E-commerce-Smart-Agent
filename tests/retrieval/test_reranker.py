@@ -7,7 +7,7 @@ from app.retrieval.reranker import QwenReranker
 
 @pytest.mark.asyncio
 async def test_rerank_parses_results():
-    reranker = QwenReranker(base_url="http://test", api_key="sk-test")
+    reranker = QwenReranker(base_url="http://test", api_key="sk-test", model="test-rerank")
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         response_mock = MagicMock()
         response_mock.json.return_value = {

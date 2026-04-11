@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconn
 from app.core.logging import generate_correlation_id, set_correlation_id
 from app.core.security import extract_bearer_token, get_current_user_id_ws, verify_admin_token
 from app.core.utils import build_thread_id
-from app.websocket.manager import manager
 
 router = APIRouter()
 
@@ -55,8 +54,8 @@ async def websocket_endpoint(
 
     # 建立连接
     try:
-        await manager.connect_user(websocket, user_id, scoped_thread_id)
-    except Exception:
+        await websocket.app.state.manager.connect_user(websocket, user_id, scoped_thread_id)
+    except (WebSocketDisconnect, RuntimeError):
         logger.warning(" [WS] 连接错误")
         await websocket.close(code=1008, reason="Connection error")
         return
@@ -71,10 +70,10 @@ async def websocket_endpoint(
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         pass
-    except Exception as e:
+    except RuntimeError as e:
         logger.warning(" [WS] 连接错误: %s", e)
     finally:
-        await manager.disconnect_user(user_id, scoped_thread_id)
+        await websocket.app.state.manager.disconnect_user(user_id, scoped_thread_id)
 
 
 @router.websocket("/ws/admin/{admin_id}")
@@ -113,8 +112,8 @@ async def admin_websocket_endpoint(
 
     # 建立连接
     try:
-        await manager.connect_admin(websocket, admin_id)
-    except Exception:
+        await websocket.app.state.manager.connect_admin(websocket, admin_id)
+    except (WebSocketDisconnect, RuntimeError):
         logger.warning(" [WS] 管理员连接错误")
         await websocket.close(code=1008, reason="Connection error")
         return
@@ -127,7 +126,7 @@ async def admin_websocket_endpoint(
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         pass
-    except Exception as e:
+    except RuntimeError as e:
         logger.warning(" [WS] 管理员连接错误: %s", e)
     finally:
-        await manager.disconnect_admin(admin_id)
+        await websocket.app.state.manager.disconnect_admin(admin_id)

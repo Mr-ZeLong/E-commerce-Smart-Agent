@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from app.intent.classifier import IntentClassifier
 from app.intent.models import IntentResult
@@ -12,19 +13,18 @@ from app.intent.models import IntentResult
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class MultiIntentResult:
+class MultiIntentResult(BaseModel):
     is_multi_intent: bool
-    sub_intents: list[IntentResult] = field(default_factory=list)
-    shared_slots: dict[str, Any] = field(default_factory=dict)
-    execution_order: list[int] = field(default_factory=list)
+    sub_intents: list[IntentResult] = Field(default_factory=list)
+    shared_slots: dict[str, Any] = Field(default_factory=dict)
+    execution_order: list[int] = Field(default_factory=list)
 
 
 class MultiIntentProcessor:
     SEPARATORS = ["顺便", "还有", "另外", "以及", "，然后", "。另外", "。还有", ";", "；"]
     MAX_INTENTS = 2
 
-    def __init__(self, classifier: IntentClassifier | None = None, mode: str = "cascade"):
+    def __init__(self, classifier: IntentClassifier, mode: str = "cascade"):
         self.classifier = classifier
         self.mode = mode
 
@@ -34,29 +34,19 @@ class MultiIntentProcessor:
         context = {"history": conversation_history} if conversation_history else None
         segments = self._split_query(query)
         if len(segments) == 1:
-            if self.classifier:
-                try:
-                    result = await self.classifier.classify(query, context)
-                    return MultiIntentResult(
-                        is_multi_intent=False,
-                        sub_intents=[result],
-                        shared_slots=result.slots or {},
-                        execution_order=[0],
-                    )
-                except Exception as e:
-                    logger.error("Classifier failed for single intent: %s", e)
-            return MultiIntentResult(is_multi_intent=False)
+            result = await self.classifier.classify(query, context)
+            return MultiIntentResult(
+                is_multi_intent=False,
+                sub_intents=[result],
+                shared_slots=result.slots or {},
+                execution_order=[0],
+            )
 
         segments = segments[: self.MAX_INTENTS]
         sub_intents: list[IntentResult] = []
         for segment in segments:
-            if self.classifier:
-                try:
-                    result = await self.classifier.classify(segment.strip(), context)
-                    if result:
-                        sub_intents.append(result)
-                except Exception as e:
-                    logger.error("Classifier failed for segment '%s': %s", segment, e)
+            result = await self.classifier.classify(segment.strip(), context)
+            sub_intents.append(result)
 
         shared_slots = self._extract_shared_slots(sub_intents)
         execution_order = list(range(len(sub_intents)))

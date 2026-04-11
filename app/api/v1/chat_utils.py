@@ -10,27 +10,6 @@ from app.core.config import settings
 from app.core.utils import clamp_score
 
 
-# ========== 转人工原因常量 ==========
-class TransferReason:
-    """转人工原因代码"""
-
-    CONFIDENCE_LOW = "confidence_low"
-    SYSTEM_ERROR = "system_error"
-    USER_REQUEST = "user_request"
-    RISK_DETECTED = "risk_detected"
-    COMPLEX_ISSUE = "complex_issue"
-
-
-# ========== 转人工原因映射 ==========
-TRANSFER_REASON_MAP: dict[str, str] = {
-    TransferReason.CONFIDENCE_LOW: "置信度不足",
-    TransferReason.SYSTEM_ERROR: "系统错误",
-    TransferReason.USER_REQUEST: "用户要求",
-    TransferReason.RISK_DETECTED: "检测到风险",
-    TransferReason.COMPLEX_ISSUE: "问题过于复杂",
-}
-
-
 def get_confidence_level(score: float) -> str:
     """
     根据置信度分数确定置信度等级

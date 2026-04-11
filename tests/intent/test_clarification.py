@@ -4,12 +4,12 @@ import pytest
 
 from app.intent.clarification import ClarificationEngine
 from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
-from app.intent.slot_validator import SlotValidationResult
+from app.intent.slot_validator import SlotValidationResult, SlotValidator
 
 
 @pytest.fixture
 def engine():
-    return ClarificationEngine()
+    return ClarificationEngine(slot_validator=SlotValidator())
 
 
 @pytest.fixture

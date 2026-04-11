@@ -24,25 +24,35 @@ def reset_module():
 
 
 class TestCORSDangerousComboBlock:
-    def test_wildcard_cors_with_credentials_raises_runtime_error(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_wildcard_cors_with_credentials_raises_runtime_error(self, monkeypatch):
         """Wildcard CORS origins combined with allow_credentials=True must fail fast."""
         monkeypatch.setattr(settings, "CORS_ORIGINS", ["*"])
 
+        from unittest.mock import MagicMock
+
+        mod = importlib.import_module(MODULE_NAME)
         with pytest.raises(
             RuntimeError,
             match=r"CORS allow_origins=\['\*'\] combined with allow_credentials=True is not allowed",
         ):
-            importlib.import_module(MODULE_NAME)
+            async with mod.lifespan(MagicMock()):
+                pass
 
-    def test_mixed_origins_with_wildcard_raises_runtime_error(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_mixed_origins_with_wildcard_raises_runtime_error(self, monkeypatch):
         """Mixed CORS origins containing wildcard must also fail fast."""
         monkeypatch.setattr(settings, "CORS_ORIGINS", ["*", "http://localhost"])
 
+        from unittest.mock import MagicMock
+
+        mod = importlib.import_module(MODULE_NAME)
         with pytest.raises(
             RuntimeError,
             match=r"CORS allow_origins=\['\*'\] combined with allow_credentials=True is not allowed",
         ):
-            importlib.import_module(MODULE_NAME)
+            async with mod.lifespan(MagicMock()):
+                pass
 
 
 class TestOpenAPIDocsControl:

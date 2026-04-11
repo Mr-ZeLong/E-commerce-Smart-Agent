@@ -3,14 +3,14 @@ from datetime import UTC, datetime
 import pytest
 from sqlmodel import select
 
-from app.core.database import async_session_maker, engine
+from app.core.database import async_engine, async_session_maker
 from app.models.user import User
 
 
 async def init_db():
     from sqlmodel import SQLModel
 
-    async with engine.begin() as conn:
+    async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
 

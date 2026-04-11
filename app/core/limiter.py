@@ -17,7 +17,7 @@ def get_client_ip(request: Request) -> str:
 limiter = Limiter(
     key_func=get_client_ip,
     storage_uri=settings.REDIS_URL,
-    in_memory_fallback_enabled=True,
-    swallow_errors=True,
+    in_memory_fallback_enabled=False,
+    swallow_errors=False,
     headers_enabled=True,
 )

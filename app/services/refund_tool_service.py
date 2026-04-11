@@ -45,10 +45,7 @@ async def submit_refund_application(
     async with async_session_maker() as session:
         category = None
         if reason_category:
-            try:
-                category = RefundReason(reason_category)
-            except ValueError:
-                category = RefundReason.OTHER
+            category = RefundReason(reason_category)
 
         success, message, refund_data = await process_refund_for_order(
             order_sn=order_sn,

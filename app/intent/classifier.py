@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Any
@@ -11,7 +10,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
-from app.core.llm_factory import create_openai_llm
 from app.intent.config import validate_tertiary_intent
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
@@ -25,7 +23,6 @@ class IntentClassifier:
     RULE_MATCH_CONFIDENCE = 0.5
     DEFAULT_FALLBACK_CONFIDENCE = 0.3
     FUNCTION_CALLING_THRESHOLD = settings.FUNCTION_CALLING_THRESHOLD
-    JSON_PARSING_THRESHOLD = settings.JSON_PARSING_THRESHOLD
 
     SYSTEM_PROMPT = """你是一个电商客服意图识别专家。请分析用户输入，识别其意图并提取相关槽位。
 
@@ -134,11 +131,8 @@ class IntentClassifier:
         ("OTHER", "CONSULT"): [r"^(你好|您好|hi|hello|在吗|有人吗)", r"谢谢|再见|拜拜"],
     }
 
-    def __init__(self, llm: ChatOpenAI | None = None):
-        if llm is not None:
-            self.llm = llm
-        else:
-            self.llm = create_openai_llm()
+    def __init__(self, llm: ChatOpenAI):
+        self.llm = llm
         self._compiled_rules = {
             key: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
             for key, patterns in self.RULE_PATTERNS.items()
@@ -147,23 +141,10 @@ class IntentClassifier:
     async def classify(
         self, query: str, context: dict[str, Any] | None = None, min_confidence: float = 0.5
     ) -> IntentResult:
-        # Layer 1: Function Calling
-        try:
-            result = await self._classify_with_function_calling(query, context)
-            if result is not None and result.confidence >= self.FUNCTION_CALLING_THRESHOLD:
-                return self._finalize_result(result, query, min_confidence)
-        except Exception as e:
-            logger.warning(f"Function calling failed: {e}, falling back")
+        result = await self._classify_with_function_calling(query, context)
+        if result is not None and result.confidence >= self.FUNCTION_CALLING_THRESHOLD:
+            return self._finalize_result(result, query, min_confidence)
 
-        # Layer 2: JSON解析
-        try:
-            result = await self._classify_with_json(query, context)
-            if result is not None and result.confidence >= self.JSON_PARSING_THRESHOLD:
-                return self._finalize_result(result, query, min_confidence)
-        except Exception as e:
-            logger.warning(f"JSON parsing failed: {e}, falling back to rules")
-
-        # Layer 3: 规则匹配
         return self._finalize_result(self._classify_with_rules(query), query, min_confidence)
 
     def _finalize_result(
@@ -203,30 +184,16 @@ class IntentClassifier:
             tool_choice={"type": "function", "function": {"name": "classify_intent"}},
         )
         response = await llm_with_tools.ainvoke(messages)
-        tool_calls = getattr(response, "tool_calls", None) or []
-        if not tool_calls and hasattr(response, "additional_kwargs"):
-            tool_calls = response.additional_kwargs.get("tool_calls", [])
+        tool_calls = response.tool_calls or []
         if not tool_calls:
             return None
         tool_call = tool_calls[0]
-        function_args = tool_call.get("args", {})
-        if isinstance(function_args, str):
-            result_data = json.loads(function_args)
-        else:
-            result_data = function_args
-        return self._parse_result(result_data, query)
-
-    async def _classify_with_json(
-        self, query: str, context: dict[str, Any] | None = None
-    ) -> IntentResult | None:
-        messages = self._create_messages(query, context)
-        response = await self.llm.ainvoke(messages)
-        content = str(response.content)
-        json_match = re.search(r"\{[\s\S]*\}", content)
-        if not json_match:
+        result_data = tool_call.get("args", {})
+        try:
+            return self._parse_result(result_data, query)
+        except (KeyError, ValueError, AttributeError) as exc:
+            logger.warning(f"Failed to parse LLM intent result: {exc}")
             return None
-        result_data = json.loads(json_match.group())
-        return self._parse_result(result_data, query)
 
     def _classify_with_rules(self, query: str) -> IntentResult:
         query_lower = query.lower()
@@ -256,29 +223,24 @@ class IntentClassifier:
             messages.insert(0, SystemMessage(content=self.SYSTEM_PROMPT))
         return messages
 
-    def _parse_result(self, data: dict[str, Any], query: str) -> IntentResult | None:
-        try:
-            primary = data.get("primary_intent", "OTHER")
-            secondary = data.get("secondary_intent", "CONSULT")
-            tertiary = data.get("tertiary_intent")
-            confidence = data.get("confidence", 0.5)
-            slots = data.get("slots", {})
-            primary_intent = IntentCategory[primary]
-            secondary_intent = IntentAction[secondary]
-            if tertiary and not validate_tertiary_intent(
-                primary_intent, secondary_intent, tertiary
-            ):
-                tertiary = None
-            return IntentResult(
-                primary_intent=primary_intent,
-                secondary_intent=secondary_intent,
-                tertiary_intent=tertiary,
-                confidence=confidence,
-                slots=slots,
-                raw_query=query,
-            )
-        except (KeyError, ValueError, TypeError):
-            return None
+    def _parse_result(self, data: dict[str, Any], query: str) -> IntentResult:
+        primary = data.get("primary_intent", "OTHER")
+        secondary = data.get("secondary_intent", "CONSULT")
+        tertiary = data.get("tertiary_intent")
+        confidence = data.get("confidence", 0.5)
+        slots = data.get("slots", {})
+        primary_intent = IntentCategory[primary]
+        secondary_intent = IntentAction[secondary]
+        if tertiary and not validate_tertiary_intent(primary_intent, secondary_intent, tertiary):
+            tertiary = None
+        return IntentResult(
+            primary_intent=primary_intent,
+            secondary_intent=secondary_intent,
+            tertiary_intent=tertiary,
+            confidence=confidence,
+            slots=slots,
+            raw_query=query,
+        )
 
     def _generate_clarification_question(self, result: IntentResult) -> str:
         clarification_map = {

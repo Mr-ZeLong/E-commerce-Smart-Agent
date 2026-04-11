@@ -83,7 +83,7 @@ class TestIntentResult:
         assert result.primary_intent == IntentCategory.ORDER
         assert result.confidence == 0.95
 
-    def test_to_dict(self):
+    def test_model_dump(self):
         result = IntentResult(
             primary_intent=IntentCategory.ORDER,
             secondary_intent=IntentAction.QUERY,
@@ -95,7 +95,7 @@ class TestIntentResult:
             clarification_question="请问查询哪个时间段的订单？",
             raw_query="查订单",
         )
-        data = result.to_dict()
+        data = result.model_dump()
         assert data["primary_intent"] == "ORDER"
         assert data["secondary_intent"] == "QUERY"
         assert data["tertiary_intent"] == "latest"

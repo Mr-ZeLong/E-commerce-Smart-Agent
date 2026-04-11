@@ -38,17 +38,24 @@ class AgentState(TypedDict):
     refund_order_sn: str | None
     refund_step: str | None
 
+    # Intent & clarification fields produced by the graph
+    intent_result: dict[str, Any] | None
+    slots: dict[str, Any] | None
+    awaiting_clarification: bool | None
+    clarification_state: dict[str, Any] | None
+    refund_data: dict[str, Any] | None
+
 
 def make_agent_state(
     *,
     question: str,
     user_id: int = 1,
     thread_id: str = "default",
-    history: list[dict] | None = None,
     current_agent: str | None = None,
     next_agent: str | None = None,
     iteration_count: int = 0,
     retry_requested: bool = False,
+    history: list[dict] | None = None,
     retrieval_result: dict[str, Any] | None = None,
     order_data: dict | None = None,
     audit_level: str | None = None,
@@ -56,13 +63,18 @@ def make_agent_state(
     audit_reason: str | None = None,
     confidence_score: float | None = None,
     confidence_signals: dict | None = None,
+    needs_human_transfer: bool = False,
+    transfer_reason: str | None = None,
     messages: list[dict[str, Any]] | None = None,
     answer: str = "",
     refund_flow_active: bool | None = None,
     refund_order_sn: str | None = None,
     refund_step: str | None = None,
-    needs_human_transfer: bool = False,
-    transfer_reason: str | None = None,
+    intent_result: dict[str, Any] | None = None,
+    slots: dict[str, Any] | None = None,
+    awaiting_clarification: bool | None = None,
+    clarification_state: dict[str, Any] | None = None,
+    refund_data: dict[str, Any] | None = None,
 ) -> AgentState:
     return {
         "question": question,
@@ -87,4 +99,9 @@ def make_agent_state(
         "refund_step": refund_step,
         "needs_human_transfer": needs_human_transfer,
         "transfer_reason": transfer_reason,
+        "intent_result": intent_result,
+        "slots": slots,
+        "awaiting_clarification": awaiting_clarification,
+        "clarification_state": clarification_state,
+        "refund_data": refund_data,
     }

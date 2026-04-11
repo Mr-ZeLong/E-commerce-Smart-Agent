@@ -10,6 +10,7 @@ async def test_ensure_collection_creates_collection():
     knowledge_client = QdrantKnowledgeClient(
         url=":memory:",
         collection_name="test_knowledge",
+        api_key="",
         client=client,
     )
     await knowledge_client.ensure_collection()
@@ -22,7 +23,9 @@ async def test_ensure_collection_creates_collection():
 async def test_query_hybrid_returns_scored_points_with_payloads():
     client = AsyncQdrantClient(location=":memory:")
     knowledge_client = QdrantKnowledgeClient(
+        url=":memory:",
         collection_name="test_hybrid",
+        api_key="",
         client=client,
     )
     await knowledge_client.ensure_collection()

@@ -14,74 +14,83 @@ from app.models.state import AgentState
 
 logger = logging.getLogger(__name__)
 
-router_agent = IntentRouterAgent()
-policy_agent = PolicyAgent()
-order_agent = OrderAgent()
-evaluator = ConfidenceEvaluator()
+
+def build_router_node(
+    agent: IntentRouterAgent,
+) -> Any:
+    async def router_node(
+        state: AgentState,
+    ) -> Command[Literal["policy_agent", "order_agent", "decider_node"]]:
+        result = await agent.process(state)
+        updated = dict(result.get("updated_state") or {})
+
+        if result.get("response"):
+            return Command(goto="decider_node", update={"answer": result["response"], **updated})
+
+        next_agent = updated.get("next_agent")
+        if next_agent == "policy_agent" or next_agent == "supervisor":
+            return Command(goto="policy_agent", update=updated)
+        elif next_agent == "order_agent":
+            return Command(goto="order_agent", update=updated)
+        else:
+            return Command(
+                goto="decider_node",
+                update={"answer": result.get("response") or "暂不支持该类型请求", **updated},
+            )
+
+    return router_node
 
 
-async def router_node(
-    state: AgentState,
-) -> Command[Literal["policy_agent", "order_agent", "decider_node"]]:
-    """意图识别与路由节点"""
-    result = await router_agent.process(state)
-    updated = dict(result.get("updated_state") or {})
+def build_policy_node(agent: PolicyAgent) -> Any:
+    async def policy_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        updates: dict[str, Any] = {"answer": result.get("response", "")}
+        if result.get("updated_state"):
+            updates.update(result["updated_state"])
+        updates["current_agent"] = "policy_agent"
+        return Command(goto="evaluator_node", update=updates)
 
-    if result.get("response"):
-        return Command(goto="decider_node", update={"answer": result["response"], **updated})
+    return policy_node
 
-    next_agent = updated.get("next_agent")
-    if next_agent == "policy" or next_agent == "supervisor":
-        return Command(goto="policy_agent", update=updated)
-    elif next_agent == "order":
-        return Command(goto="order_agent", update=updated)
-    else:
-        return Command(
-            goto="decider_node",
-            update={"answer": result.get("response") or "暂不支持该类型请求", **updated},
+
+def build_order_node(agent: OrderAgent) -> Any:
+    async def order_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        updates: dict[str, Any] = {"answer": result.get("response", "")}
+        if result.get("updated_state"):
+            updates.update(result["updated_state"])
+        updates["current_agent"] = "order_agent"
+        return Command(goto="evaluator_node", update=updates)
+
+    return order_node
+
+
+def build_evaluator_node(evaluator: ConfidenceEvaluator) -> Any:
+    async def evaluator_node(
+        state: AgentState,
+    ) -> Command[Literal["decider_node", "router_node"]]:
+        if state.get("needs_human_transfer"):
+            return Command(goto="decider_node", update={})
+
+        eval_result = await evaluator.evaluate(
+            answer=state.get("answer", ""),
+            question=state.get("question", ""),
+            history=state.get("history", []),
+            retrieval_result=state.get("retrieval_result"),
         )
 
+        if (
+            eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD
+            and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES
+        ):
+            return Command(goto="router_node", update={"retry_requested": True, **eval_result})
 
-async def policy_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-    result = await policy_agent.process(state)
-    updates: dict[str, Any] = {"answer": result.get("response", "")}
-    if result.get("updated_state"):
-        updates.update(result["updated_state"])
-    updates["current_agent"] = "policy_agent"
-    return Command(goto="evaluator_node", update=updates)
+        return Command(goto="decider_node", update=eval_result)
 
-
-async def order_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-    result = await order_agent.process(state)
-    updates: dict[str, Any] = {"answer": result.get("response", "")}
-    if result.get("updated_state"):
-        updates.update(result["updated_state"])
-    updates["current_agent"] = "order_agent"
-    return Command(goto="evaluator_node", update=updates)
-
-
-async def evaluator_node(state: AgentState) -> Command[Literal["decider_node", "router_node"]]:
-    if state.get("needs_human_transfer"):
-        return Command(goto="decider_node", update={})
-
-    eval_result = await evaluator.evaluate(
-        answer=state.get("answer", ""),
-        question=state.get("question", ""),
-        history=state.get("history", []),
-        retrieval_result=state.get("retrieval_result"),
-    )
-
-    if (
-        eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD
-        and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES
-    ):
-        return Command(goto="router_node", update={"retry_requested": True, **eval_result})
-
-    return Command(goto="decider_node", update=eval_result)
+    return evaluator_node
 
 
 def decider_node(state: AgentState) -> dict:
-    """转人工最终决策节点"""
     if state.get("needs_human_transfer"):
         return {
             "answer": state.get("answer", ""),

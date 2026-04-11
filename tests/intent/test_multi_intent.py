@@ -47,14 +47,6 @@ class TestMultiIntentResult:
 class TestMultiIntentProcessorInitialization:
     """测试 MultiIntentProcessor 初始化"""
 
-    def test_init_without_classifier(self) -> None:
-        """测试无分类器初始化"""
-        processor = MultiIntentProcessor()
-        assert processor.classifier is None
-        assert processor.mode == "cascade"
-        assert processor.MAX_INTENTS == 2
-        assert len(processor.SEPARATORS) > 0
-
     def test_init_with_classifier(self) -> None:
         """测试带分类器初始化"""
         mock_classifier = MagicMock()
@@ -64,12 +56,12 @@ class TestMultiIntentProcessorInitialization:
 
     def test_init_with_single_mode(self) -> None:
         """测试single模式初始化"""
-        processor = MultiIntentProcessor(mode="single")
+        processor = MultiIntentProcessor(classifier=MagicMock(), mode="single")
         assert processor.mode == "single"
 
     def test_init_with_cascade_mode(self) -> None:
         """测试cascade模式初始化"""
-        processor = MultiIntentProcessor(mode="cascade")
+        processor = MultiIntentProcessor(classifier=MagicMock(), mode="cascade")
         assert processor.mode == "cascade"
 
 
@@ -78,79 +70,79 @@ class TestMultiIntentProcessorSplitQuery:
 
     def test_single_intent_no_separator(self) -> None:
         """测试单意图无分隔符"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询我的订单")
         assert segments == ["查询我的订单"]
 
     def test_split_with_separator_bianshun(self) -> None:
         """测试使用'顺便'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单顺便申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_separator_haiyou(self) -> None:
         """测试使用'还有'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单还有申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_separator_lingwai(self) -> None:
         """测试使用'另外'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单另外申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_separator_yiji(self) -> None:
         """测试使用'以及'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单以及申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_separator_he(self) -> None:
         """测试'和'不再作为分隔符（避免正常单意图被误拆分）"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单和申请退款")
         assert segments == ["查询订单和申请退款"]
 
     def test_split_with_punctuation_comma(self) -> None:
         """测试使用'，然后'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单，然后申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_punctuation_period_lingwai(self) -> None:
         """测试使用'。另外'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单。另外申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_punctuation_period_haiyou(self) -> None:
         """测试使用'。还有'分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单。还有申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_semicolon(self) -> None:
         """测试使用分号分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单;申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_with_fullwidth_semicolon(self) -> None:
         """测试使用全角分号分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单；申请退款")
         assert segments == ["查询订单", "申请退款"]
 
     def test_split_multiple_separators(self) -> None:
         """测试多个分隔符"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("查询订单顺便申请退款还有查看物流")
         assert segments == ["查询订单", "申请退款", "查看物流"]
 
     def test_split_with_whitespace(self) -> None:
         """测试带空白的分隔"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         segments = processor._split_query("  查询订单  顺便  申请退款  ")
         assert segments == ["查询订单", "申请退款"]
 
@@ -160,13 +152,13 @@ class TestMultiIntentProcessorExtractSharedSlots:
 
     def test_extract_shared_slots_empty(self) -> None:
         """测试空意图列表"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         shared = processor._extract_shared_slots([])
         assert shared == {}
 
     def test_extract_shared_slots_single_intent(self) -> None:
         """测试单意图槽位提取"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         intent = IntentResult(
             primary_intent=IntentCategory.ORDER,
             secondary_intent=IntentAction.QUERY,
@@ -177,7 +169,7 @@ class TestMultiIntentProcessorExtractSharedSlots:
 
     def test_extract_shared_slots_multiple_intents(self) -> None:
         """测试多意图槽位合并"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         intent1 = IntentResult(
             primary_intent=IntentCategory.ORDER,
             secondary_intent=IntentAction.QUERY,
@@ -194,7 +186,7 @@ class TestMultiIntentProcessorExtractSharedSlots:
 
     def test_extract_shared_slots_none_slots(self) -> None:
         """测试槽位为None的情况"""
-        processor = MultiIntentProcessor()
+        processor = MultiIntentProcessor(classifier=MagicMock())
         intent1 = IntentResult(
             primary_intent=IntentCategory.ORDER,
             secondary_intent=IntentAction.QUERY,
@@ -211,15 +203,6 @@ class TestMultiIntentProcessorExtractSharedSlots:
 
 class TestMultiIntentProcessorProcess:
     """测试主处理流程"""
-
-    @pytest.mark.asyncio
-    async def test_process_single_intent_without_classifier(self) -> None:
-        """测试无分类器时单意图处理"""
-        processor = MultiIntentProcessor()
-        result = await processor.process("查询订单")
-        assert result.is_multi_intent is False
-        assert result.sub_intents == []
-        assert result.shared_slots == {}
 
     @pytest.mark.asyncio
     async def test_process_single_intent_with_classifier(self) -> None:
@@ -353,68 +336,28 @@ class TestMultiIntentProcessorProcess:
         mock_classifier.classify.assert_called_once_with("查询订单", {"history": history})
 
     @pytest.mark.asyncio
-    async def test_process_classifier_returns_none(self) -> None:
-        """测试分类器返回None的情况"""
-        mock_classifier = AsyncMock()
-        mock_classifier.classify.return_value = None
-
-        processor = MultiIntentProcessor(classifier=mock_classifier)
-        result = await processor.process("查询订单顺便申请退款")
-
-        assert result.is_multi_intent is True
-        assert result.sub_intents == []  # None被过滤
-        assert result.shared_slots == {}
-
-    @pytest.mark.asyncio
-    async def test_process_multi_intent_partial_none(self) -> None:
-        """测试部分意图返回None"""
-        mock_classifier = AsyncMock()
-        mock_classifier.classify.side_effect = [
-            IntentResult(
-                primary_intent=IntentCategory.ORDER,
-                secondary_intent=IntentAction.QUERY,
-                confidence=0.9,
-                slots={"order_id": "123"},
-            ),
-            None,  # 第二个意图返回None
-        ]
-
-        processor = MultiIntentProcessor(classifier=mock_classifier)
-        result = await processor.process("查询订单顺便申请退款")
-
-        assert result.is_multi_intent is True
-        assert len(result.sub_intents) == 1
-        assert result.sub_intents[0].primary_intent == IntentCategory.ORDER
-
-    @pytest.mark.asyncio
     async def test_process_classifier_exception_single_intent(self) -> None:
-        """测试单意图时分类器异常处理"""
+        """测试单意图时分类器异常直接抛出"""
         mock_classifier = AsyncMock()
-        mock_classifier.classify.side_effect = Exception("分类器错误")
+        mock_classifier.classify.side_effect = ValueError("分类器错误")
 
         processor = MultiIntentProcessor(classifier=mock_classifier)
-        result = await processor.process("查询订单")
-
-        # 应该优雅降级，返回空结果
-        assert result.is_multi_intent is False
-        assert result.sub_intents == []
+        with pytest.raises(ValueError, match="分类器错误"):
+            await processor.process("查询订单")
 
     @pytest.mark.asyncio
     async def test_process_classifier_exception_multi_intent(self) -> None:
-        """测试多意图时分类器异常处理"""
+        """测试多意图时分类器异常直接抛出"""
         mock_classifier = AsyncMock()
-        mock_classifier.classify.side_effect = Exception("分类器错误")
+        mock_classifier.classify.side_effect = ValueError("分类器错误")
 
         processor = MultiIntentProcessor(classifier=mock_classifier)
-        result = await processor.process("查询订单顺便申请退款")
-
-        # 应该优雅降级，返回空子意图列表
-        assert result.is_multi_intent is True
-        assert result.sub_intents == []
+        with pytest.raises(ValueError, match="分类器错误"):
+            await processor.process("查询订单顺便申请退款")
 
     @pytest.mark.asyncio
     async def test_process_classifier_partial_exception(self) -> None:
-        """测试部分segment分类异常，其他正常处理"""
+        """测试部分segment分类异常时直接抛出"""
         mock_classifier = AsyncMock()
         mock_classifier.classify.side_effect = [
             IntentResult(
@@ -423,13 +366,9 @@ class TestMultiIntentProcessorProcess:
                 confidence=0.9,
                 slots={"order_id": "123"},
             ),
-            Exception("第二个segment失败"),
+            ValueError("第二个segment失败"),
         ]
 
         processor = MultiIntentProcessor(classifier=mock_classifier)
-        result = await processor.process("查询订单顺便申请退款")
-
-        # 应该返回第一个成功的结果
-        assert result.is_multi_intent is True
-        assert len(result.sub_intents) == 1
-        assert result.sub_intents[0].primary_intent == IntentCategory.ORDER
+        with pytest.raises(ValueError, match="第二个segment失败"):
+            await processor.process("查询订单顺便申请退款")

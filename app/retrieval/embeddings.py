@@ -1,12 +1,9 @@
-import functools
-
 import httpx
-from langchain_core.embeddings import Embeddings
 
 from app.core.config import settings
 
 
-class QwenEmbeddings(Embeddings):
+class QwenEmbeddings:
     """通义千问 Embedding API 适配器"""
 
     def __init__(self, base_url: str, api_key: str, model: str, dimensions: int):
@@ -14,12 +11,6 @@ class QwenEmbeddings(Embeddings):
         self.api_key = api_key
         self.model = model
         self.dimensions = dimensions
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        raise NotImplementedError("请使用异步方法 aembed_documents")
-
-    def embed_query(self, text: str) -> list[float]:
-        raise NotImplementedError("请使用异步方法 aembed_query")
 
     async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
         async with httpx.AsyncClient() as client:
@@ -41,8 +32,7 @@ class QwenEmbeddings(Embeddings):
         return results[0]
 
 
-@functools.lru_cache(maxsize=1)
-def get_embedding_model() -> QwenEmbeddings:
+def create_embedding_model() -> QwenEmbeddings:
     return QwenEmbeddings(
         base_url=settings.OPENAI_BASE_URL,
         api_key=settings.OPENAI_API_KEY,

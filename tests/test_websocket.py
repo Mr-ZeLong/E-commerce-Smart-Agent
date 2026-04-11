@@ -7,7 +7,7 @@ from starlette.websockets import WebSocketDisconnect
 from app.core.security import create_access_token
 from app.core.utils import build_thread_id
 from app.main import app
-from app.websocket.manager import manager
+from app.websocket.manager import ConnectionManager
 
 
 class TestBuildThreadId:
@@ -31,6 +31,7 @@ class TestBuildThreadId:
 class TestWebsocketSecurity:
     @pytest.fixture(autouse=True)
     def setup_client(self):
+        app.state.manager = ConnectionManager()
         self.client = TestClient(app)
 
     def test_connect_user_scopes_thread_id(self):
@@ -40,8 +41,8 @@ class TestWebsocketSecurity:
         expected_scoped = build_thread_id(7, thread_id)
 
         with self.client.websocket_connect(f"/api/v1/ws/{thread_id}?token={token}"):
-            assert 7 in manager.active_connections
-            assert expected_scoped in manager.active_connections[7]
+            assert 7 in app.state.manager.active_connections
+            assert expected_scoped in app.state.manager.active_connections[7]
 
     def test_user_b_cannot_access_user_a_scoped_thread(self):
         """验证用户B无法订阅或访问用户A的限定线程。"""
@@ -56,9 +57,12 @@ class TestWebsocketSecurity:
             scoped_a = build_thread_id(1, thread_id)
             scoped_b = build_thread_id(2, thread_id)
 
-            assert scoped_a in manager.thread_subscribers
-            assert scoped_b in manager.thread_subscribers
-            assert manager.thread_subscribers[scoped_a] != manager.thread_subscribers[scoped_b]
+            assert scoped_a in app.state.manager.thread_subscribers
+            assert scoped_b in app.state.manager.thread_subscribers
+            assert (
+                app.state.manager.thread_subscribers[scoped_a]
+                != app.state.manager.thread_subscribers[scoped_b]
+            )
 
     def test_invalid_token_does_not_leak_details(self):
         """无效 Token 时不应向客户端暴露内部错误详情。"""
@@ -100,8 +104,9 @@ class TestWebsocketSecurity:
 
         with (
             pytest.raises(WebSocketDisconnect) as exc_info,
-            patch(
-                "app.api.v1.websocket.manager.connect_user",
+            patch.object(
+                app.state.manager,
+                "connect_user",
                 side_effect=RuntimeError("boom"),
             ),
             self.client.websocket_connect(f"/api/v1/ws/some-thread?token={token}") as websocket,

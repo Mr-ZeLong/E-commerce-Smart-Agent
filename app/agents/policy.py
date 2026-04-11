@@ -1,9 +1,13 @@
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from langchain_openai import ChatOpenAI
 
 from app.agents.base import BaseAgent
 from app.models.state import AgentState
-from app.retrieval import get_retriever
+
+if TYPE_CHECKING:
+    from app.retrieval.retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +23,9 @@ POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 class PolicyAgent(BaseAgent):
     """政策专家 Agent"""
 
-    def __init__(self):
-        super().__init__(name="policy", system_prompt=POLICY_SYSTEM_PROMPT)
+    def __init__(self, retriever: "HybridRetriever", llm: ChatOpenAI):
+        super().__init__(name="policy", llm=llm, system_prompt=POLICY_SYSTEM_PROMPT)
+        self.retriever = retriever
 
     async def process(self, state: AgentState) -> dict[str, Any]:
         question = state.get("question", "")
@@ -42,8 +47,7 @@ class PolicyAgent(BaseAgent):
         }
 
     async def _retrieve_knowledge(self, question: str) -> tuple[list[str], list[float], list[str]]:
-        retriever = get_retriever()
-        results = await retriever.retrieve(question)
+        results = await self.retriever.retrieve(question)
         chunks = [r.content for r in results]
         similarities = [r.score for r in results]
         sources = [r.source for r in results]

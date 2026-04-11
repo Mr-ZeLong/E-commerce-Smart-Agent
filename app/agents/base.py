@@ -2,11 +2,11 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
+from langchain_core.exceptions import LangChainException
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 
-from app.core.config import settings
-from app.core.llm_factory import create_openai_llm
 from app.models.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -18,16 +18,12 @@ class BaseAgent(ABC):
     def __init__(
         self,
         name: str,
+        llm: ChatOpenAI,
         system_prompt: str | None = None,
-        llm_model: str | None = None,
-        llm: ChatOpenAI | None = None,
     ):
         self.name = name
+        self.llm = llm
         self.system_prompt = system_prompt
-        if llm is not None:
-            self.llm = llm
-        else:
-            self.llm = create_openai_llm(model=llm_model or settings.LLM_MODEL)
 
     @abstractmethod
     async def process(self, state: AgentState) -> dict[str, Any]:
@@ -37,18 +33,20 @@ class BaseAgent(ABC):
         self, messages: list, temperature: float | None = None, tags: list[str] | None = None
     ) -> str:
         try:
-            config: dict[str, Any] = {}
+            llm = self.llm
             if temperature is not None:
-                config["temperature"] = temperature
+                llm = self.llm.bind(temperature=temperature)
+
+            config: RunnableConfig = {}
             if tags:
                 config["tags"] = tags
 
             if config:
-                response = await self.llm.ainvoke(messages, config=config)  # type: ignore
+                response = await llm.ainvoke(messages, config=config)
             else:
-                response = await self.llm.ainvoke(messages)
+                response = await llm.ainvoke(messages)
             return str(response.content)
-        except Exception as e:
+        except (LangChainException, ConnectionError) as e:
             logger.error(f"[{self.name}] LLM 调用失败: {e}")
             raise
 

@@ -62,7 +62,7 @@ def _decode_token(
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str = payload.get("sub")  # ty:ignore[invalid-assignment]
+        user_id = payload.get("sub")
 
         if user_id is None:
             raise HTTPException(

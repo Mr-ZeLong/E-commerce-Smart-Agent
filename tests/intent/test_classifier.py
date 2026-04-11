@@ -2,9 +2,10 @@
 
 测试场景:
 - Function Calling成功
-- Function Calling失败降级到JSON解析
-- 规则匹配（无LLM时）
+- Function Calling无结果时降级到规则匹配
+- 规则匹配（直接调用 _classify_with_rules）
 - 三级意图验证（合法和非法）
+- LLM异常直接抛出
 """
 
 import json
@@ -23,6 +24,7 @@ from app.intent.models import IntentAction, IntentCategory, IntentResult
 def mock_llm():
     """创建Mock LLM"""
     mock = MagicMock(spec=ChatOpenAI)
+    mock.with_structured_output = MagicMock(return_value=mock)
     return mock
 
 
@@ -65,6 +67,7 @@ def create_mock_response_with_content(content: str):
     mock_response = MagicMock()
     mock_response.additional_kwargs = {}  # 无工具调用
     mock_response.content = content
+    mock_response.tool_calls = []
     return mock_response
 
 
@@ -101,241 +104,88 @@ async def test_function_calling_success(classifier, mock_llm):
 
 @pytest.mark.asyncio
 async def test_function_calling_no_tool_calls(classifier, mock_llm):
-    """测试Function Calling无工具调用时降级到JSON解析"""
-    # 第一层：Function Calling返回无工具调用
-    mock_response_no_tools = MagicMock()
-    mock_response_no_tools.additional_kwargs = {}  # 无工具调用
-    mock_response_no_tools.content = ""
-
-    # 第二层：JSON解析成功
-    json_response = create_mock_response_with_content(
-        json.dumps(
-            {
-                "primary_intent": "AFTER_SALES",
-                "secondary_intent": "APPLY",
-                "tertiary_intent": "REFUND",
-                "confidence": 0.88,
-                "slots": {"reason": "不喜欢"},
-            }
-        )
-    )
-
-    # 设置Mock - 第一次调用无工具，第二次调用返回JSON
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=[mock_response_no_tools, json_response])
-
-    # 执行测试
-    result = await classifier.classify("我想退货")
-
-    # 验证降级到JSON解析成功
-    assert result.primary_intent == IntentCategory.AFTER_SALES
-    assert result.secondary_intent == IntentAction.APPLY
-    assert result.tertiary_intent == "REFUND"
-
-
-@pytest.mark.asyncio
-async def test_function_calling_exception_fallback(classifier, mock_llm):
-    """测试Function Calling异常时降级"""
-    # 第一层：Function Calling抛出异常
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(
-        side_effect=[
-            Exception("Function calling failed"),
-            # 降级到JSON解析
-            create_mock_response_with_content(
-                json.dumps(
-                    {
-                        "primary_intent": "POLICY",
-                        "secondary_intent": "CONSULT",
-                        "tertiary_intent": "POLICY_SHIPPING_FEE",
-                        "confidence": 0.85,
-                        "slots": {},
-                    }
-                )
-            ),
-        ]
-    )
-
-    # 执行测试
-    result = await classifier.classify("运费怎么算")
-
-    # 验证降级成功
-    assert result.primary_intent == IntentCategory.POLICY
-    assert result.secondary_intent == IntentAction.CONSULT
-
-
-# ========== Layer 2: JSON Parsing Tests ==========
-
-
-@pytest.mark.asyncio
-async def test_json_parsing_success(classifier, mock_llm):
-    """测试JSON解析成功"""
-    # 设置Mock - Function Calling失败，JSON解析成功
-    mock_response_no_tools = MagicMock()
-    mock_response_no_tools.additional_kwargs = {}
-    mock_response_no_tools.content = ""
-
-    json_response = create_mock_response_with_content(
-        json.dumps(
-            {
-                "primary_intent": "PRODUCT",
-                "secondary_intent": "QUERY",
-                "tertiary_intent": "PRODUCT_STOCK",
-                "confidence": 0.82,
-                "slots": {"product_name": "iPhone 15"},
-            }
-        )
-    )
+    """测试Function Calling无工具调用时降级到规则匹配"""
+    # Function Calling返回无工具调用
+    mock_response_no_tools = create_mock_response_with_content("")
 
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=[mock_response_no_tools, json_response])
-
-    # 执行测试
-    result = await classifier.classify("iPhone 15有货吗")
-
-    # 验证结果
-    assert result.primary_intent == IntentCategory.PRODUCT
-    assert result.secondary_intent == IntentAction.QUERY
-    assert result.confidence == 0.82
-
-
-@pytest.mark.asyncio
-async def test_json_parsing_with_markdown_code_block(classifier, mock_llm):
-    """测试解析Markdown代码块中的JSON"""
-    mock_response_no_tools = MagicMock()
-    mock_response_no_tools.additional_kwargs = {}
-    mock_response_no_tools.content = ""
-
-    # LLM返回带Markdown格式的JSON
-    markdown_json = create_mock_response_with_content("""
-根据您的输入，分析结果如下:
-
-```json
-{
-    "primary_intent": "CART",
-    "secondary_intent": "ADD",
-    "tertiary_intent": "CART_ADD_ITEM",
-    "confidence": 0.90,
-    "slots": {"product_name": "运动鞋", "quantity": 2}
-}
-```
-""")
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=[mock_response_no_tools, markdown_json])
-
-    # 执行测试
-    result = await classifier.classify("加2双运动鞋到购物车")
-
-    # 验证结果
-    assert result.primary_intent == IntentCategory.CART
-    assert result.secondary_intent == IntentAction.ADD
-    assert result.slots.get("product_name") == "运动鞋"
-
-
-@pytest.mark.asyncio
-async def test_json_parsing_invalid_json_fallback(classifier, mock_llm):
-    """测试JSON解析失败时降级到规则匹配"""
-    # 所有LLM调用都失败
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(
-        side_effect=[Exception("Function calling failed"), Exception("JSON parsing failed")]
-    )
+    mock_llm.ainvoke = AsyncMock(return_value=mock_response_no_tools)
 
     # 执行测试 - 使用规则能匹配的关键词
-    result = await classifier.classify("我想查订单状态")
+    result = await classifier.classify("我想退货")
 
     # 验证降级到规则匹配
-    assert result.primary_intent == IntentCategory.ORDER
-    assert result.secondary_intent == IntentAction.QUERY
-    assert result.confidence == 0.5  # 规则匹配的置信度
-
-
-# ========== Layer 3: Rule Matching Tests ==========
+    assert result.primary_intent == IntentCategory.AFTER_SALES
+    assert result.secondary_intent == IntentAction.APPLY
 
 
 @pytest.mark.asyncio
-async def test_rule_matching_order_query(classifier, mock_llm):
-    """测试规则匹配 - 订单查询"""
+async def test_function_calling_exception_propagates(classifier, mock_llm):
+    """测试Function Calling异常直接抛出"""
     mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
+    mock_llm.ainvoke = AsyncMock(side_effect=ValueError("Function calling failed"))
 
-    result = await classifier.classify("我的订单SN12345到哪了")
+    with pytest.raises(ValueError, match="Function calling failed"):
+        await classifier.classify("运费怎么算")
+
+
+# ========== Layer 2: Rule Matching Tests ==========
+
+
+def test_rule_matching_order_query(classifier):
+    """测试规则匹配 - 订单查询"""
+    result = classifier._classify_with_rules("我的订单SN12345到哪了")
 
     assert result.primary_intent == IntentCategory.ORDER
     assert result.secondary_intent == IntentAction.QUERY
     assert "matched_pattern" in result.slots
 
 
-@pytest.mark.asyncio
-async def test_rule_matching_after_sales_apply(classifier, mock_llm):
+def test_rule_matching_after_sales_apply(classifier):
     """测试规则匹配 - 售后申请"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
-    result = await classifier.classify("我想申请退货")
+    result = classifier._classify_with_rules("我想申请退货")
 
     assert result.primary_intent == IntentCategory.AFTER_SALES
     assert result.secondary_intent == IntentAction.APPLY
 
 
-@pytest.mark.asyncio
-async def test_rule_matching_policy_consult(classifier, mock_llm):
+def test_rule_matching_policy_consult(classifier):
     """测试规则匹配 - 政策咨询"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
-    result = await classifier.classify("运费怎么算")
+    result = classifier._classify_with_rules("运费怎么算")
 
     assert result.primary_intent == IntentCategory.POLICY
     assert result.secondary_intent == IntentAction.CONSULT
 
 
-@pytest.mark.asyncio
-async def test_rule_matching_cart_add(classifier, mock_llm):
+def test_rule_matching_cart_add(classifier):
     """测试规则匹配 - 添加购物车"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
-    result = await classifier.classify("把这个加入购物车")
+    result = classifier._classify_with_rules("把这个加入购物车")
 
     assert result.primary_intent == IntentCategory.CART
     assert result.secondary_intent == IntentAction.ADD
 
 
-@pytest.mark.asyncio
-async def test_rule_matching_default_other(classifier, mock_llm):
+def test_rule_matching_default_other(classifier):
     """测试规则匹配 - 无匹配时默认OTHER"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
     # 使用无法匹配任何规则的关键词
-    result = await classifier.classify("xyzabc123")
+    result = classifier._classify_with_rules("xyzabc123")
 
     assert result.primary_intent == IntentCategory.OTHER
     assert result.secondary_intent == IntentAction.CONSULT
     assert result.confidence == 0.3
 
 
-@pytest.mark.asyncio
-async def test_rule_matching_logistics_query(classifier, mock_llm):
+def test_rule_matching_logistics_query(classifier):
     """测试规则匹配 - 物流查询"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
-    result = await classifier.classify("快递到哪了")
+    result = classifier._classify_with_rules("快递到哪了")
 
     assert result.primary_intent == IntentCategory.LOGISTICS
     assert result.secondary_intent == IntentAction.QUERY
 
 
-@pytest.mark.asyncio
-async def test_rule_matching_greeting(classifier, mock_llm):
+def test_rule_matching_greeting(classifier):
     """测试规则匹配 - 问候语"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
-    result = await classifier.classify("你好")
+    result = classifier._classify_with_rules("你好")
 
     assert result.primary_intent == IntentCategory.OTHER
     assert result.secondary_intent == IntentAction.CONSULT
@@ -427,8 +277,8 @@ def test_validate_intent_result_valid(classifier):
 
 def test_validate_intent_result_invalid_primary(classifier):
     """测试验证无效的一级意图"""
-    result = IntentResult(
-        primary_intent="INVALID",  # type: ignore  # 无效的枚举值
+    result = IntentResult.model_construct(
+        primary_intent="INVALID",
         secondary_intent=IntentAction.QUERY,
         confidence=0.85,
         slots={},
@@ -506,13 +356,9 @@ async def test_classification_with_context(classifier, mock_llm):
 # ========== Edge Case Tests ==========
 
 
-@pytest.mark.asyncio
-async def test_empty_query(classifier, mock_llm):
-    """测试空输入"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("Empty query"))
-
-    result = await classifier.classify("")
+def test_empty_query(classifier):
+    """测试空输入直接走规则匹配"""
+    result = classifier._classify_with_rules("")
 
     # 应该降级到规则匹配，默认OTHER
     assert result.primary_intent == IntentCategory.OTHER
@@ -540,26 +386,44 @@ async def test_very_long_query(classifier, mock_llm):
     assert result is not None
 
 
-@pytest.mark.asyncio
-async def test_special_characters_query(classifier, mock_llm):
-    """测试特殊字符输入"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("Special chars"))
-
+def test_special_characters_query(classifier):
+    """测试特殊字符输入直接走规则匹配"""
     # 使用规则能匹配的关键词
-    result = await classifier.classify("订单!@#$%^&*()")
+    result = classifier._classify_with_rules("订单!@#$%^&*()")
 
     assert result is not None
+    assert isinstance(result, IntentResult)
 
 
-@pytest.mark.asyncio
-async def test_multiple_keywords_match(classifier, mock_llm):
+def test_multiple_keywords_match(classifier):
     """测试多个关键词匹配"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM failed"))
-
     # 同时包含订单和退货关键词
-    result = await classifier.classify("订单SN123我想退货")
+    result = classifier._classify_with_rules("订单SN123我想退货")
 
     # 应该匹配其中一个规则
     assert result.confidence == 0.5  # 规则匹配的置信度
+
+
+# ========== Invalid Function Calling Result Tests ==========
+
+
+@pytest.mark.asyncio
+async def test_invalid_function_result_falls_back_to_rules(classifier, mock_llm):
+    """测试Function Calling返回无效结果时降级到规则匹配"""
+    tool_args = {
+        "primary_intent": "ORDER",
+        "secondary_intent": "QUERY",
+        "tertiary_intent": None,
+        "confidence": 1.5,  # 无效置信度，触发 _finalize_result 验证失败
+        "slots": {},
+    }
+    mock_response = create_mock_response_with_tool_calls(tool_args)
+
+    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
+    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+
+    result = await classifier.classify("我的订单状态")
+
+    # 无效结果触发 _finalize_result 中的验证失败，降级到规则匹配
+    assert result.primary_intent == IntentCategory.ORDER
+    assert result.secondary_intent == IntentAction.QUERY

@@ -11,8 +11,8 @@ from app.core.config import settings
 # 创建 Celery 实例
 celery_app = Celery(
     "ecommerce_agent",
-    broker=settings.CELERY_BROKER,
-    backend=settings.CELERY_BACKEND,
+    broker=settings.CELERY_BROKER_URL,
+    backend=settings.CELERY_RESULT_BACKEND,
 )
 
 # Celery 配置

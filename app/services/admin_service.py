@@ -4,14 +4,14 @@ from collections.abc import Sequence
 from sqlmodel import desc, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.utils import build_thread_id, naive_utc_now, utc_now
+from app.core.utils import build_thread_id, utc_now
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
 from app.schemas.admin import AdminDecisionResponse, AuditTask, TaskStatsResponse
 from app.tasks.refund_tasks import process_refund_payment, send_refund_sms
-from app.websocket.manager import manager
+from app.websocket.manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,43 +24,9 @@ class AuditAlreadyProcessedError(Exception):
     pass
 
 
-def _build_audit_task(log: AuditLog, trigger_reason: str | None = None) -> AuditTask:
-    """将 AuditLog 转换为 AuditTask"""
-    return AuditTask(
-        audit_log_id=log.id,  # type: ignore
-        thread_id=log.thread_id,
-        user_id=log.user_id,
-        refund_application_id=log.refund_application_id,
-        order_id=log.order_id,
-        trigger_reason=trigger_reason if trigger_reason is not None else log.trigger_reason,
-        risk_level=log.risk_level,
-        context_snapshot=log.context_snapshot,
-        created_at=log.created_at.isoformat(),
-    )
-
-
-def _build_audit_tasks(audit_logs: Sequence[AuditLog]) -> list[AuditTask]:
-    """将 AuditLog 列表转换为 AuditTask 列表"""
-    return [_build_audit_task(log) for log in audit_logs]
-
-
-async def _count_pending_by_trigger(session: AsyncSession, trigger_type: AuditTriggerType) -> int:
-    """统计指定触发类型的待审核任务数量"""
-    stmt = (
-        select(func.count())
-        .select_from(AuditLog)
-        .where(AuditLog.action == AuditAction.PENDING, AuditLog.trigger_type == trigger_type)
-    )
-    result = await session.exec(stmt)
-    return result.one()
-
-
 class AdminService:
-    def __init__(self):
-        self.process_refund_payment = process_refund_payment
-        self.send_refund_sms = send_refund_sms
+    def __init__(self, manager: ConnectionManager):
         self.manager = manager
-        self.build_thread_id = build_thread_id
 
     async def get_pending_tasks(
         self, session: AsyncSession, risk_level: str | None = None
@@ -142,13 +108,13 @@ class AdminService:
         audit_log.action = action_enum
         audit_log.admin_id = current_admin_id
         audit_log.admin_comment = admin_comment
-        audit_log.reviewed_at = naive_utc_now()
+        audit_log.reviewed_at = utc_now()
 
         session.add(audit_log)
 
         user_result = await session.exec(select(User).where(User.id == audit_log.user_id))
         user = user_result.one_or_none()
-        phone = user.phone if user and getattr(user, "phone", None) else None
+        phone = user.phone if user else None
 
         payment_task_kwargs: dict[str, object] | None = None
         sms_task_kwargs: dict[str, object] | None = None
@@ -166,7 +132,7 @@ class AdminService:
                     refund.status = RefundStatus.APPROVED
                     refund.admin_note = admin_comment
                     refund.reviewed_by = current_admin_id
-                    refund.reviewed_at = naive_utc_now()
+                    refund.reviewed_at = utc_now()
 
                     payment_task_kwargs = {
                         "refund_id": refund.id,
@@ -185,7 +151,7 @@ class AdminService:
                     refund.status = RefundStatus.REJECTED
                     refund.admin_note = admin_comment
                     refund.reviewed_by = current_admin_id
-                    refund.reviewed_at = naive_utc_now()
+                    refund.reviewed_at = utc_now()
 
                 session.add(refund)
 
@@ -215,20 +181,20 @@ class AdminService:
         await session.commit()
 
         if payment_task_kwargs is not None:
-            self.process_refund_payment.delay(**payment_task_kwargs)
+            process_refund_payment.delay(**payment_task_kwargs)
         if sms_task_kwargs is not None:
-            self.send_refund_sms.delay(**sms_task_kwargs)
+            send_refund_sms.delay(**sms_task_kwargs)
 
         try:
             await self.manager.notify_status_change(
-                thread_id=self.build_thread_id(audit_log.user_id, audit_log.thread_id),
+                thread_id=build_thread_id(audit_log.user_id, audit_log.thread_id),
                 status=action,
                 data={
                     "message": status_message,
                     "admin_comment": admin_comment,
                 },
             )
-        except Exception:
+        except (RuntimeError, ConnectionError):
             logger.exception("Failed to notify status change via WebSocket")
 
         return AdminDecisionResponse(
@@ -237,3 +203,33 @@ class AdminService:
             audit_log_id=audit_log_id,
             action=action,
         )
+
+
+def _build_audit_task(log: AuditLog, trigger_reason: str | None = None) -> AuditTask:
+    if log.id is None:
+        raise RuntimeError("Audit log ID is missing after creation")
+    return AuditTask(
+        audit_log_id=log.id,
+        thread_id=log.thread_id,
+        user_id=log.user_id,
+        refund_application_id=log.refund_application_id,
+        order_id=log.order_id,
+        trigger_reason=trigger_reason if trigger_reason is not None else log.trigger_reason,
+        risk_level=log.risk_level,
+        context_snapshot=log.context_snapshot,
+        created_at=log.created_at.isoformat(),
+    )
+
+
+def _build_audit_tasks(audit_logs: Sequence[AuditLog]) -> list[AuditTask]:
+    return [_build_audit_task(log) for log in audit_logs]
+
+
+async def _count_pending_by_trigger(session: AsyncSession, trigger_type: AuditTriggerType) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(AuditLog)
+        .where(AuditLog.action == AuditAction.PENDING, AuditLog.trigger_type == trigger_type)
+    )
+    result = await session.exec(stmt)
+    return result.one()

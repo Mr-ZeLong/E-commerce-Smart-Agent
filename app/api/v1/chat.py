@@ -11,6 +11,7 @@ from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
 from app.core.security import get_current_user_id
 from app.core.utils import build_thread_id
+from app.models.state import make_agent_state
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -41,28 +42,11 @@ async def chat(
         thread_id = build_thread_id(current_user_id, chat_request.thread_id)
         config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
 
-        initial_state = {
-            "question": chat_request.question,
-            "user_id": current_user_id,
-            "thread_id": thread_id,
-            "history": [],
-            "order_data": None,
-            "answer": "",
-            "current_agent": None,
-            "next_agent": None,
-            "iteration_count": 0,
-            "retry_requested": False,
-            "retrieval_result": None,
-            "messages": [],
-            "audit_level": None,
-            "audit_log_id": None,
-            "audit_reason": None,
-            "confidence_score": None,
-            "confidence_signals": None,
-            "refund_flow_active": None,
-            "refund_order_sn": None,
-            "refund_step": None,
-        }
+        initial_state = make_agent_state(
+            question=chat_request.question,
+            user_id=current_user_id,
+            thread_id=thread_id,
+        )
 
         # v4.1: 用于收集最终状态中的置信度信息
         final_state = {}
@@ -151,11 +135,8 @@ async def chat(
         except asyncio.CancelledError:
             logger.info("[Chat] Client disconnected (CancelledError)")
             raise
-        except Exception:
-            logger.exception("[Chat] SSE streaming error")
-            error_payload = json.dumps(
-                {"error": "系统处理出现问题，请稍后重试"}, ensure_ascii=False
-            )
-            yield f"data: {error_payload}\n\n"
+        except (ConnectionResetError, BrokenPipeError):
+            logger.info("[Chat] Client disconnected during SSE streaming")
+            return
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

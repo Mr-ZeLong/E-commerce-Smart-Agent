@@ -71,10 +71,23 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
-        # 构建异步连接字符串: postgresql+asyncpg://...
         return str(
             PostgresDsn.build(
                 scheme="postgresql+asyncpg",
+                username=self.POSTGRES_USER,
+                password=self.POSTGRES_PASSWORD,
+                host=self.POSTGRES_SERVER,
+                port=self.POSTGRES_PORT,
+                path=self.POSTGRES_DB,
+            )
+        )
+
+    @computed_field
+    @property
+    def SYNC_DATABASE_URL(self) -> str:
+        return str(
+            PostgresDsn.build(
+                scheme="postgresql",
                 username=self.POSTGRES_USER,
                 password=self.POSTGRES_PASSWORD,
                 host=self.POSTGRES_SERVER,
@@ -103,20 +116,21 @@ class Settings(BaseSettings):
     # LLM (Qwen)
     OPENAI_BASE_URL: str
     OPENAI_API_KEY: str
-    DASHSCOPE_API_KEY: str | None = None
+    DASHSCOPE_API_KEY: str
     LLM_MODEL: str = "qwen-plus"
     EMBEDDING_MODEL: str = "text-embedding-v3"
     EMBEDDING_DIM: int = 1024
 
     # Qdrant
     QDRANT_URL: str = "http://localhost:6333"
-    QDRANT_API_KEY: str | None = None
+    QDRANT_API_KEY: str
     QDRANT_COLLECTION_NAME: str = "knowledge_chunks"
     QDRANT_TIMEOUT: int = 10
     QDRANT_RETRIES: int = 3
 
     # Reranker / Rewriter
     RERANK_MODEL: str = "qwen3-rerank"
+    RERANK_BASE_URL: str
     REWRITE_MODEL: str = "qwen-turbo"
     RERANK_TIMEOUT: float = 10.0
     REWRITE_TIMEOUT: float = 5.0
@@ -151,20 +165,8 @@ class Settings(BaseSettings):
     ENABLE_OPENAPI_DOCS: bool = False
 
     # Celery 配置
-    CELERY_BROKER_URL: str = ""  # 默认使用 REDIS_URL
-    CELERY_RESULT_BACKEND: str = ""  # 默认使用 REDIS_URL
-
-    @computed_field
-    @property
-    def CELERY_BROKER(self) -> str:
-        """Celery Broker URL"""
-        return self.CELERY_BROKER_URL or self.REDIS_URL
-
-    @computed_field
-    @property
-    def CELERY_BACKEND(self) -> str:
-        """Celery Result Backend URL"""
-        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
 
     # 风控阈值配置
     HIGH_RISK_REFUND_AMOUNT: float = 2000.0  # 高风险退款金额阈值
@@ -248,12 +250,12 @@ class Settings(BaseSettings):
         ]
     )
 
-    # Intent classification thresholds
+    # Intent classification threshold
     FUNCTION_CALLING_THRESHOLD: float = 0.7
-    JSON_PARSING_THRESHOLD: float = 0.6
 
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 
 
-settings = Settings()  # type: ignore
+# Settings reads from .env at runtime; ty flags required fields as missing during static analysis.
+settings: Settings = Settings()  # type: ignore

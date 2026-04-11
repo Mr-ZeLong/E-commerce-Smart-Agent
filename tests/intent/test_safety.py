@@ -142,22 +142,17 @@ class TestSafetyConfig:
 class TestSafetyFilterInitialization:
     """SafetyFilter 初始化测试"""
 
-    def test_init_without_llm(self):
-        """测试无LLM的初始化"""
-        safety_filter = SafetyFilter()
-        assert safety_filter.llm is None
-        assert isinstance(safety_filter.config, SafetyConfig)
-
-    def test_init_with_llm(self):
-        """测试带LLM的初始化"""
+    def test_init_with_llm_and_config(self):
+        """测试带LLM和配置的初始化"""
         mock_llm = MagicMock()
-        safety_filter = SafetyFilter(llm=mock_llm)
+        safety_filter = SafetyFilter(llm=mock_llm, config=SafetyConfig())
         assert safety_filter.llm is mock_llm
+        assert isinstance(safety_filter.config, SafetyConfig)
 
     def test_init_with_custom_config(self):
         """测试带自定义配置的初始化"""
         custom_config = SafetyConfig(sensitive_keywords=["custom"])
-        safety_filter = SafetyFilter(config=custom_config)
+        safety_filter = SafetyFilter(llm=MagicMock(), config=custom_config)
         assert safety_filter.config is custom_config
         assert "custom" in safety_filter.config.sensitive_keywords
 
@@ -167,7 +162,7 @@ class TestSafetyFilterKeywords:
 
     @pytest.fixture
     def safety_filter(self):
-        return SafetyFilter()
+        return SafetyFilter(llm=MagicMock(), config=SafetyConfig())
 
     @pytest.mark.asyncio
     async def test_safe_query(self, safety_filter):
@@ -241,7 +236,7 @@ class TestSafetyFilterInjection:
 
     @pytest.fixture
     def safety_filter(self):
-        return SafetyFilter()
+        return SafetyFilter(llm=MagicMock(), config=SafetyConfig())
 
     @pytest.mark.asyncio
     async def test_ignore_instruction_chinese(self, safety_filter):
@@ -314,7 +309,7 @@ class TestSafetyFilterCode:
 
     @pytest.fixture
     def safety_filter(self):
-        return SafetyFilter()
+        return SafetyFilter(llm=MagicMock(), config=SafetyConfig())
 
     @pytest.mark.asyncio
     async def test_code_block(self, safety_filter):
@@ -335,7 +330,7 @@ class TestSafetyFilterCode:
     async def test_inline_code_with_enabled_config(self):
         """测试启用行内代码检测后"""
         config = SafetyConfig(enable_inline_code_check=True)
-        safety_filter = SafetyFilter(config=config)
+        safety_filter = SafetyFilter(llm=MagicMock(), config=config)
         result = await safety_filter.check("请执行 `rm -rf /` 命令")
         assert result.is_safe is False
         assert result.risk_type == "code"
@@ -382,7 +377,7 @@ class TestSafetyFilterSemantic:
     @pytest.fixture
     def safety_filter(self):
         mock_llm = MagicMock()
-        return SafetyFilter(llm=mock_llm)
+        return SafetyFilter(llm=mock_llm, config=SafetyConfig())
 
     @pytest.mark.asyncio
     async def test_semantic_check_short_query(self, safety_filter):
@@ -390,28 +385,36 @@ class TestSafetyFilterSemantic:
         # 短查询（<=50字符）不应触发语义检测
         result = await safety_filter.check("短查询")
         assert result.is_safe is True
-        safety_filter.llm.ainvoke.assert_not_called()
+        safety_filter.llm.with_structured_output.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_semantic_check_safe(self, safety_filter):
         """测试语义检测通过"""
-        mock_response = MagicMock()
-        mock_response.content = "安全"
-        safety_filter.llm.ainvoke = AsyncMock(return_value=mock_response)
+        mock_structured = MagicMock()
+        mock_structured.ainvoke = AsyncMock(
+            return_value=SafetyCheckResult(
+                is_safe=True, risk_level="low", risk_type=None, reason="安全"
+            )
+        )
+        safety_filter.llm.with_structured_output = MagicMock(return_value=mock_structured)
 
         # Query must be > 50 characters to trigger semantic check
         result = await safety_filter.check(
             "这是一个很长的正常查询，用于测试语义安全检测功能，内容应该是完全安全的，没有任何问题，请仔细检查确认。"
         )
         assert result.is_safe is True
-        safety_filter.llm.ainvoke.assert_called_once()
+        safety_filter.llm.with_structured_output.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_semantic_check_unsafe_chinese(self, safety_filter):
         """测试中文不安全检测"""
-        mock_response = MagicMock()
-        mock_response.content = "不安全"
-        safety_filter.llm.ainvoke = AsyncMock(return_value=mock_response)
+        mock_structured = MagicMock()
+        mock_structured.ainvoke = AsyncMock(
+            return_value=SafetyCheckResult(
+                is_safe=False, risk_level="high", risk_type="semantic", reason="不安全"
+            )
+        )
+        safety_filter.llm.with_structured_output = MagicMock(return_value=mock_structured)
 
         # Query must be > 50 characters to trigger semantic check, avoid injection patterns
         result = await safety_filter.check(
@@ -424,9 +427,13 @@ class TestSafetyFilterSemantic:
     @pytest.mark.asyncio
     async def test_semantic_check_unsafe_english(self, safety_filter):
         """测试英文不安全检测"""
-        mock_response = MagicMock()
-        mock_response.content = "This is unsafe"
-        safety_filter.llm.ainvoke = AsyncMock(return_value=mock_response)
+        mock_structured = MagicMock()
+        mock_structured.ainvoke = AsyncMock(
+            return_value=SafetyCheckResult(
+                is_safe=False, risk_level="high", risk_type="semantic", reason="unsafe"
+            )
+        )
+        safety_filter.llm.with_structured_output = MagicMock(return_value=mock_structured)
 
         # Query must be > 50 characters, avoid injection patterns like "ignore"
         result = await safety_filter.check(
@@ -438,21 +445,14 @@ class TestSafetyFilterSemantic:
     @pytest.mark.asyncio
     async def test_semantic_check_exception(self, safety_filter):
         """测试语义检测异常处理"""
-        safety_filter.llm.ainvoke = AsyncMock(side_effect=Exception("LLM error"))
+        mock_structured = MagicMock()
+        mock_structured.ainvoke = AsyncMock(side_effect=ConnectionError("LLM error"))
+        safety_filter.llm.with_structured_output = MagicMock(return_value=mock_structured)
 
         result = await safety_filter.check(
             "这是一个很长的查询，用于测试异常情况处理，确保系统能够优雅地处理错误。"
         )
         # 异常时不应阻止查询，应视为安全
-        assert result.is_safe is True
-
-    @pytest.mark.asyncio
-    async def test_semantic_check_no_llm(self):
-        """测试无LLM时跳过语义检测"""
-        safety_filter = SafetyFilter(llm=None)
-        result = await safety_filter.check(
-            "这是一个很长的查询，但没有配置LLM，所以应该跳过语义检测。"
-        )
         assert result.is_safe is True
 
 
@@ -461,7 +461,7 @@ class TestSafetyFilterSanitize:
 
     @pytest.fixture
     def safety_filter(self):
-        return SafetyFilter()
+        return SafetyFilter(llm=MagicMock(), config=SafetyConfig())
 
     def test_sanitize_code_block(self, safety_filter):
         """测试代码块清理"""
@@ -521,7 +521,7 @@ class TestSafetyFilterPriority:
 
     @pytest.fixture
     def safety_filter(self):
-        return SafetyFilter()
+        return SafetyFilter(llm=MagicMock(), config=SafetyConfig())
 
     @pytest.mark.asyncio
     async def test_keyword_priority_over_injection(self, safety_filter):
@@ -546,7 +546,15 @@ class TestSafetyFilterEdgeCases:
 
     @pytest.fixture
     def safety_filter(self):
-        return SafetyFilter()
+        mock_llm = MagicMock()
+        mock_structured = MagicMock()
+        mock_structured.ainvoke = AsyncMock(
+            return_value=SafetyCheckResult(
+                is_safe=True, risk_level="low", risk_type=None, reason="安全"
+            )
+        )
+        mock_llm.with_structured_output = MagicMock(return_value=mock_structured)
+        return SafetyFilter(llm=mock_llm, config=SafetyConfig())
 
     @pytest.mark.asyncio
     async def test_empty_query(self, safety_filter):
@@ -625,7 +633,7 @@ class TestSafetyFilterReDoSProtection:
     async def test_redos_protection_check(self):
         """测试检查方法的ReDoS防护"""
         config = SafetyConfig(max_query_length=100)
-        safety_filter = SafetyFilter(config=config)
+        safety_filter = SafetyFilter(llm=MagicMock(), config=config)
 
         long_query = "A" * 101
         result = await safety_filter.check(long_query)
@@ -635,7 +643,7 @@ class TestSafetyFilterReDoSProtection:
     def test_redos_protection_sanitize(self):
         """测试清理方法的ReDoS防护"""
         config = SafetyConfig(max_query_length=100)
-        safety_filter = SafetyFilter(config=config)
+        safety_filter = SafetyFilter(llm=MagicMock(), config=config)
 
         long_query = "A" * 200
         result = safety_filter.sanitize(long_query)

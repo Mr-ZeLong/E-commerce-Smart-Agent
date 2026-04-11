@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
-from sqlmodel import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import desc, select
 
 from app.core.database import async_session_maker
 from app.models.order import Order
@@ -33,21 +33,16 @@ class OrderService:
                     stmt = (
                         select(Order)
                         .where(Order.user_id == user_id)
-                        .order_by(Order.created_at.desc())  # type: ignore
+                        .order_by(desc(Order.created_at))
                         .limit(1)
                     )
                     result = await session.exec(stmt)
                     order = result.first()
 
                 return order.model_dump() if order else None
-        except NoResultFound:
-            return None
         except SQLAlchemyError:
             logger.exception("[OrderService] Database error querying order")
             raise
-        except Exception:
-            logger.exception("[OrderService] Unexpected error querying order")
-            return None
 
     async def handle_refund_request(
         self, question: str, user_id: int, thread_id: str = ""

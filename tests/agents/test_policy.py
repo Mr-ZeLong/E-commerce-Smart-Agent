@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -6,27 +6,30 @@ from app.agents.policy import PolicyAgent
 from app.models.state import make_agent_state
 
 
+def _mock_retriever():
+    return AsyncMock()
+
+
 @pytest.mark.asyncio
 async def test_policy_agent_uses_retriever():
-    agent = PolicyAgent()
     mock_result = [
         type("C", (), {"content": "退换货政策内容", "source": "policy.md", "score": 0.95})(),
     ]
 
-    with patch("app.agents.policy.get_retriever") as mock_factory:
-        mock_retriever = AsyncMock()
-        mock_retriever.retrieve.return_value = mock_result
-        mock_factory.return_value = mock_retriever
+    mock_retriever = _mock_retriever()
+    mock_retriever.retrieve.return_value = mock_result
+    agent = PolicyAgent(retriever=mock_retriever, llm=MagicMock())
 
-        chunks, sims, sources = await agent._retrieve_knowledge("怎么退货")
-        assert chunks == ["退换货政策内容"]
-        assert sims == [pytest.approx(0.95)]
-        assert sources == ["policy.md"]
+    chunks, sims, sources = await agent._retrieve_knowledge("怎么退货")
+    assert chunks == ["退换货政策内容"]
+    assert sims == [pytest.approx(0.95)]
+    assert sources == ["policy.md"]
 
 
 @pytest.mark.asyncio
 async def test_process_with_rag_context():
-    policy_agent = PolicyAgent()
+    mock_retriever = _mock_retriever()
+    policy_agent = PolicyAgent(retriever=mock_retriever, llm=MagicMock())
     with patch.object(policy_agent, "_retrieve_knowledge", new_callable=AsyncMock) as mock_retrieve:
         mock_retrieve.return_value = (
             ["运费满100免运费", "配送时效1-3天"],
@@ -49,7 +52,8 @@ async def test_process_with_rag_context():
 
 @pytest.mark.asyncio
 async def test_process_with_empty_retrieval():
-    policy_agent = PolicyAgent()
+    mock_retriever = _mock_retriever()
+    policy_agent = PolicyAgent(retriever=mock_retriever, llm=MagicMock())
     with patch.object(policy_agent, "_retrieve_knowledge", new_callable=AsyncMock) as mock_retrieve:
         mock_retrieve.return_value = ([], [], [])
 

@@ -5,15 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from dataclasses import asdict
-from datetime import datetime
-from typing import Any
+
+import redis.asyncio as aioredis
+from langchain_openai import ChatOpenAI
 
 from app.intent.clarification import ClarificationEngine, ClarificationResponse
 from app.intent.classifier import IntentClassifier
 from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
 from app.intent.multi_intent import MultiIntentProcessor
-from app.intent.safety import SafetyCheckResult, SafetyFilter
+from app.intent.safety import SafetyCheckResult, SafetyConfig, SafetyFilter
 from app.intent.slot_validator import SlotValidator
 from app.intent.topic_switch import TopicSwitchDetector
 
@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 class IntentRecognitionService:
     def __init__(
         self,
-        llm: Any | None = None,
-        redis_client: Any | None = None,
+        llm: ChatOpenAI,
+        redis_client: aioredis.Redis,
         result_cache_ttl: int = 300,
         session_cache_ttl: int = 1800,
     ):
@@ -34,10 +34,10 @@ class IntentRecognitionService:
         self.session_cache_ttl = session_cache_ttl
         self.classifier = IntentClassifier(llm=llm)
         self.slot_validator = SlotValidator()
-        self.clarification_engine = ClarificationEngine()
+        self.clarification_engine = ClarificationEngine(slot_validator=self.slot_validator)
         self.topic_switch_detector = TopicSwitchDetector()
         self.multi_intent_processor = MultiIntentProcessor(classifier=self.classifier)
-        self.safety_filter = SafetyFilter(llm=llm)
+        self.safety_filter = SafetyFilter(llm=llm, config=SafetyConfig())
 
     async def recognize(
         self,
@@ -121,49 +121,39 @@ class IntentRecognitionService:
         return response
 
     async def _load_session_state(self, session_id: str) -> ClarificationState | None:
-        if not self.redis:
-            return None
         try:
             key = f"intent:session:{session_id}"
             data = await self.redis.get(key)
             if data:
-                return self._deserialize_state(json.loads(data))
-        except Exception as e:
+                return ClarificationState.model_validate_json(data)
+        except (aioredis.RedisError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load session state: {e}")
         return None
 
     async def _save_session_state(self, state: ClarificationState) -> None:
-        if not self.redis:
-            return
         try:
             key = f"intent:session:{state.session_id}"
-            await self.redis.setex(
-                key, self.session_cache_ttl, json.dumps(self._serialize_state(state))
-            )
-        except Exception as e:
+            await self.redis.setex(key, self.session_cache_ttl, state.model_dump_json())
+        except aioredis.RedisError as e:
             logger.warning(f"Failed to save session state: {e}")
 
     async def _get_cached_result(self, query: str) -> IntentResult | None:
-        if not self.redis:
-            return None
         try:
             query_hash = hashlib.sha256(query.encode()).hexdigest()
             key = f"intent:cache:{query_hash}"
             data = await self.redis.get(key)
             if data:
-                return self._deserialize_result(json.loads(data))
-        except Exception as e:
+                return IntentResult.model_validate_json(data)
+        except (aioredis.RedisError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to get cached result: {e}")
         return None
 
     async def _cache_result(self, query: str, result: IntentResult) -> None:
-        if not self.redis:
-            return
         try:
             query_hash = hashlib.sha256(query.encode()).hexdigest()
             key = f"intent:cache:{query_hash}"
-            await self.redis.setex(key, self.result_cache_ttl, json.dumps(result.to_dict()))
-        except Exception as e:
+            await self.redis.setex(key, self.result_cache_ttl, result.model_dump_json())
+        except aioredis.RedisError as e:
             logger.warning(f"Failed to cache result: {e}")
 
     def _create_safety_warning_result(
@@ -177,36 +167,3 @@ class IntentRecognitionService:
             clarification_question=f"输入包含不安全内容（{safety_result.reason}），请重新输入。",
             raw_query=query,
         )
-
-    def _serialize_state(self, state: ClarificationState) -> dict:
-        d = asdict(state)
-        if d.get("created_at"):
-            d["created_at"] = d["created_at"].isoformat()
-        if d.get("updated_at"):
-            d["updated_at"] = d["updated_at"].isoformat()
-        if d.get("current_intent"):
-            ci = d["current_intent"]
-            d["current_intent"] = ci.to_dict() if hasattr(ci, "to_dict") else ci
-        return d
-
-    def _deserialize_state(self, data: dict) -> ClarificationState:
-        state = ClarificationState(
-            session_id=data["session_id"],
-            clarification_round=data.get("clarification_round", 0),
-            max_clarification_rounds=data.get("max_clarification_rounds", 3),
-            asked_slots=data.get("asked_slots", []),
-            collected_slots=data.get("collected_slots", {}),
-            pending_slot=data.get("pending_slot"),
-            user_refused_slots=data.get("user_refused_slots", []),
-            clarification_history=data.get("clarification_history", []),
-        )
-        if data.get("created_at"):
-            state.created_at = datetime.fromisoformat(data["created_at"])
-        if data.get("updated_at"):
-            state.updated_at = datetime.fromisoformat(data["updated_at"])
-        if data.get("current_intent"):
-            state.current_intent = IntentResult.from_dict(data["current_intent"])
-        return state
-
-    def _deserialize_result(self, data: dict) -> IntentResult:
-        return IntentResult.from_dict(data)

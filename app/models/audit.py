@@ -8,10 +8,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import JSON, Column, String, Text, text
+from sqlalchemy import JSON, Column, DateTime, String, Text, text
 from sqlmodel import Field, SQLModel
 
-from app.core.utils import naive_utc_now
+from app.core.utils import utc_now
 
 
 class RiskLevel(str, Enum):
@@ -109,19 +109,27 @@ class AuditLog(SQLModel, table=True):
 
     # 时间戳
     created_at: datetime = Field(
-        default_factory=naive_utc_now,
-        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")},
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        ),
         description="创建时间（触发审核时间）",
     )
 
-    reviewed_at: datetime | None = Field(default=None, description="审核完成时间")
+    reviewed_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        description="审核完成时间",
+    )
 
     updated_at: datetime = Field(
-        default_factory=naive_utc_now,
-        sa_column_kwargs={
-            "server_default": text("CURRENT_TIMESTAMP"),
-            "onupdate": text("CURRENT_TIMESTAMP"),
-        },
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+            onupdate=text("CURRENT_TIMESTAMP"),
+        ),
     )
 
     model_config = {"use_enum_values": True}

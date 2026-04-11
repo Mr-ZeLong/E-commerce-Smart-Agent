@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from app.models.refund import RefundStatus
 from app.tasks.refund_tasks import (
@@ -8,24 +8,22 @@ from app.tasks.refund_tasks import (
 )
 
 
-def _make_async_session_mock():
-    """构造一个支持 async with 的 mock session maker"""
+def _make_sync_session_mock():
     session = MagicMock()
-    session.exec = AsyncMock()
-    session.commit = AsyncMock()
+    session.exec = MagicMock()
+    session.commit = MagicMock()
     session.add = MagicMock()
 
-    async_cm = MagicMock()
-    async_cm.__aenter__ = AsyncMock(return_value=session)
-    async_cm.__aexit__ = AsyncMock(return_value=False)
+    cm = MagicMock()
+    cm.__enter__ = MagicMock(return_value=session)
+    cm.__exit__ = MagicMock(return_value=False)
 
-    maker = MagicMock(return_value=async_cm)
+    maker = MagicMock(return_value=cm)
     return maker, session
 
 
 class TestSendRefundSms:
     def test_send_refund_sms_success(self):
-        """直接调用 .run()，断言返回值包含 status=success"""
         result = send_refund_sms.run(1, "13800138000", "test")
         assert result["status"] == "success"
         assert result["refund_id"] == 1
@@ -34,7 +32,6 @@ class TestSendRefundSms:
 
 class TestProcessRefundPayment:
     def test_process_refund_payment_success(self):
-        """mock async_session_maker 和 RefundApplication，验证状态被更新为 COMPLETED"""
         mock_refund = MagicMock()
         mock_refund.status = RefundStatus.PENDING
         mock_refund.updated_at = None
@@ -42,10 +39,10 @@ class TestProcessRefundPayment:
         mock_result = MagicMock()
         mock_result.one_or_none = MagicMock(return_value=mock_refund)
 
-        maker, session = _make_async_session_mock()
+        maker, session = _make_sync_session_mock()
         session.exec.return_value = mock_result
 
-        with patch("app.tasks.refund_tasks.async_session_maker", maker):
+        with patch("app.tasks.refund_tasks.sync_session_maker", maker):
             result = process_refund_payment.run(1, 99.9, "alipay")
 
         assert result["status"] == "success"
@@ -54,12 +51,11 @@ class TestProcessRefundPayment:
         assert mock_refund.status == RefundStatus.COMPLETED
         assert mock_refund.updated_at is not None
         session.add.assert_called_once_with(mock_refund)
-        session.commit.assert_awaited_once()
+        session.commit.assert_called_once()
 
 
 class TestNotifyAdminAudit:
     def test_notify_admin_audit_success(self):
-        """mock async_session_maker、AuditLog 和 MessageCard，验证消息被创建"""
         mock_audit = MagicMock()
         mock_audit.risk_level = "HIGH"
         mock_audit.trigger_reason = "金额过大"
@@ -69,13 +65,13 @@ class TestNotifyAdminAudit:
         mock_result = MagicMock()
         mock_result.one_or_none = MagicMock(return_value=mock_audit)
 
-        maker, session = _make_async_session_mock()
+        maker, session = _make_sync_session_mock()
         session.exec.return_value = mock_result
 
         mock_message_instance = MagicMock()
 
         with (
-            patch("app.tasks.refund_tasks.async_session_maker", maker),
+            patch("app.tasks.refund_tasks.sync_session_maker", maker),
             patch(
                 "app.tasks.refund_tasks.MessageCard",
                 return_value=mock_message_instance,
@@ -91,19 +87,17 @@ class TestNotifyAdminAudit:
         assert call_kwargs["content"]["type"] == "admin_notification"
         assert call_kwargs["content"]["risk_level"] == "HIGH"
         session.add.assert_called_once_with(mock_message_instance)
-        session.commit.assert_awaited_once()
+        session.commit.assert_called_once()
 
 
 def test_process_refund_payment_not_found():
-    """退款记录不存在时抛出 ValueError 并重试"""
     mock_result = MagicMock()
     mock_result.one_or_none = MagicMock(return_value=None)
 
-    maker, session = _make_async_session_mock()
+    maker, session = _make_sync_session_mock()
     session.exec.return_value = mock_result
 
-    with patch("app.tasks.refund_tasks.async_session_maker", maker):
-        # Celery 任务会在异常时调用 self.retry，但测试中 .run() 会直接抛出原始异常
+    with patch("app.tasks.refund_tasks.sync_session_maker", maker):
         try:
             process_refund_payment.run(999, 99.9, "alipay")
             raise AssertionError("应抛出异常")
@@ -112,14 +106,13 @@ def test_process_refund_payment_not_found():
 
 
 def test_notify_admin_audit_not_found():
-    """AuditLog 不存在时抛出 ValueError 并重试"""
     mock_result = MagicMock()
     mock_result.one_or_none = MagicMock(return_value=None)
 
-    maker, session = _make_async_session_mock()
+    maker, session = _make_sync_session_mock()
     session.exec.return_value = mock_result
 
-    with patch("app.tasks.refund_tasks.async_session_maker", maker):
+    with patch("app.tasks.refund_tasks.sync_session_maker", maker):
         try:
             notify_admin_audit.run(999)
             raise AssertionError("应抛出异常")
@@ -128,7 +121,6 @@ def test_notify_admin_audit_not_found():
 
 
 def test_notify_admin_audit_commit_exception():
-    """数据库 commit 抛异常"""
     mock_audit = MagicMock()
     mock_audit.risk_level = "HIGH"
     mock_audit.trigger_reason = "金额过大"
@@ -138,11 +130,11 @@ def test_notify_admin_audit_commit_exception():
     mock_result = MagicMock()
     mock_result.one_or_none = MagicMock(return_value=mock_audit)
 
-    maker, session = _make_async_session_mock()
+    maker, session = _make_sync_session_mock()
     session.exec.return_value = mock_result
-    session.commit = AsyncMock(side_effect=Exception("DB write failed"))
+    session.commit = MagicMock(side_effect=Exception("DB write failed"))
 
-    with patch("app.tasks.refund_tasks.async_session_maker", maker):
+    with patch("app.tasks.refund_tasks.sync_session_maker", maker):
         try:
             notify_admin_audit.run(5)
             raise AssertionError("应抛出异常")

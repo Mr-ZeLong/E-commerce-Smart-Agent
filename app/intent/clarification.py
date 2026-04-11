@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Any
+
+from pydantic import BaseModel
 
 from app.intent.models import ClarificationState, IntentResult
 from app.intent.slot_validator import SlotValidationResult, SlotValidator
 
 
-@dataclass
-class ClarificationResponse:
+class ClarificationResponse(BaseModel):
     response: str
     state: ClarificationState
     is_complete: bool = False
@@ -42,8 +42,8 @@ class ClarificationEngine:
         "随便",
     ]
 
-    def __init__(self, slot_validator: SlotValidator | None = None):
-        self.slot_validator = slot_validator or SlotValidator()
+    def __init__(self, slot_validator: SlotValidator):
+        self.slot_validator = slot_validator
         self.degradation_strategies = [
             self._degradation_optional,
             self._degradation_infer,

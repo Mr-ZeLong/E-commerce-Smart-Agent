@@ -10,7 +10,10 @@ from langchain_core.messages import AIMessageChunk
 from app.core.database import async_session_maker
 from app.core.security import create_access_token
 from app.main import app
+from app.models.state import AgentState
 from app.models.user import User
+
+EXPECTED_AGENT_STATE_KEYS = set(AgentState.__annotations__.keys())
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -41,7 +44,10 @@ async def auth_token():
 async def test_chat_normal_streaming(client, auth_token):
     """正常流式响应：包含 token、answer 和 [DONE]"""
 
+    received_state = {}
+
     async def mock_astream_events(state, config, version):
+        received_state.update(state)
         chunk = AIMessageChunk(content="你好")
         yield {
             "event": "on_chat_model_stream",
@@ -74,13 +80,17 @@ async def test_chat_normal_streaming(client, auth_token):
     assert "[DONE]" in text
     assert json.dumps({"token": "你好"}, ensure_ascii=False) in text
     assert json.dumps({"token": "这是最终答案"}, ensure_ascii=False) in text
+    assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS
 
 
 @pytest.mark.asyncio
 async def test_chat_metadata_streaming(client, auth_token):
     """置信度元数据在 [DONE] 前发送"""
 
+    received_state = {}
+
     async def mock_astream_events(state, config, version):
+        received_state.update(state)
         yield {
             "event": "on_chain_end",
             "data": {
@@ -120,6 +130,7 @@ async def test_chat_metadata_streaming(client, auth_token):
     assert metadata_pos != -1
     assert done_pos != -1
     assert metadata_pos < done_pos
+    assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS
 
 
 @pytest.mark.asyncio
@@ -141,18 +152,24 @@ async def test_chat_503_when_app_graph_none(client, auth_token):
 
 
 @pytest.mark.asyncio
-async def test_chat_exception_handling(client, auth_token):
-    """astream_events 抛出 Exception 时返回 SSE error payload"""
+async def test_chat_connection_reset_handled_as_disconnect(client, auth_token):
+    """astream_events 抛出 ConnectionResetError 时视为客户端断开，返回空流"""
+
+    received_state = {}
 
     class _ErrorIter:
         def __aiter__(self):
             return self
 
         async def __anext__(self):
-            raise RuntimeError("boom")
+            raise ConnectionResetError("boom")
+
+    def _make_error_iter(state, config, version):
+        received_state.update(state)
+        return _ErrorIter()
 
     mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = lambda state, config, version: _ErrorIter()
+    mock_app_graph.astream_events = _make_error_iter
 
     original = getattr(app.state, "app_graph", None)
     app.state.app_graph = mock_app_graph
@@ -166,12 +183,15 @@ async def test_chat_exception_handling(client, auth_token):
         app.state.app_graph = original
 
     assert response.status_code == 200
-    assert '{"error": "系统处理出现问题，请稍后重试"}' in response.text
+    assert response.text == ""
+    assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS
 
 
 @pytest.mark.asyncio
 async def test_chat_cancelled_error_propagates(client, auth_token):
     """astream_events 抛出 CancelledError 时重新抛出，不进入通用异常处理"""
+
+    received_state = {}
 
     class _CancelIter:
         def __aiter__(self):
@@ -180,8 +200,12 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
         async def __anext__(self):
             raise asyncio.CancelledError()
 
+    def _make_cancel_iter(state, config, version):
+        received_state.update(state)
+        return _CancelIter()
+
     mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = lambda state, config, version: _CancelIter()
+    mock_app_graph.astream_events = _make_cancel_iter
 
     original = getattr(app.state, "app_graph", None)
     app.state.app_graph = mock_app_graph
@@ -196,3 +220,4 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
 
     assert response.status_code == 200
     assert response.text == ""
+    assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS

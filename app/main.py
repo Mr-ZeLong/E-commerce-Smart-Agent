@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -19,60 +19,87 @@ from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
-from app.graph.workflow import compile_app_graph
+from app.websocket.manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _setup_logging()
     logger.info(" Starting E-commerce Smart Agent v4.1...")
-    app.state.app_graph = await compile_app_graph()
+    from app.agents.evaluator import ConfidenceEvaluator
+    from app.agents.order import OrderAgent
+    from app.agents.policy import PolicyAgent
+    from app.agents.router import IntentRouterAgent
+    from app.core.llm_factory import create_openai_llm
+    from app.core.redis import create_redis_client
+    from app.graph.workflow import compile_app_graph
+    from app.intent.service import IntentRecognitionService
+    from app.retrieval import create_retriever
+    from app.services.order_service import OrderService
+
+    app.state.manager = ConnectionManager()
+
+    llm = create_openai_llm()
+    eval_llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
+    intent_service = IntentRecognitionService(llm=llm, redis_client=create_redis_client())
+    router_agent = IntentRouterAgent(intent_service=intent_service, llm=llm)
+    policy_agent = PolicyAgent(retriever=create_retriever(llm=llm), llm=llm)
+    order_agent = OrderAgent(order_service=OrderService(), llm=llm)
+    evaluator = ConfidenceEvaluator(llm=eval_llm)
+
+    if "*" in settings.CORS_ORIGINS:
+        raise RuntimeError(
+            "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
+            "Please restrict CORS_ORIGINS to specific domains."
+        )
+
+    app.state.app_graph = await compile_app_graph(
+        router_agent=router_agent,
+        policy_agent=policy_agent,
+        order_agent=order_agent,
+        evaluator=evaluator,
+    )
     logger.info(" Infrastructure is ready.")
     yield
-    try:
-        from app.retrieval import get_retriever
-
-        retriever = get_retriever()
-        await retriever.qdrant_client.aclose()
-        logger.info(" Qdrant client closed.")
-    except Exception:
-        logger.warning("⚠️  Failed to close Qdrant client during shutdown")
+    logger.info("Shutting down...")
 
 
-if "*" in settings.CORS_ORIGINS:
-    raise RuntimeError(
-        "CORS allow_origins=['*'] combined with allow_credentials=True is not allowed. "
-        "Please restrict CORS_ORIGINS to specific domains."
+def _setup_logging() -> None:
+    formatter = logging.Formatter(
+        "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
     )
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        root_logger.addHandler(handler)
+    root_logger.addFilter(CorrelationIdFilter())
 
-docs_url = "/docs" if settings.ENABLE_OPENAPI_DOCS else None
-redoc_url = "/redoc" if settings.ENABLE_OPENAPI_DOCS else None
-openapi_url = "/openapi.json" if settings.ENABLE_OPENAPI_DOCS else None
+    for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+        logging.getLogger(name).addFilter(CorrelationIdFilter())
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="4.1.0",
     description="全栈·沉浸式人机协作系统 (The Immersive System) - v4.1",
-    docs_url=docs_url,
-    redoc_url=redoc_url,
-    openapi_url=openapi_url,
+    docs_url="/docs" if settings.ENABLE_OPENAPI_DOCS else None,
+    redoc_url="/redoc" if settings.ENABLE_OPENAPI_DOCS else None,
+    openapi_url="/openapi.json" if settings.ENABLE_OPENAPI_DOCS else None,
     lifespan=lifespan,
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty: ignore
 
-formatter = logging.Formatter(
-    "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
-)
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-root_logger = logging.getLogger()
-root_logger.handlers = [handler]
-root_logger.addFilter(CorrelationIdFilter())
 
-for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
-    logging.getLogger(name).addFilter(CorrelationIdFilter())
+def _rate_limit_handler(request: Request, exc: Exception) -> Response:
+    if not isinstance(exc, RateLimitExceeded):
+        raise TypeError(f"Unexpected exception type: {type(exc).__name__}")
+    return _rate_limit_exceeded_handler(request, exc)
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 
 @app.middleware("http")

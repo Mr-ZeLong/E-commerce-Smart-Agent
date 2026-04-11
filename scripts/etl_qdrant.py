@@ -15,7 +15,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 from app.retrieval.client import QdrantKnowledgeClient
-from app.retrieval.embeddings import get_embedding_model
+from app.retrieval.embeddings import create_embedding_model
 from app.retrieval.sparse_embedder import SparseTextEmbedder
 
 logger = logging.getLogger(__name__)
@@ -28,11 +28,13 @@ _RETRY_DECORATOR = retry(
 @_RETRY_DECORATOR
 async def embed_dense_with_retry(texts: list[str]) -> list[list[float]]:
     """Generate dense embeddings with retry."""
-    return await get_embedding_model().aembed_documents(texts)
+    return await create_embedding_model().aembed_documents(texts)
 
 
 @_RETRY_DECORATOR
-async def embed_sparse_with_retry(sparse_embedder: SparseTextEmbedder, texts: list[str]) -> list[models.SparseVector]:
+async def embed_sparse_with_retry(
+    sparse_embedder: SparseTextEmbedder, texts: list[str]
+) -> list[models.SparseVector]:
     """Generate sparse embeddings with retry."""
     return await sparse_embedder.aembed(texts)
 
@@ -102,7 +104,9 @@ async def process_file(
                 print(f"  ⚠️ Skipping empty batch {i}")
                 continue
 
-            print(f"  🧠 Embedding batch {i // BATCH_SIZE + 1} (valid chunks: {len(batch_texts)})...")
+            print(
+                f"  🧠 Embedding batch {i // BATCH_SIZE + 1} (valid chunks: {len(batch_texts)})..."
+            )
             dense_vectors, sparse_vectors = await asyncio.gather(
                 embed_dense_with_retry(batch_texts),
                 embed_sparse_with_retry(sparse_embedder, batch_texts),
@@ -110,18 +114,20 @@ async def process_file(
 
             points = []
             for j, text in enumerate(batch_texts):
-                points.append(models.PointStruct(
-                    id=next_id,
-                    vector={
-                        "dense": dense_vectors[j],
-                        "sparse": sparse_vectors[j],
-                    },
-                    payload={
-                        "content": text,
-                        "source": source_name,
-                        "meta_data": batch_metas[j],
-                    },
-                ))
+                points.append(
+                    models.PointStruct(
+                        id=next_id,
+                        vector={
+                            "dense": dense_vectors[j],
+                            "sparse": sparse_vectors[j],
+                        },
+                        payload={
+                            "content": text,
+                            "source": source_name,
+                            "meta_data": batch_metas[j],
+                        },
+                    )
+                )
                 next_id += 1
 
             await upsert_with_retry(qdrant_client, points)
@@ -160,7 +166,9 @@ async def main():
         failed_files = []
         for file_path in all_files:
             source_name = os.path.relpath(file_path, base_dir)
-            next_id, success = await process_file(file_path, source_name, qdrant_client, sparse_embedder, next_id)
+            next_id, success = await process_file(
+                file_path, source_name, qdrant_client, sparse_embedder, next_id
+            )
             if not success:
                 failed_files.append(source_name)
 

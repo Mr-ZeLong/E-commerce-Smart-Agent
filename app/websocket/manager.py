@@ -5,7 +5,6 @@ WebSocket 连接管理器
 """
 
 import asyncio
-import contextlib
 import logging
 
 from fastapi import WebSocket
@@ -52,8 +51,10 @@ class ConnectionManager:
             self.thread_subscribers[thread_id].add(websocket)
 
         if old_ws:
-            with contextlib.suppress(Exception):
+            try:
                 await old_ws.close()
+            except RuntimeError:
+                logger.debug("旧WebSocket连接关闭时触发RuntimeError，已忽略")
 
         logger.info(f" [WS] 用户 {user_id} 连接到会话 {thread_id}")
 
@@ -67,8 +68,10 @@ class ConnectionManager:
             self.admin_connections[admin_id] = websocket
 
         if old_ws:
-            with contextlib.suppress(Exception):
+            try:
                 await old_ws.close()
+            except RuntimeError:
+                logger.debug("旧WebSocket连接关闭时触发RuntimeError，已忽略")
 
         logger.info(f" [WS] 管理员 {admin_id} 已连接")
 
@@ -85,8 +88,10 @@ class ConnectionManager:
                     del self.active_connections[user_id]
 
         if ws:
-            with contextlib.suppress(Exception):
+            try:
                 await ws.close()
+            except RuntimeError:
+                logger.debug("WebSocket连接关闭时触发RuntimeError，已忽略")
 
         logger.info(f" [WS] 用户 {user_id} 断开会话 {thread_id}")
 
@@ -96,8 +101,10 @@ class ConnectionManager:
         async with self._lock:
             ws = self.admin_connections.pop(admin_id, None)
         if ws:
-            with contextlib.suppress(Exception):
+            try:
                 await ws.close()
+            except RuntimeError:
+                logger.debug("WebSocket连接关闭时触发RuntimeError，已忽略")
         logger.info(f" [WS] 管理员 {admin_id} 已断开")
 
     async def send_to_user(self, user_id: int, thread_id: str, message: dict):
@@ -108,7 +115,7 @@ class ConnectionManager:
         if websocket:
             try:
                 await websocket.send_json(message)
-            except Exception as e:
+            except RuntimeError as e:
                 logger.warning(f" [WS] 发送失败: {e}")
                 await self.disconnect_user(user_id, thread_id)
 
@@ -121,7 +128,7 @@ class ConnectionManager:
         for websocket in subscribers:
             try:
                 await websocket.send_json(message)
-            except Exception as e:
+            except RuntimeError as e:
                 logger.warning(f" [WS] 广播失败:  {e}")
                 disconnected.add(websocket)
 
@@ -139,7 +146,7 @@ class ConnectionManager:
         for admin_id, websocket in admins:
             try:
                 await websocket.send_json(message)
-            except Exception as e:
+            except RuntimeError as e:
                 logger.warning(f" [WS] 管理员 {admin_id} 发送失败: {e}")
                 disconnected.append(admin_id)
 
@@ -176,7 +183,3 @@ class ConnectionManager:
                     "timestamp": utc_now().isoformat(),
                 }
             )
-
-
-# 全局单例
-manager = ConnectionManager()

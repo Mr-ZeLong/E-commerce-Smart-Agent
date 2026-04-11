@@ -1,10 +1,13 @@
-from dataclasses import dataclass
+import logging
+
+from pydantic import BaseModel
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 
-@dataclass
-class RetrievedChunk:
+
+class RetrievedChunk(BaseModel):
     content: str
     source: str
     score: float
@@ -40,47 +43,28 @@ class HybridRetriever:
         rewritten = await self.rewriter.rewrite(query)
         dense_vec = await self.dense_embedder.aembed_query(rewritten)
 
-        # Fallback: if sparse embedder fails, do pure dense retrieval
-        try:
-            sparse_vecs = await self.sparse_embedder.aembed([rewritten])
-            sparse_vec = sparse_vecs[0]
-        except Exception:
-            sparse_vec = None
+        sparse_vecs = await self.sparse_embedder.aembed([rewritten])
+        sparse_vec = sparse_vecs[0]
 
-        if sparse_vec is not None:
-            scored_points = await self.qdrant_client.query_hybrid(
-                dense_vector=dense_vec,
-                sparse_vector=sparse_vec,
-                dense_limit=settings.RETRIEVER_DENSE_TOPK,
-                sparse_limit=settings.RETRIEVER_SPARSE_TOPK,
-            )
-        else:
-            scored_points = await self.qdrant_client.query_dense(
-                dense_vector=dense_vec,
-                limit=settings.RETRIEVER_DENSE_TOPK,
-            )
+        scored_points = await self.qdrant_client.query_hybrid(
+            dense_vector=dense_vec,
+            sparse_vector=sparse_vec,
+            dense_limit=settings.RETRIEVER_DENSE_TOPK,
+            sparse_limit=settings.RETRIEVER_SPARSE_TOPK,
+        )
 
         if not scored_points:
             return []
 
         documents = [str((p.payload or {}).get("content", "")) for p in scored_points]
 
-        # Try rerank; on failure return RRF/dense results with original scores
-        try:
-            reranked = await self.reranker.rerank(
-                rewritten, documents, top_n=settings.RETRIEVER_FINAL_TOPK
-            )
-        except Exception:
-            reranked = None
+        reranked = await self.reranker.rerank(
+            rewritten, documents, top_n=settings.RETRIEVER_FINAL_TOPK
+        )
 
         results = []
-        if reranked is not None and len(reranked) > 0:
-            for r in reranked:
-                if 0 <= r.index < len(scored_points):
-                    results.append(self._to_chunk(scored_points[r.index], r.score))
-        else:
-            # Fallback: return top results from Qdrant with their original scores
-            for point in scored_points[: settings.RETRIEVER_FINAL_TOPK]:
-                results.append(self._to_chunk(point, point.score))
+        for r in reranked:
+            if 0 <= r.index < len(scored_points):
+                results.append(self._to_chunk(scored_points[r.index], r.score))
 
         return results

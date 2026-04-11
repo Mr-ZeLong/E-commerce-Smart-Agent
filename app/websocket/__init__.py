@@ -3,6 +3,6 @@
 WebSocket 实时通信模块
 """
 
-from app.websocket.manager import ConnectionManager, manager
+from app.websocket.manager import ConnectionManager
 
-__all__ = ["ConnectionManager", "manager"]
+__all__ = ["ConnectionManager"]

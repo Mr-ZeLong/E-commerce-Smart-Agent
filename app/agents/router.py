@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from langchain_openai import ChatOpenAI
+
 from app.agents.base import BaseAgent
 from app.core.config import settings
 from app.intent.models import IntentCategory, IntentResult
@@ -10,12 +12,12 @@ from app.models.state import AgentState
 logger = logging.getLogger(__name__)
 
 _INTENT_MAPPINGS: dict[IntentCategory, str] = {
-    IntentCategory.ORDER: "order",
-    IntentCategory.AFTER_SALES: "order",
-    IntentCategory.POLICY: "policy",
+    IntentCategory.ORDER: "order_agent",
+    IntentCategory.AFTER_SALES: "order_agent",
+    IntentCategory.POLICY: "policy_agent",
     IntentCategory.PRODUCT: "supervisor",
     IntentCategory.RECOMMENDATION: "supervisor",
-    IntentCategory.CART: "order",
+    IntentCategory.CART: "order_agent",
     IntentCategory.OTHER: "supervisor",
 }
 
@@ -27,11 +29,9 @@ class IntentRouterAgent(BaseAgent):
         "您好！我是您的智能客服助手，可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？"
     )
 
-    def __init__(self) -> None:
-        super().__init__(name="intent_router", system_prompt=None)
-        from app.core.redis import get_redis_client
-
-        self.intent_service = IntentRecognitionService(redis_client=get_redis_client())
+    def __init__(self, intent_service: IntentRecognitionService, llm: ChatOpenAI) -> None:
+        super().__init__(name="intent_router", llm=llm, system_prompt=None)
+        self.intent_service = intent_service
         logger.debug("IntentRouterAgent initialized")
 
     async def process(self, state: AgentState) -> dict[str, Any]:
@@ -75,17 +75,17 @@ class IntentRouterAgent(BaseAgent):
             return {
                 "response": clarification.response,
                 "updated_state": {
-                    "intent_result": result.to_dict(),
+                    "intent_result": result.model_dump(),
                     "slots": result.slots or {},
                     "awaiting_clarification": True,
-                    "clarification_state": clarification.state,
+                    "clarification_state": clarification.state.model_dump(),
                     "next_agent": next_agent,
                     "iteration_count": iteration,
                 },
             }
 
         updated_state = {
-            "intent_result": result.to_dict(),
+            "intent_result": result.model_dump(),
             "slots": result.slots or {},
             "awaiting_clarification": result.needs_clarification,
             "next_agent": next_agent,
@@ -96,8 +96,8 @@ class IntentRouterAgent(BaseAgent):
         if state.get("retry_requested") and next_agent:
             current_agent = state.get("current_agent")
             if current_agent and (
-                (next_agent == "policy" and current_agent == "policy_agent")
-                or (next_agent == "order" and current_agent == "order_agent")
+                (next_agent == "policy_agent" and current_agent == "policy_agent")
+                or (next_agent == "order_agent" and current_agent == "order_agent")
                 or (next_agent == "supervisor" and current_agent == "policy_agent")
             ):
                 return {
