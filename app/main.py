@@ -134,26 +134,39 @@ app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocke
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
 if os.path.exists(frontend_dist_path):
+    app.mount(
+        "/customer",
+        StaticFiles(directory=os.path.join(frontend_dist_path, "customer")),
+        name="customer_assets",
+    )
+    app.mount(
+        "/shared",
+        StaticFiles(directory=os.path.join(frontend_dist_path, "shared")),
+        name="shared_assets",
+    )
+    app.mount(
+        "/assets",
+        StaticFiles(directory=os.path.join(frontend_dist_path, "assets")),
+        name="root_assets",
+    )
 
+    @app.get("/app")
     @app.get("/app/{full_path:path}")
-    async def serve_customer_spa(full_path: str):
-        return FileResponse(os.path.join(frontend_dist_path, "customer", "index.html"))
+    async def serve_customer_spa(full_path: str = ""):
+        base_dir = os.path.realpath(os.path.join(frontend_dist_path, "customer"))
+        file_path = os.path.realpath(os.path.join(base_dir, full_path))
+        if file_path.startswith(base_dir) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist_path, "index.html"))
 
-    app.mount(
-        "/app",
-        StaticFiles(directory=os.path.join(frontend_dist_path, "customer"), html=True),
-        name="customer_app",
-    )
-
+    @app.get("/admin")
     @app.get("/admin/{full_path:path}")
-    async def serve_admin_spa(full_path: str):
-        return FileResponse(os.path.join(frontend_dist_path, "admin", "index.html"))
-
-    app.mount(
-        "/admin",
-        StaticFiles(directory=os.path.join(frontend_dist_path, "admin"), html=True),
-        name="admin_app",
-    )
+    async def serve_admin_spa(full_path: str = ""):
+        base_dir = os.path.realpath(os.path.join(frontend_dist_path, "admin"))
+        file_path = os.path.realpath(os.path.join(base_dir, full_path))
+        if file_path.startswith(base_dir) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist_path, "admin.html"))
 
     @app.get("/")
     async def root():

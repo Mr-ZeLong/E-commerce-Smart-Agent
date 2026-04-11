@@ -1,7 +1,7 @@
 #!/bin/bash
-# 启动所有 v4.0 服务
+# 启动所有 v4.1 服务
 
-echo " 启动 E-commerce Smart Agent v4.0 所有服务..."
+echo " 启动 E-commerce Smart Agent v4.1 所有服务..."
 export PYTHONPATH=$PWD
 
 # 检查依赖

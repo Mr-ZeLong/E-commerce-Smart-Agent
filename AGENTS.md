@@ -83,14 +83,13 @@
 │   │   ├── security.py             # JWT 生成/验证
 │   │   ├── limiter.py              # 限流器
 │   │   ├── logging.py              # CorrelationIdFilter
-│   │   ├── llm_factory.py          # LLM 工厂（OpenAI 适配器）
+│   │   ├── llm_factory.py          # LLM 工厂（OpenAI-Compatible 适配器，默认通义千问）
 │   │   └── utils.py                # utc_now 等工具函数
 │   ├── models/                     # SQLModel 数据模型
 │   │   ├── user.py                 # 用户模型
 │   │   ├── order.py                # 订单模型
 │   │   ├── refund.py               # 退款模型
 │   │   ├── audit.py                # 审核日志模型
-│   │   ├── knowledge.py            # 知识库模型
 │   │   ├── message.py              # 消息模型
 │   │   └── state.py                # AgentState TypedDict
 │   ├── graph/                      # LangGraph 工作流
@@ -202,22 +201,34 @@ REDIS_PASSWORD=devpassword
 QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=...
 
-# LLM（通义千问）
+# Reranker
+RERANK_BASE_URL=https://dashscope.aliyuncs.com/compatible-api/v1
+
+# LLM（通义千问 / OpenAI-Compatible）
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://api.openai.com/v1
 DASHSCOPE_API_KEY=...
+
+# LLM 模型配置（可选，不填时使用默认值）
+LLM_MODEL=qwen-plus
+EMBEDDING_MODEL=text-embedding-v3
+EMBEDDING_DIM=1024
 
 # 安全
 SECRET_KEY=...                    # 建议: openssl rand -hex 32
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
+# Celery
+CELERY_BROKER_URL=redis://:devpassword@localhost:6379/0
+CELERY_RESULT_BACKEND=redis://:devpassword@localhost:6379/0
+
 # 其他
 ENABLE_OPENAPI_DOCS=True          # 生产环境设为 False
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
 ```
 
-**注意**：`app/core/config.py` 中的 `Settings` 使用 `SettingsConfigDict(env_file=".env")`，支持嵌套配置（分隔符 `__`），例如 `CONFIDENCE__THRESHOLD=0.7`。
+**注意**：`app/core/config.py` 中的 `Settings` 使用 `SettingsConfigDict(env_file=".env")`，支持嵌套配置（分隔符 `__`），例如 `CONFIDENCE__THRESHOLD=0.7`。大部分配置项（如 `LLM_MODEL`、`EMBEDDING_MODEL`、`EMBEDDING_DIM`）均有合理的默认值，本地开发时可不填。
 
 ---
 
@@ -397,7 +408,7 @@ npm run format:check
 - 数据库：`AsyncSession` + `asyncpg`
 - LLM 调用：`await llm.ainvoke(...)`
 - FastAPI 路由：默认 async
-- Celery 任务：使用 `async_to_sync` 包装异步代码
+- Celery 任务：使用同步数据库会话（`sync_session_maker`）执行异步任务的持久化操作
 
 ### 2. 数据库模型
 
@@ -423,7 +434,7 @@ class User(SQLModel, table=True):
 - 所有路由以 `/api/v1` 为前缀（由 `settings.API_V1_STR` 控制）
 - 路由文件位于 `app/api/v1/`
 - Pydantic Schema 放在 `app/schemas/`（如 `auth.py`、`admin.py`、`status.py`）
-- 服务依赖直接通过 `Depends(ClassName)` 注入，无需工厂函数
+- 大部分服务依赖直接通过 `Depends(ClassName)` 注入；当服务需要运行时依赖（如 `AdminService` 需要 `ConnectionManager`）时，仍使用工厂函数 `Depends(get_xxx_service)` 注入
 
 ### 4. LangGraph 工作流
 
@@ -431,10 +442,10 @@ class User(SQLModel, table=True):
 - `app/main.py` 的 `lifespan` 在启动时调用 `compile_app_graph()`
 - 节点定义在 `app/graph/nodes.py`
 - 状态定义在 `app/models/state.py`
-- Agent 实例在 `nodes.py` 模块级别直接初始化（无单例 getters）
+- Agent 实例在 `app/main.py` 的 `lifespan` 中初始化，通过依赖注入传递给 `nodes.py` 中的 builder 函数（`build_router_node`、`build_policy_node` 等）
 
 工作流节点顺序：
-`router_node` → (`policy_agent` | `order_agent`) → `evaluator_node` → `decider_node` → `END`
+`router_node` → (`policy_agent` | `order_agent`) → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
 
 ### 5. 日志规范
 
@@ -451,11 +462,10 @@ logger.info("示例日志")
 
 ### 7. Redis 使用
 
-通过 `app/core/redis.py` 获取统一客户端：`get_redis_client()`。Redis 用于：
+通过 `app/core/redis.py` 获取统一客户端：`create_redis_client()`。Redis 用于：
 - 意图识别会话缓存
 - LangGraph Checkpoint（`langgraph-checkpoint-redis`）
 - Celery Broker & Backend
-- WebSocket 状态广播辅助
 
 ### 8. 静态文件
 
@@ -464,7 +474,7 @@ FastAPI 托管 `frontend/dist` 中的构建产物：
 - `/admin/*` → B端 SPA
 - `/` → 重定向到 `/app`
 
-前端构建输出根目录为 `frontend/dist/`，其中包含 `customer/` 和 `admin/` 两个子目录，分别对应 C 端和 B 端 SPA，由 `vite.config.ts` 的 `rollupOptions.input` 控制。
+前端构建输出根目录为 `frontend/dist/`。Vite 将资源文件输出到 `customer/` 和 `admin/` 子目录（JS/CSS），而入口 HTML 文件直接位于根目录：`dist/index.html`（C端）和 `dist/admin.html`（B端），由 `vite.config.ts` 的 `rollupOptions.input` 控制。
 
 ---
 

@@ -13,11 +13,11 @@ flowchart TB
         API["FastAPI Application<br/>Port: 8000"]
 
         subgraph Routers["🔀 路由模块"]
-            AUTH["/auth<br/>登录认证"]
-            CHAT["/chat<br/>聊天接口 (SSE)"]
-            WS["/ws<br/>WebSocket"]
-            ADMIN["/admin<br/>管理员 API"]
-            STATUS["/status<br/>状态查询"]
+            AUTH["/api/v1/login<br/>登录认证"]
+            CHAT["/api/v1/chat<br/>聊天接口 (SSE)"]
+            WS["/api/v1/ws<br/>WebSocket"]
+            ADMIN["/api/v1/admin<br/>管理员 API"]
+            STATUS["/api/v1/status<br/>状态查询"]
         end
     end
 
@@ -33,8 +33,8 @@ flowchart TB
 
         subgraph Nodes["📍 节点定义"]
             ROUTER_NODE["router_node<br/>意图路由"]
-            POLICY_NODE["policy_node<br/>知识检索 (RAG) + 生成"]
-            ORDER_NODE["order_node<br/>订单查询 / 退货处理"]
+            POLICY_NODE["policy_agent<br/>知识检索 (RAG) + 生成"]
+            ORDER_NODE["order_agent<br/>订单查询 / 退货处理"]
             EVALUATOR_NODE["evaluator_node<br/>置信度评估"]
             DECIDER_NODE["decider_node<br/>人工接管决策 / 回复生成"]
         end
@@ -108,14 +108,13 @@ flowchart TB
     REFUND_SVC --> RULES
     REFUND_SVC --> DB
 
-    AUDIT -->|"高风险触发"| CELERY
+    ServiceLayer -->|"高风险触发"| CELERY
     CELERY --> TASKS
     TASKS --> DB
 
     Nodes <-->|"Embedding/LLM"| External
 
     DB --> PostgreSQL
-    WS_MGR --> REDIS_CACHE
     CELERY --> REDIS_CELERY
     GRAPH --> REDIS_CHECK
 ```
@@ -226,6 +225,7 @@ erDiagram
         int sender_id
         int receiver_id
         datetime created_at
+        datetime updated_at
     }
 
     knowledge_chunks[Qdrant Collection: knowledge_chunks] {
@@ -247,21 +247,20 @@ sequenceDiagram
     participant CUI as Customer UI
     participant API as FastAPI
     participant Graph as LangGraph
-    participant Node as Query Node
+    participant Node as order_agent
     participant DB as PostgreSQL
     participant LLM as Qwen LLM
 
     User->>CUI: "查询我的订单"
-    CUI->>API: POST /chat (SSE)
+    CUI->>API: POST /api/v1/chat (SSE)
     API->>Graph: astream_events()
     Graph->>Graph: router_node
-    Graph->>Node: order_node()
+    Graph->>Node: order_agent()
     Node->>DB: SELECT orders
     DB-->>Node: Order Data
     Node-->>Graph: {order_data, context}
-    Graph->>Graph: generate()
-    Graph->>LLM: 生成回复
-    LLM-->>Graph: 流式响应
+    Node->>Node: _format_order_response
+    Node-->>Graph: {response_text}
     Graph-->>API: SSE Events
     API-->>CUI: 流式显示
     CUI-->>User: 订单信息
@@ -277,39 +276,42 @@ sequenceDiagram
     participant ADM as Admin Dashboard
     participant API as FastAPI
     participant Graph as LangGraph
-    participant Celery as Celery Worker
-    participant WS as WebSocket
+    participant Service as OrderService
+    participant AdminSvc as AdminService
     participant DB as PostgreSQL
+    participant Celery as Celery Worker
+    participant WS as WebSocket Manager
 
     User->>CUI: "我要退货 订单SN20240003"
-    CUI->>API: POST /chat
+    CUI->>API: POST /api/v1/chat
     API->>Graph: 启动工作流
-    Graph->>Graph: intent_router → REFUND
-    Graph->>Graph: order_node()
-    Graph->>Graph: check_refund_eligibility()
+    Graph->>Graph: router_node → AFTER_SALES
+    Graph->>Graph: order_agent()
+    Graph->>Service: handle_refund_request (OrderService)
 
     alt 低风险 (< ¥500)
-        Graph->>DB: UPDATE status=APPROVED
-        Graph-->>CUI: 自动审核通过
+        Service-->>Graph: 无需审计
+        Graph-->>API: 返回处理结果
+        API-->>CUI: 已提交，保持 PENDING
     else 中高风险 (≥ ¥500)
-        Graph->>DB: INSERT audit_logs
-        Graph->>Celery: notify_admin_audit
-        Graph->>WS: 实时通知用户
-        WS-->>CUI: 显示审核中状态
-        Graph-->>CUI: 等待人工审核
+        Service->>DB: INSERT audit_logs
+        Service->>Celery: notify_admin_audit
+        Service-->>Graph: 需人工审核
+        Graph-->>API: 返回处理结果
+        API-->>CUI: 等待人工审核
 
-        Celery->>ADM: 推送任务通知
         Admin->>ADM: 查看任务队列
-        ADM->>API: GET /admin/tasks
+        ADM->>API: GET /api/v1/admin/tasks
         API-->>ADM: 待审核列表
 
         Admin->>ADM: 点击"批准"
-        ADM->>API: POST /admin/resume/{id}
-        API->>DB: UPDATE audit_logs
-        API->>DB: UPDATE refund_applications
-        API->>Celery: process_refund_payment
-        API->>Celery: send_refund_sms
-        API->>WS: 通知状态变更
+        ADM->>API: POST /api/v1/admin/resume/{id}
+        API->>AdminSvc: process_admin_decision()
+        AdminSvc->>DB: UPDATE audit_logs
+        AdminSvc->>DB: UPDATE refund_applications
+        AdminSvc->>Celery: process_refund_payment
+        AdminSvc->>Celery: send_refund_sms
+        AdminSvc->>WS: 通知状态变更
         WS-->>CUI: 审核结果通知
         CUI-->>User: 显示审核通过
     end
@@ -324,21 +326,20 @@ sequenceDiagram
     participant API as FastAPI
     participant Graph as LangGraph
     participant Embed as Embedding Model
-    participant DB as PostgreSQL
+    participant VecDB as Qdrant
     participant LLM as Qwen LLM
 
     User->>CUI: "内衣可以退货吗？"
-    CUI->>API: POST /chat
+    CUI->>API: POST /api/v1/chat
     API->>Graph: 启动工作流
-    Graph->>Graph: intent_router → POLICY
-    Graph->>Graph: policy_node()（内含 retrieve）
+    Graph->>Graph: router_node → POLICY
+    Graph->>Graph: policy_agent()（内含 retrieve）
     Graph->>Embed: aembed_query()
     Embed->>Embed: 生成查询向量
     Embed-->>Graph: query_vector
-    Graph->>DB: SELECT ... ORDER BY distance
-    DB-->>Graph: 相似文档片段
-    Graph->>Graph: 过滤 (distance < 0.5)
-    Graph->>Graph: generate()
+    Graph->>VecDB: 混合检索 (dense + sparse)
+    VecDB-->>Graph: 相似文档片段
+    Graph->>Graph: Rerank(TopK)
     Graph->>LLM: Prompt + Context + Question
     LLM-->>Graph: 流式响应
     Graph-->>API: SSE Events
@@ -430,7 +431,6 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 order.py             # 订单表
 │   │   ├── 📄 refund.py            # 退款申请表
 │   │   ├── 📄 audit.py             # 审计日志表
-│   │   ├── 📄 knowledge.py         # 知识库表
 │   │   ├── 📄 message.py           # 消息卡片表
 │   │   └── 📄 state.py             # AgentState TypedDict
 │   │
@@ -503,9 +503,6 @@ E-commerce-Smart-Agent/
 │       │   ├── 📁 customer/        # C端用户应用
 │       │   │   ├── 📄 App.tsx
 │       │   │   ├── 📄 main.tsx
-│       │   │   ├── 📁 pages/
-│       │   │   │   ├── 📄 Login.tsx
-│       │   │   │   └── 📄 Chat.tsx
 │       │   │   ├── 📁 hooks/
 │       │   │   │   └── 📄 useChat.ts
 │       │   │   └── 📁 components/
@@ -515,9 +512,14 @@ E-commerce-Smart-Agent/
 │       │   └── 📁 admin/           # B端管理后台
 │       │       ├── 📄 App.tsx
 │       │       ├── 📄 main.tsx
-│       │       └── 📁 pages/
-│       │           ├── 📄 Login.tsx
-│       │           └── 📄 Dashboard.tsx
+│       │       ├── 📁 pages/
+│       │       │   ├── 📄 Login.tsx
+│       │       │   └── 📄 Dashboard.tsx
+│       │       └── 📁 components/
+│       │           ├── 📄 DecisionPanel.tsx
+│       │           ├── 📄 NotificationToast.tsx
+│       │           ├── 📄 TaskDetail.tsx
+│       │           └── 📄 TaskList.tsx
 │       │
 │       ├── 📁 components/
 │       │   ├── 📁 ui/              # shadcn/ui 组件
@@ -535,7 +537,6 @@ E-commerce-Smart-Agent/
 │       │   │   ├── 📄 sheet.tsx
 │       │   │   ├── 📄 skeleton.tsx
 │       │   │   └── 📄 textarea.tsx
-│       │   └── 📁 common/          # 业务共享组件
 │       │
 │       ├── 📁 lib/                 # 共享基础设施
 │       │   ├── 📄 api.ts           # 统一 API 客户端
@@ -567,7 +568,8 @@ E-commerce-Smart-Agent/
 │       └── 📄 *.py                 # 迁移脚本
 │
 ├── 📁 data/                        # 静态数据
-│   └── 📄 shipping_policy.md       # 示例政策文档
+│   ├── 📄 shipping_policy.md       # 示例政策文档
+│   └── 📄 return_policy.md         # 退货政策文档
 │
 └── 📁 tests/                       # 测试文件
     ├── 📄 conftest.py              # pytest 全局 fixtures
@@ -576,8 +578,20 @@ E-commerce-Smart-Agent/
     ├── 📄 test_chat_api.py         # 聊天 API 测试
     ├── 📄 test_admin_api.py        # 管理员 API 测试
     ├── 📄 test_websocket.py        # WebSocket 测试
-    ├── 📄 test_confidence_signals.py # 置信度信号测试
+    ├── 📄 test_auth_rate_limit.py  # 认证限流测试
+    ├── 📄 test_order_service.py    # 订单服务测试
+    ├── 📄 test_refund_service.py   # 退款服务测试
+    ├── 📄 test_admin_service.py    # 管理员服务测试
+    ├── 📄 test_auth_service.py     # 认证服务测试
+    ├── 📄 test_status_service.py   # 状态服务测试
+    ├── 📄 test_refund_tool_service.py # 退款工具服务测试
+    ├── 📄 test_security.py         # 安全测试
+    ├── 📄 test_main_security.py    # 主应用安全测试
+    ├── 📄 test_logging.py          # 日志测试
+    ├── 📄 test_chat_utils.py       # 聊天工具测试
     ├── 📄 test_refund_tasks.py     # 退款任务测试
+    ├── 📄 test_users.py            # 用户模型测试
+    ├── 📄 test_confidence_signals.py # 置信度信号测试
     ├── 📁 agents/                  # Agent 单元测试
     ├── 📁 graph/                   # LangGraph 测试
     ├── 📁 intent/                  # 意图模块测试
@@ -590,7 +604,7 @@ E-commerce-Smart-Agent/
 | 特性 | 描述 | 技术实现 |
 |------|------|----------|
 | **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph |
-| **LangGraph 节点编排** | router_node → policy_agent/order_agent → evaluator_node → decider_node 显式工作流 | LangGraph 1.0+ Command API |
+| **LangGraph 节点编排** | router_node → policy_agent/order_agent → evaluator_node → (低置信重试 → router_node \| 通过 → decider_node) 显式工作流 | LangGraph 1.0+ Command API |
 | **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 | IntentRecognitionService + Redis |
 | **RAG 检索** | 基于 Qdrant 的混合语义检索（Dense + BM25 Sparse + Rerank） | Embedding + 向量数据库 |
 | **查询重写与精排** | RAG 流程中先重写查询，再混合检索，最后 Rerank | `retrieval/` 模块 |

@@ -1,5 +1,5 @@
 #!/bin/bash
-# 启动 Celery Worker (v4.0)
+# 启动 Celery Worker (v4.1)
 
 export PYTHONPATH=$PWD
 
@@ -52,7 +52,7 @@ fi
 
 echo "Starting Celery Worker..."
 
-celery -A app.celery_app worker \
+uv run celery -A app.celery_app worker \
   --loglevel=info \
   --concurrency=4 \
   --pool=solo \
