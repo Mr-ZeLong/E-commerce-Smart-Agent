@@ -18,6 +18,7 @@ flowchart TB
             WS["/api/v1/ws<br/>WebSocket"]
             ADMIN["/api/v1/admin<br/>管理员 API"]
             KB_ADMIN["/admin/knowledge<br/>知识库管理"]
+            AGENT_CFG["/admin/agent-config<br/>Agent 配置中心"]
             STATUS["/api/v1/status<br/>状态查询"]
         end
     end
@@ -44,10 +45,11 @@ flowchart TB
 
         subgraph Nodes["📍 节点定义"]
             ROUTER_NODE["router_node<br/>意图路由"]
+            MEMORY_NODE["memory_node<br/>记忆加载 / 摘要注入"]
             SUPERVISOR_NODE["supervisor_node<br/>串行/并行调度"]
             SYNTHESIS_NODE["synthesis_node<br/>多 Agent 回复融合"]
             EVALUATOR_NODE["evaluator_node<br/>置信度评估"]
-            DECIDER_NODE["decider_node<br/>人工接管决策 / 回复生成"]
+            DECIDER_NODE["decider_node<br/>人工接管决策 / 回复生成 / 记忆抽取触发"]
         end
 
         subgraph ParallelExec["⚡ 并行执行器"]
@@ -73,6 +75,23 @@ flowchart TB
 
     subgraph WebSocketLayer["🔌 WebSocket 层"]
         WS_MGR["Connection Manager<br/>连接管理器"]
+    end
+
+    subgraph MemoryLayer["🧠 记忆层 (Phase 3)"]
+        subgraph MemorySQL["PostgreSQL"]
+            TBL_PROFILE[(user_profiles<br/>用户画像)]
+            TBL_PREF[(user_preferences<br/>用户偏好)]
+            TBL_SUMMARY[(interaction_summaries<br/>交互摘要)]
+            TBL_FACT[(user_facts<br/>原子事实)]
+            TBL_AGENT_CFG[(agent_configs<br/>Agent 配置)]
+            TBL_AGENT_AUDIT[(agent_config_audit_logs<br/>配置审计)]
+        end
+
+        subgraph MemoryVec["Qdrant"]
+            VEC_CONV[(conversation_memory<br/>对话向量记忆)]
+        end
+
+        MEM_MGR["Memory Managers<br/>Structured / Vector / Extractor / Summarizer"]
     end
 
     subgraph DataLayer["💾 数据层"]
@@ -116,6 +135,7 @@ flowchart TB
     CHAT --> GRAPH
     ADMIN --> REFUND_SVC
     KB_ADMIN --> KB_TASKS
+    AGENT_CFG --> MemoryLayer
     WS --> WS_MGR
 
     GRAPH --> Nodes
@@ -123,7 +143,8 @@ flowchart TB
     Nodes --> ParallelExec
     Nodes --> Subgraphs
 
-    ROUTER_NODE --> SUPERVISOR_NODE
+    ROUTER_NODE --> MEMORY_NODE
+    MEMORY_NODE --> SUPERVISOR_NODE
     SUPERVISOR_NODE --> PLAN_DISPATCH
     PLAN_DISPATCH --> BUILD_SENDS
     BUILD_SENDS --> Subgraphs
@@ -139,30 +160,38 @@ flowchart TB
     CELERY --> TASKS
     KB_TASKS --> Qdrant
     TASKS --> DB
+    CELERY -->|"记忆抽取"| MEM_MGR
 
     Nodes <-->|"Embedding/LLM"| External
+    MEM_MGR <-->|"Embedding"| External
 
     DB --> PostgreSQL
     CELERY --> REDIS_CELERY
     GRAPH --> REDIS_CHECK
     REDIS_CART --> Redis
+    MEM_MGR --> MemorySQL
+    MEM_MGR --> MemoryVec
 ```
 
 ## 2. LangGraph 工作流详解
 
-Phase 2 重构了 Agent 层的编排方式，引入 **Supervisor-based Graph**：
+Phase 2 重构了 Agent 层的编排方式，引入 **Supervisor-based Graph**；Phase 3 进一步在工作流中嵌入 **记忆层** (`memory_node`)，实现长期上下文增强：
 
 - `router_node` 负责意图识别与澄清，将结果写入 `AgentState`。
+- `memory_node` 加载结构化记忆（`UserProfile`、`UserPreference`、`UserFact`、`InteractionSummary`）和向量对话记忆（`conversation_memory` 语义检索），生成 `memory_context` 并注入后续 Agent Prompt。
 - `supervisor_node` 基于 `intent_result` 中的主意图和 `pending_intents`，通过 `plan_dispatch` 判断多个意图之间是否独立，决定**串行**或**并行**调度。
 - 若为并行，通过 `build_parallel_sends` 生成多个 `LangGraph Send`，同时分发到不同的 `Agent Subgraph`。
 - 各 `Agent Subgraph` 执行完毕后统一收敛到 `synthesis_node`，将多个专家回复融合为一段连贯回答。
 - 之后进入 `evaluator_node` 进行置信度评估，低置信度时回到 `router_node` 重试。
+- `decider_node` 在最终决策（人工接管/直接回复）后，触发 Celery 异步任务进行会话摘要与事实抽取。
 
 ```mermaid
 flowchart LR
     START([START]) --> ROUTER["🎯 router_node\n意图路由"]
 
-    ROUTER -->|"主意图 / slots"| SUPERVISOR["🧠 supervisor_node\n串行/并行调度"]
+    ROUTER -->|"主意图 / slots"| MEMORY["🧠 memory_node\n记忆加载 / 摘要注入"]
+
+    MEMORY -->|"memory_context"| SUPERVISOR["🧠 supervisor_node\n串行/并行调度"]
 
     SUPERVISOR -->|"串行"| POLICY["📚 policy_agent\nSubgraph"]
     SUPERVISOR -->|"串行"| ORDER["📦 order_agent\nSubgraph"]
@@ -182,11 +211,12 @@ flowchart LR
 
     SYNTHESIS --> EVAL["⚖️ evaluator_node\n置信度评估"]
     EVAL -->|"低置信度"| ROUTER
-    EVAL -->|"通过"| DECIDER["🔀 decider_node\n人工接管决策 / 回复生成"]
+    EVAL -->|"通过"| DECIDER["🔀 decider_node\n人工接管决策 / 回复生成 / 记忆抽取触发"]
 
     DECIDER -->|"无需接管"| END_NORMAL([END])
     DECIDER -->|"需要审核"| END_AUDIT([END\n等待人工审核])
 
+    style MEMORY fill:#e1bee7,stroke:#7b1fa2
     style SUPERVISOR fill:#bbdefb,stroke:#1565c0
     style EVAL fill:#ffeb3b,stroke:#f57f17
     style END_AUDIT fill:#ff9800,stroke:#e65100
@@ -199,6 +229,10 @@ erDiagram
     users ||--o{ orders : "拥有"
     users ||--o{ refund_applications : "申请"
     users ||--o{ audit_logs : "触发"
+    users ||--o{ user_profiles : "拥有"
+    users ||--o{ user_preferences : "拥有"
+    users ||--o{ interaction_summaries : "拥有"
+    users ||--o{ user_facts : "拥有"
     orders ||--o{ refund_applications : "关联"
     orders ||--o{ audit_logs : "关联"
     refund_applications ||--o{ audit_logs : "触发"
@@ -301,6 +335,70 @@ erDiagram
         datetime created_at
     }
 
+    user_profiles {
+        int id PK
+        int user_id FK
+        string membership_level
+        string preferred_language
+        string timezone
+        int total_orders
+        float lifetime_value
+        datetime created_at
+        datetime updated_at
+    }
+
+    user_preferences {
+        int id PK
+        int user_id FK
+        string preference_key
+        string preference_value
+        datetime created_at
+        datetime updated_at
+    }
+
+    interaction_summaries {
+        int id PK
+        int user_id FK
+        string thread_id
+        text summary_text
+        string resolved_intent
+        float satisfaction_score
+        datetime created_at
+        datetime updated_at
+    }
+
+    user_facts {
+        int id PK
+        int user_id FK
+        string fact_type
+        text content
+        float confidence
+        string source_thread_id
+        datetime created_at
+        datetime updated_at
+    }
+
+    agent_configs {
+        int id PK
+        string agent_name UK
+        text system_prompt
+        text previous_system_prompt
+        float confidence_threshold
+        int max_retries
+        boolean enabled
+        datetime updated_at
+    }
+
+    agent_config_audit_logs {
+        int id PK
+        string agent_name
+        int changed_by
+        string field_name
+        text old_value
+        text new_value
+        datetime created_at
+    }
+
     knowledge_chunks[Qdrant Collection: knowledge_chunks] {
         string source
         text content
@@ -311,6 +409,16 @@ erDiagram
 
     product_catalog[Qdrant Collection: product_catalog] {
         string source
+        text content
+        vector embedding
+        json meta_data
+        datetime created_at
+    }
+
+    conversation_memory[Qdrant Collection: conversation_memory] {
+        string thread_id
+        string message_id
+        string role
         text content
         vector embedding
         json meta_data
@@ -566,6 +674,76 @@ sequenceDiagram
     Celery->>DB: UPDATE knowledge_documents.status=SYNCED
 ```
 
+### 4.8 记忆系统加载流程
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CUI as Customer UI
+    participant API as FastAPI
+    participant Graph as LangGraph
+    participant MemoryNode as memory_node
+    participant StructMgr as StructuredMemoryManager
+    participant VecMgr as VectorMemoryManager
+    participant PG as PostgreSQL
+    participant Qdrant as Qdrant conversation_memory
+
+    User->>CUI: "我之前问过退货政策"
+    CUI->>API: POST /api/v1/chat (SSE)
+    API->>Graph: astream_events()
+    Graph->>Graph: router_node
+    Graph->>MemoryNode: 加载记忆
+
+    par 结构化记忆加载
+        MemoryNode->>StructMgr: get_memory_context(user_id)
+        StructMgr->>PG: SELECT user_profiles / preferences / facts / summaries
+        PG-->>StructMgr: 用户画像 + 偏好 + 事实
+        StructMgr-->>MemoryNode: memory_context (文本)
+    and 向量记忆召回
+        MemoryNode->>VecMgr: retrieve_similar_messages(query, user_id)
+        VecMgr->>Qdrant: semantic_search(embedding)
+        Qdrant-->>VecMgr: 相关历史消息 TopK
+        VecMgr-->>MemoryNode: relevant_history
+    end
+
+    MemoryNode-->>Graph: 更新 state.memory_context
+    Graph->>Graph: supervisor_node / Agent Subgraphs / synthesis_node
+    Graph-->>API: SSE Events
+    API-->>CUI: 流式显示（含记忆感知的回复）
+    CUI-->>User: 个性化回答
+```
+
+### 4.9 Agent 配置中心流程
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant ADM as Admin Dashboard
+    participant API as FastAPI
+    participant Svc as AgentConfigService
+    participant DB as PostgreSQL
+    participant Cache as Redis Cache
+    participant Graph as LangGraph
+
+    Admin->>ADM: 修改 Agent 系统提示词 / 路由规则
+    ADM->>API: PUT /api/v1/admin/agent-config/{agent_name}
+    API->>Svc: update_agent_config()
+    Svc->>DB: UPDATE agent_configs (version ++)
+    Svc->>DB: INSERT agent_config_audit_logs
+    Svc->>Cache: DEL agent_config:{agent_name}
+    Svc-->>API: 配置已更新
+    API-->>ADM: 200 OK
+
+    Note over Graph: 60s TTL 过期后
+    Graph->>Cache: GET agent_config:order_agent
+    Cache-->>Graph: MISS
+    Graph->>Svc: load_config("order_agent")
+    Svc->>DB: SELECT agent_configs
+    DB-->>Svc: 最新配置
+    Svc->>Cache: SET agent_config:order_agent (TTL=60s)
+    Svc-->>Graph: 热重载配置
+```
+
 ## 5. 技术栈分层
 
 ```mermaid
@@ -581,24 +759,27 @@ flowchart TB
     end
 
     subgraph Layer3["业务层"]
-        B1["LangGraph<br/>Supervisor-based 工作流引擎"]
-        B2["意图识别<br/>Intent Router + 多意图独立判断"]
-        B3["RAG 检索<br/>Dense + Sparse + Rerank + Rewriter"]
-        B4["专家 Agent 舰队<br/>Product / Cart / Order / Policy / Logistics / Account / Payment"]
-        B5["退货服务<br/>Refund Service"]
+        B1["LangGraph\nSupervisor-based 工作流引擎 (含 memory_node)"]
+        B2["意图识别\nIntent Router + 多意图独立判断"]
+        B3["RAG 检索\nDense + Sparse + Rerank + Rewriter"]
+        B4["专家 Agent 舰队\nProduct / Cart / Order / Policy / Logistics / Account / Payment"]
+        B5["退货服务\nRefund Service"]
+        B6["记忆系统\nStructured + Vector + Extractor + Summarizer"]
+        B7["Agent 配置中心\n热重载 + 路由规则 + 审计日志"]
     end
 
     subgraph Layer4["任务层"]
-        T1["Celery<br/>异步任务队列"]
-        T2["退款处理<br/>支付网关"]
-        T3["短信通知<br/>SMS Gateway"]
-        T4["知识库同步<br/>ETL → Qdrant"]
+        T1["Celery\n异步任务队列"]
+        T2["退款处理\n支付网关"]
+        T3["短信通知\nSMS Gateway"]
+        T4["知识库同步\nETL → Qdrant"]
+        T5["记忆抽取\n会话摘要 + UserFact 提取"]
     end
 
     subgraph Layer5["数据层"]
-        D1["PostgreSQL<br/>关系型数据"]
-        D2["Qdrant<br/>混合向量检索 (knowledge_chunks + product_catalog)"]
-        D3["Redis<br/>缓存 / 会话 / 购物车 / Checkpoint"]
+        D1["PostgreSQL\n关系型数据 (含 memory / config 表)"]
+        D2["Qdrant\n混合向量检索 (knowledge_chunks + product_catalog + conversation_memory)"]
+        D3["Redis\n缓存 / 会话 / 购物车 / Checkpoint"]
     end
 
     subgraph Layer6["外部层"]
@@ -637,6 +818,8 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 chat.py              # 聊天接口 (SSE 流式)
 │   │   ├── 📄 chat_utils.py        # SSE 流式响应工具
 │   │   ├── 📄 admin.py             # 管理员接口 (含知识库 CRUD + 同步)
+│   │   ├── 📁 admin/
+│   │   │   └── 📄 agent_config.py  # Agent 配置中心 API (路由规则 / 提示词 / 审计日志)
 │   │   ├── 📄 status.py            # 状态查询接口
 │   │   ├── 📄 websocket.py         # WebSocket 端点
 │   │   └── 📄 schemas.py           # Pydantic 数据模型
@@ -659,7 +842,15 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 message.py           # 消息卡片表
 │   │   ├── 📄 knowledge_document.py # 知识库文档表
 │   │   ├── 📄 observability.py     # 可观测性模型
+│   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / AuditLog)
 │   │   └── 📄 state.py             # AgentState TypedDict
+│   │
+│   ├── 📁 memory/                  # 记忆系统 (Phase 3)
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 structured_manager.py # 结构化记忆管理器 (PostgreSQL)
+│   │   ├── 📄 vector_manager.py    # 向量对话记忆管理器 (Qdrant conversation_memory)
+│   │   ├── 📄 extractor.py         # 事实抽取器 (FactExtractor)
+│   │   └── 📄 summarizer.py        # 会话摘要器 (SessionSummarizer)
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
 │   │   ├── 📄 workflow.py          # 工作流定义 (含 Supervisor 模式与兼容模式)
@@ -729,7 +920,8 @@ E-commerce-Smart-Agent/
 │   ├── 📁 tasks/                   # Celery 异步任务
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 refund_tasks.py      # 退款相关任务
-│   │   └── 📄 knowledge_tasks.py   # 知识库同步任务
+│   │   ├── 📄 knowledge_tasks.py   # 知识库同步任务
+│   │   └── 📄 memory_tasks.py      # 记忆抽取与同步任务
 │   │
 │   ├── 📁 websocket/               # WebSocket 服务
 │   │   └── 📄 manager.py           # 连接管理器
@@ -766,7 +958,8 @@ E-commerce-Smart-Agent/
 │       │       ├── 📁 pages/
 │       │       │   ├── 📄 Login.tsx
 │       │       │   ├── 📄 Dashboard.tsx
-│       │       │   └── 📄 KnowledgeBase.tsx      # 知识库管理页面
+│       │       │   ├── 📄 KnowledgeBase.tsx      # 知识库管理页面
+│       │       │   └── 📄 AgentConfig.tsx        # Agent 配置中心页面
 │       │       └── 📁 components/
 │       │           ├── 📄 DecisionPanel.tsx
 │       │           ├── 📄 NotificationToast.tsx
@@ -775,7 +968,8 @@ E-commerce-Smart-Agent/
 │       │           ├── 📄 ConversationLogs.tsx
 │       │           ├── 📄 EvaluationViewer.tsx
 │       │           ├── 📄 Performance.tsx
-│       │           └── 📄 KnowledgeBaseManager.tsx  # 知识库上传/同步组件
+│       │           ├── 📄 KnowledgeBaseManager.tsx  # 知识库上传/同步组件
+│       │           └── 📄 AgentConfigEditor.tsx     # Agent 配置编辑器组件
 │       │
 │       ├── 📁 components/
 │       │   ├── 📁 ui/              # shadcn/ui 组件
@@ -806,7 +1000,8 @@ E-commerce-Smart-Agent/
 │       │   ├── 📄 useAuth.ts
 │       │   ├── 📄 useNotifications.ts
 │       │   ├── 📄 useTasks.ts
-│       │   └── 📄 useKnowledgeBase.ts  # 知识库管理 Hooks
+│       │   ├── 📄 useKnowledgeBase.ts  # 知识库管理 Hooks
+│       │   └── 📄 useAgentConfig.ts    # Agent 配置管理 Hooks
 │       ├── 📁 types/               # TypeScript 类型定义
 │       │   └── 📄 index.ts         # 统一类型导出
 │
@@ -876,6 +1071,10 @@ E-commerce-Smart-Agent/
 | 特性 | 描述 | 技术实现 |
 |------|------|----------|
 | **智能问答** | 基于 LLM 的订单查询、政策咨询、商品查询和购物车管理 | LangChain + LangGraph |
+| **结构化记忆系统** | PostgreSQL 存储用户画像、偏好、交互摘要、原子事实；通过 `memory_context` 自动注入 Agent Prompt | `app/memory/structured_manager.py` + `app/models/memory.py` |
+| **向量对话记忆** | Qdrant `conversation_memory` 集合存储对话消息向量，支持语义检索历史上下文 | `app/memory/vector_manager.py` |
+| **记忆抽取 Pipeline** | `decider_node` 后 Celery 异步任务调用轻量 LLM，提取结构化 `UserFact` 并落盘 | `app/memory/extractor.py` + `app/tasks/memory_tasks.py` |
+| **Agent 配置中心** | B 端 Admin 支持热重载 Agent 路由规则、系统提示词、启用/禁用 Agent；支持审计日志与版本回滚 | `app/api/v1/admin/agent_config.py` + `frontend/src/apps/admin/pages/AgentConfig.tsx` |
 | **Supervisor 多 Agent 编排** | `SupervisorAgent` 基于意图独立性判断，决定串行或并行调度；通过 `Send` 实现多 Agent 并行执行 | `app/graph/parallel.py` + Agent Subgraphs |
 | **Agent Subgraph 标准** | 每个专家 Agent 封装为独立 `StateGraph` Subgraph，标准化消费 `AgentState` 子集并输出 `AgentProcessResult` | `app/graph/subgraphs.py` |
 | **多意图并行执行** | 独立意图通过 `build_parallel_sends` 同时分发到多个 Subgraph，结果汇聚至 `synthesis_node` 融合 | `plan_dispatch` + `Send` APIs |

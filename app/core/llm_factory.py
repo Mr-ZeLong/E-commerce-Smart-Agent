@@ -26,3 +26,6 @@ def create_openai_llm(
     if max_retries is not None:
         llm_kwargs["max_retries"] = max_retries
     return ChatOpenAI(**llm_kwargs)
+
+
+create_llm = create_openai_llm

@@ -27,6 +27,12 @@ celery_app.conf.update(
     task_soft_time_limit=240,  # 4分钟软超时
     worker_prefetch_multiplier=4,
     worker_max_tasks_per_child=1000,
+    beat_schedule={
+        "prune-vector-memory-daily": {
+            "task": "memory.prune_vector_memory",
+            "schedule": 86400.0,  # 每天一次
+        },
+    },
 )
 
 # 自动发现任务

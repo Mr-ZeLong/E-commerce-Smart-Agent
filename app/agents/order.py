@@ -22,17 +22,19 @@ class OrderAgent(BaseAgent):
     """订单专家 Agent"""
 
     def __init__(self, order_service: OrderService, llm: BaseChatModel):
-        super().__init__(name="order", llm=llm, system_prompt=ORDER_SYSTEM_PROMPT)
+        super().__init__(name="order_agent", llm=llm, system_prompt=ORDER_SYSTEM_PROMPT)
         self.order_service = order_service
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
         question = state.get("question", "")
         user_id = state.get("user_id")
         intent_result = state.get("intent_result") or {}
+        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
 
         if user_id is None:
             return {
-                "response": "抱歉，无法识别用户身份，请重新登录。",
+                "response": memory_prefix + "抱歉，无法识别用户身份，请重新登录。",
                 "updated_state": {"order_data": None},
             }
 
@@ -41,9 +43,15 @@ class OrderAgent(BaseAgent):
             or intent_result.get("primary_intent") == "AFTER_SALES"
         ):
             thread_id = state.get("thread_id", "")
-            return await self._handle_refund(question, user_id, thread_id)
+            result = await self._handle_refund(question, user_id, thread_id)
+            if memory_prefix:
+                result["response"] = memory_prefix + result.get("response", "")
+            return result
         else:
-            return await self._handle_order_query(question, user_id)
+            result = await self._handle_order_query(question, user_id)
+            if memory_prefix:
+                result["response"] = memory_prefix + result.get("response", "")
+            return result
 
     async def _handle_order_query(self, question: str, user_id: int) -> AgentProcessResult:
         order_sn = extract_order_sn(question)

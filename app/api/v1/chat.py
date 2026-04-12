@@ -13,7 +13,7 @@ from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
 from app.core.database import async_session_maker
 from app.core.security import get_current_user_id
-from app.core.utils import build_thread_id
+from app.core.utils import build_thread_id, utc_now
 from app.models.state import make_agent_state
 from app.observability.execution_logger import log_graph_execution, log_graph_node
 
@@ -79,11 +79,27 @@ async def chat(
                 question=chat_request.question,
                 user_id=current_user_id,
                 thread_id=thread_id,
+                history=[{"role": "user", "content": chat_request.question}],
             )
+
+            vector_manager = getattr(http_request.app.state, "vector_manager", None)
+            if vector_manager is not None:
+                try:
+                    await vector_manager.upsert_message(
+                        user_id=current_user_id,
+                        thread_id=thread_id,
+                        message_role="user",
+                        content=chat_request.question,
+                        timestamp=utc_now().isoformat(),
+                        intent=intent_category,
+                    )
+                except Exception:
+                    logger.exception("Failed to upsert user message to vector memory")
 
             # v4.1: 用于收集最终状态中的置信度信息
             final_state = {}
             sent_answers: set[str] = set()
+            final_answer = ""
 
             # Execution logging instrumentation
             start_time = time.time()
@@ -168,6 +184,7 @@ async def chat(
                                 answer = output["answer"]
                                 if answer and answer not in sent_answers:
                                     sent_answers.add(answer)
+                                    final_answer = answer
                                     payload = json.dumps({"token": answer}, ensure_ascii=False)
                                     yield f"data: {payload}\n\n"
 
@@ -198,6 +215,19 @@ async def chat(
                     yield f"data: {metadata_payload}\n\n"
 
                 yield "data: [DONE]\n\n"
+
+                if vector_manager is not None and final_answer:
+                    try:
+                        await vector_manager.upsert_message(
+                            user_id=current_user_id,
+                            thread_id=thread_id,
+                            message_role="assistant",
+                            content=final_answer,
+                            timestamp=utc_now().isoformat(),
+                            intent=intent_category,
+                        )
+                    except Exception:
+                        logger.exception("Failed to upsert assistant message to vector memory")
 
                 # Log execution metrics asynchronously after streaming completes
                 total_latency_ms = int((time.time() - start_time) * 1000)

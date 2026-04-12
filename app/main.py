@@ -57,6 +57,8 @@ async def lifespan(app: FastAPI):
     from app.core.redis import create_redis_client
     from app.graph.workflow import compile_app_graph
     from app.intent.service import IntentRecognitionService
+    from app.memory.structured_manager import StructuredMemoryManager
+    from app.memory.vector_manager import VectorMemoryManager
     from app.retrieval import create_retriever
     from app.services.order_service import OrderService
     from app.tools import AccountTool, CartTool, LogisticsTool, PaymentTool, ProductTool
@@ -73,6 +75,7 @@ async def lifespan(app: FastAPI):
 
     redis_client = None
     retriever = None
+    vector_manager = None
     try:
         redis_client = create_redis_client()
         checkpointer = AsyncRedisSaver(redis_client=redis_client)
@@ -81,7 +84,10 @@ async def lifespan(app: FastAPI):
         llm = create_openai_llm()
         eval_llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
         intent_service = IntentRecognitionService(llm=llm, redis_client=redis_client)
-        router_agent = IntentRouterAgent(intent_service=intent_service, llm=llm)
+        structured_manager = StructuredMemoryManager()
+        router_agent = IntentRouterAgent(
+            intent_service=intent_service, llm=llm, structured_manager=structured_manager
+        )
         retriever = create_retriever(llm=llm)
         policy_agent = PolicyAgent(retriever=retriever, llm=llm)
         order_agent = OrderAgent(order_service=OrderService(), llm=llm)
@@ -92,9 +98,11 @@ async def lifespan(app: FastAPI):
         cart_agent = CartAgent(tool_registry=tool_registry, llm=llm)
         supervisor_agent = SupervisorAgent(llm=llm)
         evaluator = ConfidenceEvaluator(llm=eval_llm)
+        vector_manager = VectorMemoryManager()
 
         app.state.intent_service = intent_service
         app.state.llm = llm
+        app.state.vector_manager = vector_manager
         app.state.app_graph = await compile_app_graph(
             router_agent=router_agent,
             policy_agent=policy_agent,
@@ -108,6 +116,8 @@ async def lifespan(app: FastAPI):
             product_agent=product_agent,
             cart_agent=cart_agent,
             llm=llm,
+            structured_manager=structured_manager,
+            vector_manager=vector_manager,
         )
         logger.info(" Infrastructure is ready.")
         yield
@@ -117,6 +127,8 @@ async def lifespan(app: FastAPI):
             await redis_client.close()
         if retriever is not None:
             await retriever.qdrant_client.aclose()
+        if vector_manager is not None:
+            await vector_manager.aclose()
         await async_engine.dispose()
 
 

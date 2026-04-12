@@ -259,6 +259,9 @@ class Settings(BaseSettings):
     # Intent classification threshold
     FUNCTION_CALLING_THRESHOLD: float = 0.7
 
+    MEMORY_RETENTION_DAYS: int = 90
+    AGENT_CONFIG_CACHE_TTL: int = 60
+
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 

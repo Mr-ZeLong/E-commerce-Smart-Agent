@@ -1,3 +1,4 @@
+import json
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
@@ -17,10 +18,14 @@ from app.agents.product import ProductAgent
 from app.agents.router import IntentRouterAgent
 from app.agents.supervisor import SupervisorAgent
 from app.core.config import settings
-from app.core.database import sync_session_maker
+from app.core.database import async_session_maker, sync_session_maker
 from app.graph.parallel import build_parallel_sends
+from app.memory.structured_manager import StructuredMemoryManager
+from app.memory.summarizer import SessionSummarizer
+from app.memory.vector_manager import VectorMemoryManager
 from app.models.observability import SupervisorDecision
 from app.models.state import AgentProcessResult, AgentState
+from app.tasks.memory_tasks import extract_and_save_facts
 
 
 def _log_supervisor_decision(
@@ -52,26 +57,141 @@ logger = logging.getLogger(__name__)
 
 def build_router_node(
     agent: IntentRouterAgent,
-    use_supervisor: bool = True,
 ) -> Callable[
     [AgentState],
-    Awaitable[Command[Literal["supervisor_node", "decider_node"]]],
+    Awaitable[Command[Literal["memory_node", "decider_node"]]],
 ]:
     async def router_node(
         state: AgentState,
-    ) -> Command[Literal["supervisor_node", "decider_node"]]:
+    ) -> Command[Literal["memory_node", "decider_node"]]:
         result = await agent.process(state)
         updated = dict(result.get("updated_state") or {})
 
         if result.get("response"):
             return Command(goto="decider_node", update={"answer": result["response"], **updated})
 
-        if not use_supervisor and updated.get("next_agent"):
-            return Command(goto=updated["next_agent"], update=updated)
-
-        return Command(goto="supervisor_node", update=updated)
+        return Command(goto="memory_node", update=updated)
 
     return router_node
+
+
+def build_memory_node(
+    structured_manager: StructuredMemoryManager | None = None,
+    vector_manager: VectorMemoryManager | None = None,
+    use_supervisor: bool = True,
+) -> Callable[[AgentState], Awaitable[Command]]:
+    async def memory_node(state: AgentState) -> Command:
+        user_id = state.get("user_id")
+        thread_id = state.get("thread_id")
+        history = state.get("history", [])
+
+        last_user_message = ""
+        for msg in reversed(history):
+            if msg.get("role") == "user":
+                last_user_message = msg.get("content", "")
+                break
+
+        memory_context: dict[str, Any] = {}
+
+        if (
+            structured_manager is not None
+            and vector_manager is not None
+            and user_id is not None
+            and thread_id is not None
+        ):
+            async with async_session_maker() as session:
+                try:
+                    profile = await structured_manager.get_user_profile(session, user_id)
+                    if profile:
+                        memory_context["user_profile"] = {
+                            "user_id": profile.user_id,
+                            "membership_level": profile.membership_level,
+                            "preferred_language": profile.preferred_language,
+                            "timezone": profile.timezone,
+                            "total_orders": profile.total_orders,
+                            "lifetime_value": profile.lifetime_value,
+                        }
+                except Exception:
+                    logger.exception("Failed to fetch user profile for memory context")
+
+                try:
+                    preferences = await structured_manager.get_user_preferences(session, user_id)
+                    if preferences:
+                        memory_context["preferences"] = [
+                            {
+                                "preference_key": p.preference_key,
+                                "preference_value": p.preference_value,
+                            }
+                            for p in preferences
+                        ]
+                except Exception:
+                    logger.exception("Failed to fetch user preferences for memory context")
+
+                try:
+                    facts = await structured_manager.get_user_facts(session, user_id, limit=3)
+                    if facts:
+                        memory_context["structured_facts"] = [
+                            {
+                                "fact_type": f.fact_type,
+                                "content": f.content,
+                                "confidence": f.confidence,
+                            }
+                            for f in facts
+                        ]
+                except Exception:
+                    logger.exception("Failed to fetch user facts for memory context")
+
+                try:
+                    summaries = await structured_manager.get_recent_summaries(
+                        session, user_id, limit=2
+                    )
+                    if summaries:
+                        memory_context["interaction_summaries"] = [
+                            {
+                                "summary_text": s.summary_text,
+                                "resolved_intent": s.resolved_intent,
+                                "created_at": s.created_at.isoformat() if s.created_at else None,
+                            }
+                            for s in summaries
+                        ]
+                except Exception:
+                    logger.exception("Failed to fetch interaction summaries for memory context")
+
+            try:
+                if last_user_message:
+                    summary_results = await vector_manager.search_similar(
+                        user_id, query_text=last_user_message, top_k=2, message_role="summary"
+                    )
+                    message_results = await vector_manager.search_similar(
+                        user_id, query_text=last_user_message, top_k=5
+                    )
+                    seen_contents: set[str] = set()
+                    combined: list[dict] = []
+                    for payload in summary_results + message_results:
+                        content = str(payload.get("content", ""))
+                        if content and content not in seen_contents:
+                            seen_contents.add(content)
+                            combined.append(payload)
+                    if combined:
+                        memory_context["relevant_past_messages"] = [
+                            {
+                                "role": payload.get("message_role", "user"),
+                                "content": payload.get("content", ""),
+                            }
+                            for payload in combined[:5]
+                        ]
+            except Exception:
+                logger.exception("Failed to fetch vector memory for memory context")
+
+        if not use_supervisor:
+            next_agent = state.get("next_agent")
+            if next_agent:
+                return Command(goto=next_agent, update={"memory_context": memory_context})
+            return Command(goto="decider_node", update={"memory_context": memory_context})
+
+        return Command(goto="supervisor_node", update={"memory_context": memory_context})
+
+    return memory_node
 
 
 def build_supervisor_node(
@@ -269,16 +389,24 @@ def build_evaluator_node(
         if state.get("needs_human_transfer"):
             return Command(goto="decider_node", update={})
 
+        from app.agents.config_loader import get_agent_config
+
+        current_agent = state.get("current_agent") or "policy_agent"
+        agent_config = await get_agent_config(current_agent)
+        confidence_threshold = agent_config.confidence_threshold if agent_config else None
+        max_retries = agent_config.max_retries if agent_config else settings.MAX_EVALUATOR_RETRIES
+
         eval_result = await evaluator.evaluate(
             answer=state.get("answer", ""),
             question=state.get("question", ""),
             history=state.get("history", []),
             retrieval_result=state.get("retrieval_result"),
+            confidence_threshold=confidence_threshold,
         )
 
         if (
             eval_result.get("confidence_score", 0) < settings.CONFIDENCE_RETRY_THRESHOLD
-            and state.get("iteration_count", 0) <= settings.MAX_EVALUATOR_RETRIES
+            and state.get("iteration_count", 0) <= max_retries
         ):
             return Command(
                 goto="router_node",
@@ -294,7 +422,7 @@ def build_evaluator_node(
     return evaluator_node
 
 
-def decider_node(state: AgentState) -> dict:
+def _decider_node_logic(state: AgentState) -> dict:
     if state.get("needs_human_transfer"):
         return {
             "answer": state.get("answer", ""),
@@ -333,3 +461,62 @@ def decider_node(state: AgentState) -> dict:
         "transfer_reason": "missing_evaluation",
         "audit_level": "manual",
     }
+
+
+def decider_node(state: AgentState) -> dict:
+    return _decider_node_logic(state)
+
+
+def build_decider_node(
+    vector_manager=None,
+) -> Callable[[AgentState], Awaitable[dict]]:
+    async def _async_decider_node(state: AgentState) -> dict:
+        result = _decider_node_logic(state)
+
+        history = state.get("history", [])
+        needs_human = result.get("needs_human_transfer", False)
+        awaiting_clarification = state.get("awaiting_clarification")
+
+        summarizer = SessionSummarizer()
+        force_summary = len(history) > 20
+        should_summarize = force_summary or (
+            not needs_human and not awaiting_clarification and summarizer.should_summarize(state)
+        )
+
+        if not needs_human and not awaiting_clarification:
+            user_id = state.get("user_id")
+            thread_id = state.get("thread_id")
+            if user_id is not None and thread_id is not None:
+                history_json = json.dumps(history)
+
+                question = ""
+                answer = ""
+                for msg in reversed(history):
+                    if msg.get("role") == "user" and not question:
+                        question = msg.get("content", "")
+                    if msg.get("role") == "assistant" and not answer:
+                        answer = msg.get("content", "")
+                if not question:
+                    question = state.get("question", "")
+                if not answer:
+                    answer = state.get("answer", "")
+
+                try:
+                    extract_and_save_facts.delay(user_id, thread_id, history_json, question, answer)
+                except Exception:
+                    logger.exception("Failed to enqueue fact extraction")
+
+        if should_summarize:
+            try:
+                async with async_session_maker() as session:
+                    await summarizer.run(state, session, vector_manager=vector_manager)
+            except Exception:
+                logger.exception("Failed to run session summarizer")
+
+        answer = result.get("answer", "") or state.get("answer", "")
+        if answer:
+            result["history"] = [{"role": "assistant", "content": answer}]
+
+        return result
+
+    return _async_decider_node

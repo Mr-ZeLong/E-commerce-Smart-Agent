@@ -5,8 +5,10 @@ from langgraph.graph import END, START, StateGraph
 from app.graph.nodes import (
     build_account_node,
     build_cart_node,
+    build_decider_node,
     build_evaluator_node,
     build_logistics_node,
+    build_memory_node,
     build_order_node,
     build_payment_node,
     build_policy_node,
@@ -14,7 +16,6 @@ from app.graph.nodes import (
     build_router_node,
     build_supervisor_node,
     build_synthesis_node,
-    decider_node,
 )
 from app.graph.subgraphs import build_agent_subgraph
 from app.models.state import AgentState
@@ -34,12 +35,14 @@ def create_workflow(
     product_agent=None,
     cart_agent=None,
     llm=None,
+    structured_manager=None,
+    vector_manager=None,
 ):
     workflow = StateGraph(AgentState)  # type: ignore
 
     workflow.add_node(
         "router_node",
-        build_router_node(router_agent, use_supervisor=supervisor_agent is not None),  # type: ignore
+        build_router_node(router_agent),  # type: ignore
         metadata={"tags": ["router_node", "internal"]},
     )
 
@@ -133,13 +136,22 @@ def create_workflow(
             )
 
     workflow.add_node(
+        "memory_node",
+        build_memory_node(
+            structured_manager,
+            vector_manager,
+            use_supervisor=supervisor_agent is not None,
+        ),  # type: ignore
+        metadata={"tags": ["memory_node", "internal"]},
+    )
+    workflow.add_node(
         "evaluator_node",
         build_evaluator_node(evaluator),  # type: ignore
         metadata={"tags": ["evaluator_node", "confidence_eval", "internal"]},
     )
     workflow.add_node(
         "decider_node",
-        decider_node,
+        build_decider_node(vector_manager),  # type: ignore
         metadata={"tags": ["decider_node", "internal"]},
     )
 
@@ -188,6 +200,8 @@ async def compile_app_graph(
     product_agent=None,
     cart_agent=None,
     llm=None,
+    structured_manager=None,
+    vector_manager=None,
 ):
     logger.info("Compiling LangGraph 1.0+ multi-agent workflow...")
 
@@ -203,6 +217,8 @@ async def compile_app_graph(
         product_agent=product_agent,
         cart_agent=cart_agent,
         llm=llm,
+        structured_manager=structured_manager,
+        vector_manager=vector_manager,
     )
     compiled = workflow.compile(checkpointer=checkpointer)
     logger.info("LangGraph compiled successfully")

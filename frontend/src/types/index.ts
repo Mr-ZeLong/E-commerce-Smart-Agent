@@ -154,3 +154,45 @@ export interface SyncStatus {
   status: string
   result: Record<string, unknown> | null
 }
+
+export interface AgentConfig {
+  agent_name: string
+  system_prompt: string
+  previous_system_prompt: string | null
+  confidence_threshold: number
+  max_retries: number
+  enabled: boolean
+  updated_at: string
+}
+
+export interface AgentConfigPayload {
+  system_prompt?: string
+  confidence_threshold?: number
+  max_retries?: number
+  enabled?: boolean
+}
+
+export interface RoutingRule {
+  id: number
+  intent_category: string
+  target_agent: string
+  priority: number
+  condition_json: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentConfigAuditLog {
+  id: number
+  agent_name: string
+  changed_by: number
+  field_name: string
+  old_value: string | null
+  new_value: string | null
+  created_at: string
+}
+
+export interface AgentsConfigResponse {
+  configs: AgentConfig[]
+  routing_rules: RoutingRule[]
+}

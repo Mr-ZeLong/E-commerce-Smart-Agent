@@ -18,8 +18,10 @@ class LogisticsAgent(BaseAgent):
         self.tool_registry = tool_registry
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
         tool_result = await self.tool_registry.execute("logistics", state)
         output = tool_result.output
+        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
 
         if output.get("status") == "未找到订单":
             response_text = "抱歉，未找到相关订单的物流信息。请确认订单号是否正确。"
@@ -32,5 +34,8 @@ class LogisticsAgent(BaseAgent):
                 f"最新动态: {output.get('latest_update', '暂无')}\n"
                 f"预计送达: {output.get('estimated_delivery', '暂无')}"
             )
+
+        if memory_prefix:
+            response_text = memory_prefix + response_text
 
         return {"response": response_text, "updated_state": {"order_data": output}}

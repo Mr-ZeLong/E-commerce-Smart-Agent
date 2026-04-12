@@ -33,12 +33,19 @@ class IntentRouterAgent(BaseAgent):
         "您好！我是您的智能客服助手，可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？"
     )
 
-    def __init__(self, intent_service: IntentRecognitionService, llm: BaseChatModel) -> None:
+    def __init__(
+        self,
+        intent_service: IntentRecognitionService,
+        llm: BaseChatModel,
+        structured_manager=None,
+    ) -> None:
         super().__init__(name="intent_router", llm=llm, system_prompt=None)
         self.intent_service = intent_service
+        self.structured_manager = structured_manager
         logger.debug("IntentRouterAgent initialized")
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
         query = state.get("question", "")
         session_id = state.get("thread_id", "")
         user_id = state.get("user_id")
@@ -59,9 +66,28 @@ class IntentRouterAgent(BaseAgent):
             result.confidence,
         )
 
-        next_agent = self._route_by_intent(result)
+        next_agent = await self._route_by_intent(result)
         intent_name = result.primary_intent.value
         logger.debug("Routing decision: intent=%s, next_agent=%s", intent_name, next_agent)
+
+        from app.agents.config_loader import is_agent_enabled
+
+        if next_agent and next_agent != "supervisor" and not await is_agent_enabled(next_agent):
+            logger.info("Agent %s is disabled, falling back to policy_agent", next_agent)
+            next_agent = "policy_agent"
+            if not await is_agent_enabled(next_agent):
+                return {
+                    "response": "系统无法处理该请求，已为您转接人工客服。",
+                    "updated_state": {
+                        "intent_result": result.model_dump(),
+                        "slots": result.slots or {},
+                        "awaiting_clarification": result.needs_clarification,
+                        "next_agent": None,
+                        "iteration_count": iteration,
+                        "needs_human_transfer": True,
+                        "transfer_reason": "all_routing_targets_disabled",
+                    },
+                }
 
         if iteration > settings.MAX_ROUTER_ITERATIONS:
             logger.warning("Router 迭代次数超过限制: %s", iteration)
@@ -120,7 +146,8 @@ class IntentRouterAgent(BaseAgent):
 
         if intent_name == IntentCategory.OTHER.value:
             logger.info("OTHER intent detected, returning greeting response")
-            return {"response": self.GREETING_RESPONSE, "updated_state": updated_state}
+            greeting = await self._personalized_greeting(user_id)
+            return {"response": greeting, "updated_state": updated_state}
 
         if not next_agent:
             return {
@@ -131,5 +158,48 @@ class IntentRouterAgent(BaseAgent):
         logger.info("Routing to agent: %s", next_agent)
         return {"response": "", "updated_state": updated_state}
 
-    def _route_by_intent(self, result: IntentResult) -> str:
-        return _INTENT_MAPPINGS.get(result.primary_intent, "supervisor")
+    async def _personalized_greeting(self, user_id: int | None) -> str:
+        if self.structured_manager is None or user_id is None:
+            return self.GREETING_RESPONSE
+        from app.core.database import async_session_maker
+
+        async with async_session_maker() as session:
+            try:
+                profile = await self.structured_manager.get_user_profile(session, user_id)
+                prefix = ""
+                if profile:
+                    prefix = f"您好，尊敬的 {profile.membership_level} 会员！"
+                summaries = await self.structured_manager.get_recent_summaries(
+                    session, user_id, limit=3
+                )
+                unresolved_intents = {"REFUND", "AFTER_SALES", "PAYMENT"}
+                for s in summaries:
+                    if s.resolved_intent in unresolved_intents:
+                        issue_text = (
+                            "我们注意到您之前有一笔退款/售后申请仍在处理中，"
+                            if s.resolved_intent in {"REFUND", "AFTER_SALES"}
+                            else "我们注意到您之前有支付相关的问题尚未解决，"
+                        )
+                        return (
+                            f"{prefix}我是您的智能客服助手。{issue_text}"
+                            "我可以帮您查询最新进度，请问有什么可以帮您？"
+                        )
+                if prefix:
+                    return (
+                        f"{prefix}我是您的智能客服助手，"
+                        "可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？"
+                    )
+            except Exception:
+                logger.exception("Failed to fetch user profile for greeting personalization")
+        return self.GREETING_RESPONSE
+
+    async def _route_by_intent(self, result: IntentResult) -> str:
+        from app.agents.config_loader import get_target_agent_for_intent
+
+        intent_name = (
+            result.primary_intent.value
+            if isinstance(result.primary_intent, IntentCategory)
+            else str(result.primary_intent)
+        )
+        fallback = _INTENT_MAPPINGS.get(result.primary_intent, "supervisor")
+        return await get_target_agent_for_intent(intent_name, fallback=fallback)

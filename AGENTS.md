@@ -6,16 +6,20 @@
 
 ## 项目概览
 
-**E-commerce Smart Agent v4.1** 是一个全栈·沉浸式人机协作智能客服系统，已完成 Phase 1 专家 Agent 扩展与 Phase 2 Supervisor-based 多 Agent 编排重构。核心能力包括：
+**E-commerce Smart Agent v4.1** 是一个全栈·沉浸式人机协作智能客服系统，已完成 Phase 1 专家 Agent 扩展、Phase 2 Supervisor-based 多 Agent 编排重构，以及 **Phase 3 记忆系统与 Agent 配置中心**。核心能力包括：
 
 - 基于 LLM（通义千问/Qwen）的智能问答（订单查询、政策咨询、商品查询、购物车管理）
 - **Supervisor-based 多 Agent 编排**：LangGraph `Command` + `Send` API 实现串行/并行智能调度与多意图并行执行
 - **Agent Subgraph 标准**：每个专家 Agent 封装为独立 `StateGraph`，标准化输入/输出接口
 - **商品问答** (`ProductAgent`)：基于 Qdrant `product_catalog` 语义检索，支持直接参数回答 + LLM 回退
 - **购物车管理** (`CartAgent`)：Redis 持久化，支持增删改查，24h TTL 保持一致性
+- **结构化记忆系统**（Phase 3）：PostgreSQL 存储 `UserProfile` / `UserPreference` / `InteractionSummary` / `UserFact`，通过 `memory_context` 注入 Agent Prompt
+- **向量对话记忆**（Phase 3）：Qdrant `conversation_memory` 集合支持语义检索历史上下文
+- **记忆抽取 Pipeline**（Phase 3）：`FactExtractor` + Celery 异步任务，自动从会话中提取结构化事实
+- **Agent 配置中心**（Phase 3）：B 端 Admin 后台支持热重载 Agent 路由规则、系统提示词、启用/禁用 Agent，带审计日志与版本回滚
 - 智能风控与人工审核（按金额分级：¥500 / ¥2000 阈值）
 - WebSocket 实时状态同步（用户端 + 管理员端）
-- Celery 异步任务（退款支付、短信通知、管理员通知、知识库 ETL 同步）
+- Celery 异步任务（退款支付、短信通知、管理员通知、知识库 ETL 同步、记忆抽取）
 - 基于 Qdrant 的混合 RAG 检索（Dense + BM25 Sparse + Rerank）
 - **B 端知识库管理**：Admin 后台支持 PDF/Markdown 上传、删除与手动同步到 Qdrant
 
@@ -84,6 +88,7 @@
 │   │   ├── chat.py                 # 聊天接口（SSE 流式）
 │   │   ├── chat_utils.py           # SSE 流式响应工具
 │   │   ├── admin.py                # 管理员 API（审核、任务队列、知识库 CRUD + 同步）
+│   │   ├── admin/agent_config.py   # Agent 配置中心 API（路由规则 / 提示词 / 审计日志）
 │   │   ├── status.py               # 状态查询
 │   │   ├── websocket.py            # WebSocket 端点
 │   │   └── schemas.py              # Pydantic 请求/响应模型
@@ -104,7 +109,14 @@
 │   │   ├── message.py              # 消息模型
 │   │   ├── knowledge_document.py   # 知识库文档模型
 │   │   ├── observability.py        # 可观测性模型（GraphExecutionLog / SupervisorDecision）
+│   │   ├── memory.py               # 记忆模型（UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / AuditLog）
 │   │   └── state.py                # AgentState TypedDict
+│   ├── memory/                     # 记忆系统（Phase 3）
+│   │   ├── __init__.py
+│   │   ├── structured_manager.py   # 结构化记忆管理器（PostgreSQL）
+│   │   ├── vector_manager.py       # 向量对话记忆管理器（Qdrant conversation_memory）
+│   │   ├── extractor.py            # 事实抽取器（FactExtractor）
+│   │   └── summarizer.py           # 会话摘要器（SessionSummarizer）
 │   ├── graph/                      # LangGraph 工作流
 │   │   ├── workflow.py             # 编译 StateGraph（含 Supervisor 与兼容模式）
 │   │   ├── nodes.py                # router_node / supervisor_node / synthesis_node / evaluator_node / decider_node
@@ -160,7 +172,8 @@
 │   ├── tasks/                      # Celery 异步任务
 │   │   ├── __init__.py
 │   │   ├── refund_tasks.py         # 退款相关任务
-│   │   └── knowledge_tasks.py      # 知识库同步任务
+│   │   ├── knowledge_tasks.py      # 知识库同步任务
+│   │   └── memory_tasks.py         # 记忆抽取与同步任务
 │   ├── websocket/                  # WebSocket 连接管理
 │   │   └── manager.py              # ConnectionManager（广播/单发）
 │   └── schemas/                    # 共享 Schema
@@ -187,7 +200,8 @@
 │       │   ├── pages/
 │       │   │   ├── Login.tsx
 │       │   │   ├── Dashboard.tsx
-│       │   │   └── KnowledgeBase.tsx          # 知识库管理页面
+│       │   │   ├── KnowledgeBase.tsx          # 知识库管理页面
+│       │   │   └── AgentConfig.tsx            # Agent 配置中心页面
 │       │   └── components/
 │       │       ├── DecisionPanel.tsx
 │       │       ├── NotificationToast.tsx
@@ -196,13 +210,15 @@
 │       │       ├── ConversationLogs.tsx
 │       │       ├── EvaluationViewer.tsx
 │       │       ├── Performance.tsx
-│       │       └── KnowledgeBaseManager.tsx   # 知识库上传/同步组件
+│       │       ├── KnowledgeBaseManager.tsx   # 知识库上传/同步组件
+│       │       └── AgentConfigEditor.tsx      # Agent 配置编辑器组件
 │       ├── assets/                 # 前端静态资源
 │       ├── components/ui/          # shadcn/ui 组件
 │       ├── lib/                    # API 客户端、工具函数
 │       ├── stores/                 # Zustand Store
 │       ├── hooks/                  # 自定义 Hooks
-│       │   └── useKnowledgeBase.ts # 知识库管理 Hooks
+│       │   ├── useKnowledgeBase.ts # 知识库管理 Hooks
+│       │   └── useAgentConfig.ts   # Agent 配置管理 Hooks
 │       └── types/                  # TypeScript 类型
 │
 ├── tests/                          # 后端测试
@@ -518,8 +534,11 @@ class User(SQLModel, table=True):
 - 状态定义在 `app/models/state.py`
 - Agent 实例在 `app/main.py` 的 `lifespan` 中初始化，通过依赖注入传递给 `nodes.py` 中的 builder 函数
 
-**Phase 2 工作流节点顺序（Supervisor 模式）**：
-`router_node` → `supervisor_node` → (`Send` 并行/串行分发到 Agent Subgraphs) → `synthesis_node` → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
+**Phase 3 工作流节点顺序（Supervisor + Memory 模式）**：
+`router_node` → `memory_node` → `supervisor_node` → (`Send` 并行/串行分发到 Agent Subgraphs) → `synthesis_node` → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
+
+- `memory_node` 在 `router_node` 之后执行，负责从 PostgreSQL 加载结构化记忆（`UserProfile`、`UserPreference`、`UserFact`、`InteractionSummary`），并从 Qdrant `conversation_memory` 语义检索相关历史消息，生成 `memory_context` 写入 `AgentState`。
+- `decider_node` 在最终回复/决策后，异步触发 Celery 任务（`extract_and_save_facts`）进行会话摘要与事实抽取。
 
 当 `supervisor_agent=None` 时，工作流自动回退到旧路径：`router_node` 直接路由到具体的 `policy_agent` / `order_agent` / ...。
 
@@ -553,6 +572,37 @@ class User(SQLModel, table=True):
 - **PaymentAgent** (`app/agents/payment.py` + `app/tools/payment_tool.py`)
   - 处理 `PAYMENT` 意图，查询支付状态、发票信息、退款支付记录。
   - 行为规则：查询 `RefundApplication` 与 `Order` 表必须按 `user_id` 过滤。
+
+### 4.3 记忆系统开发约定（Phase 3）
+
+- **结构化记忆 (`app/memory/structured_manager.py`)**
+  - `UserProfile` / `UserPreference` / `InteractionSummary` / `UserFact` 统一通过 `StructuredMemoryManager` 进行 CRUD。
+  - 所有查询必须按 `user_id` 过滤，禁止越权访问其他用户记忆。
+  - `memory_context` 生成规则：按优先级拼接（Profile → Facts → Preferences → Summary），控制总长度避免污染 Prompt。
+
+- **向量对话记忆 (`app/memory/vector_manager.py`)**
+  - Qdrant Collection 名为 `conversation_memory`，每条消息独立存储向量和元数据（`thread_id`, `role`, `created_at`）。
+  - `upsert_message` 在 `chat.py` 的 SSE 流前后调用，实现消息向量持久化。
+  - `retrieve_similar_messages` 默认按 `user_id` + `thread_id` 过滤，召回 TopK 相关历史上下文。
+
+- **记忆抽取 (`app/memory/extractor.py` + `app/tasks/memory_tasks.py`)**
+  - `FactExtractor` 使用轻量 LLM (`qwen-turbo`) 配合 JSON Schema 结构化输出，提取 `fact_type` / `content` / `confidence`。
+  - `confidence < 0.7` 的事实直接丢弃，不入库。
+  - PII 保护：`extractor.py` 内置正则过滤身份证号、手机号、银行卡号，命中时整句事实会被丢弃。
+  - Celery 任务 `extract_and_save_facts` 由 `decider_node` 在回合结束后异步触发，不阻塞 SSE 响应。
+
+### 4.4 Agent 配置中心开发约定（Phase 3）
+
+- **后端 API** (`app/api/v1/admin/agent_config.py`)
+  - 提供 Agent 配置的 CRUD、路由规则管理、版本回滚、审计日志查询。
+  - 配置读取带 Redis 缓存（60s TTL），写入时主动失效缓存，实现热重载。
+  - 禁用某个 Agent 时，需要在 Supervisor 调度层或兼容路由层正确处理 fallback（默认转 `policy_agent` 或直接提示）。
+  - 所有配置变更必须写入 `AgentConfigAuditLog`，包含 `old_value` / `new_value` / `changed_by`。
+
+- **前端集成** (`frontend/src/apps/admin/pages/AgentConfig.tsx` + `AgentConfigEditor.tsx`)
+  - 使用 `useAgentConfig.ts` 封装 TanStack Query 进行服务端状态管理。
+  - 路由规则编辑支持 intent_category / target_agent / priority 的表单输入；`condition_json` 当前为只读 JSON 展示。
+  - 版本回滚交互：在 `AgentConfigEditor.tsx` 中选择历史版本并一键回滚。
 
 ### 5. 日志规范
 

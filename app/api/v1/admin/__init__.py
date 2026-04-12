@@ -14,6 +14,7 @@ from sqlalchemy import case, func, text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.api.v1.admin.agent_config import router as agent_config_router
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
 from app.core.utils import utc_now
@@ -36,6 +37,7 @@ from app.services.admin_service import AdminService, AuditAlreadyProcessedError,
 from app.tasks.knowledge_tasks import sync_knowledge_document
 
 router = APIRouter()
+router.include_router(agent_config_router, prefix="/admin/agents")
 tracer = trace.get_tracer(__name__)
 
 

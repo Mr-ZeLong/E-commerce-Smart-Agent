@@ -29,6 +29,9 @@ class SupervisorAgent(BaseAgent):
         super().__init__(name="supervisor", llm=llm, system_prompt=None)
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
+        from app.agents.config_loader import is_agent_enabled
+
         intent_result = state.get("intent_result") or {}
         primary = intent_result.get("primary_intent")
         slots = state.get("slots") or {}
@@ -38,8 +41,28 @@ class SupervisorAgent(BaseAgent):
             sa["agent"] for sa in state.get("sub_answers", []) if sa.get("iteration") == iteration
         }
 
+        from app.agents.config_loader import get_target_agent_for_intent
+
         primary_str = str(primary) if primary is not None else "OTHER"
-        primary_agent = _INTENT_TO_AGENT.get(primary_str, "policy_agent")
+        primary_agent = await get_target_agent_for_intent(
+            primary_str, fallback=_INTENT_TO_AGENT.get(primary_str, "policy_agent")
+        )
+        if not await is_agent_enabled(primary_agent):
+            logger.info("Agent %s is disabled, falling back to policy_agent", primary_agent)
+            primary_agent = "policy_agent"
+            if not await is_agent_enabled(primary_agent):
+                logger.error("Fallback policy_agent is also disabled; forcing human transfer")
+                return {
+                    "response": "",
+                    "updated_state": {
+                        "next_agent": None,
+                        "execution_mode": "serial",
+                        "pending_agent_results": [],
+                        "supervisor_reasoning": "Target and fallback agents disabled",
+                        "needs_human_transfer": True,
+                        "transfer_reason": "all_routing_targets_disabled",
+                    },
+                }
 
         plan_agents = [primary_agent]
         plan_intents = [primary_str]
@@ -48,7 +71,12 @@ class SupervisorAgent(BaseAgent):
             pname = p.get("primary_intent")
             if not pname:
                 continue
-            pagent = _INTENT_TO_AGENT.get(str(pname), "policy_agent")
+            pagent = await get_target_agent_for_intent(
+                str(pname), fallback=_INTENT_TO_AGENT.get(str(pname), "policy_agent")
+            )
+            if not await is_agent_enabled(pagent):
+                logger.info("Agent %s is disabled, skipping in plan", pagent)
+                continue
             if pagent not in seen:
                 plan_agents.append(pagent)
                 plan_intents.append(str(pname))

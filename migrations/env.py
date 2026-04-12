@@ -19,6 +19,14 @@ from app.models.message import MessageCard
 from app.models.user import User
 from app.models.knowledge_document import KnowledgeDocument
 from app.models.observability import GraphExecutionLog, GraphNodeLog, SupervisorDecision
+from app.models.memory import (
+    AgentConfig,
+    InteractionSummary,
+    RoutingRule,
+    UserFact,
+    UserPreference,
+    UserProfile,
+)
 # ==========================================
 
 config = context.config

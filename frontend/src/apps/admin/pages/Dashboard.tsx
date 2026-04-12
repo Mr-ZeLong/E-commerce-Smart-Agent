@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LogOut, Bell, User, BarChart3, MessageSquare, BookOpen } from 'lucide-react'
+import { LogOut, Bell, User, BarChart3, MessageSquare, BookOpen, Bot } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTasks, useTaskStats } from '@/hooks/useTasks'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -16,6 +16,7 @@ import { Performance } from '../components/Performance'
 import { EvaluationViewer } from '../components/EvaluationViewer'
 import { ConversationLogs } from '../components/ConversationLogs'
 import { KnowledgeBase } from '../pages/KnowledgeBase'
+import { AgentConfig } from '../pages/AgentConfig'
 
 export function Dashboard() {
   const { user, logout } = useAuth()
@@ -94,6 +95,10 @@ export function Dashboard() {
               <BookOpen className="h-4 w-4" />
               知识库
             </TabsTrigger>
+            <TabsTrigger value="agent-config" className="gap-1">
+              <Bot className="h-4 w-4" />
+              Agent 配置
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -138,6 +143,10 @@ export function Dashboard() {
 
         <TabsContent value="knowledge" className="flex-1 overflow-hidden m-0">
           <KnowledgeBase />
+        </TabsContent>
+
+        <TabsContent value="agent-config" className="flex-1 overflow-hidden m-0">
+          <AgentConfig />
         </TabsContent>
       </Tabs>
 

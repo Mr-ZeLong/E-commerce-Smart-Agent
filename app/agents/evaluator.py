@@ -16,7 +16,12 @@ class ConfidenceEvaluator:
         self.llm = llm
 
     async def evaluate(
-        self, question: str, answer: str, history: list, retrieval_result: Any | None
+        self,
+        question: str,
+        answer: str,
+        history: list,
+        retrieval_result: Any | None,
+        confidence_threshold: float | None = None,
     ) -> dict:
         """
         计算置信度并返回评估结果字典，包含：
@@ -55,8 +60,14 @@ class ConfidenceEvaluator:
         )
 
         # 确定审核级别
-        audit_level = settings.CONFIDENCE.get_audit_level(overall_score)
-        needs_transfer = audit_level == "manual"
+        if confidence_threshold is not None:
+            needs_transfer = overall_score < confidence_threshold
+            audit_level = (
+                "manual" if needs_transfer else settings.CONFIDENCE.get_audit_level(overall_score)
+            )
+        else:
+            audit_level = settings.CONFIDENCE.get_audit_level(overall_score)
+            needs_transfer = audit_level == "manual"
 
         return {
             "confidence_score": overall_score,

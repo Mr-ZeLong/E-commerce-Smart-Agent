@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { KnowledgeBase } from './pages/KnowledgeBase'
+import { AgentConfig } from './pages/AgentConfig'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuthStore()
@@ -33,6 +34,14 @@ function App() {
             element={
               <PrivateRoute>
                 <KnowledgeBase />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/agent-config"
+            element={
+              <PrivateRoute>
+                <AgentConfig />
               </PrivateRoute>
             }
           />

@@ -20,12 +20,14 @@ class PaymentAgent(BaseAgent):
         self.tool_registry = tool_registry
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
         tool_result = await self.tool_registry.execute("payment", state)
         data = tool_result.output
         payment_status = data.get("payment_status", "未知")
         invoice_status = data.get("invoice_status", "未查询到发票信息")
         refund_records = data.get("refund_records", [])
         message = data.get("message", "")
+        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
 
         if message == "未查询到相关支付/退款记录" or not refund_records:
             response = (
@@ -52,6 +54,9 @@ class PaymentAgent(BaseAgent):
                         f"状态: {record.get('status', 'N/A')}"
                     )
             response = "\n".join(lines)
+
+        if memory_prefix:
+            response = memory_prefix + response
 
         return {
             "response": response,

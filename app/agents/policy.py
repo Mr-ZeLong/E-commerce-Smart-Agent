@@ -21,17 +21,22 @@ class PolicyAgent(BaseAgent):
     """政策专家 Agent"""
 
     def __init__(self, retriever: HybridRetriever, llm: BaseChatModel):
-        super().__init__(name="policy", llm=llm, system_prompt=POLICY_SYSTEM_PROMPT)
+        super().__init__(name="policy_agent", llm=llm, system_prompt=POLICY_SYSTEM_PROMPT)
         self.retriever = retriever
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
         question = state.get("question", "")
 
         chunks, similarities, sources = await self._retrieve_knowledge(question)
 
         retrieval_result = {"chunks": chunks, "similarities": similarities, "sources": sources}
 
-        messages = self._create_messages(question, context={"context": chunks})
+        messages = self._create_messages(
+            question,
+            context={"context": chunks},
+            memory_context=state.get("memory_context"),
+        )
 
         response = await self._call_llm(messages, tags=["user_visible"])
 

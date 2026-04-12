@@ -57,7 +57,7 @@ async def test_router_node_routes_to_supervisor():
     result = await node(state)
 
     assert isinstance(result, Command)
-    assert result.goto == "supervisor_node"
+    assert result.goto == "memory_node"
     assert result.update is not None
     assert result.update["next_agent"] == "policy_agent"
     assert result.update["iteration_count"] == 1
@@ -80,7 +80,7 @@ async def test_router_node_missing_next_agent():
     result = await node(state)
 
     assert isinstance(result, Command)
-    assert result.goto == "supervisor_node"
+    assert result.goto == "memory_node"
     assert result.update is not None
     assert result.update["needs_human_transfer"] is True
 

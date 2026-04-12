@@ -25,16 +25,20 @@ class AccountAgent(BaseAgent):
         self.tool_registry = tool_registry
 
     async def process(self, state: AgentState) -> AgentProcessResult:
+        await self._load_config()
         tool_result = await self.tool_registry.execute("account", state)
         output = tool_result.output
+        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
 
         if output.get("error"):
             return {
-                "response": output["error"],
+                "response": memory_prefix + output["error"],
                 "updated_state": {"account_data": None},
             }
 
         response = self._format_account_response(output)
+        if memory_prefix:
+            response = memory_prefix + response
         return {
             "response": response,
             "updated_state": {"account_data": output},
