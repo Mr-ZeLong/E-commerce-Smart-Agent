@@ -6,14 +6,18 @@
 
 ## 项目概览
 
-**E-commerce Smart Agent v4.1** 是一个全栈·沉浸式人机协作智能客服系统。核心能力包括：
+**E-commerce Smart Agent v4.1** 是一个全栈·沉浸式人机协作智能客服系统，已完成 Phase 1 专家 Agent 扩展与 Phase 2 Supervisor-based 多 Agent 编排重构。核心能力包括：
 
-- 基于 LLM（通义千问/Qwen）的智能问答（订单查询、政策咨询）
-- LangGraph 显式节点编排的退货申请工作流
+- 基于 LLM（通义千问/Qwen）的智能问答（订单查询、政策咨询、商品查询、购物车管理）
+- **Supervisor-based 多 Agent 编排**：LangGraph `Command` + `Send` API 实现串行/并行智能调度与多意图并行执行
+- **Agent Subgraph 标准**：每个专家 Agent 封装为独立 `StateGraph`，标准化输入/输出接口
+- **商品问答** (`ProductAgent`)：基于 Qdrant `product_catalog` 语义检索，支持直接参数回答 + LLM 回退
+- **购物车管理** (`CartAgent`)：Redis 持久化，支持增删改查，24h TTL 保持一致性
 - 智能风控与人工审核（按金额分级：¥500 / ¥2000 阈值）
 - WebSocket 实时状态同步（用户端 + 管理员端）
-- Celery 异步任务（退款支付、短信通知、管理员通知）
+- Celery 异步任务（退款支付、短信通知、管理员通知、知识库 ETL 同步）
 - 基于 Qdrant 的混合 RAG 检索（Dense + BM25 Sparse + Rerank）
+- **B 端知识库管理**：Admin 后台支持 PDF/Markdown 上传、删除与手动同步到 Qdrant
 
 项目采用前后端分离架构：
 - **后端**：FastAPI + SQLModel + LangChain/LangGraph + Celery
@@ -79,7 +83,7 @@
 │   │   ├── auth.py                 # JWT 登录
 │   │   ├── chat.py                 # 聊天接口（SSE 流式）
 │   │   ├── chat_utils.py           # SSE 流式响应工具
-│   │   ├── admin.py                # 管理员 API（审核、任务队列）
+│   │   ├── admin.py                # 管理员 API（审核、任务队列、知识库 CRUD + 同步）
 │   │   ├── status.py               # 状态查询
 │   │   ├── websocket.py            # WebSocket 端点
 │   │   └── schemas.py              # Pydantic 请求/响应模型
@@ -98,10 +102,14 @@
 │   │   ├── refund.py               # 退款模型
 │   │   ├── audit.py                # 审核日志模型
 │   │   ├── message.py              # 消息模型
+│   │   ├── knowledge_document.py   # 知识库文档模型
+│   │   ├── observability.py        # 可观测性模型（GraphExecutionLog / SupervisorDecision）
 │   │   └── state.py                # AgentState TypedDict
 │   ├── graph/                      # LangGraph 工作流
-│   │   ├── workflow.py             # 编译 StateGraph
-│   │   └── nodes.py                # router_node / policy_agent / order_agent / evaluator_node / decider_node
+│   │   ├── workflow.py             # 编译 StateGraph（含 Supervisor 与兼容模式）
+│   │   ├── nodes.py                # router_node / supervisor_node / synthesis_node / evaluator_node / decider_node
+│   │   ├── subgraphs.py            # Agent Subgraph 标准化封装
+│   │   └── parallel.py             # 并行多意图调度（plan_dispatch + build_parallel_sends）
 │   ├── confidence/                 # 置信度信号模块
 │   │   ├── __init__.py
 │   │   └── signals.py              # 置信度评估信号计算
@@ -110,9 +118,22 @@
 │   ├── agents/                     # Agent 实现层
 │   │   ├── base.py                 # Agent 基类
 │   │   ├── router.py               # IntentRouterAgent
+│   │   ├── supervisor.py           # SupervisorAgent（串行/并行调度）
 │   │   ├── order.py                # OrderAgent
 │   │   ├── policy.py               # PolicyAgent
+│   │   ├── product.py              # ProductAgent（商品问答）
+│   │   ├── cart.py                 # CartAgent（购物车管理）
+│   │   ├── logistics.py            # LogisticsAgent
+│   │   ├── account.py              # AccountAgent
+│   │   ├── payment.py              # PaymentAgent
 │   │   └── evaluator.py            # ConfidenceEvaluator（置信度信号）
+│   ├── tools/                      # Agent Tool 层
+│   │   ├── __init__.py
+│   │   ├── product_tool.py         # 商品检索 Tool（Qdrant product_catalog）
+│   │   ├── cart_tool.py            # 购物车操作 Tool（Redis）
+│   │   ├── logistics_tool.py       # 物流查询 Tool
+│   │   ├── account_tool.py         # 账户查询 Tool
+│   │   └── payment_tool.py         # 支付查询 Tool
 │   ├── intent/                     # 意图识别模块
 │   │   ├── service.py              # IntentRecognitionService（Redis 会话）
 │   │   ├── models.py               # 意图/槽位/澄清状态模型
@@ -121,7 +142,7 @@
 │   │   ├── clarification.py        # 澄清引擎
 │   │   ├── slot_validator.py       # 槽位验证器
 │   │   ├── topic_switch.py         # 话题切换检测
-│   │   ├── multi_intent.py         # 多意图处理器
+│   │   ├── multi_intent.py         # 多意图处理器（含 are_independent 独立性判断）
 │   │   └── safety.py               # 安全过滤器
 │   ├── retrieval/                  # RAG 检索层
 │   │   ├── client.py               # 检索客户端
@@ -137,7 +158,9 @@
 │   │   ├── admin_service.py        # 管理员服务
 │   │   └── auth_service.py         # 认证服务
 │   ├── tasks/                      # Celery 异步任务
-│   │   └── refund_tasks.py         # 退款相关任务
+│   │   ├── __init__.py
+│   │   ├── refund_tasks.py         # 退款相关任务
+│   │   └── knowledge_tasks.py      # 知识库同步任务
 │   ├── websocket/                  # WebSocket 连接管理
 │   │   └── manager.py              # ConnectionManager（广播/单发）
 │   └── schemas/                    # 共享 Schema
@@ -161,11 +184,25 @@
 │   └── src/
 │       ├── apps/customer/          # C端用户聊天应用
 │       ├── apps/admin/             # B端管理员后台
+│       │   ├── pages/
+│       │   │   ├── Login.tsx
+│       │   │   ├── Dashboard.tsx
+│       │   │   └── KnowledgeBase.tsx          # 知识库管理页面
+│       │   └── components/
+│       │       ├── DecisionPanel.tsx
+│       │       ├── NotificationToast.tsx
+│       │       ├── TaskDetail.tsx
+│       │       ├── TaskList.tsx
+│       │       ├── ConversationLogs.tsx
+│       │       ├── EvaluationViewer.tsx
+│       │       ├── Performance.tsx
+│       │       └── KnowledgeBaseManager.tsx   # 知识库上传/同步组件
 │       ├── assets/                 # 前端静态资源
 │       ├── components/ui/          # shadcn/ui 组件
 │       ├── lib/                    # API 客户端、工具函数
 │       ├── stores/                 # Zustand Store
 │       ├── hooks/                  # 自定义 Hooks
+│       │   └── useKnowledgeBase.ts # 知识库管理 Hooks
 │       └── types/                  # TypeScript 类型
 │
 ├── tests/                          # 后端测试
@@ -173,19 +210,17 @@
 │   ├── _db_config.py               # 测试数据库配置
 │   ├── test_*.py                   # API/Service 测试
 │   ├── agents/                     # Agent 单元测试
-│   │   └── __init__.py
+│   ├── tools/                      # Tool 单元测试（product_tool / cart_tool）
 │   ├── graph/                      # LangGraph 测试
-│   │   └── __init__.py
 │   ├── intent/                     # 意图模块测试
-│   │   └── __init__.py
 │   ├── retrieval/                  # RAG 检索测试
-│   │   └── __init__.py
 │   └── integration/                # 集成测试
 │
 ├── scripts/                        # 辅助脚本
 │   ├── __init__.py
 │   ├── seed_data.py                # 数据库初始化数据
 │   ├── seed_large_data.py          # 大批量测试数据
+│   ├── seed_product_catalog.py     # 商品目录种子数据（→ Qdrant product_catalog）
 │   ├── etl_qdrant.py               # 知识库 ETL（PDF/Markdown → Qdrant）
 │   └── verify_db.py                # 数据库验证
 │
@@ -193,7 +228,7 @@
 │   └── resume-guide.md             # 简历写作指南
 │
 ├── migrations/                     # Alembic 迁移脚本
-├── data/                           # 静态数据（示例政策文档）
+├── data/                           # 静态数据（示例政策文档、products.json）
 ├── assets/                         # 截图与静态资源
 ├── .github/                        # GitHub Actions 工作流
 ├── docker-compose.yaml             # 本地/容器编排
@@ -325,6 +360,9 @@ uv run python scripts/seed_data.py
 # 大批量测试数据
 uv run python scripts/seed_large_data.py
 
+# 商品目录种子数据（→ Qdrant product_catalog）
+uv run python scripts/seed_product_catalog.py
+
 # 知识库 ETL（PDF/Markdown → Qdrant）
 uv run python scripts/etl_qdrant.py
 ```
@@ -361,11 +399,11 @@ uv run pytest tests/integration/
 测试结构说明：
 - `tests/conftest.py`：提供全局 fixtures（如 `client`、`db_session`、`mock_redis`）
 - `tests/_db_config.py`：测试数据库连接与配置覆盖
-- API 层测试：`test_auth_api.py`、`test_chat_api.py`、`test_admin_api.py`、`test_websocket.py`、`test_auth_rate_limit.py`
+- API 层测试：`test_auth_api.py`、`test_chat_api.py`、`test_admin_api.py`、`test_websocket.py`、`test_auth_rate_limit.py`、`test_knowledge_admin.py`
 - Service 层测试：`test_order_service.py`、`test_refund_service.py`、`test_admin_service.py`、`test_auth_service.py`、`test_status_service.py`
 - 工具/安全测试：`test_security.py`、`test_main_security.py`、`test_logging.py`、`test_chat_utils.py`、`test_refund_tasks.py`、`test_users.py`、`test_confidence_signals.py`
-- 模块单元测试：`tests/agents/`、`tests/graph/`、`tests/intent/`、`tests/retrieval/`
-- 集成测试：`tests/integration/test_workflow_invoke.py` — LangGraph 工作流集成测试
+- 模块单元测试：`tests/agents/`、`tests/tools/`（`test_product_tool.py`、`test_cart_tool.py`）、`tests/graph/`、`tests/intent/`、`tests/retrieval/`
+- 集成测试：`tests/integration/test_workflow_invoke.py` — LangGraph 工作流集成测试（含并行多意图场景）
 
 ### 前端测试
 
@@ -474,30 +512,47 @@ class User(SQLModel, table=True):
 
 - `app/graph/workflow.py`：编译图并返回，由 `app/main.py` 存储在 `app.state.app_graph`
 - `app/main.py` 的 `lifespan` 在启动时调用 `compile_app_graph()`
-- 节点定义在 `app/graph/nodes.py`
+- 节点定义在 `app/graph/nodes.py`（含 router / supervisor / synthesis / evaluator / decider）
+- Agent Subgraph 定义在 `app/graph/subgraphs.py`
+- 并行调度定义在 `app/graph/parallel.py`
 - 状态定义在 `app/models/state.py`
-- Agent 实例在 `app/main.py` 的 `lifespan` 中初始化，通过依赖注入传递给 `nodes.py` 中的 builder 函数（`build_router_node`、`build_policy_node` 等）
+- Agent 实例在 `app/main.py` 的 `lifespan` 中初始化，通过依赖注入传递给 `nodes.py` 中的 builder 函数
 
-工作流节点顺序：
-`router_node` → (`policy_agent` | `order_agent` | `logistics` | `account` | `payment`) → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
+**Phase 2 工作流节点顺序（Supervisor 模式）**：
+`router_node` → `supervisor_node` → (`Send` 并行/串行分发到 Agent Subgraphs) → `synthesis_node` → `evaluator_node` → (`低置信度重试 → router_node` | `通过 → decider_node`) → `END`
 
-### 4.1 Tool-Based Agent 舰队（Phase 1 新增）
+当 `supervisor_agent=None` 时，工作流自动回退到旧路径：`router_node` 直接路由到具体的 `policy_agent` / `order_agent` / ...。
 
-Phase 1 引入了三个基于 `BaseTool` + `ToolRegistry` 的专家 Agent，用于处理高频轻量查询：
+### 4.1 Agent Subgraph 标准（Phase 2 核心）
+
+每个专家 Agent 被封装为独立的 `StateGraph` Subgraph（`app/graph/subgraphs.py::build_agent_subgraph(agent)`）：
+- 消费 `AgentState` 的子集
+- 返回 `{"sub_answers": [{"agent": ..., "response": ..., "updated_state": ..., "iteration": ...}]}`
+- 支持串行与并行执行（通过 `operator.add` 合并 `sub_answers`）
+
+### 4.2 Tool-Based Agent 舰队（Phase 1 + Phase 2）
+
+所有专家 Agent 均基于 `BaseTool` + `ToolRegistry` 构建，由 `app/main.py` lifespan 初始化并注入到 LangGraph 工作流中。每个 Agent 的节点/Subgraph 均标记 `metadata={"tags": ["user_visible"]}`，确保 SSE 流式输出可正确转发。
+
+- **ProductAgent** (`app/agents/product.py` + `app/tools/product_tool.py`)
+  - 处理 `PRODUCT` / `RECOMMENDATION` 意图，基于 Qdrant `product_catalog` 语义检索。
+  - 行为规则：精确参数命中目录元数据时直接回答；否则回退到 LLM 推理。
+
+- **CartAgent** (`app/agents/cart.py` + `app/tools/cart_tool.py`)
+  - 处理 `CART` 意图，支持购物车 `QUERY` / `ADD` / `REMOVE` / `MODIFY`。
+  - 行为规则：Redis 持久化 (`cart:{user_id}`)，24h TTL；严格多租户隔离。
 
 - **LogisticsAgent** (`app/agents/logistics.py` + `app/tools/logistics_tool.py`)
   - 处理 `LOGISTICS` 意图，查询 `Order.tracking_number` 与物流状态。
-  - 行为规则：必须按 `user_id` 过滤订单；若订单不存在返回明确的 "未找到相关订单"；物流状态在 Phase 1 以 mock 数据返回。
+  - 行为规则：必须按 `user_id` 过滤订单；若订单不存在返回明确的 "未找到相关订单"。
 
 - **AccountAgent** (`app/agents/account.py` + `app/tools/account_tool.py`)
   - 处理 `ACCOUNT` 意图，查询用户资料、会员等级、账户余额与优惠券。
-  - 行为规则：仅返回当前登录用户的资料；余额/优惠券在 Phase 1 以 mock 数据返回；会员等级字段通过 Alembic 迁移添加，默认值为 `standard`。
+  - 行为规则：仅返回当前登录用户的资料；余额/优惠券在 Phase 1 以 mock 数据返回。
 
 - **PaymentAgent** (`app/agents/payment.py` + `app/tools/payment_tool.py`)
   - 处理 `PAYMENT` 意图，查询支付状态、发票信息、退款支付记录。
-  - 行为规则：查询 `RefundApplication` 与 `Order` 表必须按 `user_id` 过滤；支付网关/发票状态在 Phase 1 以 mock 数据返回。
-
-所有 Agent 均通过 `ToolRegistry` 动态注册 tool，由 `app/main.py` lifespan 初始化并注入到 LangGraph 工作流中。每个 Agent 的节点均标记 `metadata={"tags": ["user_visible"]}`，确保 SSE 流式输出可正确转发。
+  - 行为规则：查询 `RefundApplication` 与 `Order` 表必须按 `user_id` 过滤。
 
 ### 5. 日志规范
 
@@ -536,7 +591,7 @@ FastAPI 托管 `frontend/dist` 中的构建产物：
 2. **JWT 密钥**：生产环境必须修改 `SECRET_KEY`，建议使用 `openssl rand -hex 32` 生成。
 3. **OpenAPI 文档**：生产环境应设置 `ENABLE_OPENAPI_DOCS=False`，避免暴露接口文档。
 4. **Rate Limiting**：已集成 `slowapi`，部分敏感接口（如登录）已配置限流。
-5. **多租户隔离**：所有订单/退款查询必须根据当前登录用户的 `user_id` 过滤，防止横向越权。
+5. **多租户隔离**：所有订单/退款/购物车查询必须根据当前登录用户的 `user_id` 过滤，防止横向越权。
 6. **密码存储**：用户密码使用 `bcrypt` 哈希，不存储明文。
 7. **依赖安全**：`pyproject.toml` 中固定了 `typer<0.16.0` 和 `click-plugins==1.1.1`，防止恶意包注入。
 

@@ -17,7 +17,8 @@ from app.models.refund import RefundApplication
 from app.models.audit import AuditLog
 from app.models.message import MessageCard
 from app.models.user import User
-from app.models.observability import GraphExecutionLog, GraphNodeLog
+from app.models.knowledge_document import KnowledgeDocument
+from app.models.observability import GraphExecutionLog, GraphNodeLog, SupervisorDecision
 # ==========================================
 
 config = context.config

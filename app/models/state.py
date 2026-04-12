@@ -52,6 +52,15 @@ class AgentState(TypedDict):
     clarification_state: dict[str, Any] | None
     refund_data: dict[str, Any] | None
 
+    execution_mode: str | None
+    sub_answers: Annotated[list[dict[str, Any]], operator.add]
+    supervisor_reasoning: str | None
+    synthesized_answer: str | None
+    pending_agent_results: list[str] | None
+    completed_agents: list[str] | None
+    product_data: dict[str, Any] | None
+    cart_data: dict[str, Any] | None
+
 
 def make_agent_state(
     *,
@@ -82,6 +91,14 @@ def make_agent_state(
     awaiting_clarification: bool | None = None,
     clarification_state: dict[str, Any] | None = None,
     refund_data: dict[str, Any] | None = None,
+    execution_mode: str | None = None,
+    sub_answers: list[dict[str, Any]] | None = None,
+    supervisor_reasoning: str | None = None,
+    synthesized_answer: str | None = None,
+    pending_agent_results: list[str] | None = None,
+    completed_agents: list[str] | None = None,
+    product_data: dict[str, Any] | None = None,
+    cart_data: dict[str, Any] | None = None,
 ) -> AgentState:
     return {
         "question": question,
@@ -111,4 +128,12 @@ def make_agent_state(
         "awaiting_clarification": awaiting_clarification,
         "clarification_state": clarification_state,
         "refund_data": refund_data,
+        "execution_mode": execution_mode,
+        "sub_answers": sub_answers if sub_answers is not None else [],
+        "supervisor_reasoning": supervisor_reasoning,
+        "synthesized_answer": synthesized_answer,
+        "pending_agent_results": pending_agent_results,
+        "completed_agents": completed_agents,
+        "product_data": product_data,
+        "cart_data": cart_data,
     }

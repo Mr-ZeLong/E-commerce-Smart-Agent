@@ -43,12 +43,15 @@ async def lifespan(app: FastAPI):
     from langgraph.checkpoint.redis import AsyncRedisSaver
 
     from app.agents.account import AccountAgent
+    from app.agents.cart import CartAgent
     from app.agents.evaluator import ConfidenceEvaluator
     from app.agents.logistics import LogisticsAgent
     from app.agents.order import OrderAgent
     from app.agents.payment import PaymentAgent
     from app.agents.policy import PolicyAgent
+    from app.agents.product import ProductAgent
     from app.agents.router import IntentRouterAgent
+    from app.agents.supervisor import SupervisorAgent
     from app.core.database import async_engine
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
@@ -56,7 +59,7 @@ async def lifespan(app: FastAPI):
     from app.intent.service import IntentRecognitionService
     from app.retrieval import create_retriever
     from app.services.order_service import OrderService
-    from app.tools import AccountTool, LogisticsTool, PaymentTool
+    from app.tools import AccountTool, CartTool, LogisticsTool, PaymentTool, ProductTool
     from app.tools.registry import ToolRegistry
 
     app.state.manager = ConnectionManager()
@@ -64,6 +67,8 @@ async def lifespan(app: FastAPI):
     tool_registry.register(LogisticsTool())
     tool_registry.register(AccountTool())
     tool_registry.register(PaymentTool())
+    tool_registry.register(ProductTool())
+    tool_registry.register(CartTool())
     app.state.tool_registry = tool_registry
 
     redis_client = None
@@ -83,6 +88,9 @@ async def lifespan(app: FastAPI):
         logistics_agent = LogisticsAgent(tool_registry=tool_registry, llm=llm)
         account_agent = AccountAgent(tool_registry=tool_registry, llm=llm)
         payment_agent = PaymentAgent(tool_registry=tool_registry, llm=llm)
+        product_agent = ProductAgent(tool_registry=tool_registry, llm=llm)
+        cart_agent = CartAgent(tool_registry=tool_registry, llm=llm)
+        supervisor_agent = SupervisorAgent(llm=llm)
         evaluator = ConfidenceEvaluator(llm=eval_llm)
 
         app.state.intent_service = intent_service
@@ -96,6 +104,10 @@ async def lifespan(app: FastAPI):
             payment_agent=payment_agent,
             evaluator=evaluator,
             checkpointer=checkpointer,
+            supervisor_agent=supervisor_agent,
+            product_agent=product_agent,
+            cart_agent=cart_agent,
+            llm=llm,
         )
         logger.info(" Infrastructure is ready.")
         yield

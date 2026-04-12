@@ -17,5 +17,9 @@ async def test_workflow_compiles():
         account_agent=AsyncMock(),
         payment_agent=AsyncMock(),
         evaluator=AsyncMock(),
+        supervisor_agent=AsyncMock(),
+        product_agent=AsyncMock(),
+        cart_agent=AsyncMock(),
+        llm=AsyncMock(),
     ).compile(checkpointer=checkpointer)
     assert app_graph is not None

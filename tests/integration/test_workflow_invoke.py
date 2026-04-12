@@ -8,8 +8,24 @@ from app.graph.workflow import create_workflow
 from app.models.state import make_agent_state
 
 
-def _mock_agent():
-    return AsyncMock()
+def _mock_agent(name="mock"):
+    m = AsyncMock()
+    m.name = name
+    return m
+
+
+def _supervisor_mock(next_agent: str):
+    m = AsyncMock()
+    m.name = "supervisor"
+    m.process.return_value = {
+        "response": "",
+        "updated_state": {
+            "next_agent": next_agent,
+            "execution_mode": "serial",
+            "pending_agent_results": [next_agent],
+        },
+    }
+    return m
 
 
 @pytest.mark.asyncio
@@ -29,7 +45,7 @@ async def test_workflow_order_query():
         "transfer_reason": None,
     }
 
-    mock_agent = _mock_agent()
+    mock_agent = _mock_agent("order_agent")
     mock_agent.process.return_value = {
         "response": "订单状态：已发货",
         "updated_state": {"order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}},
@@ -54,6 +70,8 @@ async def test_workflow_order_query():
         account_agent=AsyncMock(),
         payment_agent=AsyncMock(),
         evaluator=mock_eval,
+        supervisor_agent=_supervisor_mock("order_agent"),
+        llm=AsyncMock(),
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -80,7 +98,7 @@ async def test_workflow_policy_query():
         "transfer_reason": None,
     }
 
-    mock_agent = _mock_agent()
+    mock_agent = _mock_agent("policy_agent")
     mock_agent.process.return_value = {
         "response": "满100免运费",
         "updated_state": {"retrieval_result": None},
@@ -105,6 +123,8 @@ async def test_workflow_policy_query():
         account_agent=AsyncMock(),
         payment_agent=AsyncMock(),
         evaluator=mock_eval,
+        supervisor_agent=_supervisor_mock("policy_agent"),
+        llm=AsyncMock(),
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -131,7 +151,7 @@ async def test_workflow_logistics_query():
         "transfer_reason": None,
     }
 
-    mock_agent = _mock_agent()
+    mock_agent = _mock_agent("logistics")
     mock_agent.process.return_value = {
         "response": "物流单号: SF1234567890, 状态: 运输中",
         "updated_state": {"order_data": {"tracking_number": "SF1234567890", "status": "运输中"}},
@@ -156,6 +176,8 @@ async def test_workflow_logistics_query():
         account_agent=AsyncMock(),
         payment_agent=AsyncMock(),
         evaluator=mock_eval,
+        supervisor_agent=_supervisor_mock("logistics"),
+        llm=AsyncMock(),
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -182,7 +204,7 @@ async def test_workflow_account_query():
         "transfer_reason": None,
     }
 
-    mock_agent = _mock_agent()
+    mock_agent = _mock_agent("account")
     mock_agent.process.return_value = {
         "response": "账户余额: ¥128.50",
         "updated_state": {"account_data": {"balance": 128.50}},
@@ -207,6 +229,8 @@ async def test_workflow_account_query():
         account_agent=mock_agent,
         payment_agent=AsyncMock(),
         evaluator=mock_eval,
+        supervisor_agent=_supervisor_mock("account"),
+        llm=AsyncMock(),
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -233,7 +257,7 @@ async def test_workflow_payment_query():
         "transfer_reason": None,
     }
 
-    mock_agent = _mock_agent()
+    mock_agent = _mock_agent("payment")
     mock_agent.process.return_value = {
         "response": "退款状态: 已到账",
         "updated_state": {"payment_data": {"refund_status": "已到账"}},
@@ -258,6 +282,8 @@ async def test_workflow_payment_query():
         account_agent=AsyncMock(),
         payment_agent=mock_agent,
         evaluator=mock_eval,
+        supervisor_agent=_supervisor_mock("payment"),
+        llm=AsyncMock(),
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -265,3 +291,76 @@ async def test_workflow_payment_query():
         config={"configurable": {"thread_id": initial_state["thread_id"]}},
     )
     assert "已到账" in result.get("answer", "")
+
+
+@pytest.mark.asyncio
+async def test_workflow_parallel_multi_intent():
+    checkpointer = MemorySaver()
+
+    initial_state = make_agent_state(
+        question="查订单顺便问下退货政策",
+        thread_id="1__test_parallel",
+        intent_result={"primary_intent": "ORDER"},
+        slots={"pending_intents": [{"primary_intent": "POLICY"}]},
+    )
+
+    mock_router = _mock_agent()
+    mock_router.process.return_value = {
+        "response": "",
+        "updated_state": {"next_agent": "order_agent"},
+    }
+
+    mock_order = _mock_agent("order_agent")
+    mock_order.process.return_value = {
+        "response": "订单已发货",
+        "updated_state": {"order_data": {"status": "SHIPPED"}},
+    }
+
+    mock_policy = _mock_agent("policy_agent")
+    mock_policy.process.return_value = {
+        "response": "7天无理由退货",
+        "updated_state": {"retrieval_result": None},
+    }
+
+    mock_eval = _mock_agent()
+    mock_eval.evaluate.return_value = {
+        "confidence_score": 0.9,
+        "confidence_signals": {},
+        "needs_human_transfer": False,
+        "transfer_reason": None,
+        "audit_level": "none",
+    }
+
+    supervisor = AsyncMock()
+    supervisor.name = "supervisor"
+    supervisor.process.return_value = {
+        "response": "",
+        "updated_state": {
+            "next_agent": "order_agent",
+            "execution_mode": "parallel",
+            "pending_agent_results": ["order_agent", "policy_agent"],
+        },
+    }
+
+    workflow = create_workflow(
+        router_agent=mock_router,
+        policy_agent=mock_policy,
+        order_agent=mock_order,
+        logistics_agent=AsyncMock(),
+        account_agent=AsyncMock(),
+        payment_agent=AsyncMock(),
+        evaluator=mock_eval,
+        supervisor_agent=supervisor,
+        llm=AsyncMock(),
+    )
+    app_graph = workflow.compile(checkpointer=checkpointer)
+    result = await app_graph.ainvoke(
+        cast(Any, initial_state),
+        config={"configurable": {"thread_id": initial_state["thread_id"]}},
+    )
+
+    sub_answers = result.get("sub_answers", [])
+    agents = {sa["agent"] for sa in sub_answers}
+    assert "order_agent" in agents
+    assert "policy_agent" in agents
+    assert result.get("answer")

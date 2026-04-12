@@ -10,6 +10,7 @@ from app.intent.models import IntentAction, IntentCategory, IntentResult
 from app.intent.multi_intent import (
     MultiIntentProcessor,
     MultiIntentResult,
+    are_independent,
 )
 
 
@@ -372,3 +373,19 @@ class TestMultiIntentProcessorProcess:
         processor = MultiIntentProcessor(classifier=mock_classifier)
         with pytest.raises(ValueError, match="第二个segment失败"):
             await processor.process("查询订单顺便申请退款")
+
+
+class TestAreIndependent:
+    def test_order_policy_independent(self):
+        assert are_independent("ORDER", "POLICY") is True
+        assert are_independent("POLICY", "ORDER") is True
+
+    def test_cart_payment_dependent(self):
+        assert are_independent("CART", "PAYMENT") is False
+        assert are_independent("PAYMENT", "CART") is False
+
+    def test_same_intent_dependent(self):
+        assert are_independent("ORDER", "ORDER") is False
+
+    def test_unknown_pair_defaults_to_dependent(self):
+        assert are_independent("MYSTERY", "POLICY") is False

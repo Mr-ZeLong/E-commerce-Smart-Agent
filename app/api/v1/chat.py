@@ -159,6 +159,9 @@ async def chat(
                                     "logistics",
                                     "account",
                                     "payment",
+                                    "product",
+                                    "cart",
+                                    "synthesis_node",
                                 )
                                 and "answer" in output
                             ):

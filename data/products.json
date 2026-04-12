@@ -1,0 +1,69 @@
+[
+  {
+    "name": "纯棉T恤",
+    "description": "舒适透气的100%纯棉T恤，适合日常穿着，经典圆领设计。",
+    "price": 99.0,
+    "category": "服装",
+    "sku": "TSHIRT-001",
+    "in_stock": true,
+    "attributes": {
+      "材质": "纯棉",
+      "颜色": "白色/黑色/灰色",
+      "尺码": "S/M/L/XL"
+    }
+  },
+  {
+    "name": "速干运动衫",
+    "description": "专业速干面料，吸湿排汗，适合跑步和健身训练。",
+    "price": 129.0,
+    "category": "运动户外",
+    "sku": "SPORT-002",
+    "in_stock": true,
+    "attributes": {
+      "材质": "聚酯纤维",
+      "颜色": "蓝色/红色",
+      "尺码": "M/L/XL/XXL"
+    }
+  },
+  {
+    "name": "智能手机 Pro",
+    "description": "旗舰级智能手机，6.7英寸OLED屏幕，搭载最新处理器。",
+    "price": 4999.0,
+    "category": "数码",
+    "sku": "PHONE-003",
+    "in_stock": true,
+    "attributes": {
+      "屏幕": "6.7英寸 OLED",
+      "内存": "12GB",
+      "存储": "256GB",
+      "电池": "5000mAh",
+      "颜色": "深空灰/银色"
+    }
+  },
+  {
+    "name": "无线降噪耳机",
+    "description": "主动降噪技术，40小时续航，支持高清音频解码。",
+    "price": 899.0,
+    "category": "数码",
+    "sku": "AUDIO-004",
+    "in_stock": false,
+    "attributes": {
+      "续航": "40小时",
+      "连接": "蓝牙5.3",
+      "颜色": "黑色/白色"
+    }
+  },
+  {
+    "name": "北欧风实木餐桌",
+    "description": "进口橡木制作，环保清漆，简约北欧风格，适合4-6人用餐。",
+    "price": 1899.0,
+    "category": "家具",
+    "sku": "FURN-005",
+    "in_stock": true,
+    "attributes": {
+      "材质": "橡木",
+      "尺寸": "140x80x75cm",
+      "颜色": "原木色/胡桃木色"
+    }
+  }
+]

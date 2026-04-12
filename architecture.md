@@ -17,6 +17,7 @@ flowchart TB
             CHAT["/api/v1/chat<br/>聊天接口 (SSE)"]
             WS["/api/v1/ws<br/>WebSocket"]
             ADMIN["/api/v1/admin<br/>管理员 API"]
+            KB_ADMIN["/admin/knowledge<br/>知识库管理"]
             STATUS["/api/v1/status<br/>状态查询"]
         end
     end
@@ -31,12 +32,27 @@ flowchart TB
     subgraph AgentLayer["🤖 Agent 层 (LangGraph)"]
         GRAPH["StateGraph<br/>工作流编排"]
 
+        subgraph Subgraphs["🧩 Agent Subgraphs"]
+            SUB_POLICY["policy_agent<br/>Subgraph"]
+            SUB_ORDER["order_agent<br/>Subgraph"]
+            SUB_PRODUCT["product<br/>Subgraph"]
+            SUB_CART["cart<br/>Subgraph"]
+            SUB_LOGISTICS["logistics<br/>Subgraph"]
+            SUB_ACCOUNT["account<br/>Subgraph"]
+            SUB_PAYMENT["payment<br/>Subgraph"]
+        end
+
         subgraph Nodes["📍 节点定义"]
             ROUTER_NODE["router_node<br/>意图路由"]
-            POLICY_NODE["policy_agent<br/>知识检索 (RAG) + 生成"]
-            ORDER_NODE["order_agent<br/>订单查询 / 退货处理"]
+            SUPERVISOR_NODE["supervisor_node<br/>串行/并行调度"]
+            SYNTHESIS_NODE["synthesis_node<br/>多 Agent 回复融合"]
             EVALUATOR_NODE["evaluator_node<br/>置信度评估"]
             DECIDER_NODE["decider_node<br/>人工接管决策 / 回复生成"]
+        end
+
+        subgraph ParallelExec["⚡ 并行执行器"]
+            PLAN_DISPATCH["plan_dispatch<br/>独立性判断"]
+            BUILD_SENDS["build_parallel_sends<br/>LangGraph Send"]
         end
 
         subgraph State["📦 状态定义"]
@@ -52,6 +68,7 @@ flowchart TB
     subgraph TaskLayer["⏳ 任务层 (Celery)"]
         CELERY["Celery Worker<br/>异步任务队列"]
         TASKS["Refund Tasks<br/>- 发送短信<br/>- 处理退款<br/>- 通知管理员"]
+        KB_TASKS["Knowledge Tasks<br/>- 知识库 ETL 同步"]
     end
 
     subgraph WebSocketLayer["🔌 WebSocket 层"]
@@ -65,14 +82,17 @@ flowchart TB
             TBL_REFUNDS[(refund_applications<br/>退款申请表)]
             TBL_AUDIT[(audit_logs<br/>审计日志表)]
             TBL_MSG[(message_cards<br/>消息卡片表)]
+            TBL_KB[(knowledge_documents<br/>知识库文档表)]
         end
 
         subgraph Qdrant["🔷 Qdrant"]
             VEC_KNOWLEDGE[(knowledge_chunks<br/>向量知识库)]
+            VEC_PRODUCT[(product_catalog<br/>商品目录向量库)]
         end
 
         subgraph Redis["🔴 Redis"]
             REDIS_CACHE["Session Cache<br/>状态缓存"]
+            REDIS_CART["购物车缓存<br/>cart:{user_id}"]
             REDIS_CELERY["Celery Broker<br/>任务队列"]
             REDIS_CHECK["LangGraph Checkpoint<br/>检查点"]
         end
@@ -95,13 +115,20 @@ flowchart TB
 
     CHAT --> GRAPH
     ADMIN --> REFUND_SVC
+    KB_ADMIN --> KB_TASKS
     WS --> WS_MGR
 
     GRAPH --> Nodes
     Nodes --> State
-    ROUTER_NODE --> POLICY_NODE & ORDER_NODE
-    POLICY_NODE --> EVALUATOR_NODE
-    ORDER_NODE --> EVALUATOR_NODE
+    Nodes --> ParallelExec
+    Nodes --> Subgraphs
+
+    ROUTER_NODE --> SUPERVISOR_NODE
+    SUPERVISOR_NODE --> PLAN_DISPATCH
+    PLAN_DISPATCH --> BUILD_SENDS
+    BUILD_SENDS --> Subgraphs
+    Subgraphs --> SYNTHESIS_NODE
+    SYNTHESIS_NODE --> EVALUATOR_NODE
     EVALUATOR_NODE --> DECIDER_NODE
     EVALUATOR_NODE -->|"低置信度"| ROUTER_NODE
 
@@ -110,6 +137,7 @@ flowchart TB
 
     ServiceLayer -->|"高风险触发"| CELERY
     CELERY --> TASKS
+    KB_TASKS --> Qdrant
     TASKS --> DB
 
     Nodes <-->|"Embedding/LLM"| External
@@ -117,26 +145,49 @@ flowchart TB
     DB --> PostgreSQL
     CELERY --> REDIS_CELERY
     GRAPH --> REDIS_CHECK
+    REDIS_CART --> Redis
 ```
 
 ## 2. LangGraph 工作流详解
 
+Phase 2 重构了 Agent 层的编排方式，引入 **Supervisor-based Graph**：
+
+- `router_node` 负责意图识别与澄清，将结果写入 `AgentState`。
+- `supervisor_node` 基于 `intent_result` 中的主意图和 `pending_intents`，通过 `plan_dispatch` 判断多个意图之间是否独立，决定**串行**或**并行**调度。
+- 若为并行，通过 `build_parallel_sends` 生成多个 `LangGraph Send`，同时分发到不同的 `Agent Subgraph`。
+- 各 `Agent Subgraph` 执行完毕后统一收敛到 `synthesis_node`，将多个专家回复融合为一段连贯回答。
+- 之后进入 `evaluator_node` 进行置信度评估，低置信度时回到 `router_node` 重试。
+
 ```mermaid
 flowchart LR
-    START([START]) --> ROUTER["🎯 router_node<br/>意图路由"]
+    START([START]) --> ROUTER["🎯 router_node\n意图路由"]
 
-    ROUTER -->|"POLICY"| POLICY["📚 policy_agent<br/>知识检索 (RAG)"]
-    ROUTER -->|"ORDER / REFUND"| ORDER["📦 order_agent<br/>订单查询 / 退货处理"]
+    ROUTER -->|"主意图 / slots"| SUPERVISOR["🧠 supervisor_node\n串行/并行调度"]
 
-    POLICY --> EVAL["⚖️ evaluator_node<br/>置信度评估"]
-    ORDER --> EVAL
+    SUPERVISOR -->|"串行"| POLICY["📚 policy_agent\nSubgraph"]
+    SUPERVISOR -->|"串行"| ORDER["📦 order_agent\nSubgraph"]
+    SUPERVISOR -->|"并行 Send"| PRODUCT["🛍️ product\nSubgraph"]
+    SUPERVISOR -->|"并行 Send"| CART["🛒 cart\nSubgraph"]
+    SUPERVISOR -->|"串行"| LOGISTICS["🚚 logistics\nSubgraph"]
+    SUPERVISOR -->|"串行"| ACCOUNT["👤 account\nSubgraph"]
+    SUPERVISOR -->|"串行"| PAYMENT["💳 payment\nSubgraph"]
 
+    POLICY --> SYNTHESIS["🔄 synthesis_node\n多 Agent 回复融合"]
+    ORDER --> SYNTHESIS
+    PRODUCT --> SYNTHESIS
+    CART --> SYNTHESIS
+    LOGISTICS --> SYNTHESIS
+    ACCOUNT --> SYNTHESIS
+    PAYMENT --> SYNTHESIS
+
+    SYNTHESIS --> EVAL["⚖️ evaluator_node\n置信度评估"]
     EVAL -->|"低置信度"| ROUTER
-    EVAL -->|"通过"| DECIDER["🔀 decider_node<br/>人工接管决策 / 回复生成"]
+    EVAL -->|"通过"| DECIDER["🔀 decider_node\n人工接管决策 / 回复生成"]
 
     DECIDER -->|"无需接管"| END_NORMAL([END])
-    DECIDER -->|"需要审核"| END_AUDIT([END<br/>等待人工审核])
+    DECIDER -->|"需要审核"| END_AUDIT([END\n等待人工审核])
 
+    style SUPERVISOR fill:#bbdefb,stroke:#1565c0
     style EVAL fill:#ffeb3b,stroke:#f57f17
     style END_AUDIT fill:#ff9800,stroke:#e65100
 ```
@@ -228,11 +279,41 @@ erDiagram
         datetime updated_at
     }
 
+    knowledge_documents {
+        int id PK
+        string filename
+        string storage_path
+        string doc_type
+        int chunk_count
+        string status
+        datetime created_at
+        datetime updated_at
+    }
+
+    supervisor_decisions {
+        int id PK
+        string thread_id
+        string primary_intent
+        string pending_intents
+        string selected_agents
+        string execution_mode
+        text reasoning
+        datetime created_at
+    }
+
     knowledge_chunks[Qdrant Collection: knowledge_chunks] {
         string source
         text content
         vector embedding
         boolean is_active
+        datetime created_at
+    }
+
+    product_catalog[Qdrant Collection: product_catalog] {
+        string source
+        text content
+        vector embedding
+        json meta_data
         datetime created_at
     }
 ```
@@ -347,6 +428,144 @@ sequenceDiagram
     CUI-->>User: 政策解答
 ```
 
+### 4.4 商品查询流程
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CUI as Customer UI
+    participant API as FastAPI
+    participant Graph as LangGraph
+    participant Supervisor as supervisor_node
+    participant Node as product (Subgraph)
+    participant Tool as ProductTool
+    participant VecDB as Qdrant product_catalog
+    participant LLM as Qwen LLM
+
+    User->>CUI: "智能手机 Pro 屏幕多大？"
+    CUI->>API: POST /api/v1/chat (SSE)
+    API->>Graph: astream_events()
+    Graph->>Graph: router_node → PRODUCT
+    Graph->>Supervisor: 调度 product
+    Supervisor-->>Graph: Send(product)
+    Graph->>Node: product Subgraph
+    Node->>Tool: process()
+    Tool->>VecDB: semantic_search(using="dense")
+    VecDB-->>Tool: 匹配商品元数据
+    alt 属性命中直接回答
+        Tool-->>Node: direct_answer
+    else 属性未命中 / 需要推理
+        Node->>LLM: 基于检索描述推理
+        LLM-->>Node: LLM 回答
+    end
+    Node-->>Graph: sub_answers
+    Graph->>Graph: synthesis_node
+    Graph-->>API: SSE Events
+    API-->>CUI: 流式显示回复
+    CUI-->>User: 商品信息
+```
+
+### 4.5 购物车管理流程
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CUI as Customer UI
+    participant API as FastAPI
+    participant Graph as LangGraph
+    participant Supervisor as supervisor_node
+    participant Node as cart (Subgraph)
+    participant Tool as CartTool
+    participant Redis as Redis cart:{user_id}
+
+    User->>CUI: "给我加一部智能手机到购物车"
+    CUI->>API: POST /api/v1/chat (SSE)
+    API->>Graph: astream_events()
+    Graph->>Graph: router_node → CART
+    Graph->>Supervisor: 调度 cart
+    Supervisor-->>Graph: Send(cart)
+    Graph->>Node: cart Subgraph
+    Node->>Tool: process(action=ADD)
+    Tool->>Redis: SET cart:{user_id} (JSON, TTL=86400)
+    Redis-->>Tool: OK
+    Tool-->>Node: "已添加"
+    Node-->>Graph: sub_answers
+    Graph->>Graph: synthesis_node
+    Graph-->>API: SSE Events
+    API-->>CUI: 流式显示回复
+    CUI-->>User: 购物车更新结果
+```
+
+### 4.6 并行多意图执行流程
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CUI as Customer UI
+    participant API as FastAPI
+    participant Graph as LangGraph
+    participant Router as router_node
+    participant Supervisor as supervisor_node
+    participant Plan as plan_dispatch
+    participant Product as product (Subgraph)
+    participant Logistics as logistics (Subgraph)
+    participant Synthesis as synthesis_node
+
+    User->>CUI: "查一下智能手机的价格和物流"
+    CUI->>API: POST /api/v1/chat (SSE)
+    API->>Graph: astream_events()
+    Graph->>Router: 识别意图
+    Router-->>Graph: primary=PRODUCT, pending=[LOGISTICS]
+    Graph->>Supervisor: 读取意图结果
+    Supervisor->>Plan: are_independent(PRODUCT, LOGISTICS)?
+    Plan-->>Supervisor: True → parallel
+    Supervisor-->>Graph: Send(product) + Send(logistics)
+    par 并行执行
+        Graph->>Product: product Subgraph
+        Product-->>Graph: sub_answer_product
+    and
+        Graph->>Logistics: logistics Subgraph
+        Logistics-->>Graph: sub_answer_logistics
+    end
+    Graph->>Synthesis: 融合两个回复
+    Synthesis-->>Graph: 整合后的连贯回答
+    Graph->>Graph: evaluator_node
+    Graph-->>API: SSE Events
+    API-->>CUI: 流式显示回复
+    CUI-->>User: 商品 + 物流信息
+```
+
+### 4.7 B端知识库上传与同步流程
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant ADM as Admin Dashboard
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Celery as Celery Worker
+    participant ETL as etl_qdrant.py
+    participant VecDB as Qdrant knowledge_chunks
+
+    Admin->>ADM: 选择 PDF/Markdown 上传
+    ADM->>API: POST /admin/knowledge
+    API->>API: 保存文件到 uploads/knowledge
+    API->>DB: INSERT knowledge_documents
+    DB-->>API: doc_id
+    API->>Celery: sync_knowledge_document(doc_id)
+    API-->>ADM: 返回 task_id
+
+    loop 轮询同步状态
+        ADM->>API: GET /admin/knowledge/sync/{task_id}
+        API-->>ADM: PENDING / SUCCESS / FAILURE
+    end
+
+    Celery->>ETL: 执行 ETL (提取 → Embedding → Upsert)
+    ETL->>VecDB: upsert 向量片段
+    VecDB-->>ETL: OK
+    Celery->>DB: UPDATE knowledge_documents.status=SYNCED
+```
+
 ## 5. 技术栈分层
 
 ```mermaid
@@ -362,22 +581,24 @@ flowchart TB
     end
 
     subgraph Layer3["业务层"]
-        B1["LangGraph<br/>工作流引擎"]
-        B2["意图识别<br/>Intent Router"]
+        B1["LangGraph<br/>Supervisor-based 工作流引擎"]
+        B2["意图识别<br/>Intent Router + 多意图独立判断"]
         B3["RAG 检索<br/>Dense + Sparse + Rerank + Rewriter"]
-        B4["退货服务<br/>Refund Service"]
+        B4["专家 Agent 舰队<br/>Product / Cart / Order / Policy / Logistics / Account / Payment"]
+        B5["退货服务<br/>Refund Service"]
     end
 
     subgraph Layer4["任务层"]
         T1["Celery<br/>异步任务队列"]
         T2["退款处理<br/>支付网关"]
         T3["短信通知<br/>SMS Gateway"]
+        T4["知识库同步<br/>ETL → Qdrant"]
     end
 
     subgraph Layer5["数据层"]
         D1["PostgreSQL<br/>关系型数据"]
-        D2["Qdrant<br/>混合向量检索"]
-        D3["Redis<br/>缓存/会话"]
+        D2["Qdrant<br/>混合向量检索 (knowledge_chunks + product_catalog)"]
+        D3["Redis<br/>缓存 / 会话 / 购物车 / Checkpoint"]
     end
 
     subgraph Layer6["外部层"]
@@ -391,6 +612,7 @@ flowchart TB
     Layer3 --> Layer5
     Layer4 --> Layer5
     Layer3 --> Layer6
+    Layer2 --> Layer3
 ```
 
 ## 6. 项目文件结构
@@ -414,7 +636,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 auth.py              # 认证接口 (登录)
 │   │   ├── 📄 chat.py              # 聊天接口 (SSE 流式)
 │   │   ├── 📄 chat_utils.py        # SSE 流式响应工具
-│   │   ├── 📄 admin.py             # 管理员接口
+│   │   ├── 📄 admin.py             # 管理员接口 (含知识库 CRUD + 同步)
 │   │   ├── 📄 status.py            # 状态查询接口
 │   │   ├── 📄 websocket.py         # WebSocket 端点
 │   │   └── 📄 schemas.py           # Pydantic 数据模型
@@ -435,18 +657,36 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 refund.py            # 退款申请表
 │   │   ├── 📄 audit.py             # 审计日志表
 │   │   ├── 📄 message.py           # 消息卡片表
+│   │   ├── 📄 knowledge_document.py # 知识库文档表
+│   │   ├── 📄 observability.py     # 可观测性模型
 │   │   └── 📄 state.py             # AgentState TypedDict
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
-│   │   ├── 📄 workflow.py          # 工作流定义与编译
-│   │   └── 📄 nodes.py             # router_node / policy_agent / order_agent / evaluator_node / decider_node
+│   │   ├── 📄 workflow.py          # 工作流定义 (含 Supervisor 模式与兼容模式)
+│   │   ├── 📄 nodes.py             # 节点定义 (router / supervisor / synthesis / evaluator / decider)
+│   │   ├── 📄 subgraphs.py         # Agent Subgraph 标准化封装
+│   │   └── 📄 parallel.py          # 并行多意图调度 (plan_dispatch + build_parallel_sends)
 │   │
 │   ├── 📁 agents/                  # Agent 实现层
 │   │   ├── 📄 base.py              # Agent 基类
 │   │   ├── 📄 router.py            # IntentRouterAgent
+│   │   ├── 📄 supervisor.py        # SupervisorAgent (串行/并行调度)
 │   │   ├── 📄 order.py             # 订单 Agent
 │   │   ├── 📄 policy.py            # 政策 Agent
+│   │   ├── 📄 product.py           # 商品 Agent (ProductAgent)
+│   │   ├── 📄 cart.py              # 购物车 Agent (CartAgent)
+│   │   ├── 📄 logistics.py         # 物流 Agent
+│   │   ├── 📄 account.py           # 账户 Agent
+│   │   ├── 📄 payment.py           # 支付 Agent
 │   │   └── 📄 evaluator.py         # ConfidenceEvaluator
+│   │
+│   ├── 📁 tools/                   # Agent Tool 层
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 product_tool.py      # 商品检索 Tool (Qdrant product_catalog)
+│   │   ├── 📄 cart_tool.py         # 购物车操作 Tool (Redis)
+│   │   ├── 📄 logistics_tool.py    # 物流查询 Tool
+│   │   ├── 📄 account_tool.py      # 账户查询 Tool
+│   │   └── 📄 payment_tool.py      # 支付查询 Tool
 │   │
 │   ├── 📁 confidence/              # 置信度信号模块
 │   │   ├── 📄 __init__.py
@@ -463,7 +703,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 clarification.py     # 澄清引擎
 │   │   ├── 📄 slot_validator.py    # 槽位验证器
 │   │   ├── 📄 topic_switch.py      # 话题切换检测
-│   │   ├── 📄 multi_intent.py      # 多意图处理器
+│   │   ├── 📄 multi_intent.py      # 多意图处理器 (含独立性判断)
 │   │   └── 📄 safety.py            # 安全过滤器
 │   │
 │   ├── 📁 retrieval/               # RAG 检索层
@@ -487,7 +727,9 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 status.py
 │   │
 │   ├── 📁 tasks/                   # Celery 异步任务
-│   │   └── 📄 refund_tasks.py      # 退款相关任务
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 refund_tasks.py      # 退款相关任务
+│   │   └── 📄 knowledge_tasks.py   # 知识库同步任务
 │   │
 │   ├── 📁 websocket/               # WebSocket 服务
 │   │   └── 📄 manager.py           # 连接管理器
@@ -500,7 +742,7 @@ E-commerce-Smart-Agent/
 │   ├── 📄 tailwind.config.ts       # Tailwind CSS 配置
 │   ├── 📄 tsconfig.json            # TypeScript 配置
 │   ├── 📄 tsconfig.node.json       # Vite Node 类型配置
-│   ├── 📄 components.json          # shadcn/ui 组件注册表
+│   ├── 📄 components.json          # shadn/ui 组件注册表
 │   ├── 📄 postcss.config.mjs       # PostCSS 配置
 │   ├── 📄 eslint.config.js         # ESLint 配置
 │   ├── 📄 playwright.config.ts     # Playwright E2E 配置
@@ -523,12 +765,17 @@ E-commerce-Smart-Agent/
 │       │       ├── 📄 main.tsx
 │       │       ├── 📁 pages/
 │       │       │   ├── 📄 Login.tsx
-│       │       │   └── 📄 Dashboard.tsx
+│       │       │   ├── 📄 Dashboard.tsx
+│       │       │   └── 📄 KnowledgeBase.tsx      # 知识库管理页面
 │       │       └── 📁 components/
 │       │           ├── 📄 DecisionPanel.tsx
 │       │           ├── 📄 NotificationToast.tsx
 │       │           ├── 📄 TaskDetail.tsx
-│       │           └── 📄 TaskList.tsx
+│       │           ├── 📄 TaskList.tsx
+│       │           ├── 📄 ConversationLogs.tsx
+│       │           ├── 📄 EvaluationViewer.tsx
+│       │           ├── 📄 Performance.tsx
+│       │           └── 📄 KnowledgeBaseManager.tsx  # 知识库上传/同步组件
 │       │
 │       ├── 📁 components/
 │       │   ├── 📁 ui/              # shadcn/ui 组件
@@ -548,7 +795,6 @@ E-commerce-Smart-Agent/
 │       │   │   └── 📄 textarea.tsx
 │       │
 │       ├── 📁 assets/              # 前端静态资源
-│       │   └── 📄 react.svg        # React Logo
 │       ├── 📁 lib/                 # 共享基础设施
 │       │   ├── 📄 api.ts           # 统一 API 客户端
 │       │   ├── 📄 risk.ts          # 风险等级配置
@@ -559,7 +805,8 @@ E-commerce-Smart-Agent/
 │       ├── 📁 hooks/               # 自定义 React Hooks
 │       │   ├── 📄 useAuth.ts
 │       │   ├── 📄 useNotifications.ts
-│       │   └── 📄 useTasks.ts
+│       │   ├── 📄 useTasks.ts
+│       │   └── 📄 useKnowledgeBase.ts  # 知识库管理 Hooks
 │       ├── 📁 types/               # TypeScript 类型定义
 │       │   └── 📄 index.ts         # 统一类型导出
 │
@@ -572,6 +819,7 @@ E-commerce-Smart-Agent/
 │   ├── 📄 __init__.py
 │   ├── 📄 seed_data.py             # 数据库初始化数据
 │   ├── 📄 seed_large_data.py       # 大批量测试数据
+│   ├── 📄 seed_product_catalog.py  # 商品目录种子数据 (→ Qdrant product_catalog)
 │   ├── 📄 etl_qdrant.py            # 知识库 ETL (PDF/Markdown → Qdrant)
 │   └── 📄 verify_db.py             # 数据库验证脚本
 │
@@ -584,7 +832,8 @@ E-commerce-Smart-Agent/
 │
 ├── 📁 data/                        # 静态数据
 │   ├── 📄 shipping_policy.md       # 示例政策文档
-│   └── 📄 return_policy.md         # 退货政策文档
+│   ├── 📄 return_policy.md         # 退货政策文档
+│   └── 📄 products.json            # 商品目录种子数据
 │
 ├── 📁 docs/                        # 项目文档
 │   └── 📄 resume-guide.md          # 简历写作指南
@@ -611,16 +860,14 @@ E-commerce-Smart-Agent/
     ├── 📄 test_logging.py          # 日志测试
     ├── 📄 test_chat_utils.py       # 聊天工具测试
     ├── 📄 test_refund_tasks.py     # 退款任务测试
+    ├── 📄 test_knowledge_admin.py  # 知识库管理 API 测试
     ├── 📄 test_users.py            # 用户模型测试
     ├── 📄 test_confidence_signals.py # 置信度信号测试
     ├── 📁 agents/                  # Agent 单元测试
-    │   └── 📄 __init__.py
+    ├── 📁 tools/                   # Tool 单元测试 (product_tool / cart_tool)
     ├── 📁 graph/                   # LangGraph 测试
-    │   └── 📄 __init__.py
     ├── 📁 intent/                  # 意图模块测试
-    │   └── 📄 __init__.py
     ├── 📁 retrieval/               # RAG 检索测试
-    │   └── 📄 __init__.py
     └── 📁 integration/             # 集成测试
 ```
 
@@ -628,11 +875,16 @@ E-commerce-Smart-Agent/
 
 | 特性 | 描述 | 技术实现 |
 |------|------|----------|
-| **智能问答** | 基于 LLM 的订单查询和政策咨询 | LangChain + LangGraph |
-| **LangGraph 节点编排** | router_node → policy_agent/order_agent → evaluator_node → (低置信重试 → router_node \| 通过 → decider_node) 显式工作流 | LangGraph 1.0+ Command API |
-| **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 | IntentRecognitionService + Redis |
+| **智能问答** | 基于 LLM 的订单查询、政策咨询、商品查询和购物车管理 | LangChain + LangGraph |
+| **Supervisor 多 Agent 编排** | `SupervisorAgent` 基于意图独立性判断，决定串行或并行调度；通过 `Send` 实现多 Agent 并行执行 | `app/graph/parallel.py` + Agent Subgraphs |
+| **Agent Subgraph 标准** | 每个专家 Agent 封装为独立 `StateGraph` Subgraph，标准化消费 `AgentState` 子集并输出 `AgentProcessResult` | `app/graph/subgraphs.py` |
+| **多意图并行执行** | 独立意图通过 `build_parallel_sends` 同时分发到多个 Subgraph，结果汇聚至 `synthesis_node` 融合 | `plan_dispatch` + `Send` APIs |
+| **商品问答** | `ProductAgent` 基于 Qdrant `product_catalog` 语义搜索；参数命中时直接回答，否则 LLM 推理回退 | `ProductTool` + Embedding Search |
+| **购物车管理** | `CartAgent` 通过 Redis 支持增删改查，24h TTL 保持会话一致性 | `CartTool` + Redis JSON |
+| **意图识别** | 分层意图识别（一级业务域 / 二级动作 / 三级子意图）+ 槽位提取与澄清机制 + 多意图独立性判断 | `IntentRecognitionService` + `multi_intent.py` |
 | **RAG 检索** | 基于 Qdrant 的混合语义检索（Dense + BM25 Sparse + Rerank） | Embedding + 向量数据库 |
 | **查询重写与精排** | RAG 流程中先重写查询，再混合检索，最后 Rerank | `retrieval/` 模块 |
+| **B 端知识库管理** | Admin 后台支持 PDF/Markdown 上传、删除、手动同步到 Qdrant；同步状态通过 Celery 异步追踪 | `KnowledgeBaseManager` + `knowledge_tasks.py` |
 | **API 限流** | 防止暴力破解和滥用 | `slowapi` |
 | **结构化日志** | 全链路 correlation_id 追踪 | `app/core/logging.py` |
 | **pre-commit 质量门禁** | 提交前自动格式化、类型检查 | `ruff` + `ty` |
@@ -640,8 +892,8 @@ E-commerce-Smart-Agent/
 | **智能风控** | 按金额分级风控 (¥500/¥2000 阈值) | 规则引擎 |
 | **人工审核** | 高风险订单转人工审核 | 审计日志 + 管理后台 |
 | **实时通知** | WebSocket 状态同步 | ConnectionManager |
-| **异步任务** | 退款支付、短信通知异步处理 | Celery + Redis |
-| **多租户隔离** | 用户只能访问自己的订单 | JWT + 数据库查询过滤 |
+| **异步任务** | 退款支付、短信通知、知识库 ETL 同步异步处理 | Celery + Redis |
+| **多租户隔离** | 用户只能访问自己的订单和购物车 | JWT + 数据隔离 |
 
 ## 8. 启动流程
 

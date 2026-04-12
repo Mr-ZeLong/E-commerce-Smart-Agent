@@ -3,9 +3,12 @@
 管理员 API
 """
 
+import os
+import shutil
+import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from opentelemetry import trace
 from sqlalchemy import case, func, text
 from sqlmodel import select
@@ -14,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
 from app.core.utils import utc_now
+from app.models.knowledge_document import KnowledgeDocument
 from app.models.message import MessageCard
 from app.models.observability import GraphExecutionLog
 from app.schemas.admin import (
@@ -23,9 +27,13 @@ from app.schemas.admin import (
     ConversationListResponse,
     ConversationMessageResponse,
     ConversationThreadResponse,
+    KnowledgeDocumentResponse,
+    KnowledgeUploadResponse,
+    SyncStatusResponse,
     TaskStatsResponse,
 )
 from app.services.admin_service import AdminService, AuditAlreadyProcessedError, AuditNotFoundError
+from app.tasks.knowledge_tasks import sync_knowledge_document
 
 router = APIRouter()
 tracer = trace.get_tracer(__name__)
@@ -391,3 +399,130 @@ async def get_conversation_messages(
             )
             for msg in messages
         ]
+
+
+UPLOAD_DIR = os.environ.get("KNOWLEDGE_UPLOAD_DIR", "uploads/knowledge")
+
+
+@router.get("/admin/knowledge", response_model=list[KnowledgeDocumentResponse])
+async def list_knowledge_documents(
+    current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.exec(
+        select(KnowledgeDocument).order_by(KnowledgeDocument.created_at.desc())
+    )
+    docs = result.all()
+    return [
+        KnowledgeDocumentResponse(
+            id=d.id,
+            filename=d.filename,
+            content_type=d.content_type,
+            doc_size_bytes=d.doc_size_bytes,
+            sync_status=d.sync_status,
+            sync_message=d.sync_message,
+            last_synced_at=d.last_synced_at.isoformat() if d.last_synced_at else None,
+            created_at=d.created_at.isoformat(),
+            updated_at=d.updated_at.isoformat(),
+        )
+        for d in docs
+    ]
+
+
+@router.post("/admin/knowledge", response_model=KnowledgeUploadResponse)
+async def upload_knowledge_document(
+    file: UploadFile = File(...),
+    current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    ext = os.path.splitext(file.filename or "")[1]
+    storage_name = f"{uuid.uuid4().hex}{ext}"
+    storage_path = os.path.join(UPLOAD_DIR, storage_name)
+
+    with open(storage_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    size = os.path.getsize(storage_path)
+
+    doc = KnowledgeDocument(
+        filename=file.filename or "unnamed",
+        storage_path=storage_path,
+        content_type=file.content_type or "application/octet-stream",
+        doc_size_bytes=size,
+        sync_status="pending",
+    )
+    session.add(doc)
+    await session.commit()
+    await session.refresh(doc)
+
+    task = sync_knowledge_document.delay(doc.id)
+
+    return KnowledgeUploadResponse(
+        id=doc.id,
+        filename=doc.filename,
+        sync_status=doc.sync_status,
+        task_id=task.id,
+    )
+
+
+@router.delete("/admin/knowledge/{doc_id}")
+async def delete_knowledge_document(
+    doc_id: int,
+    current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.exec(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
+    doc = result.one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    if os.path.exists(doc.storage_path):
+        os.remove(doc.storage_path)
+
+    await session.delete(doc)
+    await session.commit()
+
+    return {"success": True, "message": "Document deleted"}
+
+
+@router.post("/admin/knowledge/{doc_id}/sync", response_model=KnowledgeUploadResponse)
+async def sync_knowledge_document_endpoint(
+    doc_id: int,
+    current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.exec(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
+    doc = result.one_or_none()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    task = sync_knowledge_document.delay(doc.id)
+
+    return KnowledgeUploadResponse(
+        id=doc.id,
+        filename=doc.filename,
+        sync_status="running",
+        task_id=task.id,
+    )
+
+
+@router.get("/admin/knowledge/sync/{task_id}", response_model=SyncStatusResponse)
+async def get_knowledge_sync_status(
+    task_id: str,
+    current_admin_id: int = Depends(get_admin_user_id),
+):
+    from app.celery_app import celery_app
+
+    task_result = celery_app.AsyncResult(task_id)
+    return SyncStatusResponse(
+        task_id=task_id,
+        status=task_result.status,
+        result=task_result.result if task_result.ready() else None,
+    )

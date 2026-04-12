@@ -18,6 +18,49 @@ class MultiIntentResult(BaseModel):
     sub_intents: list[IntentResult] = Field(default_factory=list)
     shared_slots: dict[str, Any] = Field(default_factory=dict)
     execution_order: list[int] = Field(default_factory=list)
+    are_independent: bool = False
+
+
+_INDEPENDENT_INTENT_PAIRS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("ORDER", "POLICY"),
+        ("POLICY", "ORDER"),
+        ("LOGISTICS", "POLICY"),
+        ("POLICY", "LOGISTICS"),
+        ("ACCOUNT", "POLICY"),
+        ("POLICY", "ACCOUNT"),
+        ("PRODUCT", "POLICY"),
+        ("POLICY", "PRODUCT"),
+        ("ORDER", "PRODUCT"),
+        ("PRODUCT", "ORDER"),
+        ("LOGISTICS", "PRODUCT"),
+        ("PRODUCT", "LOGISTICS"),
+        ("ACCOUNT", "PRODUCT"),
+        ("PRODUCT", "ACCOUNT"),
+    }
+)
+
+_DEPENDENT_INTENT_PAIRS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("CART", "PAYMENT"),
+        ("PAYMENT", "CART"),
+        ("ORDER", "REFUND"),
+        ("REFUND", "ORDER"),
+        ("CART", "ORDER"),
+        ("ORDER", "CART"),
+    }
+)
+
+
+def are_independent(intent_a: str, intent_b: str) -> bool:
+    if intent_a == intent_b:
+        return False
+    pair = (intent_a, intent_b)
+    if pair in _INDEPENDENT_INTENT_PAIRS:
+        return True
+    if pair in _DEPENDENT_INTENT_PAIRS:
+        return False
+    return False
 
 
 class MultiIntentProcessor:
@@ -50,6 +93,11 @@ class MultiIntentProcessor:
 
         shared_slots = self._extract_shared_slots(sub_intents)
         execution_order = list(range(len(sub_intents)))
+        independent = False
+        if len(sub_intents) == 2:
+            independent = are_independent(
+                sub_intents[0].primary_intent.value, sub_intents[1].primary_intent.value
+            )
 
         if self.mode == "single" and sub_intents:
             best = max(sub_intents, key=lambda r: r.confidence or 0.0)
@@ -58,6 +106,7 @@ class MultiIntentProcessor:
                 sub_intents=[best],
                 shared_slots=shared_slots,
                 execution_order=[0],
+                are_independent=independent,
             )
 
         return MultiIntentResult(
@@ -65,6 +114,7 @@ class MultiIntentProcessor:
             sub_intents=sub_intents,
             shared_slots=shared_slots,
             execution_order=execution_order,
+            are_independent=independent,
         )
 
     def _split_query(self, query: str) -> list[str]:

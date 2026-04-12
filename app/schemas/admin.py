@@ -72,3 +72,28 @@ class ConversationListResponse(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+class KnowledgeDocumentResponse(BaseModel):
+    id: int
+    filename: str
+    content_type: str
+    doc_size_bytes: int | None
+    sync_status: str
+    sync_message: str | None
+    last_synced_at: str | None
+    created_at: str
+    updated_at: str
+
+
+class KnowledgeUploadResponse(BaseModel):
+    id: int
+    filename: str
+    sync_status: str
+    task_id: str | None
+
+
+class SyncStatusResponse(BaseModel):
+    task_id: str
+    status: str
+    result: dict | None

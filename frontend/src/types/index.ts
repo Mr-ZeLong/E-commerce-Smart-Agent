@@ -129,3 +129,28 @@ export interface EvaluationResults {
   answer_correctness: number
   total_records: number
 }
+
+export interface KnowledgeDocument {
+  id: number
+  filename: string
+  content_type: string
+  doc_size_bytes: number | null
+  sync_status: string
+  sync_message: string | null
+  last_synced_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface KnowledgeUploadResult {
+  id: number
+  filename: string
+  sync_status: string
+  task_id: string | null
+}
+
+export interface SyncStatus {
+  task_id: string
+  status: string
+  result: Record<string, unknown> | null
+}

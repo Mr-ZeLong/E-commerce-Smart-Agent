@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import glob
 import json
@@ -7,7 +8,7 @@ import sys
 
 sys.path.append(os.getcwd())
 
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import models
@@ -56,6 +57,8 @@ def load_documents(file_path: str) -> list[Document]:
     ext = os.path.splitext(file_path)[1].lower()
     if ext in [".md", ".txt"]:
         return TextLoader(file_path, encoding="utf-8").load()
+    elif ext == ".pdf":
+        return PyPDFLoader(file_path).load()
     elif ext == ".json":
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
@@ -141,14 +144,13 @@ async def process_file(
     return next_id, True
 
 
-async def main():
+async def main(base_dir: str = "data", recreate: bool = True):
     """Main ETL entrypoint."""
-    base_dir = "data"
     if not os.path.exists(base_dir):
         raise FileNotFoundError(f"Data directory not found: {base_dir}")
 
     all_files = []
-    for ext in ["*.txt", "*.md", "*.json"]:
+    for ext in ["*.txt", "*.md", "*.json", "*.pdf"]:
         all_files.extend(glob.glob(os.path.join(base_dir, "**", ext), recursive=True))
 
     print(f"📂 Found {len(all_files)} files to process...")
@@ -159,7 +161,10 @@ async def main():
         api_key=settings.QDRANT_API_KEY,
     )
     try:
-        await recreate_with_retry(qdrant_client)
+        if recreate:
+            await recreate_with_retry(qdrant_client)
+        else:
+            await qdrant_client.ensure_collection()
         sparse_embedder = SparseTextEmbedder()
 
         next_id = 0
@@ -181,4 +186,12 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="ETL knowledge documents to Qdrant")
+    parser.add_argument("--dir", default="data", help="Base directory to scan for documents")
+    parser.add_argument(
+        "--no-recreate",
+        action="store_true",
+        help="Do not recreate the collection; use ensure_collection instead",
+    )
+    args = parser.parse_args()
+    asyncio.run(main(base_dir=args.dir, recreate=not args.no_recreate))

@@ -44,3 +44,23 @@ class GraphNodeLog(SQLModel, table=True):
             DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
         ),
     )
+
+
+class SupervisorDecision(SQLModel, table=True):
+    """Log entry for a supervisor routing decision."""
+
+    __tablename__ = "supervisor_decisions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    thread_id: str = Field(index=True, max_length=128)
+    primary_intent: str | None = Field(default=None, max_length=32)
+    pending_intents: str | None = Field(default=None, max_length=256)
+    selected_agents: str | None = Field(default=None, max_length=256)
+    execution_mode: str | None = Field(default=None, max_length=16)
+    reasoning: str | None = None
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        ),
+    )

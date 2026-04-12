@@ -4,6 +4,7 @@ import { queryClient } from '@/lib/query-client'
 import { useAuthStore } from '@/stores/auth'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
+import { KnowledgeBase } from './pages/KnowledgeBase'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuthStore()
@@ -24,6 +25,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/knowledge"
+            element={
+              <PrivateRoute>
+                <KnowledgeBase />
               </PrivateRoute>
             }
           />

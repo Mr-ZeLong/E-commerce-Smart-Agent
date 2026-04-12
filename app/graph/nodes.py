@@ -1,77 +1,193 @@
-"""LangGraph 1.0+ 节点函数"""
-
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
 
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
 from app.agents.account import AccountAgent
+from app.agents.cart import CartAgent
 from app.agents.evaluator import ConfidenceEvaluator
 from app.agents.logistics import LogisticsAgent
 from app.agents.order import OrderAgent
 from app.agents.payment import PaymentAgent
 from app.agents.policy import PolicyAgent
+from app.agents.product import ProductAgent
 from app.agents.router import IntentRouterAgent
+from app.agents.supervisor import SupervisorAgent
 from app.core.config import settings
-from app.models.state import AgentState
+from app.core.database import sync_session_maker
+from app.graph.parallel import build_parallel_sends
+from app.models.observability import SupervisorDecision
+from app.models.state import AgentProcessResult, AgentState
+
+
+def _log_supervisor_decision(
+    thread_id: str,
+    primary_intent: str | None,
+    pending_intents: list[str],
+    selected_agents: list[str],
+    execution_mode: str,
+    reasoning: str,
+) -> None:
+    try:
+        with sync_session_maker() as session:
+            log = SupervisorDecision(
+                thread_id=thread_id,
+                primary_intent=primary_intent,
+                pending_intents=",".join(pending_intents) if pending_intents else None,
+                selected_agents=",".join(selected_agents) if selected_agents else None,
+                execution_mode=execution_mode,
+                reasoning=reasoning,
+            )
+            session.add(log)
+            session.commit()
+    except Exception:
+        logger.exception("Failed to log supervisor decision")
+
 
 logger = logging.getLogger(__name__)
 
 
 def build_router_node(
     agent: IntentRouterAgent,
+    use_supervisor: bool = True,
 ) -> Callable[
     [AgentState],
-    Awaitable[
-        Command[
-            Literal[
-                "policy_agent",
-                "order_agent",
-                "logistics",
-                "account",
-                "payment",
-                "decider_node",
-            ]
-        ]
-    ],
+    Awaitable[Command[Literal["supervisor_node", "decider_node"]]],
 ]:
     async def router_node(
         state: AgentState,
-    ) -> Command[
-        Literal[
-            "policy_agent",
-            "order_agent",
-            "logistics",
-            "account",
-            "payment",
-            "decider_node",
-        ]
-    ]:
+    ) -> Command[Literal["supervisor_node", "decider_node"]]:
         result = await agent.process(state)
         updated = dict(result.get("updated_state") or {})
 
         if result.get("response"):
             return Command(goto="decider_node", update={"answer": result["response"], **updated})
 
-        next_agent = updated.get("next_agent")
-        if next_agent == "policy_agent" or next_agent == "supervisor":
-            return Command(goto="policy_agent", update=updated)
-        elif next_agent == "order_agent":
-            return Command(goto="order_agent", update=updated)
-        elif next_agent == "logistics":
-            return Command(goto="logistics", update=updated)
-        elif next_agent == "account":
-            return Command(goto="account", update=updated)
-        elif next_agent == "payment":
-            return Command(goto="payment", update=updated)
-        else:
-            return Command(
-                goto="decider_node",
-                update={"answer": result.get("response") or "暂不支持该类型请求", **updated},
-            )
+        if not use_supervisor and updated.get("next_agent"):
+            return Command(goto=updated["next_agent"], update=updated)
+
+        return Command(goto="supervisor_node", update=updated)
 
     return router_node
+
+
+def build_supervisor_node(
+    agent: SupervisorAgent,
+) -> Callable[[AgentState], Awaitable[Command]]:
+    async def supervisor_node(state: AgentState) -> Command:
+        result = await agent.process(state)
+        updated = dict(result.get("updated_state") or {})
+
+        intent_result = state.get("intent_result") or {}
+        _log_supervisor_decision(
+            thread_id=state.get("thread_id", ""),
+            primary_intent=intent_result.get("primary_intent"),
+            pending_intents=[
+                p.get("primary_intent", "")
+                for p in (state.get("slots") or {}).get("pending_intents", [])
+            ],
+            selected_agents=updated.get("pending_agent_results", []),
+            execution_mode=updated.get("execution_mode", ""),
+            reasoning=updated.get("supervisor_reasoning", ""),
+        )
+
+        if result.get("response"):
+            return Command(goto="synthesis_node", update={"answer": result["response"], **updated})
+
+        mode = updated.get("execution_mode")
+        targets = updated.get("pending_agent_results", [])
+        next_agent = updated.get("next_agent")
+
+        if mode == "parallel" and targets:
+            return Command(goto=build_parallel_sends(targets, state), update=updated)
+        if next_agent:
+            return Command(goto=next_agent, update=updated)
+
+        return Command(goto="synthesis_node", update=updated)
+
+    return supervisor_node
+
+
+def build_synthesis_node(
+    llm: BaseChatModel,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node", "supervisor_node"]]]]:
+    async def synthesis_node(
+        state: AgentState,
+    ) -> Command[Literal["evaluator_node", "supervisor_node"]]:
+        iteration = state.get("iteration_count", 0)
+        sub_answers = [
+            sa for sa in state.get("sub_answers", []) if sa.get("iteration") == iteration
+        ]
+        completed = {sa["agent"] for sa in sub_answers}
+        pending = state.get("pending_agent_results") or []
+        remaining = [a for a in pending if a not in completed]
+
+        if state.get("execution_mode") == "serial" and remaining:
+            return Command(goto="supervisor_node", update={})
+
+        if len(sub_answers) == 0:
+            return Command(goto="evaluator_node", update={"answer": state.get("answer", "")})
+
+        if len(sub_answers) == 1:
+            answer = sub_answers[0]["response"]
+            merged: dict[str, Any] = {}
+            if sub_answers[0].get("updated_state"):
+                merged.update(sub_answers[0]["updated_state"])
+            return Command(goto="evaluator_node", update={"answer": answer, **merged})
+
+        parts = []
+        merged_state: dict[str, Any] = {}
+        for sa in sub_answers:
+            parts.append(f"[{sa['agent']}] {sa['response']}")
+            if sa.get("updated_state"):
+                merged_state.update(sa["updated_state"])
+
+        prompt = (
+            "你是一位专业的客服回复整合员。请将以下多个专家的回复整合为一段连贯、自然的回复，"
+            "避免重复，突出重点，语气友好。直接输出整合后的回复内容，不要加任何前缀。\n\n"
+            + "\n".join(parts)
+        )
+        messages = [HumanMessage(content=prompt)]
+        try:
+            response = await llm.ainvoke(messages)
+            synthesized = str(response.content)
+        except Exception as exc:
+            logger.error("Synthesis LLM call failed: %s", exc)
+            synthesized = "\n\n".join(parts)
+
+        return Command(
+            goto="evaluator_node",
+            update={
+                "answer": synthesized,
+                "synthesized_answer": synthesized,
+                **merged_state,
+            },
+        )
+
+    return synthesis_node
+
+
+def _agent_updates(
+    agent_name: str, result: AgentProcessResult, state: AgentState
+) -> dict[str, Any]:
+    updates: dict[str, Any] = {
+        "answer": result.get("response", ""),
+        "sub_answers": [
+            {
+                "agent": agent_name,
+                "response": result.get("response", ""),
+                "updated_state": result.get("updated_state") or {},
+                "iteration": state.get("iteration_count", 0),
+            }
+        ],
+    }
+    if result.get("updated_state"):
+        updates.update(result["updated_state"])
+    updates["current_agent"] = agent_name
+    return updates
 
 
 def build_policy_node(
@@ -79,11 +195,7 @@ def build_policy_node(
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def policy_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
-        updates: dict[str, Any] = {"answer": result.get("response", "")}
-        if result.get("updated_state"):
-            updates.update(result["updated_state"])
-        updates["current_agent"] = "policy_agent"
-        return Command(goto="evaluator_node", update=updates)
+        return Command(goto="evaluator_node", update=_agent_updates("policy_agent", result, state))
 
     return policy_node
 
@@ -93,11 +205,7 @@ def build_order_node(
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def order_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
-        updates: dict[str, Any] = {"answer": result.get("response", "")}
-        if result.get("updated_state"):
-            updates.update(result["updated_state"])
-        updates["current_agent"] = "order_agent"
-        return Command(goto="evaluator_node", update=updates)
+        return Command(goto="evaluator_node", update=_agent_updates("order_agent", result, state))
 
     return order_node
 
@@ -107,11 +215,7 @@ def build_logistics_node(
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def logistics_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
-        updates: dict[str, Any] = {"answer": result.get("response", "")}
-        if result.get("updated_state"):
-            updates.update(result["updated_state"])
-        updates["current_agent"] = "logistics"
-        return Command(goto="evaluator_node", update=updates)
+        return Command(goto="evaluator_node", update=_agent_updates("logistics", result, state))
 
     return logistics_node
 
@@ -121,11 +225,7 @@ def build_account_node(
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def account_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
-        updates: dict[str, Any] = {"answer": result.get("response", "")}
-        if result.get("updated_state"):
-            updates.update(result["updated_state"])
-        updates["current_agent"] = "account"
-        return Command(goto="evaluator_node", update=updates)
+        return Command(goto="evaluator_node", update=_agent_updates("account", result, state))
 
     return account_node
 
@@ -135,13 +235,29 @@ def build_payment_node(
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
     async def payment_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
         result = await agent.process(state)
-        updates: dict[str, Any] = {"answer": result.get("response", "")}
-        if result.get("updated_state"):
-            updates.update(result["updated_state"])
-        updates["current_agent"] = "payment"
-        return Command(goto="evaluator_node", update=updates)
+        return Command(goto="evaluator_node", update=_agent_updates("payment", result, state))
 
     return payment_node
+
+
+def build_product_node(
+    agent: ProductAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def product_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        return Command(goto="evaluator_node", update=_agent_updates("product", result, state))
+
+    return product_node
+
+
+def build_cart_node(
+    agent: CartAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def cart_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        return Command(goto="evaluator_node", update=_agent_updates("cart", result, state))
+
+    return cart_node
 
 
 def build_evaluator_node(
@@ -199,7 +315,6 @@ def decider_node(state: AgentState) -> dict:
             "confidence_signals": state.get("confidence_signals"),
         }
 
-    # 来自 router 的直接回答（如问候、澄清）未经过 evaluator，confidence_score 为 None
     if state.get("answer"):
         return {
             "answer": state.get("answer", ""),

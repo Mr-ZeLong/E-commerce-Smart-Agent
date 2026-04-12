@@ -41,7 +41,7 @@ async def test_router_node_direct_response():
 
 
 @pytest.mark.asyncio
-async def test_router_node_routes_to_policy():
+async def test_router_node_routes_to_supervisor():
     mock_agent = _mock_agent()
     mock_agent.process.return_value = {
         "response": "",
@@ -57,32 +57,10 @@ async def test_router_node_routes_to_policy():
     result = await node(state)
 
     assert isinstance(result, Command)
-    assert result.goto == "policy_agent"
+    assert result.goto == "supervisor_node"
     assert result.update is not None
     assert result.update["next_agent"] == "policy_agent"
     assert result.update["iteration_count"] == 1
-
-
-@pytest.mark.asyncio
-async def test_router_node_routes_to_order():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "order_agent"},
-    }
-
-    node = build_router_node(mock_agent)
-    state = make_agent_state(
-        question="我的订单到哪了",
-        thread_id="t3",
-        iteration_count=0,
-    )
-    result = await node(state)
-
-    assert isinstance(result, Command)
-    assert result.goto == "order_agent"
-    assert result.update is not None
-    assert result.update["next_agent"] == "order_agent"
 
 
 @pytest.mark.asyncio
@@ -102,7 +80,7 @@ async def test_router_node_missing_next_agent():
     result = await node(state)
 
     assert isinstance(result, Command)
-    assert result.goto == "decider_node"
+    assert result.goto == "supervisor_node"
     assert result.update is not None
     assert result.update["needs_human_transfer"] is True
 

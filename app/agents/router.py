@@ -17,12 +17,12 @@ _INTENT_MAPPINGS: dict[IntentCategory, str] = {
     IntentCategory.LOGISTICS: "logistics",
     IntentCategory.ACCOUNT: "account",
     IntentCategory.PAYMENT: "payment",
-    IntentCategory.PRODUCT: "supervisor",
-    IntentCategory.RECOMMENDATION: "supervisor",
-    IntentCategory.CART: "order_agent",
-    IntentCategory.PROMOTION: "supervisor",
-    IntentCategory.COMPLAINT: "supervisor",
-    IntentCategory.OTHER: "supervisor",
+    IntentCategory.PRODUCT: "product",
+    IntentCategory.RECOMMENDATION: "product",
+    IntentCategory.CART: "cart",
+    IntentCategory.PROMOTION: "policy_agent",
+    IntentCategory.COMPLAINT: "order_agent",
+    IntentCategory.OTHER: "policy_agent",
 }
 
 
@@ -105,7 +105,8 @@ class IntentRouterAgent(BaseAgent):
                 or (next_agent == "logistics" and current_agent == "logistics")
                 or (next_agent == "account" and current_agent == "account")
                 or (next_agent == "payment" and current_agent == "payment")
-                or (next_agent == "supervisor" and current_agent == "policy_agent")
+                or (next_agent == "product" and current_agent == "product")
+                or (next_agent == "cart" and current_agent == "cart")
             ):
                 return {
                     "response": "系统对该问题没有足够把握，已为您转接人工客服。",
@@ -120,15 +121,6 @@ class IntentRouterAgent(BaseAgent):
         if intent_name == IntentCategory.OTHER.value:
             logger.info("OTHER intent detected, returning greeting response")
             return {"response": self.GREETING_RESPONSE, "updated_state": updated_state}
-
-        if next_agent == "supervisor" and result.primary_intent in (
-            IntentCategory.PRODUCT,
-            IntentCategory.RECOMMENDATION,
-        ):
-            return {
-                "response": "抱歉，目前暂时不支持商品查询和推荐服务，已为您转接人工客服。",
-                "updated_state": updated_state,
-            }
 
         if not next_agent:
             return {

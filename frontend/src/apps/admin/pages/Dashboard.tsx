@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LogOut, Bell, User, BarChart3, MessageSquare } from 'lucide-react'
+import { LogOut, Bell, User, BarChart3, MessageSquare, BookOpen } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTasks, useTaskStats } from '@/hooks/useTasks'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -15,6 +15,7 @@ import { NotificationToast } from '../components/NotificationToast'
 import { Performance } from '../components/Performance'
 import { EvaluationViewer } from '../components/EvaluationViewer'
 import { ConversationLogs } from '../components/ConversationLogs'
+import { KnowledgeBase } from '../pages/KnowledgeBase'
 
 export function Dashboard() {
   const { user, logout } = useAuth()
@@ -89,6 +90,10 @@ export function Dashboard() {
               <BarChart3 className="h-4 w-4" />
               评测数据
             </TabsTrigger>
+            <TabsTrigger value="knowledge" className="gap-1">
+              <BookOpen className="h-4 w-4" />
+              知识库
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -129,6 +134,10 @@ export function Dashboard() {
           <div className="h-full p-4">
             <EvaluationViewer />
           </div>
+        </TabsContent>
+
+        <TabsContent value="knowledge" className="flex-1 overflow-hidden m-0">
+          <KnowledgeBase />
         </TabsContent>
       </Tabs>
 
