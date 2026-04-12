@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LogOut, Bell, User, BarChart3, MessageSquare, BookOpen, Bot } from 'lucide-react'
+import { LogOut, Bell, User, BarChart3, BarChart4, MessageSquare, BookOpen, Bot, FlaskConical, ShieldAlert } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTasks, useTaskStats } from '@/hooks/useTasks'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -17,6 +17,9 @@ import { EvaluationViewer } from '../components/EvaluationViewer'
 import { ConversationLogs } from '../components/ConversationLogs'
 import { KnowledgeBase } from '../pages/KnowledgeBase'
 import { AgentConfig } from '../pages/AgentConfig'
+import { ExperimentManager } from '../components/ExperimentManager'
+import { AnalyticsV2 } from '../components/AnalyticsV2'
+import { ComplaintQueue } from '../components/ComplaintQueue'
 
 export function Dashboard() {
   const { user, logout } = useAuth()
@@ -99,6 +102,18 @@ export function Dashboard() {
               <Bot className="h-4 w-4" />
               Agent 配置
             </TabsTrigger>
+            <TabsTrigger value="experiments" className="gap-1">
+              <FlaskConical className="h-4 w-4" />
+              实验
+            </TabsTrigger>
+            <TabsTrigger value="complaints" className="gap-1">
+              <ShieldAlert className="h-4 w-4" />
+              投诉
+            </TabsTrigger>
+            <TabsTrigger value="analytics-v2" className="gap-1">
+              <BarChart4 className="h-4 w-4" />
+              分析V2
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -147,6 +162,18 @@ export function Dashboard() {
 
         <TabsContent value="agent-config" className="flex-1 overflow-hidden m-0">
           <AgentConfig />
+        </TabsContent>
+
+        <TabsContent value="experiments" className="flex-1 overflow-hidden m-0">
+          <ExperimentManager />
+        </TabsContent>
+
+        <TabsContent value="complaints" className="flex-1 overflow-hidden m-0">
+          <ComplaintQueue />
+        </TabsContent>
+
+        <TabsContent value="analytics-v2" className="flex-1 overflow-hidden m-0">
+          <AnalyticsV2 />
         </TabsContent>
       </Tabs>
 

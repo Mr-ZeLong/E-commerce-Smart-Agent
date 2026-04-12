@@ -18,7 +18,7 @@ _INTENT_TO_AGENT: dict[str, str] = {
     "PRODUCT": "product",
     "CART": "cart",
     "PROMOTION": "policy_agent",
-    "COMPLAINT": "order_agent",
+    "COMPLAINT": "complaint",
     "OTHER": "policy_agent",
 }
 

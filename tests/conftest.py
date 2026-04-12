@@ -19,6 +19,7 @@ async def db_setup():
     async with async_engine.begin() as conn:
         # Drop any unmapped tables that have foreign-key constraints
         # preventing SQLModel.metadata.drop_all from succeeding.
+        await conn.execute(text("DROP TABLE IF EXISTS experiment_events CASCADE"))
         await conn.execute(text("DROP TABLE IF EXISTS confidence_audits CASCADE"))
         await conn.run_sync(SQLModel.metadata.drop_all)
 

@@ -1,6 +1,7 @@
 from app.agents.account import AccountAgent
 from app.agents.base import BaseAgent
 from app.agents.cart import CartAgent
+from app.agents.complaint import ComplaintAgent
 from app.agents.evaluator import ConfidenceEvaluator
 from app.agents.logistics import LogisticsAgent
 from app.agents.order import OrderAgent
@@ -14,6 +15,7 @@ __all__ = [
     "AccountAgent",
     "BaseAgent",
     "CartAgent",
+    "ComplaintAgent",
     "ConfidenceEvaluator",
     "IntentRouterAgent",
     "LogisticsAgent",

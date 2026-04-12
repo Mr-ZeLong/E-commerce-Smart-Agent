@@ -79,6 +79,8 @@ export interface Message {
   content: string
   timestamp: Date
   isStreaming?: boolean
+  feedbackSentiment?: 'up' | 'down' | null
+  messageIndex?: number
 }
 
 export interface ConversationThread {
@@ -195,4 +197,108 @@ export interface AgentConfigAuditLog {
 export interface AgentsConfigResponse {
   configs: AgentConfig[]
   routing_rules: RoutingRule[]
+}
+
+export interface ComplaintTicket {
+  id: number
+  user_id: number
+  thread_id: string
+  category: string
+  urgency: 'low' | 'medium' | 'high'
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  assigned_to: number | null
+  created_at: string
+  updated_at: string
+  order_sn: string | null
+  description: string
+  expected_resolution: string | null
+}
+
+export interface ComplaintFilters {
+  status?: 'open' | 'in_progress' | 'resolved' | 'closed'
+  urgency?: 'low' | 'medium' | 'high'
+  assigned_to?: number
+  offset?: number
+  limit?: number
+}
+
+export interface ComplaintListResponse {
+  tickets: ComplaintTicket[]
+  total: number
+  offset: number
+  limit: number
+}
+
+// Analytics V2 Types
+export interface CSATTrend {
+  date: string
+  avg_score: number
+  count: number
+}
+
+export interface ComplaintRootCause {
+  category: string
+  count: number
+}
+
+export interface AgentComparison {
+  final_agent: string
+  total_sessions: number
+  avg_confidence: number | null
+  transfer_rate: number | null
+  avg_latency_ms: number | null
+  complaint_count: number | null
+}
+
+export interface Trace {
+  id: string
+  thread_id: string
+  user_id: number | null
+  intent_category: string | null
+  final_agent: string | null
+  confidence_score: number | null
+  needs_human_transfer: boolean | null
+  langsmith_run_url: string | null
+  created_at: string
+  total_latency_ms: number | null
+}
+
+export interface TraceListResponse {
+  traces: Trace[]
+  total: number
+  limit: number
+  offset: number
+}
+
+// Experiment types
+export interface Experiment {
+  id: number
+  name: string
+  description: string | null
+  status: 'draft' | 'running' | 'paused' | 'completed'
+  created_at: string
+  updated_at: string
+}
+
+export interface ExperimentVariant {
+  name: string
+  weight: number
+  system_prompt?: string | null
+  llm_model?: string | null
+  retriever_top_k?: number | null
+  reranker_enabled?: boolean | null
+  extra_config?: Record<string, unknown> | null
+}
+
+export interface ExperimentCreatePayload {
+  name: string
+  description?: string | null
+  variants: ExperimentVariant[]
+}
+
+export interface ExperimentResult {
+  variant_id: number
+  variant_name: string
+  weight: number
+  assignments: number
 }

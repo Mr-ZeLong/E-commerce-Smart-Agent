@@ -30,7 +30,11 @@ celery_app.conf.update(
     beat_schedule={
         "prune-vector-memory-daily": {
             "task": "memory.prune_vector_memory",
-            "schedule": 86400.0,  # 每天一次
+            "schedule": 86400.0,
+        },
+        "check-quality-alerts": {
+            "task": "notifications.check_quality_alerts",
+            "schedule": 300.0,
         },
     },
 )

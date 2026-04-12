@@ -85,6 +85,9 @@ flowchart TB
             TBL_FACT[(user_facts<br/>原子事实)]
             TBL_AGENT_CFG[(agent_configs<br/>Agent 配置)]
             TBL_AGENT_AUDIT[(agent_config_audit_logs<br/>配置审计)]
+            TBL_COMPLAINT[(complaint_tickets<br/>投诉工单)]
+            TBL_EXPERIMENT[(experiments<br/>A/B 实验)]
+            TBL_FEEDBACK[(message_feedbacks<br/>用户反馈)]
         end
 
         subgraph MemoryVec["Qdrant"]
@@ -233,9 +236,15 @@ erDiagram
     users ||--o{ user_preferences : "拥有"
     users ||--o{ interaction_summaries : "拥有"
     users ||--o{ user_facts : "拥有"
+    users ||--o{ complaint_tickets : "提交"
+    users ||--o{ message_feedbacks : "提交"
     orders ||--o{ refund_applications : "关联"
     orders ||--o{ audit_logs : "关联"
+    orders ||--o{ complaint_tickets : "关联"
     refund_applications ||--o{ audit_logs : "触发"
+    experiments ||--o{ experiment_variants : "包含"
+    experiments ||--o{ experiment_assignments : "分配"
+    experiment_variants ||--o{ experiment_assignments : "归属"
 
     users {
         int id PK
@@ -396,6 +405,74 @@ erDiagram
         string field_name
         text old_value
         text new_value
+        datetime created_at
+    }
+
+    complaint_tickets {
+        int id PK
+        int user_id FK
+        string thread_id
+        string order_sn
+        string category
+        string urgency
+        string status
+        text description
+        text expected_resolution
+        text resolution_notes
+        int assigned_to FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    experiments {
+        int id PK
+        string name
+        string description
+        string status
+        datetime start_date
+        datetime end_date
+        datetime created_at
+        datetime updated_at
+    }
+
+    experiment_variants {
+        int id PK
+        int experiment_id FK
+        string name
+        int weight
+        text system_prompt
+        string llm_model
+        int retriever_top_k
+        boolean reranker_enabled
+        datetime created_at
+    }
+
+    experiment_assignments {
+        int id PK
+        int experiment_id FK
+        int variant_id FK
+        int user_id FK
+        datetime created_at
+    }
+
+    message_feedbacks {
+        int id PK
+        string thread_id
+        int message_index
+        string sentiment
+        text comment
+        int user_id FK
+        datetime created_at
+    }
+
+    quality_scores {
+        int id PK
+        string thread_id
+        float coherence
+        float helpfulness
+        float safety
+        float overall
+        text reasoning
         datetime created_at
     }
 
@@ -819,7 +896,11 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 chat_utils.py        # SSE 流式响应工具
 │   │   ├── 📄 admin.py             # 管理员接口 (含知识库 CRUD + 同步)
 │   │   ├── 📁 admin/
-│   │   │   └── 📄 agent_config.py  # Agent 配置中心 API (路由规则 / 提示词 / 审计日志)
+│   │   │   ├── 📄 agent_config.py  # Agent 配置中心 API (路由规则 / 提示词 / 审计日志)
+│   │   │   ├── 📄 complaints.py    # 投诉工单管理 API (Phase 4)
+│   │   │   ├── 📄 experiments.py   # A/B 实验管理 API (Phase 4)
+│   │   │   ├── 📄 feedback.py      # 用户反馈与质量评估 API (Phase 4)
+│   │   │   └── 📄 analytics.py     # 高级分析 API (Phase 4)
 │   │   ├── 📄 status.py            # 状态查询接口
 │   │   ├── 📄 websocket.py         # WebSocket 端点
 │   │   └── 📄 schemas.py           # Pydantic 数据模型
@@ -843,6 +924,9 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 knowledge_document.py # 知识库文档表
 │   │   ├── 📄 observability.py     # 可观测性模型
 │   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / AuditLog)
+│   │   ├── 📄 complaint.py         # 投诉工单模型 (Phase 4)
+│   │   ├── 📄 experiment.py        # A/B 实验模型 (Phase 4)
+│   │   ├── 📄 evaluation.py        # 在线评估模型 (Phase 4)
 │   │   └── 📄 state.py             # AgentState TypedDict
 │   │
 │   ├── 📁 memory/                  # 记忆系统 (Phase 3)
@@ -869,6 +953,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 logistics.py         # 物流 Agent
 │   │   ├── 📄 account.py           # 账户 Agent
 │   │   ├── 📄 payment.py           # 支付 Agent
+│   │   ├── 📄 complaint.py         # 投诉 Agent (ComplaintAgent, Phase 4)
 │   │   └── 📄 evaluator.py         # ConfidenceEvaluator
 │   │
 │   ├── 📁 tools/                   # Agent Tool 层
@@ -877,7 +962,8 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 cart_tool.py         # 购物车操作 Tool (Redis)
 │   │   ├── 📄 logistics_tool.py    # 物流查询 Tool
 │   │   ├── 📄 account_tool.py      # 账户查询 Tool
-│   │   └── 📄 payment_tool.py      # 支付查询 Tool
+│   │   ├── 📄 payment_tool.py      # 支付查询 Tool
+│   │   └── 📄 complaint_tool.py    # 投诉工单创建 Tool (Phase 4)
 │   │
 │   ├── 📁 confidence/              # 置信度信号模块
 │   │   ├── 📄 __init__.py
@@ -910,7 +996,10 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 status_service.py    # 状态服务
 │   │   ├── 📄 order_service.py     # 订单服务
 │   │   ├── 📄 admin_service.py     # 管理员服务
-│   │   └── 📄 auth_service.py      # 认证服务
+│   │   ├── 📄 auth_service.py      # 认证服务
+│   │   ├── 📄 experiment.py        # A/B 实验服务 (Phase 4)
+│   │   ├── 📄 experiment_assigner.py # 实验流量分配 (Phase 4)
+│   │   └── 📄 online_eval.py       # 在线评估服务 (Phase 4)
 │   │
 │   ├── 📁 schemas/                 # 共享 Schema
 │   │   ├── 📄 auth.py
@@ -921,7 +1010,8 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 refund_tasks.py      # 退款相关任务
 │   │   ├── 📄 knowledge_tasks.py   # 知识库同步任务
-│   │   └── 📄 memory_tasks.py      # 记忆抽取与同步任务
+│   │   ├── 📄 memory_tasks.py      # 记忆抽取与同步任务
+│   │   └── 📄 notifications.py     # 告警通知任务 (Phase 4)
 │   │
 │   ├── 📁 websocket/               # WebSocket 服务
 │   │   └── 📄 manager.py           # 连接管理器
@@ -969,7 +1059,10 @@ E-commerce-Smart-Agent/
 │       │           ├── 📄 EvaluationViewer.tsx
 │       │           ├── 📄 Performance.tsx
 │       │           ├── 📄 KnowledgeBaseManager.tsx  # 知识库上传/同步组件
-│       │           └── 📄 AgentConfigEditor.tsx     # Agent 配置编辑器组件
+│       │           ├── 📄 AgentConfigEditor.tsx     # Agent 配置编辑器组件
+│       │           ├── 📄 ComplaintQueue.tsx        # 投诉工单管理 (Phase 4)
+│       │           ├── 📄 ExperimentManager.tsx     # A/B 实验管理 (Phase 4)
+│       │           └── 📄 AnalyticsV2.tsx           # 高级分析面板 (Phase 4)
 │       │
 │       ├── 📁 components/
 │       │   ├── 📁 ui/              # shadcn/ui 组件
@@ -1001,7 +1094,10 @@ E-commerce-Smart-Agent/
 │       │   ├── 📄 useNotifications.ts
 │       │   ├── 📄 useTasks.ts
 │       │   ├── 📄 useKnowledgeBase.ts  # 知识库管理 Hooks
-│       │   └── 📄 useAgentConfig.ts    # Agent 配置管理 Hooks
+│       │   ├── 📄 useAgentConfig.ts    # Agent 配置管理 Hooks
+│       │   ├── 📄 useComplaints.ts     # 投诉工单 Hooks (Phase 4)
+│       │   ├── 📄 useExperiments.ts    # A/B 实验 Hooks (Phase 4)
+│       │   └── 📄 useAnalytics.ts      # 高级分析 Hooks (Phase 4)
 │       ├── 📁 types/               # TypeScript 类型定义
 │       │   └── 📄 index.ts         # 统一类型导出
 │
@@ -1093,6 +1189,11 @@ E-commerce-Smart-Agent/
 | **实时通知** | WebSocket 状态同步 | ConnectionManager |
 | **异步任务** | 退款支付、短信通知、知识库 ETL 同步异步处理 | Celery + Redis |
 | **多租户隔离** | 用户只能访问自己的订单和购物车 | JWT + 数据隔离 |
+| **智能投诉处理** | `ComplaintAgent` 自动识别投诉意图并分类，支持工单创建与分配 | `app/agents/complaint.py` + `ComplaintTicket` |
+| **A/B 测试框架** | 多版本 Agent 配置对比实验，哈希流量分配，结果统计 | `app/services/experiment.py` + `ExperimentManager` |
+| **在线评估** | 用户反馈收集 (👍/👎)、CSAT 计算、LLM 自动质量评分 | `app/services/online_eval.py` + `MessageFeedback` |
+| **自动告警** | 定时检测服务质量下降，邮件/WebSocket 通知管理员 | `app/tasks/notifications.py` + Celery Beat |
+| **高级分析** | CSAT 趋势、投诉根因、Agent 对比、LangSmith Trace | `AnalyticsV2` + `app/api/v1/admin/analytics.py` |
 
 ## 8. 启动流程
 

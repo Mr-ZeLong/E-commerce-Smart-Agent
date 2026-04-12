@@ -15,6 +15,10 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.v1.admin.agent_config import router as agent_config_router
+from app.api.v1.admin.analytics import router as analytics_router
+from app.api.v1.admin.complaints import router as complaints_router
+from app.api.v1.admin.experiments import router as experiments_router
+from app.api.v1.admin.feedback import router as feedback_router
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
 from app.core.utils import utc_now
@@ -38,6 +42,10 @@ from app.tasks.knowledge_tasks import sync_knowledge_document
 
 router = APIRouter()
 router.include_router(agent_config_router, prefix="/admin/agents")
+router.include_router(complaints_router, prefix="/admin/complaints")
+router.include_router(experiments_router, prefix="/admin/experiments")
+router.include_router(feedback_router, prefix="/admin/feedback")
+router.include_router(analytics_router, prefix="/admin/analytics")
 tracer = trace.get_tracer(__name__)
 
 

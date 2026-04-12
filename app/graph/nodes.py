@@ -9,6 +9,7 @@ from langgraph.types import Command
 
 from app.agents.account import AccountAgent
 from app.agents.cart import CartAgent
+from app.agents.complaint import ComplaintAgent
 from app.agents.evaluator import ConfidenceEvaluator
 from app.agents.logistics import LogisticsAgent
 from app.agents.order import OrderAgent
@@ -378,6 +379,16 @@ def build_cart_node(
         return Command(goto="evaluator_node", update=_agent_updates("cart", result, state))
 
     return cart_node
+
+
+def build_complaint_node(
+    agent: ComplaintAgent,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def complaint_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        result = await agent.process(state)
+        return Command(goto="evaluator_node", update=_agent_updates("complaint", result, state))
+
+    return complaint_node
 
 
 def build_evaluator_node(

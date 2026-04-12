@@ -262,6 +262,19 @@ class Settings(BaseSettings):
     MEMORY_RETENTION_DAYS: int = 90
     AGENT_CONFIG_CACHE_TTL: int = 60
 
+    # Email 配置（用于告警和通知）
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    ALERT_ADMIN_EMAILS: list[str] = Field(default_factory=list)
+
+    # 自动告警阈值配置
+    ALERT_CSAT_THRESHOLD: float = 0.7
+    ALERT_COMPLAINT_WINDOW_HOURS: int = 24
+    ALERT_COMPLAINT_MAX: int = 10
+
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from langchain_core.runnables import RunnableConfig
 from opentelemetry import trace
+from pydantic import BaseModel
 
 from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
@@ -16,6 +17,7 @@ from app.core.security import get_current_user_id
 from app.core.utils import build_thread_id, utc_now
 from app.models.state import make_agent_state
 from app.observability.execution_logger import log_graph_execution, log_graph_node
+from app.services.online_eval import OnlineEvalService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -266,3 +268,34 @@ async def chat(
                 yield "data: [DONE]\n\n"
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+_feedback_service = OnlineEvalService()
+
+
+class SubmitFeedbackRequest(BaseModel):
+    thread_id: str
+    message_index: int
+    sentiment: str
+    comment: str | None = None
+
+
+@router.post("/feedback")
+async def submit_feedback(
+    request: SubmitFeedbackRequest,
+    current_user_id: int = Depends(get_current_user_id),
+):
+    async with async_session_maker() as session:
+        feedback = await _feedback_service.submit_feedback(
+            db=session,
+            user_id=current_user_id,
+            thread_id=request.thread_id,
+            message_index=request.message_index,
+            sentiment=request.sentiment,
+            comment=request.comment,
+        )
+    return {
+        "success": True,
+        "feedback_id": feedback.id,
+        "score": feedback.score,
+    }

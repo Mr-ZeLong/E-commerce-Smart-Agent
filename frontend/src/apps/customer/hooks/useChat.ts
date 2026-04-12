@@ -2,6 +2,13 @@ import { useState, useCallback } from 'react'
 import type { Message } from '@/types'
 import { API_BASE, getApiHeaders } from '@/lib/api'
 
+interface FeedbackRequest {
+  thread_id: string
+  message_index: number
+  sentiment: 'up' | 'down' | 'neutral'
+  comment?: string
+}
+
 const WELCOME_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
@@ -19,6 +26,7 @@ interface UseChatReturn {
   messages: Message[]
   isLoading: boolean
   sendMessage: (content: string, threadId: string) => Promise<void>
+  submitFeedback: (messageId: string, sentiment: 'up' | 'down', threadId: string, messageIndex: number, comment?: string) => Promise<void>
   resetMessages: () => void
 }
 
@@ -133,10 +141,43 @@ export function useChat(): UseChatReturn {
     setMessages([WELCOME_MESSAGE])
   }, [])
 
+  const submitFeedback = useCallback(
+    async (messageId: string, sentiment: 'up' | 'down', threadId: string, messageIndex: number, comment?: string) => {
+      try {
+        const feedbackData: FeedbackRequest = {
+          thread_id: threadId,
+          message_index: messageIndex,
+          sentiment: sentiment,
+          ...(comment && { comment }),
+        }
+
+        const res = await fetch(`${API_BASE}/feedback`, {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify(feedbackData),
+        })
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`)
+        }
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId ? { ...msg, feedbackSentiment: sentiment } : msg
+          )
+        )
+      } catch (error) {
+        console.error('Failed to submit feedback:', error)
+      }
+    },
+    []
+  )
+
   return {
     messages,
     isLoading,
     sendMessage,
+    submitFeedback,
     resetMessages,
   }
 }

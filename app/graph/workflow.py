@@ -5,6 +5,7 @@ from langgraph.graph import END, START, StateGraph
 from app.graph.nodes import (
     build_account_node,
     build_cart_node,
+    build_complaint_node,
     build_decider_node,
     build_evaluator_node,
     build_logistics_node,
@@ -34,6 +35,7 @@ def create_workflow(
     supervisor_agent=None,
     product_agent=None,
     cart_agent=None,
+    complaint_agent=None,
     llm=None,
     structured_manager=None,
     vector_manager=None,
@@ -96,6 +98,12 @@ def create_workflow(
                 build_agent_subgraph(cart_agent),
                 metadata={"tags": ["cart", "user_visible"]},
             )
+        if complaint_agent is not None:
+            workflow.add_node(
+                "complaint",
+                build_agent_subgraph(complaint_agent),
+                metadata={"tags": ["complaint", "user_visible"]},
+            )
     else:
         workflow.add_node(
             "policy_agent",
@@ -133,6 +141,12 @@ def create_workflow(
                 "cart",
                 build_cart_node(cart_agent),  # type: ignore
                 metadata={"tags": ["cart", "user_visible"]},
+            )
+        if complaint_agent is not None:
+            workflow.add_node(
+                "complaint",
+                build_complaint_node(complaint_agent),  # type: ignore
+                metadata={"tags": ["complaint", "user_visible"]},
             )
 
     workflow.add_node(
@@ -180,6 +194,10 @@ def create_workflow(
         workflow.add_edge(
             "cart", "synthesis_node" if supervisor_agent is not None else "evaluator_node"
         )
+    if complaint_agent is not None:
+        workflow.add_edge(
+            "complaint", "synthesis_node" if supervisor_agent is not None else "evaluator_node"
+        )
 
     workflow.add_edge("evaluator_node", "decider_node")
     workflow.add_edge("decider_node", END)
@@ -199,6 +217,7 @@ async def compile_app_graph(
     supervisor_agent=None,
     product_agent=None,
     cart_agent=None,
+    complaint_agent=None,
     llm=None,
     structured_manager=None,
     vector_manager=None,
@@ -216,6 +235,7 @@ async def compile_app_graph(
         supervisor_agent=supervisor_agent,
         product_agent=product_agent,
         cart_agent=cart_agent,
+        complaint_agent=complaint_agent,
         llm=llm,
         structured_manager=structured_manager,
         vector_manager=vector_manager,

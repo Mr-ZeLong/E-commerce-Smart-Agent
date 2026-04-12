@@ -44,6 +44,7 @@ async def lifespan(app: FastAPI):
 
     from app.agents.account import AccountAgent
     from app.agents.cart import CartAgent
+    from app.agents.complaint import ComplaintAgent
     from app.agents.evaluator import ConfidenceEvaluator
     from app.agents.logistics import LogisticsAgent
     from app.agents.order import OrderAgent
@@ -61,7 +62,14 @@ async def lifespan(app: FastAPI):
     from app.memory.vector_manager import VectorMemoryManager
     from app.retrieval import create_retriever
     from app.services.order_service import OrderService
-    from app.tools import AccountTool, CartTool, LogisticsTool, PaymentTool, ProductTool
+    from app.tools import (
+        AccountTool,
+        CartTool,
+        ComplaintTool,
+        LogisticsTool,
+        PaymentTool,
+        ProductTool,
+    )
     from app.tools.registry import ToolRegistry
 
     app.state.manager = ConnectionManager()
@@ -71,6 +79,7 @@ async def lifespan(app: FastAPI):
     tool_registry.register(PaymentTool())
     tool_registry.register(ProductTool())
     tool_registry.register(CartTool())
+    tool_registry.register(ComplaintTool())
     app.state.tool_registry = tool_registry
 
     redis_client = None
@@ -96,6 +105,7 @@ async def lifespan(app: FastAPI):
         payment_agent = PaymentAgent(tool_registry=tool_registry, llm=llm)
         product_agent = ProductAgent(tool_registry=tool_registry, llm=llm)
         cart_agent = CartAgent(tool_registry=tool_registry, llm=llm)
+        complaint_agent = ComplaintAgent(llm=llm)
         supervisor_agent = SupervisorAgent(llm=llm)
         evaluator = ConfidenceEvaluator(llm=eval_llm)
         vector_manager = VectorMemoryManager()
@@ -115,6 +125,7 @@ async def lifespan(app: FastAPI):
             supervisor_agent=supervisor_agent,
             product_agent=product_agent,
             cart_agent=cart_agent,
+            complaint_agent=complaint_agent,
             llm=llm,
             structured_manager=structured_manager,
             vector_manager=vector_manager,

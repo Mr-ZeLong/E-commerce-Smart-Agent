@@ -10,7 +10,7 @@ import { ChatInput } from './components/ChatInput'
 
 const App: FC = () => {
   const { isAuthenticated, login, logout, isLoading: isLoginLoading, error: loginError } = useAuth()
-  const { messages, isLoading, sendMessage } = useChat()
+  const { messages, isLoading, sendMessage, submitFeedback } = useChat()
   const [input, setInput] = useState('')
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -35,6 +35,10 @@ const App: FC = () => {
     if (!input.trim() || isLoading) return
     void sendMessage(input, threadId.current)
     setInput('')
+  }
+
+  const handleFeedback = (messageId: string, sentiment: 'up' | 'down', messageIndex: number) => {
+    void submitFeedback(messageId, sentiment, threadId.current, messageIndex)
   }
 
   if (!isAuthenticated) {
@@ -104,7 +108,12 @@ const App: FC = () => {
       </header>
 
       {/* Chat Area */}
-      <ChatMessageList messages={messages} isLoading={isLoading} ref={scrollRef} />
+      <ChatMessageList 
+        messages={messages} 
+        isLoading={isLoading} 
+        ref={scrollRef}
+        onFeedback={handleFeedback}
+      />
 
       {/* Input Area */}
       <ChatInput

@@ -20,7 +20,7 @@ _INTENT_MAPPINGS: dict[IntentCategory, str] = {
     IntentCategory.PRODUCT: "product",
     IntentCategory.CART: "cart",
     IntentCategory.PROMOTION: "policy_agent",
-    IntentCategory.COMPLAINT: "order_agent",
+    IntentCategory.COMPLAINT: "complaint",
     IntentCategory.OTHER: "policy_agent",
 }
 

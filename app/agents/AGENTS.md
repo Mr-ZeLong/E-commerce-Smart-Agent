@@ -11,6 +11,7 @@
 | 基类定义 | `base.py` | `BaseAgent` ABC，`process()` → `AgentProcessResult` |
 | 商品问答 | `product.py` + `../tools/product_tool.py` | Qdrant `product_catalog` 语义检索 |
 | 购物车 | `cart.py` + `../tools/cart_tool.py` | Redis 持久化，24h TTL |
+| 投诉处理 | `complaint.py` + `../tools/complaint_tool.py` | LLM 自动分类 + 工单创建 (Phase 4) |
 | 调度器 | `supervisor.py` | 串行/并行调度逻辑 |
 | 意图路由 | `router.py` | `IntentRouterAgent` |
 | 配置热重载 | `config_loader.py` | Redis 缓存路由规则与系统提示词（60s TTL） |
