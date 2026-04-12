@@ -22,7 +22,6 @@ class TestIntentCategory:
             "PAYMENT",
             "LOGISTICS",
             "PRODUCT",
-            "RECOMMENDATION",
             "CART",
             "COMPLAINT",
             "OTHER",

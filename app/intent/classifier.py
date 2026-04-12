@@ -27,7 +27,7 @@ class IntentClassifier:
     SYSTEM_PROMPT = """你是一个电商客服意图识别专家。请分析用户输入，识别其意图并提取相关槽位。
 
 意图层级定义:
-1. 一级意图(primary_intent): ORDER, AFTER_SALES, POLICY, PRODUCT, RECOMMENDATION, CART, OTHER
+1. 一级意图(primary_intent): ORDER, AFTER_SALES, POLICY, PRODUCT, CART, OTHER
 2. 二级意图(secondary_intent): QUERY, APPLY, MODIFY, CANCEL, CONSULT, ADD, REMOVE, COMPARE
 3. 三级意图(tertiary_intent): 具体场景，可选
 
@@ -93,11 +93,6 @@ class IntentClassifier:
             r"有.*(货|库存)",
         ],
         ("PRODUCT", "COMPARE"): [r"(对比|比较|哪个好|区别)", r"和.*(比|区别)"],
-        ("RECOMMENDATION", "CONSULT"): [
-            r"推荐.*(商品|东西|产品)",
-            r"有.*(推荐|好的)",
-            r"适合.*(我|用)",
-        ],
         ("CART", "QUERY"): [r"购物车.*(看|查|有什么)", r"我的购物车"],
         ("CART", "ADD"): [r"(加|放|添加).*(购物车|车里)", r"购物车.*(加|添)"],
         ("CART", "REMOVE"): [r"(删|移除|清空).*(购物车|车里)"],

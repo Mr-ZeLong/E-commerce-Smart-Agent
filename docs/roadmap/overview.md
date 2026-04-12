@@ -49,8 +49,8 @@ M1  M2  M3  M4  M5  M6  M7  M8  M9  M10 M11 M12
 ● M5  多意图并行执行投入运行
 ● M7  长期记忆集成到所有 Agent prompt
 ● M8  Admin KB 管理后台 + Agent Config Center 上线
-● M10 多模态（图片）端到端支持
-● M12 ComplaintAgent + RecommendationAgent 生产化, A/B testing framework 启用
+● M10 ComplaintAgent 端到端支持
+● M12 A/B testing framework 启用
 ```
 
 ---
@@ -69,12 +69,12 @@ START → router_node → supervisor_node
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
   policy_agent    →    order_agent    →    product_agent
-        │                     │                     │
-  logistics_agent           cart_agent        recommendation_agent
         │                     │
-  account_agent           payment_agent
+  logistics_agent           cart_agent
+        │                     │
+   account_agent           payment_agent
         │
-  complaint_agent
+   complaint_agent
 
         └─────────────────────┬─────────────────────┘
                               ▼
@@ -114,13 +114,11 @@ START → router_node → supervisor_node
 
 ## 6. 成本护栏（全局）
 
-为防止系统规模化后 LLM/VLM/API 成本失控，以下控制在所有阶段**强制生效**:
+为防止系统规模化后 LLM/API 成本失控，以下控制在所有阶段**强制生效**:
 
 | 护栏机制 | 实现方式 | 默认值 |
 |----------|----------|--------|
 | **LangSmith Sampling** | `LANGSMITH_SAMPLE_RATE` 环境变量 (0.0–1.0) | `0.05`（生产环境采样 5%） |
-| **VLM 每日配额** | Redis 日计数器，超限时降级为纯文本 | 1000 请求/天 |
-| **VLM 图片限制** | 最大 2MB，最大边 1024px，上传前自动缩放 | API Gateway 硬拒绝 |
 | **Per-Agent 限流** | slowapi 分层: 轻量 Agent `100/min`，推理 Agent `30/min` | 按路由可配置 |
 | **Per-User LLM 预算** | Redis 滑动窗口，统计每用户每小时 LLM token 调用次数 | 60 次/小时 |
 | **Embedding 降级** | Qwen embedding 连续失败 >3 次时跳过嵌入，使用关键词兜底 | tenacity 自动触发 |

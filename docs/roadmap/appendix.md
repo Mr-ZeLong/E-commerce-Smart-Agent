@@ -15,9 +15,7 @@
 | R7 | 记忆存储中发生 PII 泄漏 | 3 | 中 | 高 | 正则脱敏；人工审计；GDPR 删除权 API |
 | R8 | 向量记忆检索结果无关 | 3 | 中 | 低 | 用户域过滤 + 时间衰减 + 摘要优先 |
 | R9 | 配置热重载竞态条件 | 3 | 低 | 低 | TTL 内存缓存；不修改运行中 graph 实例 |
-| R10 | VLM 推理延迟/成本过高 | 4 | 中 | 高 | 图片缩放 + 日配额 + 纯文本降级 |
-| R11 | 推荐数据稀疏 | 4 | 中 | 中 | 先做 content-based（向量），后续引入协同过滤 |
-| R12 | A/B 测试流量不足 | 4 | 中 | 低 | 限于高流量意图；使用贝叶斯监控 |
+| R10 | A/B 测试流量不足 | 4 | 中 | 低 | 限于高流量意图；使用贝叶斯监控 |
 
 ---
 
@@ -43,8 +41,7 @@
 第四阶段 (M9-M12)
 ├── 第三阶段完成（记忆系统上线）
 ├── 第一阶段可观测性成熟（支撑 A/B 分析）
-├── 商品目录维护流程已建立
-└── VLM API 权限与预算已获批
+└── 商品目录维护流程已建立
 ```
 
 ---
@@ -60,7 +57,6 @@
 | **Golden Dataset** | 经人工标注的精选查询集合，用于离线评估意图识别、检索与回答质量。 |
 | **LangSmith** | LangChain 的可观测性平台，用于追踪 LLM 应用运行。 |
 | **OTel** | OpenTelemetry，厂商中立的分布式追踪与指标标准。 |
-| **VLM** | Vision-Language Model，可同时处理文本与图片的多模态 LLM。 |
 | **RRF** | Reciprocal Rank Fusion，融合多个检索来源排序结果的方法。 |
 | **Structured Memory** | 存储于 PostgreSQL 的长期用户数据（事实、偏好、画像）。 |
 | **Vector Memory** | 以 embedding 形式存储于 Qdrant 的长期对话数据，用于语义检索。 |
@@ -73,9 +69,6 @@
 | 护栏机制 | 环境变量/配置 | 默认值 | 生效位置 |
 |----------|---------------|--------|----------|
 | LangSmith 采样率 | `LANGSMITH_SAMPLE_RATE` | `0.05` | `app/observability/langsmith_tracer.py` |
-| VLM 每日配额 | `VLM_DAILY_QUOTA` | `1000` | `app/multimodal/vlm_client.py`（Redis 计数器） |
-| VLM 最大图片大小 | `VLM_MAX_IMAGE_BYTES` | `2_097_152` (2MB) | FastAPI 上传校验器 |
-| VLM 最大边长 | `VLM_MAX_IMAGE_DIMENSION` | `1024` | 图片预处理器 |
 | Per-Agent 限流 | `RATE_LIMIT_*` 按路由 | 30–100/min | `app/core/limiter.py`（slowapi） |
 | Per-User LLM 调用预算 | `USER_LLM_BUDGET_PER_HOUR` | `60` | Redis 滑动窗口 |
 | Embedding 降级 | `EMBEDDING_FALLBACK_ENABLED` | `True` | `app/retrieval/embeddings.py` |
@@ -96,7 +89,6 @@
 | Golden Dataset Intent Accuracy | ≥85% | `tests/evaluation/pipeline.py` |
 | Memory Relevance Rate | ≥70% | 人工评估回头客标注查询 |
 | Complaint Form Completion | ≥75% | 投诉工单创建率 |
-| Recommendation CTR Lift | 较基线 >20% | 前端点击追踪 |
 | A/B Experiment Active Count | 始终 ≥1 个 | `Experiment` 表查询 |
 | Quality Degradation Alert Fidelity | ≥70% top-intent 准确率 | 事后事故分析 |
 

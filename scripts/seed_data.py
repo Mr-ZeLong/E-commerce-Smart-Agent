@@ -74,7 +74,6 @@ _DEFAULT_ROUTING_RULES: list[dict[str, Any]] = [
     {"intent_category": "ACCOUNT", "target_agent": "account", "priority": 10},
     {"intent_category": "PAYMENT", "target_agent": "payment", "priority": 10},
     {"intent_category": "PRODUCT", "target_agent": "product", "priority": 10},
-    {"intent_category": "RECOMMENDATION", "target_agent": "product", "priority": 10},
     {"intent_category": "CART", "target_agent": "cart", "priority": 10},
     {"intent_category": "PROMOTION", "target_agent": "policy_agent", "priority": 10},
     {"intent_category": "COMPLAINT", "target_agent": "order_agent", "priority": 10},

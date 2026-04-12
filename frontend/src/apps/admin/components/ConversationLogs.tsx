@@ -41,7 +41,6 @@ export function ConversationLogs() {
     { value: 'PAYMENT', label: 'PAYMENT' },
     { value: 'LOGISTICS', label: 'LOGISTICS' },
     { value: 'PRODUCT', label: 'PRODUCT' },
-    { value: 'RECOMMENDATION', label: 'RECOMMENDATION' },
     { value: 'CART', label: 'CART' },
     { value: 'COMPLAINT', label: 'COMPLAINT' },
     { value: 'OTHER', label: 'OTHER' },

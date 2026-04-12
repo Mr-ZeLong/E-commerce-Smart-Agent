@@ -21,9 +21,9 @@ INTENT_COMPATIBILITY: dict[str, list[str]] = {
     # ORDER与LOGISTICS关联
     "ORDER/QUERY": ["LOGISTICS/QUERY", "AFTER_SALES/APPLY"],
     "LOGISTICS/QUERY": ["ORDER/QUERY", "ORDER/MODIFY"],
-    # PRODUCT与RECOMMENDATION关联
-    "PRODUCT/QUERY": ["RECOMMENDATION/CONSULT", "PRODUCT/COMPARE"],
-    "RECOMMENDATION/CONSULT": ["PRODUCT/QUERY", "PRODUCT/COMPARE"],
+    # PRODUCT域内兼容
+    "PRODUCT/QUERY": ["PRODUCT/COMPARE"],
+    "PRODUCT/COMPARE": ["PRODUCT/QUERY"],
     # CART与ORDER关联
     "CART/QUERY": ["ORDER/APPLY", "CART/MODIFY"],
     "CART/ADD": ["CART/QUERY", "ORDER/APPLY"],
@@ -79,16 +79,6 @@ TERTIARY_INTENT_CONFIG: dict[tuple[str, str], dict] = {
     ("PRODUCT", "COMPARE"): {
         "tertiary_intents": ["PRODUCT_PRICE_COMPARE", "PRODUCT_SPEC_COMPARE"],
         "description": "商品比较",
-    },
-    # RECOMMENDATION场景
-    ("RECOMMENDATION", "CONSULT"): {
-        "tertiary_intents": [
-            "RECOMMEND_SIMILAR",
-            "RECOMMEND_COMPLEMENTARY",
-            "RECOMMEND_PERSONALIZED",
-            "RECOMMEND_TRENDING",
-        ],
-        "description": "商品推荐",
     },
     # CART场景
     ("CART", "QUERY"): {

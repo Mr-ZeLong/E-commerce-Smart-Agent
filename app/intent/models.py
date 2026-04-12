@@ -22,7 +22,6 @@ class IntentCategory(str, Enum):
     PAYMENT = "PAYMENT"
     LOGISTICS = "LOGISTICS"
     PRODUCT = "PRODUCT"
-    RECOMMENDATION = "RECOMMENDATION"
     CART = "CART"
     COMPLAINT = "COMPLAINT"
     OTHER = "OTHER"

@@ -100,18 +100,6 @@
 {"query": "有没有套装组合", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "套装", "expected_audit_level": "auto"}
 {"query": "商品重量是多少", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "重量", "expected_audit_level": "auto"}
 {"query": "保修期多久", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "保修", "expected_audit_level": "auto"}
-{"query": "给我推荐一款降噪耳机", "expected_intent": "RECOMMENDATION", "expected_slots": {"product_name": "降噪耳机"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "2000元左右的手机哪个好", "expected_intent": "RECOMMENDATION", "expected_slots": {"budget": "2000元左右"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "适合送礼的护肤品套装", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "送礼"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "跑步穿的鞋有推荐吗", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "跑步"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "性价比高的笔记本电脑", "expected_intent": "RECOMMENDATION", "expected_slots": {"product_name": "笔记本电脑"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "学生党用的平价背包", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "学生党"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "送给妈妈的生日礼物推荐", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "生日礼物"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "露营需要买哪些装备", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "露营"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "冬天保暖外套推荐", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "冬天保暖"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "办公桌收纳好物", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "办公收纳"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "新手爸妈必买清单", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "新手爸妈"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
-{"query": "健身初学者需要的器材", "expected_intent": "RECOMMENDATION", "expected_slots": {"scenario": "健身初学者"}, "expected_answer_fragment": "推荐", "expected_audit_level": "auto"}
 {"query": "我的购物车里有几件商品", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "购物车", "expected_audit_level": "auto"}
 {"query": "帮我把这件商品加入购物车", "expected_intent": "CART", "expected_slots": {"product_name": "这件商品"}, "expected_answer_fragment": "加入", "expected_audit_level": "auto"}
 {"query": "清空购物车", "expected_intent": "CART", "expected_slots": {}, "expected_answer_fragment": "清空", "expected_audit_level": "auto"}

@@ -554,7 +554,7 @@ class User(SQLModel, table=True):
 所有专家 Agent 均基于 `BaseTool` + `ToolRegistry` 构建，由 `app/main.py` lifespan 初始化并注入到 LangGraph 工作流中。每个 Agent 的节点/Subgraph 均标记 `metadata={"tags": ["user_visible"]}`，确保 SSE 流式输出可正确转发。
 
 - **ProductAgent** (`app/agents/product.py` + `app/tools/product_tool.py`)
-  - 处理 `PRODUCT` / `RECOMMENDATION` 意图，基于 Qdrant `product_catalog` 语义检索。
+  - 处理 `PRODUCT` 意图，基于 Qdrant `product_catalog` 语义检索。
   - 行为规则：精确参数命中目录元数据时直接回答；否则回退到 LLM 推理。
 
 - **CartAgent** (`app/agents/cart.py` + `app/tools/cart_tool.py`)
