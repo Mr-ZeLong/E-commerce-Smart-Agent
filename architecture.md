@@ -86,7 +86,7 @@ flowchart TB
             TBL_AGENT_CFG[(agent_configs<br/>Agent 配置)]
             TBL_AGENT_AUDIT[(agent_config_audit_logs<br/>配置审计)]
             TBL_COMPLAINT[(complaint_tickets<br/>投诉工单)]
-            TBL_EXPERIMENT[(experiments<br/>A/B 实验)]
+
             TBL_FEEDBACK[(message_feedbacks<br/>用户反馈)]
         end
 
@@ -242,9 +242,8 @@ erDiagram
     orders ||--o{ audit_logs : "关联"
     orders ||--o{ complaint_tickets : "关联"
     refund_applications ||--o{ audit_logs : "触发"
-    experiments ||--o{ experiment_variants : "包含"
-    experiments ||--o{ experiment_assignments : "分配"
-    experiment_variants ||--o{ experiment_assignments : "归属"
+
+
 
     users {
         int id PK
@@ -422,37 +421,6 @@ erDiagram
         int assigned_to FK
         datetime created_at
         datetime updated_at
-    }
-
-    experiments {
-        int id PK
-        string name
-        string description
-        string status
-        datetime start_date
-        datetime end_date
-        datetime created_at
-        datetime updated_at
-    }
-
-    experiment_variants {
-        int id PK
-        int experiment_id FK
-        string name
-        int weight
-        text system_prompt
-        string llm_model
-        int retriever_top_k
-        boolean reranker_enabled
-        datetime created_at
-    }
-
-    experiment_assignments {
-        int id PK
-        int experiment_id FK
-        int variant_id FK
-        int user_id FK
-        datetime created_at
     }
 
     message_feedbacks {
@@ -898,7 +866,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📁 admin/
 │   │   │   ├── 📄 agent_config.py  # Agent 配置中心 API (路由规则 / 提示词 / 审计日志)
 │   │   │   ├── 📄 complaints.py    # 投诉工单管理 API (Phase 4)
-│   │   │   ├── 📄 experiments.py   # A/B 实验管理 API (Phase 4)
+
 │   │   │   ├── 📄 feedback.py      # 用户反馈与质量评估 API (Phase 4)
 │   │   │   └── 📄 analytics.py     # 高级分析 API (Phase 4)
 │   │   ├── 📄 status.py            # 状态查询接口
@@ -925,7 +893,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 observability.py     # 可观测性模型
 │   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / AuditLog)
 │   │   ├── 📄 complaint.py         # 投诉工单模型 (Phase 4)
-│   │   ├── 📄 experiment.py        # A/B 实验模型 (Phase 4)
+
 │   │   ├── 📄 evaluation.py        # 在线评估模型 (Phase 4)
 │   │   └── 📄 state.py             # AgentState TypedDict
 │   │
@@ -998,7 +966,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 admin_service.py     # 管理员服务
 │   │   ├── 📄 auth_service.py      # 认证服务
 │   │   ├── 📄 experiment.py        # A/B 实验服务 (Phase 4)
-│   │   ├── 📄 experiment_assigner.py # 实验流量分配 (Phase 4)
+
 │   │   └── 📄 online_eval.py       # 在线评估服务 (Phase 4)
 │   │
 │   ├── 📁 schemas/                 # 共享 Schema
@@ -1061,7 +1029,7 @@ E-commerce-Smart-Agent/
 │       │           ├── 📄 KnowledgeBaseManager.tsx  # 知识库上传/同步组件
 │       │           ├── 📄 AgentConfigEditor.tsx     # Agent 配置编辑器组件
 │       │           ├── 📄 ComplaintQueue.tsx        # 投诉工单管理 (Phase 4)
-│       │           ├── 📄 ExperimentManager.tsx     # A/B 实验管理 (Phase 4)
+
 │       │           └── 📄 AnalyticsV2.tsx           # 高级分析面板 (Phase 4)
 │       │
 │       ├── 📁 components/
@@ -1096,7 +1064,7 @@ E-commerce-Smart-Agent/
 │       │   ├── 📄 useKnowledgeBase.ts  # 知识库管理 Hooks
 │       │   ├── 📄 useAgentConfig.ts    # Agent 配置管理 Hooks
 │       │   ├── 📄 useComplaints.ts     # 投诉工单 Hooks (Phase 4)
-│       │   ├── 📄 useExperiments.ts    # A/B 实验 Hooks (Phase 4)
+
 │       │   └── 📄 useAnalytics.ts      # 高级分析 Hooks (Phase 4)
 │       ├── 📁 types/               # TypeScript 类型定义
 │       │   └── 📄 index.ts         # 统一类型导出
@@ -1190,7 +1158,7 @@ E-commerce-Smart-Agent/
 | **异步任务** | 退款支付、短信通知、知识库 ETL 同步异步处理 | Celery + Redis |
 | **多租户隔离** | 用户只能访问自己的订单和购物车 | JWT + 数据隔离 |
 | **智能投诉处理** | `ComplaintAgent` 自动识别投诉意图并分类，支持工单创建与分配 | `app/agents/complaint.py` + `ComplaintTicket` |
-| **A/B 测试框架** | 多版本 Agent 配置对比实验，哈希流量分配，结果统计 | `app/services/experiment.py` + `ExperimentManager` |
+
 | **在线评估** | 用户反馈收集 (👍/👎)、CSAT 计算、LLM 自动质量评分 | `app/services/online_eval.py` + `MessageFeedback` |
 | **自动告警** | 定时检测服务质量下降，邮件/WebSocket 通知管理员 | `app/tasks/notifications.py` + Celery Beat |
 | **高级分析** | CSAT 趋势、投诉根因、Agent 对比、LangSmith Trace | `AnalyticsV2` + `app/api/v1/admin/analytics.py` |
