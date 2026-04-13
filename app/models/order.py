@@ -37,6 +37,12 @@ class Order(SQLModel, table=True):
     tracking_number: str | None = Field(default=None, index=True)
     shipping_address: str = Field(description="下单时的详细地址快照")
 
+    delivered_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+        description="订单签收时间，用于计算退货时效",
+    )
+
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(

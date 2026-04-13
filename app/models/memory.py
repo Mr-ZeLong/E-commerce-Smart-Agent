@@ -13,7 +13,7 @@ class UserProfile(SQLModel, table=True):
     __tablename__ = "user_profiles"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
     membership_level: str = Field(max_length=32, description="会员等级")
     preferred_language: str = Field(default="zh", max_length=10, description="偏好语言")
     timezone: str = Field(default="Asia/Shanghai", max_length=50, description="时区")
@@ -44,7 +44,7 @@ class UserPreference(SQLModel, table=True):
     __tablename__ = "user_preferences"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
     preference_key: str = Field(max_length=64, description="偏好键")
     preference_value: str = Field(description="偏好值")
 
@@ -72,7 +72,7 @@ class InteractionSummary(SQLModel, table=True):
     __tablename__ = "interaction_summaries"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
     thread_id: str = Field(index=True, max_length=128, description="会话线程 ID")
     summary_text: str = Field(description="摘要文本")
     resolved_intent: str = Field(max_length=32, description="已解决意图")
@@ -102,7 +102,7 @@ class UserFact(SQLModel, table=True):
     __tablename__ = "user_facts"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
     fact_type: str = Field(max_length=32, description="事实类型")
     content: str = Field(description="内容")
     confidence: float = Field(default=0.0, description="置信度")
@@ -194,7 +194,7 @@ class AgentConfigAuditLog(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     agent_name: str = Field(index=True, max_length=32, description="Agent 名称")
-    changed_by: int = Field(description="管理员用户 ID")
+    changed_by: int = Field(foreign_key="users.id", description="管理员用户 ID")
     field_name: str = Field(max_length=64, description="变更字段")
     old_value: str | None = Field(default=None, description="旧值")
     new_value: str | None = Field(default=None, description="新值")

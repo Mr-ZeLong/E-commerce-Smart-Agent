@@ -11,10 +11,10 @@ export function useExperiments(status?: string) {
     queryKey: ['admin', 'experiments', status],
     queryFn: async () => {
       const token = useAuthStore.getState().token
-      const url = new URL(`${API_BASE}/admin/experiments`, window.location.origin)
-      if (status) url.searchParams.set('status', status)
+      const params = status ? `?status=${encodeURIComponent(status)}` : ''
+      const url = `${API_BASE}/admin/experiments${params}`
       
-      const res = await fetch(url.toString(), {
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) throw new Error('获取实验列表失败')

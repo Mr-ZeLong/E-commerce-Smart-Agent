@@ -33,7 +33,7 @@ class MessageFeedback(SQLModel, table=True):
     __tablename__ = "message_feedbacks"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
     thread_id: str = Field(index=True, max_length=128, description="会话线程 ID")
     message_index: int = Field(description="消息在会话中的索引")
 

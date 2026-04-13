@@ -101,7 +101,7 @@ class ExperimentAssignment(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     experiment_id: int = Field(foreign_key="experiments.id", index=True, description="实验 ID")
     variant_id: int = Field(foreign_key="experiment_variants.id", index=True, description="变体 ID")
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
 
     created_at: datetime = Field(
         default_factory=utc_now,

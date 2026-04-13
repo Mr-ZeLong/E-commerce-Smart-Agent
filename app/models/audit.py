@@ -55,7 +55,7 @@ class AuditLog(SQLModel, table=True):
     refund_application_id: int | None = Field(default=None, index=True)
 
     # 用户信息
-    user_id: int = Field(index=True, description="发起用户ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="发起用户ID")
 
     # 触发原因
     trigger_reason: str = Field(
@@ -92,7 +92,9 @@ class AuditLog(SQLModel, table=True):
     )
 
     # 管理员信息
-    admin_id: int | None = Field(default=None, index=True, description="审核管理员ID")
+    admin_id: int | None = Field(
+        default=None, foreign_key="users.id", index=True, description="审核管理员ID"
+    )
     admin_comment: str | None = Field(
         default=None, sa_column=Column(Text), description="管理员备注"
     )

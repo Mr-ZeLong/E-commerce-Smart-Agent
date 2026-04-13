@@ -5,7 +5,7 @@ import { API_BASE, getApiHeaders } from '@/lib/api'
 interface FeedbackRequest {
   thread_id: string
   message_index: number
-  sentiment: 'up' | 'down' | 'neutral'
+  sentiment: 'up' | 'down'
   comment?: string
 }
 

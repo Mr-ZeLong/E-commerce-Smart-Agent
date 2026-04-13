@@ -50,7 +50,7 @@ class ComplaintTicket(SQLModel, table=True):
     __tablename__ = "complaint_tickets"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(index=True, description="用户 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
     thread_id: str = Field(index=True, max_length=128, description="会话线程 ID")
 
     category: str = Field(max_length=32, description="投诉类别")
@@ -62,7 +62,9 @@ class ComplaintTicket(SQLModel, table=True):
     urgency: str = Field(
         default=ComplaintUrgency.MEDIUM.value, max_length=32, description="紧急程度"
     )
-    assigned_to: int | None = Field(default=None, index=True, description="分配给的管理员 ID")
+    assigned_to: int | None = Field(
+        default=None, foreign_key="users.id", index=True, description="分配给的管理员 ID"
+    )
 
     created_at: datetime = Field(
         default_factory=utc_now,

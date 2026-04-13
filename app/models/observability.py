@@ -15,7 +15,7 @@ class GraphExecutionLog(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     thread_id: str = Field(index=True, max_length=128)
-    user_id: int = Field(index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
     intent_category: str | None = Field(default=None, index=True, max_length=32)
     final_agent: str | None = Field(default=None, max_length=32)
     confidence_score: float | None = None

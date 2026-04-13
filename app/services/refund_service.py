@@ -89,10 +89,8 @@ class RefundEligibilityChecker:
         """检查退货时效"""
         now = utc_now()
 
-        # 计算订单创建后的天数
-        # 注意：这里应该用 delivered_at（签收时间），但示例数据没有这个字段
-        # 实际业务中需要在 Order 模型中添加 delivered_at 字段
-        order_time = order.created_at
+        # 使用签收时间计算退货时效，如果没有签收时间则使用创建时间（向后兼容）
+        order_time = order.delivered_at if order.delivered_at else order.created_at
         days_passed = (now - order_time).days
 
         if days_passed > settings.REFUND_DEADLINE_DAYS:
