@@ -1,8 +1,8 @@
 services:
   # 核心数据库：PostgreSQL
   db:
-    image: pgvector/pgvector:16
-    container_name: agent_db
+    image: postgres:16
+    container_name: ecommerce_db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}

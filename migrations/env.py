@@ -61,8 +61,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        # 💡 忽略 vector 类型检查，防止 alembic 在 --autogenerate 时因为不认识 vector 而删除它
-        # 仅在某些旧版本 alembic 需要，保留以防万一
         compare_type=True,
     )
 
