@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="refund.send_sms", max_retries=3, default_retry_delay=60)
-def send_refund_sms(self, refund_id: int, phone: str, message: str) -> dict[str, Any]:
+def send_refund_sms(_self, refund_id: int, phone: str, message: str) -> dict[str, Any]:
     logger.info(f"📱 [SMS] 发送短信到 {phone}: {message}")
     return {
         "status": "success",

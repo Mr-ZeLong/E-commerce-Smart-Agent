@@ -52,7 +52,7 @@ class ExperimentResultItem(BaseModel):
 @router.post("", response_model=ExperimentResponse)
 async def create_experiment(
     request: ExperimentCreateRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     exp = await experiment_service.create_experiment(
@@ -76,7 +76,7 @@ async def list_experiments(
     status: str | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     experiments = await experiment_service.list_experiments(
@@ -98,7 +98,7 @@ async def list_experiments(
 @router.get("/{experiment_id}", response_model=ExperimentResponse)
 async def get_experiment(
     experiment_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     exp = await experiment_service.get_experiment(db=session, experiment_id=experiment_id)
@@ -117,7 +117,7 @@ async def get_experiment(
 @router.post("/{experiment_id}/start")
 async def start_experiment(
     experiment_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     ok = await experiment_service.set_status(
@@ -135,7 +135,7 @@ async def start_experiment(
 @router.post("/{experiment_id}/pause")
 async def pause_experiment(
     experiment_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     ok = await experiment_service.set_status(
@@ -153,7 +153,7 @@ async def pause_experiment(
 @router.post("/{experiment_id}/archive")
 async def archive_experiment(
     experiment_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     ok = await experiment_service.set_status(
@@ -171,7 +171,7 @@ async def archive_experiment(
 @router.get("/{experiment_id}/results", response_model=list[ExperimentResultItem])
 async def get_experiment_results(
     experiment_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     exp = await experiment_service.get_experiment(db=session, experiment_id=experiment_id)

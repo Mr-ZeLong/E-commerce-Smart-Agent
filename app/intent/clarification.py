@@ -155,7 +155,7 @@ class ClarificationEngine:
         )
 
     async def _degradation_optional(
-        self, state: ClarificationState, slot: str, response: str
+        self, state: ClarificationState, _slot: str, _response: str
     ) -> ClarificationResponse | None:
         if state.clarification_round <= 1:
             return ClarificationResponse(
@@ -166,7 +166,7 @@ class ClarificationEngine:
         return None
 
     async def _degradation_infer(
-        self, state: ClarificationState, slot: str, response: str
+        self, state: ClarificationState, slot: str, _response: str
     ) -> ClarificationResponse | None:
         if slot == "reason_category":
             state.collected_slots[slot] = "其他"
@@ -177,14 +177,14 @@ class ClarificationEngine:
         return None
 
     async def _degradation_skip(
-        self, state: ClarificationState, slot: str, response: str
+        self, state: ClarificationState, slot: str, _response: str
     ) -> ClarificationResponse | None:
         state.user_refused_slots.append(slot)
         state.pending_slot = None
         return ClarificationResponse(response="好的，我们先继续。", state=state, is_complete=False)
 
     async def _degradation_escalate(
-        self, state: ClarificationState, slot: str, response: str
+        self, state: ClarificationState, _slot: str, _response: str
     ) -> ClarificationResponse | None:
         return ClarificationResponse(
             response="这个问题比较复杂，我为您转接人工客服。",

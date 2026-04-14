@@ -85,7 +85,7 @@ async def _log_config_change(
 
 @router.get("/config", response_model=AgentConfigListResponse)
 async def list_agent_configs(
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """List all AgentConfig and RoutingRule records."""
@@ -215,7 +215,7 @@ async def rollback_agent_config(
 async def get_agent_config_audit_log(
     agent_name: str,
     limit: int = 50,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """Get audit log for a given agent config."""
@@ -232,7 +232,7 @@ async def get_agent_config_audit_log(
 @router.post("/routing-rules", response_model=RoutingRuleResponse)
 async def create_routing_rule(
     request: RoutingRuleCreateRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """Create a new routing rule."""
@@ -252,7 +252,7 @@ async def create_routing_rule(
 async def update_routing_rule(
     rule_id: int,
     request: RoutingRuleUpdateRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """Update an existing routing rule."""
@@ -277,7 +277,7 @@ async def update_routing_rule(
 @router.delete("/routing-rules/{rule_id}")
 async def delete_routing_rule(
     rule_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """Delete a routing rule."""

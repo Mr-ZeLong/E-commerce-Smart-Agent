@@ -125,7 +125,7 @@ async def admin_decision(
 async def get_evaluation_dataset(
     limit: int = 20,
     offset: int = 0,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
 ):
     """Return paginated golden dataset records."""
     import json
@@ -154,7 +154,7 @@ async def get_evaluation_dataset(
 @router.post("/admin/evaluation/run")
 async def run_evaluation(
     http_request: Request,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
 ):
     """Trigger offline evaluation against the golden dataset."""
     from app.evaluation.pipeline import EvaluationPipeline
@@ -170,7 +170,7 @@ async def run_evaluation(
 
 @router.get("/admin/metrics/sessions")
 async def get_session_metrics(
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """会话统计：24h / 7d / 30d 的 execution 数量"""
@@ -191,7 +191,7 @@ async def get_session_metrics(
 
 @router.get("/admin/metrics/transfers")
 async def get_transfer_metrics(
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """人工转接率：按 final_agent 分组统计"""
@@ -222,7 +222,7 @@ async def get_transfer_metrics(
 
 @router.get("/admin/metrics/confidence")
 async def get_confidence_metrics(
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """平均置信度：按 final_agent 分组"""
@@ -242,7 +242,7 @@ async def get_confidence_metrics(
 
 @router.get("/admin/metrics/latency")
 async def get_latency_metrics(
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     """P99 节点延迟：按 node_name 分组（使用 PostgreSQL PERCENTILE_CONT）"""
@@ -417,7 +417,7 @@ UPLOAD_DIR = settings.KNOWLEDGE_UPLOAD_DIR
 
 @router.get("/admin/knowledge", response_model=list[KnowledgeDocumentResponse])
 async def list_knowledge_documents(
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(
@@ -443,7 +443,7 @@ async def list_knowledge_documents(
 @router.post("/admin/knowledge", response_model=KnowledgeUploadResponse)
 async def upload_knowledge_document(
     file: UploadFile = File(...),
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -481,7 +481,7 @@ async def upload_knowledge_document(
 @router.delete("/admin/knowledge/{doc_id}")
 async def delete_knowledge_document(
     doc_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
@@ -504,7 +504,7 @@ async def delete_knowledge_document(
 @router.post("/admin/knowledge/{doc_id}/sync", response_model=KnowledgeUploadResponse)
 async def sync_knowledge_document_endpoint(
     doc_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id))
@@ -529,7 +529,7 @@ async def sync_knowledge_document_endpoint(
 @router.get("/admin/knowledge/sync/{task_id}", response_model=SyncStatusResponse)
 async def get_knowledge_sync_status(
     task_id: str,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
 ):
     from app.celery_app import celery_app
 

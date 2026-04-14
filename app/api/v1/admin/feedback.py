@@ -27,7 +27,7 @@ async def list_feedback(
     date_to: datetime | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     items, total = await service.list_feedback(
@@ -62,7 +62,7 @@ async def export_feedback(
     sentiment: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     items, _ = await service.list_feedback(
@@ -99,7 +99,7 @@ async def export_feedback(
 @router.get("/csat")
 async def get_csat_trend(
     days: int = Query(30, ge=1, le=365),
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     trend = await service.get_csat_trend(db=session, days=days)
@@ -109,7 +109,7 @@ async def get_csat_trend(
 @router.post("/quality-score/run")
 async def run_quality_score(
     request: QualityScoreRunRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     scores = await service.compute_quality_scores(db=session, sample_size=request.sample_size)

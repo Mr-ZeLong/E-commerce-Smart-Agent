@@ -26,14 +26,16 @@ class TestCalculateRAGSignal:
         chunks = ["chunk one", "chunk two", "chunk three"]
         query = "test query"
         result = await calculate_rag_signal(similarities=similarities, chunks=chunks, query=query)
-        max_sim = 0.8
-        avg_sim = 0.6
+        mapped = [0.5 + s * 0.5 for s in similarities]
+        max_sim = max(mapped)
+        avg_sim = sum(mapped) / len(mapped)
         assert result.metadata is not None
         score = max_sim * 0.4 + avg_sim * 0.3 + result.metadata["coverage"] * 0.3
         assert result.score == pytest.approx(score, rel=1e-6)
         assert result.metadata["max_similarity"] == max_sim
         assert result.metadata["avg_similarity"] == avg_sim
         assert "coverage" in result.metadata
+        assert result.metadata["raw_similarities"] == similarities
 
     @pytest.mark.asyncio
     async def test_chinese_english_token_extraction_and_coverage(self):
@@ -43,7 +45,8 @@ class TestCalculateRAGSignal:
         result = await calculate_rag_signal(similarities=similarities, chunks=chunks, query=query)
         assert result.metadata is not None
         assert result.metadata["coverage"] == 1.0
-        expected_score = 0.9 * 0.4 + 0.9 * 0.3 + 1.0 * 0.3
+        mapped_sim = 0.5 + 0.9 * 0.5
+        expected_score = mapped_sim * 0.4 + mapped_sim * 0.3 + 1.0 * 0.3
         assert result.score == pytest.approx(expected_score, rel=1e-6)
 
 
@@ -198,7 +201,7 @@ class TestCalculateConfidenceSignals:
 
     @pytest.mark.asyncio
     async def test_calculate_all_timeout(self, retrieval_state, mock_llm):
-        async def _slow_calculate(*args, **kwargs):
+        async def _slow_calculate(*_args, **_kwargs):
             await asyncio.sleep(10)
             return SignalResult(score=0.0, reason="slow")
 

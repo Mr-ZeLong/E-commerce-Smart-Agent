@@ -20,10 +20,14 @@ async def test_policy_agent_uses_retriever():
     mock_retriever.retrieve.return_value = mock_result
     agent = PolicyAgent(retriever=mock_retriever, llm=MagicMock())
 
-    chunks, sims, sources = await agent._retrieve_knowledge("怎么退货")
+    state = make_agent_state(question="怎么退货")
+    chunks, sims, sources = await agent._retrieve_knowledge(state)
     assert chunks == ["退换货政策内容"]
     assert sims == [pytest.approx(0.95)]
     assert sources == ["policy.md"]
+    mock_retriever.retrieve.assert_called_once()
+    call_kwargs = mock_retriever.retrieve.call_args.kwargs
+    assert call_kwargs.get("conversation_history") == []
 
 
 @pytest.mark.asyncio

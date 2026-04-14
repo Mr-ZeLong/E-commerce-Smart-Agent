@@ -15,12 +15,14 @@ class NoOpSpanExporter(SpanExporter):
     """No-op span exporter for environments without an OTLP collector."""
 
     def export(self, spans):
+        _ = spans
         return SpanExportResult.SUCCESS
 
     def shutdown(self):
         pass
 
     def force_flush(self, timeout_millis=30000):
+        _ = timeout_millis
         return True
 
 

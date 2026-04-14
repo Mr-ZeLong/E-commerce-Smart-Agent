@@ -53,7 +53,7 @@ def test_extract_and_save_facts_deduplicates_existing_facts(mock_sync_session):
         # First fact already exists; second is new
         call_count = [0]
 
-        def side_effect(*args, **kwargs):
+        def side_effect(*_args, **_kwargs):
             call_count[0] += 1
             result_mock = MagicMock()
             # first call (preference) -> existing; second call (general) -> None

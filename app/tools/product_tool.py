@@ -5,6 +5,7 @@ from qdrant_client import AsyncQdrantClient, models
 
 from app.core.config import settings
 from app.models.state import AgentState
+from app.retrieval.rewriter import QueryRewriter
 from app.tools.base import BaseTool, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -14,8 +15,13 @@ class ProductTool(BaseTool):
     name = "product"
     description = "搜索商品目录并回答商品相关问题"
 
-    def __init__(self, qdrant_client: AsyncQdrantClient | None = None):
+    def __init__(
+        self,
+        qdrant_client: AsyncQdrantClient | None = None,
+        rewriter: QueryRewriter | None = None,
+    ):
         self._qdrant = qdrant_client
+        self._rewriter = rewriter
 
     async def _get_client(self) -> AsyncQdrantClient:
         if self._qdrant is None:
@@ -33,6 +39,13 @@ class ProductTool(BaseTool):
         min_price = slots.get("min_price") or kwargs.get("min_price")
         max_price = slots.get("max_price") or kwargs.get("max_price")
         in_stock = slots.get("in_stock") or kwargs.get("in_stock")
+
+        if self._rewriter is not None:
+            query = await self._rewriter.rewrite(
+                query,
+                conversation_history=state.get("history"),
+                memory_context=state.get("memory_context"),
+            )
 
         client = await self._get_client()
         collection = "product_catalog"

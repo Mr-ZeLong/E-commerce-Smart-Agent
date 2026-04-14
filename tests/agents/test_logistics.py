@@ -16,6 +16,8 @@ class MockLogisticsTool(BaseTool):
         self._output = output
 
     async def execute(self, state, **kwargs):
+        _ = state
+        _ = kwargs
         return ToolResult(output=self._output)
 
 

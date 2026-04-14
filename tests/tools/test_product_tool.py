@@ -113,3 +113,33 @@ async def test_product_tool_with_filters(product_tool):
     assert result.output["status"] == "success"
     call_kwargs = mock_client.query_points.call_args.kwargs
     assert call_kwargs["using"] == "dense"
+
+
+@pytest.mark.asyncio
+async def test_product_tool_uses_rewriter_when_available():
+    mock_rewriter = AsyncMock()
+    mock_rewriter.rewrite.return_value = "改写后的手机推荐"
+
+    tool = ProductTool(rewriter=mock_rewriter)
+
+    mock_client = AsyncMock()
+    mock_client.collection_exists.return_value = True
+    mock_result = MagicMock()
+    mock_result.points = []
+    mock_client.query_points.return_value = mock_result
+    tool._qdrant = mock_client
+
+    mock_embedder = MagicMock()
+    mock_embedder.aembed_query = AsyncMock(return_value=[0.1] * 1024)
+    with patch("app.retrieval.embeddings.create_embedding_model", return_value=mock_embedder):
+        state = make_agent_state(
+            question="推荐手机",
+            history=[{"role": "user", "content": "预算5000"}],
+        )
+        result = await tool.execute(state)
+
+    assert result.output["status"] == "success"
+    mock_rewriter.rewrite.assert_awaited_once()
+    call_args = mock_rewriter.rewrite.call_args
+    assert call_args.args[0] == "推荐手机"
+    assert call_args.kwargs.get("conversation_history") == [{"role": "user", "content": "预算5000"}]

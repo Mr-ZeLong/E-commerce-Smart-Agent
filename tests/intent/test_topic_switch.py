@@ -111,7 +111,7 @@ class TestExplicitSwitchDetection:
 class TestImplicitSwitchDetection:
     """测试隐式话题切换检测"""
 
-    def test_confidence_drop_detection(self, detector, order_query_result, product_query_result):
+    def test_confidence_drop_detection(self, detector, order_query_result, _product_query_result):
         """测试置信度下降检测"""
         low_confidence_result = IntentResult(
             primary_intent=IntentCategory.PRODUCT,

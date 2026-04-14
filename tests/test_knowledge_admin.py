@@ -19,7 +19,7 @@ async def create_admin_user() -> tuple[User, str]:
         user = User(
             username=username,
             password_hash=User.hash_password("adminpass"),
-            email=f"{username}@admin.com",
+            email=f"{username}@_admin.com",
             full_name="Admin User",
             phone="13800138000",
             is_admin=True,
@@ -55,7 +55,7 @@ async def create_regular_user() -> User:
 
 @pytest.mark.asyncio
 async def test_list_knowledge_documents(client):
-    admin, token = await create_admin_user()
+    _admin, token = await create_admin_user()
 
     async with async_session_maker() as session:
         doc = KnowledgeDocument(
@@ -69,7 +69,7 @@ async def test_list_knowledge_documents(client):
         await session.commit()
 
     response = await client.get(
-        "/api/v1/admin/knowledge",
+        "/api/v1/_admin/knowledge",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -80,19 +80,19 @@ async def test_list_knowledge_documents(client):
 
 @pytest.mark.asyncio
 async def test_upload_knowledge_document(client, tmp_path):
-    admin, token = await create_admin_user()
+    _admin, token = await create_admin_user()
 
     content = b"# Test knowledge document\nThis is a test."
     file = io.BytesIO(content)
 
     with (
-        patch("app.api.v1.admin.UPLOAD_DIR", str(tmp_path)),
-        patch("app.api.v1.admin.sync_knowledge_document") as mock_task,
+        patch("app.api.v1._admin.UPLOAD_DIR", str(tmp_path)),
+        patch("app.api.v1._admin.sync_knowledge_document") as mock_task,
     ):
         mock_delay = mock_task.delay
         mock_delay.return_value.id = "task-123"
         response = await client.post(
-            "/api/v1/admin/knowledge",
+            "/api/v1/_admin/knowledge",
             headers={"Authorization": f"Bearer {token}"},
             files={"file": ("test.md", file, "text/markdown")},
         )
@@ -117,7 +117,7 @@ async def test_upload_knowledge_document(client, tmp_path):
 
 @pytest.mark.asyncio
 async def test_delete_knowledge_document(client, tmp_path):
-    admin, token = await create_admin_user()
+    _admin, token = await create_admin_user()
 
     async with async_session_maker() as session:
         doc = KnowledgeDocument(
@@ -136,7 +136,7 @@ async def test_delete_knowledge_document(client, tmp_path):
         f.write(b"test")
 
     response = await client.delete(
-        f"/api/v1/admin/knowledge/{doc_id}",
+        f"/api/v1/_admin/knowledge/{doc_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -150,7 +150,7 @@ async def test_delete_knowledge_document(client, tmp_path):
 
 @pytest.mark.asyncio
 async def test_sync_knowledge_document_endpoint(client):
-    admin, token = await create_admin_user()
+    _admin, token = await create_admin_user()
 
     async with async_session_maker() as session:
         doc = KnowledgeDocument(
@@ -165,11 +165,11 @@ async def test_sync_knowledge_document_endpoint(client):
         await session.refresh(doc)
         doc_id = doc.id
 
-    with patch("app.api.v1.admin.sync_knowledge_document") as mock_task:
+    with patch("app.api.v1._admin.sync_knowledge_document") as mock_task:
         mock_delay = mock_task.delay
         mock_delay.return_value.id = "task-456"
         response = await client.post(
-            f"/api/v1/admin/knowledge/{doc_id}/sync",
+            f"/api/v1/_admin/knowledge/{doc_id}/sync",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -183,7 +183,7 @@ async def test_sync_knowledge_document_endpoint(client):
 
 @pytest.mark.asyncio
 async def test_get_knowledge_sync_status(client):
-    admin, token = await create_admin_user()
+    _admin, token = await create_admin_user()
 
     with patch("app.celery_app.celery_app.AsyncResult") as mock_result_class:
         mock_result = mock_result_class.return_value
@@ -192,7 +192,7 @@ async def test_get_knowledge_sync_status(client):
         mock_result.result = {"status": "success", "chunks": 5}
 
         response = await client.get(
-            "/api/v1/admin/knowledge/sync/task-789",
+            "/api/v1/_admin/knowledge/sync/task-789",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -209,25 +209,25 @@ async def test_knowledge_endpoints_reject_non_admin(client):
     token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.get(
-        "/api/v1/admin/knowledge",
+        "/api/v1/_admin/knowledge",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
 
     response = await client.post(
-        "/api/v1/admin/knowledge",
+        "/api/v1/_admin/knowledge",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
 
     response = await client.delete(
-        "/api/v1/admin/knowledge/1",
+        "/api/v1/_admin/knowledge/1",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
 
     response = await client.post(
-        "/api/v1/admin/knowledge/1/sync",
+        "/api/v1/_admin/knowledge/1/sync",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403

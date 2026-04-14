@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="notifications.send_complaint_alert", max_retries=2)
-def send_complaint_alert(self, ticket_id: int, recipient_email: str) -> dict:
+def send_complaint_alert(_self, ticket_id: int, recipient_email: str) -> dict:
     subject = f"投诉工单 #{ticket_id} 高优先级告警"
     body = f"工单 #{ticket_id} 被标记为高优先级，请及时处理。"
     result = asyncio.run(send_email([recipient_email], subject, body))
@@ -22,7 +22,7 @@ def send_complaint_alert(self, ticket_id: int, recipient_email: str) -> dict:
 
 
 @celery_app.task(bind=True, name="notifications.send_status_update", max_retries=2)
-def send_status_update(self, ticket_id: int, recipient_email: str) -> dict:
+def send_status_update(_self, ticket_id: int, recipient_email: str) -> dict:
     subject = f"投诉工单 #{ticket_id} 状态更新"
     body = f"工单 #{ticket_id} 状态已更新，请登录后台查看详情。"
     result = asyncio.run(send_email([recipient_email], subject, body))
@@ -30,7 +30,7 @@ def send_status_update(self, ticket_id: int, recipient_email: str) -> dict:
 
 
 @celery_app.task(bind=True, name="notifications.check_quality_alerts")
-def check_quality_alerts(self) -> dict:
+def check_quality_alerts(_self) -> dict:
     from app.core.config import settings
 
     window_hours = getattr(settings, "ALERT_COMPLAINT_WINDOW_HOURS", 24)

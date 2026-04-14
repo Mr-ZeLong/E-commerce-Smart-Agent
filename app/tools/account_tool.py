@@ -20,6 +20,7 @@ class AccountTool(BaseTool):
     description = "查询用户账户信息、会员等级、优惠券"
 
     async def execute(self, state: AgentState, **kwargs) -> ToolResult:
+        _ = kwargs
         user_id = state.get("user_id")
         if user_id is None:
             return ToolResult(

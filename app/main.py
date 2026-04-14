@@ -72,16 +72,6 @@ async def lifespan(app: FastAPI):
     )
     from app.tools.registry import ToolRegistry
 
-    app.state.manager = ConnectionManager()
-    tool_registry = ToolRegistry()
-    tool_registry.register(LogisticsTool())
-    tool_registry.register(AccountTool())
-    tool_registry.register(PaymentTool())
-    tool_registry.register(ProductTool())
-    tool_registry.register(CartTool())
-    tool_registry.register(ComplaintTool())
-    app.state.tool_registry = tool_registry
-
     redis_client = None
     retriever = None
     vector_manager = None
@@ -97,7 +87,17 @@ async def lifespan(app: FastAPI):
         router_agent = IntentRouterAgent(
             intent_service=intent_service, llm=llm, structured_manager=structured_manager
         )
-        retriever = create_retriever(llm=llm)
+        retriever = create_retriever(llm=llm, redis_client=redis_client)
+
+        app.state.manager = ConnectionManager()
+        tool_registry = ToolRegistry()
+        tool_registry.register(LogisticsTool())
+        tool_registry.register(AccountTool())
+        tool_registry.register(PaymentTool())
+        tool_registry.register(ProductTool(rewriter=retriever.rewriter))
+        tool_registry.register(CartTool())
+        tool_registry.register(ComplaintTool())
+        app.state.tool_registry = tool_registry
         policy_agent = PolicyAgent(retriever=retriever, llm=llm)
         order_agent = OrderAgent(order_service=OrderService(), llm=llm)
         logistics_agent = LogisticsAgent(tool_registry=tool_registry, llm=llm)

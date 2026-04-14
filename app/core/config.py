@@ -134,6 +134,7 @@ class Settings(BaseSettings):
     REWRITE_MODEL: str = "qwen-turbo"
     RERANK_TIMEOUT: float = 10.0
     REWRITE_TIMEOUT: float = 5.0
+    REWRITE_CACHE_TTL_SECONDS: int = 3600
 
     # LangSmith / LangChain tracing
     LANGCHAIN_TRACING_V2: bool = False
@@ -146,6 +147,8 @@ class Settings(BaseSettings):
     RETRIEVER_SPARSE_TOPK: int = 15
     RETRIEVER_RRF_K: int = 60
     RETRIEVER_FINAL_TOPK: int = 5
+    RETRIEVER_MULTI_QUERY: bool = False
+    RETRIEVER_MULTI_QUERY_N: int = 3
 
     # fastembed
     FASTEMBED_CACHE_PATH: str | None = None

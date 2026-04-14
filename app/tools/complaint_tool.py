@@ -19,6 +19,8 @@ class ComplaintTool(BaseTool):
     description = "Handle user complaints and create complaint tickets."
 
     async def execute(self, state: Any, **kwargs) -> ToolResult:
+        _ = state
+        _ = kwargs
         logger.debug("ComplaintTool.execute called")
         return ToolResult(output={"success": True})
 

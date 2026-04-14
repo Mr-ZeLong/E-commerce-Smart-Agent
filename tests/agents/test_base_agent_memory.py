@@ -8,6 +8,7 @@ from app.models.state import AgentState
 
 class DummyAgent(BaseAgent):
     async def process(self, state: AgentState):
+        _ = state
         return {"response": "ok"}
 
 

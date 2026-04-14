@@ -46,7 +46,7 @@ async def test_chat_normal_streaming(client, auth_token):
 
     received_state = {}
 
-    async def mock_astream_events(state, config, version):
+    async def mock_astream_events(state, _config, _version):
         received_state.update(state)
         chunk = AIMessageChunk(content="你好")
         yield {
@@ -89,7 +89,7 @@ async def test_chat_metadata_streaming(client, auth_token):
 
     received_state = {}
 
-    async def mock_astream_events(state, config, version):
+    async def mock_astream_events(state, _config, _version):
         received_state.update(state)
         yield {
             "event": "on_chain_end",
@@ -164,7 +164,7 @@ async def test_chat_connection_reset_handled_as_disconnect(client, auth_token):
         async def __anext__(self):
             raise ConnectionResetError("boom")
 
-    def _make_error_iter(state, config, version):
+    def _make_error_iter(state, _config, _version):
         received_state.update(state)
         return _ErrorIter()
 
@@ -200,7 +200,7 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
         async def __anext__(self):
             raise asyncio.CancelledError()
 
-    def _make_cancel_iter(state, config, version):
+    def _make_cancel_iter(state, _config, _version):
         received_state.update(state)
         return _CancelIter()
 
@@ -236,7 +236,7 @@ async def test_chat_generic_error_handled(client, auth_token):
         async def __anext__(self):
             raise RuntimeError("模拟内部错误")
 
-    def _make_error_iter(state, config, version):
+    def _make_error_iter(state, _config, _version):
         received_state.update(state)
         return _ErrorIter()
 

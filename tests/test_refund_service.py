@@ -28,9 +28,9 @@ async def test_check_eligibility_pass():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
+        result, _msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is True
-        assert msg == "订单符合退货条件"
+        assert _msg == "订单符合退货条件"
 
 
 @pytest.mark.asyncio
@@ -42,9 +42,9 @@ async def test_check_eligibility_reject_by_order_status():
     mock_order.items = []
     mock_session = AsyncMock()
 
-    result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
+    result, _msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
     assert result is False
-    assert "订单状态为" in msg and "PENDING" in msg
+    assert "订单状态为" in _msg and "PENDING" in _msg
 
 
 @pytest.mark.asyncio
@@ -65,9 +65,9 @@ async def test_check_eligibility_reject_by_existing_refund():
         new_callable=AsyncMock,
         return_value=existing_refund,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
+        result, _msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is False
-        assert "已存在退货申请" in msg
+        assert "已存在退货申请" in _msg
 
 
 @pytest.mark.asyncio
@@ -85,9 +85,9 @@ async def test_check_eligibility_reject_by_time_limit():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
+        result, _msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is False
-        assert "已超过退货期限" in msg
+        assert "已超过退货期限" in _msg
 
 
 @pytest.mark.asyncio
@@ -105,9 +105,9 @@ async def test_check_eligibility_reject_by_category():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        result, msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
+        result, _msg = await RefundEligibilityChecker.check_eligibility(mock_order, mock_session)
         assert result is False
-        assert "包含不可退货商品" in msg
+        assert "包含不可退货商品" in _msg
 
 
 @pytest.mark.asyncio
@@ -127,7 +127,7 @@ async def test_create_refund_application_success():
         new_callable=AsyncMock,
         return_value=(True, "订单符合退货条件"),
     ):
-        success, msg, refund_app = await RefundApplicationService.create_refund_application(
+        success, _msg, refund_app = await RefundApplicationService.create_refund_application(
             order_id=1,
             user_id=100,
             reason_detail="不想要了",
@@ -135,7 +135,7 @@ async def test_create_refund_application_success():
             session=mock_session,
         )
         assert success is True
-        assert "退货申请已提交" in msg
+        assert "退货申请已提交" in _msg
         assert refund_app is not None
         assert refund_app.status == RefundStatus.PENDING
         assert refund_app.refund_amount == 99.9
@@ -151,7 +151,7 @@ async def test_create_refund_application_order_not_found():
     mock_session.add = MagicMock()
     mock_session.exec = AsyncMock(return_value=MagicMock(first=MagicMock(return_value=None)))
 
-    success, msg, refund_app = await RefundApplicationService.create_refund_application(
+    success, _msg, refund_app = await RefundApplicationService.create_refund_application(
         order_id=999,
         user_id=100,
         reason_detail="质量问题",
@@ -159,7 +159,7 @@ async def test_create_refund_application_order_not_found():
         session=mock_session,
     )
     assert success is False
-    assert "订单不存在或无权访问" in msg
+    assert "订单不存在或无权访问" in _msg
     assert refund_app is None
 
 
@@ -178,7 +178,7 @@ async def test_create_refund_application_not_eligible():
         new_callable=AsyncMock,
         return_value=(False, "订单已超过退货期限"),
     ):
-        success, msg, refund_app = await RefundApplicationService.create_refund_application(
+        success, _msg, refund_app = await RefundApplicationService.create_refund_application(
             order_id=1,
             user_id=100,
             reason_detail="质量问题",
@@ -186,8 +186,8 @@ async def test_create_refund_application_not_eligible():
             session=mock_session,
         )
         assert success is False
-        assert "退货申请被拒绝" in msg
-        assert "订单已超过退货期限" in msg
+        assert "退货申请被拒绝" in _msg
+        assert "订单已超过退货期限" in _msg
         assert refund_app is None
 
 
@@ -224,7 +224,7 @@ async def test_process_refund_for_order_success():
             return_value=(True, "申请已提交", mock_refund),
         ),
     ):
-        success, msg, data, refund_app = await process_refund_for_order(
+        success, _msg, data, refund_app = await process_refund_for_order(
             order_sn="ORD2024001",
             user_id=100,
             reason_detail="不喜欢",
@@ -248,7 +248,7 @@ async def test_process_refund_for_order_not_found():
         new_callable=AsyncMock,
         return_value=None,
     ):
-        success, msg, data, refund_app = await process_refund_for_order(
+        success, _msg, data, refund_app = await process_refund_for_order(
             order_sn="ORD999",
             user_id=100,
             reason_detail="不喜欢",
@@ -256,7 +256,7 @@ async def test_process_refund_for_order_not_found():
             session=AsyncMock(),
         )
         assert success is False
-        assert "未找到订单" in msg
+        assert "未找到订单" in _msg
         assert data is None
         assert refund_app is None
 
@@ -281,7 +281,7 @@ async def test_process_refund_for_order_not_eligible():
             return_value=(False, "订单已超过退货期限"),
         ),
     ):
-        success, msg, data, refund_app = await process_refund_for_order(
+        success, _msg, data, refund_app = await process_refund_for_order(
             order_sn="ORD2024001",
             user_id=100,
             reason_detail="不喜欢",
@@ -289,8 +289,8 @@ async def test_process_refund_for_order_not_eligible():
             session=AsyncMock(),
         )
         assert success is False
-        assert "不符合退货条件" in msg
-        assert "订单已超过退货期限" in msg
+        assert "不符合退货条件" in _msg
+        assert "订单已超过退货期限" in _msg
         assert data is None
         assert refund_app is None
 
@@ -313,7 +313,7 @@ async def test_create_refund_application_flush_exception():
         new_callable=AsyncMock,
         return_value=(True, "订单符合退货条件"),
     ):
-        success, msg, refund_app = await RefundApplicationService.create_refund_application(
+        success, _msg, refund_app = await RefundApplicationService.create_refund_application(
             order_id=1,
             user_id=100,
             reason_detail="不想要了",
@@ -321,6 +321,6 @@ async def test_create_refund_application_flush_exception():
             session=mock_session,
         )
         assert success is False
-        assert "提交失败" in msg
-        assert "DB connection lost" in msg
+        assert "提交失败" in _msg
+        assert "DB connection lost" in _msg
         assert refund_app is None

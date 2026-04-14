@@ -45,8 +45,9 @@ async def calculate_rag_signal(
     if not similarities:
         return SignalResult(score=0.0, reason="无检索结果")
 
-    avg_sim = sum(similarities) / len(similarities)
-    max_sim = max(similarities)
+    mapped_similarities = [0.5 + s * 0.5 for s in similarities]
+    avg_sim = sum(mapped_similarities) / len(mapped_similarities)
+    max_sim = max(mapped_similarities)
 
     query_tokens = _extract_tokens(query)
     covered_tokens = set()
@@ -64,6 +65,7 @@ async def calculate_rag_signal(
             "max_similarity": max_sim,
             "avg_similarity": avg_sim,
             "coverage": coverage,
+            "raw_similarities": similarities,
         },
     )
 
@@ -75,6 +77,7 @@ async def calculate_llm_signal(
     llm: BaseChatModel,
 ) -> SignalResult:
     """计算 LLM 自我评估信号"""
+    _ = context
     structured_llm = llm.with_structured_output(LLMConfidenceScore, method="json_mode")
 
     prompt = f"""评估回答置信度（0-1）：

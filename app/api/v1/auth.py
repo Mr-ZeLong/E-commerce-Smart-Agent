@@ -18,8 +18,8 @@ router = APIRouter()
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def login(
-    request: Request,
-    response: Response,
+    _request: Request,
+    _response: Response,
     body: LoginRequest,
     session: AsyncSession = Depends(get_session),
     service: AuthService = Depends(AuthService),
@@ -41,8 +41,8 @@ async def login(
 @router.post("/register", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def register(
-    request: Request,
-    response: Response,
+    _request: Request,
+    _response: Response,
     body: RegisterRequest,
     session: AsyncSession = Depends(get_session),
     service: AuthService = Depends(AuthService),

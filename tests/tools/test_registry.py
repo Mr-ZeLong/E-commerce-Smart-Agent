@@ -10,6 +10,7 @@ class MockTool(BaseTool):
     description = "A mock tool for testing"
 
     async def execute(self, state, **kwargs):
+        _ = state
         return ToolResult(output={"received": kwargs})
 
 
@@ -18,6 +19,8 @@ class AnotherMockTool(BaseTool):
     description = "Another mock tool"
 
     async def execute(self, state, **kwargs):
+        _ = state
+        _ = kwargs
         return ToolResult(output={"tool": "another"})
 
 

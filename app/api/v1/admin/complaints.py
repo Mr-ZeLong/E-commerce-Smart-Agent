@@ -60,7 +60,7 @@ async def list_complaints(
     assigned_to: int | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     count_stmt = select(func.count()).select_from(ComplaintTicket)
@@ -108,7 +108,7 @@ async def list_complaints(
 @router.get("/{ticket_id}", response_model=ComplaintDetailResponse)
 async def get_complaint(
     ticket_id: int,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(select(ComplaintTicket).where(ComplaintTicket.id == ticket_id))
@@ -135,7 +135,7 @@ async def get_complaint(
 async def assign_complaint(
     ticket_id: int,
     request: ComplaintAssignRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(select(ComplaintTicket).where(ComplaintTicket.id == ticket_id))
@@ -152,7 +152,7 @@ async def assign_complaint(
 async def update_complaint_status(
     ticket_id: int,
     request: ComplaintStatusRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(select(ComplaintTicket).where(ComplaintTicket.id == ticket_id))
@@ -175,7 +175,7 @@ async def update_complaint_status(
 async def resolve_complaint(
     ticket_id: int,
     request: ComplaintResolveRequest,
-    current_admin_id: int = Depends(get_admin_user_id),
+    _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(select(ComplaintTicket).where(ComplaintTicket.id == ticket_id))

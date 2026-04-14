@@ -18,8 +18,6 @@ POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 
 
 class PolicyAgent(BaseAgent):
-    """政策专家 Agent"""
-
     def __init__(self, retriever: HybridRetriever, llm: BaseChatModel):
         super().__init__(name="policy_agent", llm=llm, system_prompt=POLICY_SYSTEM_PROMPT)
         self.retriever = retriever
@@ -28,7 +26,7 @@ class PolicyAgent(BaseAgent):
         await self._load_config()
         question = state.get("question", "")
 
-        chunks, similarities, sources = await self._retrieve_knowledge(question)
+        chunks, similarities, sources = await self._retrieve_knowledge(state)
 
         retrieval_result = {"chunks": chunks, "similarities": similarities, "sources": sources}
 
@@ -48,10 +46,17 @@ class PolicyAgent(BaseAgent):
             },
         }
 
-    async def _retrieve_knowledge(self, question: str) -> tuple[list[str], list[float], list[str]]:
-        results = await self.retriever.retrieve(question)
+    async def _retrieve_knowledge(
+        self, state: AgentState
+    ) -> tuple[list[str], list[float], list[str]]:
+        question = state.get("question", "")
+        results = await self.retriever.retrieve(
+            question,
+            conversation_history=state.get("history"),
+            memory_context=state.get("memory_context"),
+        )
         chunks = [r.content for r in results]
         similarities = [r.score for r in results]
         sources = [r.source for r in results]
-        logger.info(f"[PolicyAgent] 检索到 {len(results)} 条有效结果")
+        logger.info("[PolicyAgent] 检索到 %s 条有效结果", len(results))
         return chunks, similarities, sources

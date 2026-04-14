@@ -32,5 +32,5 @@ def plan_dispatch(
     return "serial", [remaining[0][1]]
 
 
-def build_parallel_sends(agent_names: list[str], state: AgentState) -> list[Send]:
+def build_parallel_sends(agent_names: list[str], _state: AgentState) -> list[Send]:
     return [Send(name, {}) for name in agent_names]
