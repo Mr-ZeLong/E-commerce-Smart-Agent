@@ -1,7 +1,7 @@
 services:
   # 核心数据库：PostgreSQL
   db:
-    image: postgres:16
+    image: pgvector/pgvector:16
     container_name: agent_db
     restart: always
     environment:

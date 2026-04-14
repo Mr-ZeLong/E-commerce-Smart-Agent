@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuthStore } from '@/stores/auth'
 import type { ConversationList, ConversationMessage } from '@/types'
+import { apiFetch } from '@/lib/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 export interface ConversationFilters {
   user_id?: string
@@ -30,12 +29,7 @@ export function useConversations(filters: ConversationFilters, offset = 0, limit
       if (filters.end_date) {
         params.append('end_date', filters.end_date)
       }
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/conversations?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token || ''}`,
-        },
-      })
+      const res = await apiFetch(`/admin/conversations?${params.toString()}`)
       if (!res.ok) {
         throw new Error('获取会话列表失败')
       }
@@ -55,12 +49,7 @@ export function useConversationMessages(threadId: string | null) {
     queryKey: ['admin', 'conversation', threadId],
     enabled: !!threadId,
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/conversations/${threadId}`, {
-        headers: {
-          Authorization: `Bearer ${token || ''}`,
-        },
-      })
+      const res = await apiFetch(`/admin/conversations/${threadId}`)
       if (!res.ok) {
         throw new Error('获取会话消息失败')
       }

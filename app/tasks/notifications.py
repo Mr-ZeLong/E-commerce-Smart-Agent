@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import func, select
 
@@ -38,7 +38,7 @@ def check_quality_alerts(self) -> dict:
     complaint_max = getattr(settings, "ALERT_COMPLAINT_MAX", 10)
     admin_emails = getattr(settings, "ALERT_ADMIN_EMAILS", [])
 
-    since = datetime.utcnow() - timedelta(hours=window_hours)
+    since = datetime.now(UTC) - timedelta(hours=window_hours)
 
     async def _check() -> dict:
         async with async_session_maker() as session:

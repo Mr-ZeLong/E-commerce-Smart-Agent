@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { Message } from '@/types'
-import { API_BASE, getApiHeaders } from '@/lib/api'
+import { apiFetch } from '@/lib/api'
 
 interface FeedbackRequest {
   thread_id: string
@@ -61,9 +61,8 @@ export function useChat(): UseChatReturn {
       ])
 
       try {
-        const res = await fetch(`${API_BASE}/chat`, {
+        const res = await apiFetch(`/chat`, {
           method: 'POST',
-          headers: getApiHeaders(),
           body: JSON.stringify({
             question: userMessage.content,
             thread_id: threadId,
@@ -151,9 +150,8 @@ export function useChat(): UseChatReturn {
           ...(comment && { comment }),
         }
 
-        const res = await fetch(`${API_BASE}/feedback`, {
+        const res = await apiFetch(`/feedback`, {
           method: 'POST',
-          headers: getApiHeaders(),
           body: JSON.stringify(feedbackData),
         })
 

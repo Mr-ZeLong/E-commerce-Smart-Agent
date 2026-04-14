@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/stores/auth'
 import type { KnowledgeDocument, KnowledgeUploadResult, SyncStatus } from '@/types'
+import { apiFetch } from '@/lib/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 export function useKnowledgeBase() {
   const queryClient = useQueryClient()
@@ -10,10 +9,7 @@ export function useKnowledgeBase() {
   const { data: documents, isLoading } = useQuery<KnowledgeDocument[]>({
     queryKey: ['admin', 'knowledge'],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/knowledge`, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch('/admin/knowledge')
       if (!res.ok) throw new Error('获取知识库列表失败')
       return res.json() as Promise<KnowledgeDocument[]>
     },
@@ -21,12 +17,10 @@ export function useKnowledgeBase() {
 
   const uploadMutation = useMutation<KnowledgeUploadResult, Error, File>({
     mutationFn: async (file) => {
-      const token = useAuthStore.getState().token
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch(`${API_BASE}/admin/knowledge`, {
+      const res = await apiFetch('/admin/knowledge', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
         body: formData,
       })
       if (!res.ok) {
@@ -42,10 +36,8 @@ export function useKnowledgeBase() {
 
   const deleteMutation = useMutation<void, Error, number>({
     mutationFn: async (docId) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/knowledge/${docId}`, {
+      const res = await apiFetch(`/admin/knowledge/${docId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
@@ -59,10 +51,8 @@ export function useKnowledgeBase() {
 
   const syncMutation = useMutation<KnowledgeUploadResult, Error, number>({
     mutationFn: async (docId) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/knowledge/${docId}/sync`, {
+      const res = await apiFetch(`/admin/knowledge/${docId}/sync`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
@@ -91,10 +81,7 @@ export function useSyncStatus(taskId: string | null) {
   return useQuery<SyncStatus>({
     queryKey: ['admin', 'knowledge', 'sync', taskId],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/knowledge/sync/${taskId}`, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch(`/admin/knowledge/sync/${taskId}`)
       if (!res.ok) throw new Error('获取同步状态失败')
       return res.json() as Promise<SyncStatus>
     },

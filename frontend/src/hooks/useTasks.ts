@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/stores/auth'
 import type { Task, TaskFilters, TaskStats } from '@/types'
+import { apiFetch } from '@/lib/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 interface SubmitDecisionPayload {
   audit_log_id: number
@@ -28,12 +27,7 @@ export function useTasks(filters: TaskFilters) {
       if (filters.riskLevel && filters.riskLevel !== 'ALL') {
         params.append('risk_level', filters.riskLevel)
       }
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/tasks?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token || ''}`,
-        },
-      })
+      const res = await apiFetch(`/admin/tasks?${params.toString()}`)
       if (!res.ok) {
         throw new Error('获取任务列表失败')
       }
@@ -43,13 +37,8 @@ export function useTasks(filters: TaskFilters) {
 
   const { mutateAsync: submitDecision, isPending: isSubmitting } = useMutation({
     mutationFn: async (payload: SubmitDecisionPayload) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/resume/${payload.audit_log_id}`, {
+      const res = await apiFetch(`/admin/resume/${payload.audit_log_id}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
         body: JSON.stringify({
           action: payload.action,
           admin_comment: payload.comment,
@@ -79,12 +68,7 @@ export function useTaskStats() {
   return useQuery<TaskStats>({
     queryKey: ['admin', 'taskStats'],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/tasks-all`, {
-        headers: {
-          Authorization: `Bearer ${token || ''}`,
-        },
-      })
+      const res = await apiFetch('/admin/tasks-all')
       if (!res.ok) {
         throw new Error('获取统计失败')
       }

@@ -1,3 +1,10 @@
+FROM node:22-slim AS frontend-builder
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci
+COPY frontend/ ./frontend/
+RUN cd frontend && npm run build
+
 FROM python:3.13-slim
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
@@ -21,6 +28,7 @@ COPY celery_worker.py ./
 COPY alembic.ini ./
 COPY migrations/ ./migrations/
 COPY data/ ./data/
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 RUN chown -R appuser:appgroup /app
 USER appuser

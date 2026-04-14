@@ -1,7 +1,7 @@
 import csv
 import io
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -92,7 +92,7 @@ async def export_feedback(
         )
     return {
         "content": output.getvalue(),
-        "filename": f"feedback_export_{datetime.utcnow().isoformat()}.csv",
+        "filename": f"feedback_export_{datetime.now(UTC).isoformat()}.csv",
     }
 
 

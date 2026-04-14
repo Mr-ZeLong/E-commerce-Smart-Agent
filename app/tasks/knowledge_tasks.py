@@ -24,7 +24,7 @@ from app.retrieval.sparse_embedder import SparseTextEmbedder
 
 logger = logging.getLogger(__name__)
 BATCH_SIZE = 32
-UPLOAD_DIR = os.environ.get("KNOWLEDGE_UPLOAD_DIR", "uploads/knowledge")
+UPLOAD_DIR = settings.KNOWLEDGE_UPLOAD_DIR
 
 
 def load_documents(file_path: str) -> list[Document]:
@@ -171,7 +171,7 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
         except Exception as exc:
             logger.exception(f"Failed to sync knowledge document {document_id}")
             doc.sync_status = "failed"
-            doc.sync_message = str(exc)
+            doc.sync_message = "同步失败，已达到最大重试次数"
             doc.updated_at = utc_now()
             session.add(doc)
             session.commit()
@@ -181,5 +181,5 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
                 return {
                     "status": "failed",
                     "document_id": document_id,
-                    "message": str(exc),
+                    "message": "同步失败，已达到最大重试次数",
                 }

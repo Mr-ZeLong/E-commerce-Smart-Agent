@@ -87,10 +87,13 @@ class RefundEligibilityChecker:
     @staticmethod
     def _check_time_limit(order: Order) -> tuple[bool, str]:
         """检查退货时效"""
+        from datetime import datetime
+
         now = utc_now()
 
         # 使用签收时间计算退货时效，如果没有签收时间则使用创建时间（向后兼容）
-        order_time = order.delivered_at if order.delivered_at else order.created_at
+        delivered_at = order.delivered_at
+        order_time = delivered_at if isinstance(delivered_at, datetime) else order.created_at
         days_passed = (now - order_time).days
 
         if days_passed > settings.REFUND_DEADLINE_DAYS:
@@ -190,10 +193,10 @@ class RefundApplicationService:
 
             return True, f"退货申请已提交（申请编号：{refund_app.id}），等待审核", refund_app
 
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             await session.rollback()
             logger.exception("Failed to create refund application")
-            return False, f"提交失败：{str(e)}", None
+            return False, "提交失败，请稍后重试", None
 
     @staticmethod
     async def get_user_refund_applications(

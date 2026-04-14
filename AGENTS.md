@@ -75,7 +75,7 @@ uv run pytest --cov=app --cov-fail-under=75
 # Backend lint + format
 uv run ruff check app tests --fix
 uv run ruff format app tests
-uv run ty check --error-on-warning
+uv run ty check --error-on-warning app tests
 
 # Frontend dev
 cd frontend && npm run dev

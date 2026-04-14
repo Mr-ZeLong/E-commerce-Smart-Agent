@@ -1,15 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/stores/auth'
 import type { AgentConfig, AgentsConfigResponse, AgentConfigPayload, AgentConfigAuditLog, RoutingRule } from '@/types'
+import { apiFetch } from '@/lib/api'
 
 export function useAgentAuditLog(agentName: string | undefined) {
   return useQuery<AgentConfigAuditLog[]>({
     queryKey: ['admin', 'agents', 'config', agentName, 'audit-log'],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/agents/config/${agentName}/audit-log`, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch(`/admin/agents/config/${agentName}/audit-log`)
       if (!res.ok) throw new Error('获取审计日志失败')
       return res.json() as Promise<AgentConfigAuditLog[]>
     },
@@ -17,7 +14,6 @@ export function useAgentAuditLog(agentName: string | undefined) {
   })
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 export function useAgentConfig() {
   const queryClient = useQueryClient()
@@ -25,10 +21,7 @@ export function useAgentConfig() {
   const { data, isLoading } = useQuery<AgentsConfigResponse>({
     queryKey: ['admin', 'agents', 'config'],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/agents/config`, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch('/admin/agents/config')
       if (!res.ok) throw new Error('获取 Agent 配置失败')
       return res.json() as Promise<AgentsConfigResponse>
     },
@@ -41,18 +34,13 @@ export function useAgentConfig() {
     { previousData: AgentsConfigResponse | undefined }
   >({
     mutationFn: async (payload) => {
-      const token = useAuthStore.getState().token
-      const url = payload.id
-        ? `${API_BASE}/admin/agents/routing-rules/${payload.id}`
-        : `${API_BASE}/admin/agents/routing-rules`
-      const res = await fetch(url, {
-        method: payload.id ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
-        body: JSON.stringify(payload),
-      })
+      const res = await apiFetch(
+        payload.id ? `/admin/agents/routing-rules/${payload.id}` : '/admin/agents/routing-rules',
+        {
+          method: payload.id ? 'PUT' : 'POST',
+          body: JSON.stringify(payload),
+        }
+      )
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
         throw new Error(err.detail || '保存失败')
@@ -66,10 +54,8 @@ export function useAgentConfig() {
 
   const deleteRoutingRuleMutation = useMutation<{ success: boolean; message: string }, Error, number>({
     mutationFn: async (id) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/agents/routing-rules/${id}`, {
+      const res = await apiFetch(`/admin/agents/routing-rules/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
@@ -89,13 +75,8 @@ export function useAgentConfig() {
     { previousData: AgentsConfigResponse | undefined }
   >({
     mutationFn: async ({ agentName, payload }) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/agents/config/${agentName}`, {
+      const res = await apiFetch(`/admin/agents/config/${agentName}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
@@ -130,10 +111,8 @@ export function useAgentConfig() {
 
   const rollbackMutation = useMutation<AgentConfig, Error, string>({
     mutationFn: async (agentName) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/agents/config/${agentName}/rollback`, {
+      const res = await apiFetch(`/admin/agents/config/${agentName}/rollback`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import cast
 
 from fastapi import APIRouter, Depends, Query
@@ -80,7 +80,7 @@ async def get_complaint_root_causes(
     _: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.execute(
+    result = await session.execute(  # type: ignore
         text(
             """
             SELECT category, COUNT(*) as cnt
@@ -100,7 +100,7 @@ async def get_agent_comparison(
     _: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
 
     stmt = text(
         """
@@ -115,7 +115,7 @@ async def get_agent_comparison(
         GROUP BY final_agent
         """
     ).bindparams(since=since)
-    result = await session.execute(stmt)
+    result = await session.execute(stmt)  # type: ignore
     rows = result.mappings().all()
 
     complaint_stmt = text(
@@ -126,7 +126,7 @@ async def get_agent_comparison(
         GROUP BY final_agent
         """
     ).bindparams(since=since)
-    complaint_result = await session.execute(complaint_stmt)
+    complaint_result = await session.execute(complaint_stmt)  # type: ignore
     complaint_map = {
         r["final_agent"]: r["complaint_count"] for r in complaint_result.mappings().all()
     }
@@ -159,7 +159,7 @@ async def list_traces(
     _: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
 
     count_stmt = (
         select(func.count())

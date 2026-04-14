@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/stores/auth'
 import type { ComplaintTicket, ComplaintFilters, ComplaintListResponse } from '@/types'
+import { apiFetch } from '@/lib/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 export function useComplaints(filters: ComplaintFilters = {}) {
   const queryClient = useQueryClient()
@@ -10,7 +9,6 @@ export function useComplaints(filters: ComplaintFilters = {}) {
   const { data, isLoading, error } = useQuery<ComplaintListResponse>({
     queryKey: ['admin', 'complaints', filters],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
       const params = new URLSearchParams()
       
       if (filters.status) params.append('status', filters.status)
@@ -20,11 +18,7 @@ export function useComplaints(filters: ComplaintFilters = {}) {
       if (filters.limit !== undefined) params.append('limit', String(filters.limit))
       
       const queryString = params.toString()
-      const url = `${API_BASE}/admin/complaints${queryString ? `?${queryString}` : ''}`
-      
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch(`/admin/complaints${queryString ? `?${queryString}` : ''}`)
       
       if (!res.ok) throw new Error('获取投诉列表失败')
       return res.json() as Promise<ComplaintListResponse>
@@ -38,13 +32,8 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     { previousData: ComplaintListResponse | undefined }
   >({
     mutationFn: async ({ id, assigned_to }) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/complaints/${id}/assign`, {
+      const res = await apiFetch(`/admin/complaints/${id}/assign`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
         body: JSON.stringify({ assigned_to }),
       })
       
@@ -87,13 +76,8 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     { previousData: ComplaintListResponse | undefined }
   >({
     mutationFn: async ({ id, status }) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/complaints/${id}/status`, {
+      const res = await apiFetch(`/admin/complaints/${id}/status`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
         body: JSON.stringify({ status }),
       })
       
@@ -136,13 +120,8 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     { previousData: ComplaintListResponse | undefined }
   >({
     mutationFn: async ({ id, resolution_notes }) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/complaints/${id}/resolve`, {
+      const res = await apiFetch(`/admin/complaints/${id}/resolve`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
         body: JSON.stringify({ resolution_notes }),
       })
       

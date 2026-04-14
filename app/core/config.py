@@ -275,6 +275,9 @@ class Settings(BaseSettings):
     ALERT_COMPLAINT_WINDOW_HOURS: int = 24
     ALERT_COMPLAINT_MAX: int = 10
 
+    KNOWLEDGE_UPLOAD_DIR: str = "uploads/knowledge"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 

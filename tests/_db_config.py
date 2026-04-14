@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 
 def _configure_test_database() -> None:
@@ -14,17 +13,7 @@ def _configure_test_database() -> None:
         os.environ["POSTGRES_DB"] = db_name
         return
 
-    # 获取原始 POSTGRES_DB（优先环境变量，其次 .env 文件）
     original_db = os.environ.get("POSTGRES_DB")
-    if not original_db:
-        env_file = Path(__file__).parent.parent / ".env"
-        if env_file.exists():
-            for line in env_file.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if line.startswith("POSTGRES_DB="):
-                    original_db = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
-
     if original_db and not original_db.startswith("test_"):
         os.environ["POSTGRES_DB"] = f"test_{original_db}"
     elif not original_db:

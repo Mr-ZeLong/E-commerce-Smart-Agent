@@ -42,7 +42,7 @@ def extract_and_save_facts(
         try:
             raise self.retry(exc=exc)
         except self.MaxRetriesExceededError:
-            return {"status": "failed", "message": str(exc)}
+            return {"status": "failed", "message": "事实提取失败，已达到最大重试次数"}
 
     with sync_session_maker() as session:
         from sqlmodel import select
@@ -79,7 +79,7 @@ def extract_and_save_facts(
             try:
                 raise self.retry(exc=exc)
             except self.MaxRetriesExceededError:
-                return {"status": "failed", "message": str(exc)}
+                return {"status": "failed", "message": "保存事实失败，已达到最大重试次数"}
 
     return {"status": "success", "facts_extracted": saved_count}
 
@@ -90,8 +90,8 @@ def prune_vector_memory() -> dict[str, Any]:
     try:
         asyncio.run(manager.prune_old_messages(settings.MEMORY_RETENTION_DAYS))
         return {"status": "success", "pruned": True}
-    except Exception as exc:
+    except Exception:
         logger.exception("Vector memory pruning failed")
-        return {"status": "failed", "message": str(exc)}
+        return {"status": "failed", "message": "向量记忆清理失败"}
     finally:
         asyncio.run(manager.aclose())

@@ -1,8 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/auth'
+import { apiFetch } from '@/lib/api'
 import type { LoginCredentials, User } from '@/types'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 interface LoginResponse {
   access_token: string
@@ -22,11 +21,16 @@ export function useAuth() {
     error: mutationError,
   } = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      const res = await fetch(`${API_BASE}/login`, {
+      const res = await apiFetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
+        skipAuth: true,
+        skip401Redirect: true,
       })
+      if (res.status === 401) {
+        throw new Error('用户名或密码错误')
+      }
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
         throw new Error(err.detail || '登录失败')

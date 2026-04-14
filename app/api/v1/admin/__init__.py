@@ -1,4 +1,3 @@
-# type: ignore
 """
 管理员 API
 """
@@ -7,6 +6,7 @@ import os
 import shutil
 import uuid
 from datetime import timedelta
+from typing import cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from opentelemetry import trace
@@ -19,6 +19,7 @@ from app.api.v1.admin.analytics import router as analytics_router
 from app.api.v1.admin.complaints import router as complaints_router
 from app.api.v1.admin.experiments import router as experiments_router
 from app.api.v1.admin.feedback import router as feedback_router
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
 from app.core.utils import utc_now
@@ -199,7 +200,7 @@ async def get_transfer_metrics(
     )
     transfer_result = await session.exec(
         select(GraphExecutionLog.final_agent, func.count())
-        .where(GraphExecutionLog.needs_human_transfer.is_(True))
+        .where(GraphExecutionLog.needs_human_transfer.is_(True))  # type: ignore
         .group_by(GraphExecutionLog.final_agent)
     )
 
@@ -230,7 +231,7 @@ async def get_confidence_metrics(
             GraphExecutionLog.final_agent,
             func.avg(GraphExecutionLog.confidence_score).label("avg_confidence"),
         )
-        .where(GraphExecutionLog.confidence_score.is_not(None))
+        .where(GraphExecutionLog.confidence_score.is_not(None))  # type: ignore
         .group_by(GraphExecutionLog.final_agent)
     )
     return [
@@ -254,7 +255,7 @@ async def get_latency_metrics(
         GROUP BY node_name
         """
     )
-    result = await session.exec(stmt)
+    result = await session.exec(stmt)  # type: ignore
     return [
         {
             "node_name": row["node_name"],
@@ -305,7 +306,7 @@ async def get_conversations(
             count_stmt = count_stmt.where(*conditions)
         if user_id is not None:
             count_stmt = count_stmt.where(
-                MessageCard.thread_id.in_(
+                MessageCard.thread_id.in_(  # type: ignore
                     select(MessageCard.thread_id)
                     .where(
                         MessageCard.sender_id == user_id,
@@ -315,16 +316,16 @@ async def get_conversations(
                 )
             )
         if intent_thread_stmt is not None:
-            count_stmt = count_stmt.where(MessageCard.thread_id.in_(intent_thread_stmt))
+            count_stmt = count_stmt.where(MessageCard.thread_id.in_(intent_thread_stmt))  # type: ignore
         total_result = await session.exec(count_stmt)
         total = total_result.one() or 0
 
         thread_stmt = (
             select(
                 MessageCard.thread_id,
-                func.count(MessageCard.id).label("message_count"),
+                func.count(MessageCard.id).label("message_count"),  # type: ignore
                 func.max(MessageCard.created_at).label("last_updated"),
-                func.min(case((MessageCard.sender_type == "user", MessageCard.sender_id))).label(
+                func.min(case((MessageCard.sender_type == "user", MessageCard.sender_id))).label(  # type: ignore
                     "user_id"
                 ),
             )
@@ -337,7 +338,7 @@ async def get_conversations(
             thread_stmt = thread_stmt.where(*conditions)
         if user_id is not None:
             thread_stmt = thread_stmt.where(
-                MessageCard.thread_id.in_(
+                MessageCard.thread_id.in_(  # type: ignore
                     select(MessageCard.thread_id)
                     .where(
                         MessageCard.sender_id == user_id,
@@ -347,7 +348,7 @@ async def get_conversations(
                 )
             )
         if intent_thread_stmt is not None:
-            thread_stmt = thread_stmt.where(MessageCard.thread_id.in_(intent_thread_stmt))
+            thread_stmt = thread_stmt.where(MessageCard.thread_id.in_(intent_thread_stmt))  # type: ignore
 
         result = await session.exec(thread_stmt)
         rows = result.all()
@@ -357,7 +358,7 @@ async def get_conversations(
         if thread_ids:
             intent_stmt = (
                 select(GraphExecutionLog.thread_id, GraphExecutionLog.intent_category)
-                .where(GraphExecutionLog.thread_id.in_(thread_ids))
+                .where(GraphExecutionLog.thread_id.in_(thread_ids))  # type: ignore
                 .distinct()
             )
             intent_result = await session.exec(intent_stmt)
@@ -391,14 +392,14 @@ async def get_conversation_messages(
         stmt = (
             select(MessageCard)
             .where(MessageCard.thread_id == thread_id)
-            .order_by(MessageCard.created_at.asc())
+            .order_by(MessageCard.created_at.asc())  # type: ignore
         )
         result = await session.exec(stmt)
         messages = result.all()
 
         return [
             ConversationMessageResponse(
-                id=msg.id,
+                id=cast(int, msg.id),
                 thread_id=msg.thread_id,
                 sender_type=msg.sender_type,
                 sender_id=msg.sender_id,
@@ -411,7 +412,7 @@ async def get_conversation_messages(
         ]
 
 
-UPLOAD_DIR = os.environ.get("KNOWLEDGE_UPLOAD_DIR", "uploads/knowledge")
+UPLOAD_DIR = settings.KNOWLEDGE_UPLOAD_DIR
 
 
 @router.get("/admin/knowledge", response_model=list[KnowledgeDocumentResponse])
@@ -420,12 +421,12 @@ async def list_knowledge_documents(
     session: AsyncSession = Depends(get_session),
 ):
     result = await session.exec(
-        select(KnowledgeDocument).order_by(KnowledgeDocument.created_at.desc())
+        select(KnowledgeDocument).order_by(KnowledgeDocument.created_at.desc())  # type: ignore
     )
     docs = result.all()
     return [
         KnowledgeDocumentResponse(
-            id=d.id,
+            id=cast(int, d.id),
             filename=d.filename,
             content_type=d.content_type,
             doc_size_bytes=d.doc_size_bytes,
@@ -465,6 +466,7 @@ async def upload_knowledge_document(
     session.add(doc)
     await session.commit()
     await session.refresh(doc)
+    assert doc.id is not None
 
     task = sync_knowledge_document.delay(doc.id)
 
@@ -513,6 +515,7 @@ async def sync_knowledge_document_endpoint(
             detail="Document not found",
         )
 
+    assert doc.id is not None
     task = sync_knowledge_document.delay(doc.id)
 
     return KnowledgeUploadResponse(

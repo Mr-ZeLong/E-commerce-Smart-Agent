@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient, models
@@ -5,6 +6,8 @@ from qdrant_client import AsyncQdrantClient, models
 from app.core.config import settings
 from app.models.state import AgentState
 from app.tools.base import BaseTool, ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 class ProductTool(BaseTool):
@@ -95,8 +98,9 @@ class ProductTool(BaseTool):
                     "query": query,
                 }
             )
-        except Exception as exc:
-            return ToolResult(output={"status": "error", "reason": str(exc)})
+        except Exception:
+            logger.exception("Product search failed")
+            return ToolResult(output={"status": "error", "reason": "商品搜索失败，请稍后重试"})
 
     async def _embed_query(self, query: str) -> list[float]:
         try:

@@ -53,6 +53,27 @@ def _log_supervisor_decision(
         logger.exception("Failed to log supervisor decision")
 
 
+async def _alog_supervisor_decision(
+    thread_id: str,
+    primary_intent: str | None,
+    pending_intents: list[str],
+    selected_agents: list[str],
+    execution_mode: str,
+    reasoning: str,
+) -> None:
+    import asyncio
+
+    await asyncio.to_thread(
+        _log_supervisor_decision,
+        thread_id,
+        primary_intent,
+        pending_intents,
+        selected_agents,
+        execution_mode,
+        reasoning,
+    )
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -203,7 +224,7 @@ def build_supervisor_node(
         updated = dict(result.get("updated_state") or {})
 
         intent_result = state.get("intent_result") or {}
-        _log_supervisor_decision(
+        await _alog_supervisor_decision(
             thread_id=state.get("thread_id", ""),
             primary_intent=intent_result.get("primary_intent"),
             pending_intents=[

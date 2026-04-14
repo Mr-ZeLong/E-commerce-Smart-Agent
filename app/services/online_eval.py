@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -70,7 +70,7 @@ class OnlineEvalService:
         return list(result.all()), count_result.one()
 
     async def get_csat_trend(self, db: AsyncSession, days: int = 30) -> list[dict[str, Any]]:
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
         stmt = (
             select(
                 func.date(MessageFeedback.created_at).label("day"),

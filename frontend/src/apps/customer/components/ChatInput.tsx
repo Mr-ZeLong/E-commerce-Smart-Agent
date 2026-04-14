@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Send } from 'lucide-react'
 
 interface ChatInputProps {
@@ -11,7 +11,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ value, onChange, onSend, isLoading, placeholder }: ChatInputProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       onSend()
@@ -20,14 +20,15 @@ export function ChatInput({ value, onChange, onSend, isLoading, placeholder }: C
 
   return (
     <div className="bg-white border-t p-4">
-      <div className="max-w-3xl mx-auto flex gap-2">
-        <Input
+      <div className="max-w-3xl mx-auto flex gap-2 items-end">
+        <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder || '输入消息...'}
           disabled={isLoading}
-          className="flex-1"
+          className="flex-1 min-h-[44px] max-h-[200px] resize-none"
+          rows={1}
         />
         <Button onClick={onSend} disabled={isLoading || !value.trim()} aria-label="发送">
           <Send className="w-4 h-4" />

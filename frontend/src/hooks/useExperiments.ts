@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '@/stores/auth'
 import type { Experiment, ExperimentCreatePayload, ExperimentResult } from '@/types'
+import { apiFetch } from '@/lib/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 export function useExperiments(status?: string) {
   const queryClient = useQueryClient()
@@ -10,13 +9,8 @@ export function useExperiments(status?: string) {
   const experimentsQuery = useQuery<Experiment[]>({
     queryKey: ['admin', 'experiments', status],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
       const params = status ? `?status=${encodeURIComponent(status)}` : ''
-      const url = `${API_BASE}/admin/experiments${params}`
-      
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch(`/admin/experiments${params}`)
       if (!res.ok) throw new Error('获取实验列表失败')
       return res.json() as Promise<Experiment[]>
     },
@@ -24,13 +18,8 @@ export function useExperiments(status?: string) {
 
   const createExperimentMutation = useMutation<Experiment, Error, ExperimentCreatePayload>({
     mutationFn: async (payload) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/experiments`, {
+      const res = await apiFetch('/admin/experiments', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
-        },
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
@@ -46,10 +35,8 @@ export function useExperiments(status?: string) {
 
   const startExperimentMutation = useMutation<Experiment, Error, number>({
     mutationFn: async (experimentId) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/experiments/${experimentId}/start`, {
+      const res = await apiFetch(`/admin/experiments/${experimentId}/start`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
@@ -64,10 +51,8 @@ export function useExperiments(status?: string) {
 
   const pauseExperimentMutation = useMutation<Experiment, Error, number>({
     mutationFn: async (experimentId) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/experiments/${experimentId}/pause`, {
+      const res = await apiFetch(`/admin/experiments/${experimentId}/pause`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
@@ -82,10 +67,8 @@ export function useExperiments(status?: string) {
 
   const archiveExperimentMutation = useMutation<Experiment, Error, number>({
     mutationFn: async (experimentId) => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/experiments/${experimentId}/archive`, {
+      const res = await apiFetch(`/admin/experiments/${experimentId}/archive`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token || ''}` },
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
@@ -117,10 +100,7 @@ export function useExperimentResults(experimentId: number | undefined) {
   return useQuery<ExperimentResult[]>({
     queryKey: ['admin', 'experiments', experimentId, 'results'],
     queryFn: async () => {
-      const token = useAuthStore.getState().token
-      const res = await fetch(`${API_BASE}/admin/experiments/${experimentId}/results`, {
-        headers: { Authorization: `Bearer ${token || ''}` },
-      })
+      const res = await apiFetch(`/admin/experiments/${experimentId}/results`)
       if (!res.ok) throw new Error('获取实验结果失败')
       return res.json() as Promise<ExperimentResult[]>
     },

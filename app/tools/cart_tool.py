@@ -1,10 +1,13 @@
 import json
+import logging
 
 import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.models.state import AgentState
 from app.tools.base import BaseTool, ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 class CartTool(BaseTool):
@@ -104,8 +107,11 @@ class CartTool(BaseTool):
                 )
 
             return ToolResult(output={"status": "error", "reason": f"不支持的操作: {action}"})
-        except Exception as exc:
-            return ToolResult(output={"status": "error", "reason": str(exc)})
+        except Exception:
+            logger.exception("Cart tool execution failed")
+            return ToolResult(
+                output={"status": "error", "reason": "购物车服务暂时不可用，请稍后重试"}
+            )
 
     async def _get_cart(self, redis: aioredis.Redis, key: str) -> dict:
         data = await redis.get(key)
