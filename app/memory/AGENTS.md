@@ -3,7 +3,7 @@
 > Guidance for the memory system. Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules and commands.
 
 ## OVERVIEW
-Phase 3 记忆系统，包含结构化记忆（PostgreSQL）、向量对话记忆（Qdrant）以及记忆抽取 Pipeline。
+记忆系统，包含结构化记忆（PostgreSQL）、向量对话记忆（Qdrant）以及记忆抽取 Pipeline。
 
 ## WHERE TO LOOK
 | 任务 | 文件 | 说明 |

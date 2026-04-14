@@ -32,9 +32,9 @@ For any other area, this root file applies.
 
 ## Repo Map
 
-- `app/`: FastAPI backend, LangGraph workflow, agents, tools, services.
+- `app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation.
 - `frontend/`: React 19 + TypeScript frontend (Vite, Tailwind CSS, shadcn/ui).
-- `tests/`: Backend test suite (pytest + pytest-asyncio).
+- `tests/`: Backend test suite (pytest + pytest-asyncio), organized by module (`tests/intent/`, `tests/graph/`, `tests/memory/`, `tests/evaluation/`, etc.).
 - `scripts/`: Seed data, ETL, and utility scripts.
 - `migrations/`: Alembic database migrations.
 - `data/`: Static seed data (policies, products).
@@ -115,6 +115,7 @@ When modifying code in a scoped directory, check whether the nearest `AGENTS.md`
 - CORS origins are validated at startup; `*` with `allow_credentials=True` raises `RuntimeError`.
 - Passwords are hashed with `bcrypt`; never store plaintext.
 - Production must set `ENABLE_OPENAPI_DOCS=False` and rotate `SECRET_KEY`.
+- OpenTelemetry OTLP endpoint is optional; when absent, tracing falls back to a no-op exporter.
 
 ## Environment Variables
 

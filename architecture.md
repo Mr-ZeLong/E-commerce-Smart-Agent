@@ -77,7 +77,7 @@ flowchart TB
         WS_MGR["Connection Manager<br/>连接管理器"]
     end
 
-    subgraph MemoryLayer["🧠 记忆层 (Phase 3)"]
+    subgraph MemoryLayer["🧠 记忆层"]
         subgraph MemorySQL["PostgreSQL"]
             TBL_PROFILE[(user_profiles<br/>用户画像)]
             TBL_PREF[(user_preferences<br/>用户偏好)]
@@ -178,7 +178,7 @@ flowchart TB
 
 ## 2. LangGraph 工作流详解
 
-Phase 2 重构了 Agent 层的编排方式，引入 **Supervisor-based Graph**；Phase 3 进一步在工作流中嵌入 **记忆层** (`memory_node`)，实现长期上下文增强：
+当前 Agent 层采用 **Supervisor-based Graph** 编排方式，并在工作流中嵌入 **记忆层** (`memory_node`)，实现长期上下文增强：
 
 - `router_node` 负责意图识别与澄清，将结果写入 `AgentState`。
 - `memory_node` 加载结构化记忆（`UserProfile`、`UserPreference`、`UserFact`、`InteractionSummary`）和向量对话记忆（`conversation_memory` 语义检索），生成 `memory_context` 并注入后续 Agent Prompt。
@@ -862,13 +862,12 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 auth.py              # 认证接口 (登录)
 │   │   ├── 📄 chat.py              # 聊天接口 (SSE 流式)
 │   │   ├── 📄 chat_utils.py        # SSE 流式响应工具
-│   │   ├── 📄 admin.py             # 管理员接口 (含知识库 CRUD + 同步)
-│   │   ├── 📁 admin/
+│   │   ├── 📁 admin/               # 管理员接口 (含知识库 CRUD + 同步)
 │   │   │   ├── 📄 agent_config.py  # Agent 配置中心 API (路由规则 / 提示词 / 审计日志)
-│   │   │   ├── 📄 complaints.py    # 投诉工单管理 API (Phase 4)
-
-│   │   │   ├── 📄 feedback.py      # 用户反馈与质量评估 API (Phase 4)
-│   │   │   └── 📄 analytics.py     # 高级分析 API (Phase 4)
+│   │   │   ├── 📄 complaints.py    # 投诉工单管理 API
+│   │   │   ├── 📄 experiments.py   # A/B 实验管理 API
+│   │   │   ├── 📄 feedback.py      # 用户反馈与质量评估 API
+│   │   │   └── 📄 analytics.py     # 高级分析 API
 │   │   ├── 📄 status.py            # 状态查询接口
 │   │   ├── 📄 websocket.py         # WebSocket 端点
 │   │   └── 📄 schemas.py           # Pydantic 数据模型
@@ -881,6 +880,7 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 limiter.py           # API 限流 (slowapi)
 │   │   ├── 📄 llm_factory.py       # LLM 实例工厂
 │   │   ├── 📄 logging.py           # 结构化日志 (correlation_id)
+│   │   ├── 📄 email.py             # 邮件发送工具
 │   │   └── 📄 utils.py             # 工具函数（utc_now 等）
 │   │
 │   ├── 📁 models/                  # 数据库模型 (SQLModel)
@@ -891,13 +891,13 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 message.py           # 消息卡片表
 │   │   ├── 📄 knowledge_document.py # 知识库文档表
 │   │   ├── 📄 observability.py     # 可观测性模型
-│   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / AuditLog)
-│   │   ├── 📄 complaint.py         # 投诉工单模型 (Phase 4)
+│   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig)
+│   │   ├── 📄 complaint.py         # 投诉工单模型
 
-│   │   ├── 📄 evaluation.py        # 在线评估模型 (Phase 4)
+│   │   ├── 📄 evaluation.py        # 在线评估模型
 │   │   └── 📄 state.py             # AgentState TypedDict
 │   │
-│   ├── 📁 memory/                  # 记忆系统 (Phase 3)
+│   ├── 📁 memory/                  # 记忆系统
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 structured_manager.py # 结构化记忆管理器 (PostgreSQL)
 │   │   ├── 📄 vector_manager.py    # 向量对话记忆管理器 (Qdrant conversation_memory)
@@ -906,7 +906,7 @@ E-commerce-Smart-Agent/
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
 │   │   ├── 📄 workflow.py          # 工作流定义 (含 Supervisor 模式与兼容模式)
-│   │   ├── 📄 nodes.py             # 节点定义 (router / supervisor / synthesis / evaluator / decider)
+│   │   ├── 📄 nodes.py             # 节点定义 (router / memory / supervisor / synthesis / evaluator / decider)
 │   │   ├── 📄 subgraphs.py         # Agent Subgraph 标准化封装
 │   │   └── 📄 parallel.py          # 并行多意图调度 (plan_dispatch + build_parallel_sends)
 │   │
@@ -921,17 +921,19 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 logistics.py         # 物流 Agent
 │   │   ├── 📄 account.py           # 账户 Agent
 │   │   ├── 📄 payment.py           # 支付 Agent
-│   │   ├── 📄 complaint.py         # 投诉 Agent (ComplaintAgent, Phase 4)
+│   │   ├── 📄 complaint.py         # 投诉 Agent (ComplaintAgent)
 │   │   └── 📄 evaluator.py         # ConfidenceEvaluator
 │   │
 │   ├── 📁 tools/                   # Agent Tool 层
 │   │   ├── 📄 __init__.py
+│   │   ├── 📄 base.py              # Tool 基类与接口
+│   │   ├── 📄 registry.py          # Tool 注册中心
 │   │   ├── 📄 product_tool.py      # 商品检索 Tool (Qdrant product_catalog)
 │   │   ├── 📄 cart_tool.py         # 购物车操作 Tool (Redis)
 │   │   ├── 📄 logistics_tool.py    # 物流查询 Tool
 │   │   ├── 📄 account_tool.py      # 账户查询 Tool
 │   │   ├── 📄 payment_tool.py      # 支付查询 Tool
-│   │   └── 📄 complaint_tool.py    # 投诉工单创建 Tool (Phase 4)
+│   │   └── 📄 complaint_tool.py    # 投诉工单创建 Tool
 │   │
 │   ├── 📁 confidence/              # 置信度信号模块
 │   │   ├── 📄 __init__.py
@@ -965,21 +967,23 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 order_service.py     # 订单服务
 │   │   ├── 📄 admin_service.py     # 管理员服务
 │   │   ├── 📄 auth_service.py      # 认证服务
-│   │   ├── 📄 experiment.py        # A/B 实验服务 (Phase 4)
+│   │   ├── 📄 experiment.py        # A/B 实验服务
 
-│   │   └── 📄 online_eval.py       # 在线评估服务 (Phase 4)
+│   │   └── 📄 online_eval.py       # 在线评估服务
 │   │
 │   ├── 📁 schemas/                 # 共享 Schema
+│   │   ├── 📄 __init__.py
 │   │   ├── 📄 auth.py
 │   │   ├── 📄 admin.py
-│   │   └── 📄 status.py
+│   │   ├── 📄 status.py
+│   │   └── 📄 agent_config.py
 │   │
 │   ├── 📁 tasks/                   # Celery 异步任务
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 refund_tasks.py      # 退款相关任务
 │   │   ├── 📄 knowledge_tasks.py   # 知识库同步任务
 │   │   ├── 📄 memory_tasks.py      # 记忆抽取与同步任务
-│   │   └── 📄 notifications.py     # 告警通知任务 (Phase 4)
+│   │   └── 📄 notifications.py     # 告警通知任务
 │   │
 │   ├── 📁 websocket/               # WebSocket 服务
 │   │   └── 📄 manager.py           # 连接管理器
@@ -1028,9 +1032,9 @@ E-commerce-Smart-Agent/
 │       │           ├── 📄 Performance.tsx
 │       │           ├── 📄 KnowledgeBaseManager.tsx  # 知识库上传/同步组件
 │       │           ├── 📄 AgentConfigEditor.tsx     # Agent 配置编辑器组件
-│       │           ├── 📄 ComplaintQueue.tsx        # 投诉工单管理 (Phase 4)
-
-│       │           └── 📄 AnalyticsV2.tsx           # 高级分析面板 (Phase 4)
+│       │           ├── 📄 ComplaintQueue.tsx        # 投诉工单管理
+│       │           ├── 📄 ExperimentManager.tsx     # A/B 实验管理
+│       │           └── 📄 AnalyticsV2.tsx           # 高级分析面板
 │       │
 │       ├── 📁 components/
 │       │   ├── 📁 ui/              # shadcn/ui 组件
@@ -1040,6 +1044,7 @@ E-commerce-Smart-Agent/
 │       │   │   ├── 📄 badge.tsx
 │       │   │   ├── 📄 button.tsx
 │       │   │   ├── 📄 card.tsx
+│       │   │   ├── 📄 dialog.tsx
 │       │   │   ├── 📄 input.tsx
 │       │   │   ├── 📄 label.tsx
 │       │   │   ├── 📄 radio-group.tsx
@@ -1047,7 +1052,11 @@ E-commerce-Smart-Agent/
 │       │   │   ├── 📄 separator.tsx
 │       │   │   ├── 📄 sheet.tsx
 │       │   │   ├── 📄 skeleton.tsx
+│       │   │   ├── 📄 switch.tsx
+│       │   │   ├── 📄 table.tsx
+│       │   │   ├── 📄 tabs.tsx
 │       │   │   └── 📄 textarea.tsx
+│       │   └── 📄 ErrorBoundary.tsx   # 错误边界组件
 │       │
 │       ├── 📁 assets/              # 前端静态资源
 │       ├── 📁 lib/                 # 共享基础设施
@@ -1063,9 +1072,12 @@ E-commerce-Smart-Agent/
 │       │   ├── 📄 useTasks.ts
 │       │   ├── 📄 useKnowledgeBase.ts  # 知识库管理 Hooks
 │       │   ├── 📄 useAgentConfig.ts    # Agent 配置管理 Hooks
-│       │   ├── 📄 useComplaints.ts     # 投诉工单 Hooks (Phase 4)
-
-│       │   └── 📄 useAnalytics.ts      # 高级分析 Hooks (Phase 4)
+│       │   ├── 📄 useComplaints.ts     # 投诉工单 Hooks
+│       │   ├── 📄 useEvaluation.ts     # 在线评估 Hooks
+│       │   ├── 📄 useMetrics.ts        # 指标监控 Hooks
+│       │   ├── 📄 useAnalytics.ts      # 高级分析 Hooks
+│       │   ├── 📄 useConversations.ts  # 会话日志 Hooks
+│       │   └── 📄 useExperiments.ts    # A/B 实验 Hooks
 │       ├── 📁 types/               # TypeScript 类型定义
 │       │   └── 📄 index.ts         # 统一类型导出
 │
@@ -1080,6 +1092,7 @@ E-commerce-Smart-Agent/
 │   ├── 📄 seed_large_data.py       # 大批量测试数据
 │   ├── 📄 seed_product_catalog.py  # 商品目录种子数据 (→ Qdrant product_catalog)
 │   ├── 📄 etl_qdrant.py            # 知识库 ETL (PDF/Markdown → Qdrant)
+│   ├── 📄 run_evaluation.py        # 离线评估脚本 (Golden Dataset)
 │   └── 📄 verify_db.py             # 数据库验证脚本
 │
 ├── 📁 migrations/                  # Alembic 数据库迁移
