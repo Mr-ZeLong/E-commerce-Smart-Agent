@@ -108,3 +108,11 @@ scripts/dev_*.py
 .worktrees/
 .serena
 .ruff_cache
+
+# Playwright CLI artifacts
+.playwright-cli/
+*.yaml
+*.yml
+
+# Sisyphus plans
+.sisyphus/

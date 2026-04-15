@@ -1,5 +1,6 @@
 # app/models/order.py
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 
 from sqlalchemy import JSON, Column, DateTime, Numeric, String, text
@@ -31,7 +32,7 @@ class Order(SQLModel, table=True):
         default=OrderStatus.PENDING, sa_column=Column(String, index=True, nullable=False)
     )
 
-    total_amount: float = Field(sa_column=Column(Numeric(precision=10, scale=2)))
+    total_amount: Decimal = Field(sa_column=Column(Numeric(precision=10, scale=2)))
     items: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
 
     tracking_number: str | None = Field(default=None, index=True)
