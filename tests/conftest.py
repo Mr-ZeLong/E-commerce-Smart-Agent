@@ -22,6 +22,7 @@ from tests._llm import DeterministicChatModel
 @pytest_asyncio.fixture(scope="session", autouse=True, loop_scope="session")
 async def db_setup():
     async with async_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
     yield
 

@@ -36,6 +36,28 @@ def _create_committed_user():
             session.close()
 
 
+def _create_committed_admin_user():
+    with sync_engine.connect() as conn:
+        session = Session(bind=conn)
+        try:
+            user = User(
+                username=f"admin_test_admin_{uuid.uuid4().hex[:8]}",
+                password_hash=User.hash_password("adminpass"),
+                email=f"{uuid.uuid4().hex[:8]}@admin.com",
+                full_name="Test Admin",
+                phone="13800138001",
+                is_admin=True,
+                is_active=True,
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            assert user.id is not None
+            return user
+        finally:
+            session.close()
+
+
 def _create_committed_order(user_id: int):
     with sync_engine.connect() as conn:
         session = Session(bind=conn)
@@ -80,6 +102,7 @@ class TestProcessAdminDecision:
     @pytest.mark.asyncio
     async def test_approve_with_refund(self):
         user = _create_committed_user()
+        admin = _create_committed_admin_user()
         order = _create_committed_order(user.id)
         refund = _create_committed_refund(order.id, user.id)
 
@@ -109,7 +132,7 @@ class TestProcessAdminDecision:
                     audit_log_id=audit_log.id,
                     action="APPROVE",
                     admin_comment="Approved",
-                    current_admin_id=99,
+                    current_admin_id=admin.id,
                 )
 
                 assert result.success is True
@@ -119,7 +142,7 @@ class TestProcessAdminDecision:
 
                 await session.refresh(audit_log)
                 assert audit_log.action == AuditAction.APPROVE
-                assert audit_log.admin_id == 99
+                assert audit_log.admin_id == admin.id
                 assert audit_log.admin_comment == "Approved"
                 assert audit_log.reviewed_at is not None
 
@@ -129,7 +152,7 @@ class TestProcessAdminDecision:
                 db_refund = refund_result.one_or_none()
                 assert db_refund is not None
                 assert db_refund.status == RefundStatus.APPROVED
-                assert db_refund.reviewed_by == 99
+                assert db_refund.reviewed_by == admin.id
                 assert db_refund.reviewed_at is not None
                 assert db_refund.admin_note == "Approved"
 
@@ -169,6 +192,7 @@ class TestProcessAdminDecision:
     @pytest.mark.asyncio
     async def test_reject_with_refund(self, db_session):
         user = _create_committed_user()
+        admin = _create_committed_admin_user()
         order = _create_committed_order(user.id)
         refund = _create_committed_refund(order.id, user.id)
 
@@ -195,7 +219,7 @@ class TestProcessAdminDecision:
             audit_log_id=audit_log.id,
             action="REJECT",
             admin_comment="Rejected",
-            current_admin_id=99,
+            current_admin_id=admin.id,
         )
 
         assert result.success is True
@@ -203,7 +227,7 @@ class TestProcessAdminDecision:
 
         await db_session.refresh(audit_log)
         assert audit_log.action == AuditAction.REJECT
-        assert audit_log.admin_id == 99
+        assert audit_log.admin_id == admin.id
         assert audit_log.admin_comment == "Rejected"
 
         refund_result = await db_session.exec(
@@ -212,10 +236,11 @@ class TestProcessAdminDecision:
         db_refund = refund_result.one_or_none()
         assert db_refund is not None
         assert db_refund.status == RefundStatus.REJECTED
-        assert db_refund.reviewed_by == 99
+        assert db_refund.reviewed_by == admin.id
 
     @pytest.mark.asyncio
     async def test_404_for_missing_audit_log(self, db_session):
+        admin = _create_committed_admin_user()
         service = AdminService(manager=None)
         with pytest.raises(AuditNotFoundError):
             await service.process_admin_decision(
@@ -223,11 +248,12 @@ class TestProcessAdminDecision:
                 audit_log_id=999999,
                 action="APPROVE",
                 admin_comment=None,
-                current_admin_id=99,
+                current_admin_id=admin.id,
             )
 
     @pytest.mark.asyncio
     async def test_400_for_already_processed(self, db_session):
+        admin = _create_committed_admin_user()
         user = User(
             username=f"admin_test_user_{uuid.uuid4().hex[:8]}",
             password_hash=User.hash_password("testpass"),
@@ -260,7 +286,7 @@ class TestProcessAdminDecision:
                 audit_log_id=audit_log.id,
                 action="REJECT",
                 admin_comment=None,
-                current_admin_id=99,
+                current_admin_id=admin.id,
             )
 
 

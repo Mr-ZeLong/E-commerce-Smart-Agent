@@ -10,27 +10,30 @@ from app.models.user import User
 from app.schemas.status import StatusResponse
 from app.services.status_service import StatusService
 
-USER_ID = 42
 THREAD_ID = "thread-abc"
-SCOPED_THREAD_ID = build_thread_id(USER_ID, THREAD_ID)
+
+
+def _make_user():
+    return User(
+        username=f"status_test_{__import__('uuid').uuid4().hex[:8]}",
+        email=f"status_{__import__('uuid').uuid4().hex[:8]}@test.com",
+        full_name="Status Test User",
+        password_hash="fakehash",
+    )
 
 
 class TestGetThreadStatus:
     @pytest.mark.asyncio(loop_scope="session")
     async def test_pending_returns_waiting_admin(self, db_session: AsyncSession):
-        user = User(
-            id=USER_ID,
-            username="test_pending",
-            email="pending@test.com",
-            full_name="Test Pending",
-            password_hash="fakehash",
-        )
+        user = _make_user()
         db_session.add(user)
         await db_session.flush()
+        await db_session.refresh(user)
+        scoped_thread_id = build_thread_id(user.id, THREAD_ID)
 
         audit = AuditLog(
-            user_id=USER_ID,
-            thread_id=SCOPED_THREAD_ID,
+            user_id=user.id,
+            thread_id=scoped_thread_id,
             action=AuditAction.PENDING,
             trigger_type=AuditTriggerType.RISK,
             risk_level=RiskLevel.HIGH,
@@ -45,30 +48,26 @@ class TestGetThreadStatus:
         await db_session.refresh(audit)
 
         service = StatusService()
-        result = await service.get_thread_status(db_session, USER_ID, THREAD_ID)
+        result = await service.get_thread_status(db_session, user.id, THREAD_ID)
 
         assert isinstance(result, StatusResponse)
         assert result.status == "WAITING_ADMIN"
-        assert result.thread_id == SCOPED_THREAD_ID
+        assert result.thread_id == scoped_thread_id
         assert result.data is not None
         assert result.data["audit_log_id"] == audit.id
         assert result.data["risk_level"] == "HIGH"
 
     @pytest.mark.asyncio(loop_scope="session")
     async def test_approve_returns_approved(self, db_session: AsyncSession):
-        user = User(
-            id=USER_ID,
-            username="test_approve",
-            email="approve@test.com",
-            full_name="Test Approve",
-            password_hash="fakehash",
-        )
+        user = _make_user()
         db_session.add(user)
         await db_session.flush()
+        await db_session.refresh(user)
+        scoped_thread_id = build_thread_id(user.id, THREAD_ID)
 
         audit = AuditLog(
-            user_id=USER_ID,
-            thread_id=SCOPED_THREAD_ID,
+            user_id=user.id,
+            thread_id=scoped_thread_id,
             action=AuditAction.APPROVE,
             trigger_type=AuditTriggerType.RISK,
             risk_level=RiskLevel.LOW,
@@ -85,7 +84,7 @@ class TestGetThreadStatus:
         await db_session.commit()
 
         service = StatusService()
-        result = await service.get_thread_status(db_session, USER_ID, THREAD_ID)
+        result = await service.get_thread_status(db_session, user.id, THREAD_ID)
 
         assert isinstance(result, StatusResponse)
         assert result.status == "APPROVED"
@@ -94,19 +93,15 @@ class TestGetThreadStatus:
 
     @pytest.mark.asyncio(loop_scope="session")
     async def test_reject_returns_rejected(self, db_session: AsyncSession):
-        user = User(
-            id=USER_ID,
-            username="test_reject",
-            email="reject@test.com",
-            full_name="Test Reject",
-            password_hash="fakehash",
-        )
+        user = _make_user()
         db_session.add(user)
         await db_session.flush()
+        await db_session.refresh(user)
+        scoped_thread_id = build_thread_id(user.id, THREAD_ID)
 
         audit = AuditLog(
-            user_id=USER_ID,
-            thread_id=SCOPED_THREAD_ID,
+            user_id=user.id,
+            thread_id=scoped_thread_id,
             action=AuditAction.REJECT,
             trigger_type=AuditTriggerType.RISK,
             risk_level=RiskLevel.LOW,
@@ -123,7 +118,7 @@ class TestGetThreadStatus:
         await db_session.commit()
 
         service = StatusService()
-        result = await service.get_thread_status(db_session, USER_ID, THREAD_ID)
+        result = await service.get_thread_status(db_session, user.id, THREAD_ID)
 
         assert isinstance(result, StatusResponse)
         assert result.status == "REJECTED"
@@ -132,18 +127,14 @@ class TestGetThreadStatus:
 
     @pytest.mark.asyncio(loop_scope="session")
     async def test_no_audit_log_returns_processing(self, db_session: AsyncSession):
-        user = User(
-            id=USER_ID,
-            username="test_processing",
-            email="processing@test.com",
-            full_name="Test Processing",
-            password_hash="fakehash",
-        )
+        user = _make_user()
         db_session.add(user)
         await db_session.flush()
+        await db_session.refresh(user)
+        scoped_thread_id = build_thread_id(user.id, THREAD_ID)
 
         message = MessageCard(
-            thread_id=SCOPED_THREAD_ID,
+            thread_id=scoped_thread_id,
             message_type=MessageType.SYSTEM,
             status=MessageStatus.SENT,
             content={},
@@ -155,7 +146,7 @@ class TestGetThreadStatus:
         await db_session.commit()
 
         service = StatusService()
-        result = await service.get_thread_status(db_session, USER_ID, THREAD_ID)
+        result = await service.get_thread_status(db_session, user.id, THREAD_ID)
 
         assert isinstance(result, StatusResponse)
         assert result.status == "PROCESSING"
@@ -165,18 +156,12 @@ class TestGetThreadStatus:
     async def test_no_audit_log_and_no_message_returns_processing_with_empty_timestamp(
         self, db_session: AsyncSession
     ):
-        user = User(
-            id=USER_ID,
-            username="test_empty",
-            email="empty@test.com",
-            full_name="Test Empty",
-            password_hash="fakehash",
-        )
+        user = _make_user()
         db_session.add(user)
         await db_session.flush()
 
         service = StatusService()
-        result = await service.get_thread_status(db_session, USER_ID, THREAD_ID)
+        result = await service.get_thread_status(db_session, user.id, THREAD_ID)
 
         assert isinstance(result, StatusResponse)
         assert result.status == "PROCESSING"

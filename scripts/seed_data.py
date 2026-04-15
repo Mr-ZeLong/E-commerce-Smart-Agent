@@ -98,7 +98,23 @@ async def seed_data():
             session.add(user)
             await session.flush()
 
-        # 2. 检查并创建 Mock 订单
+        # 1b. 检查 admin 用户是否已存在
+        result = await session.exec(select(User).where(User.username == "admin"))
+        admin_user = result.first()
+
+        if not admin_user:
+            print("🌱 Creating admin user...")
+            admin_user = User(
+                username="admin",
+                email="admin@example.com",
+                full_name="管理员",
+                password_hash=User.hash_password("admin123"),
+                is_admin=True,
+            )
+            session.add(admin_user)
+            await session.flush()
+
+        result = await session.exec(select(Order).where(Order.user_id == user.id))
         result = await session.exec(select(Order).where(Order.user_id == user.id))
         orders = result.all()
 
