@@ -73,18 +73,18 @@ def _decode_token(
 
         return payload
 
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as _err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers=headers,
-        )
-    except jwt.InvalidTokenError:
+        ) from _err
+    except jwt.InvalidTokenError as _err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers=headers,
-        )
+        ) from _err
 
 
 def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
@@ -98,12 +98,12 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
     )
     try:
         return int(payload["sub"])
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as _err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token: malformed user ID",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from _err
 
 
 async def get_current_user_id_ws(token: str) -> int:
@@ -122,11 +122,11 @@ async def get_current_user_id_ws(token: str) -> int:
     payload = _decode_token(token, missing_user_detail="Invalid token: missing user ID")
     try:
         return int(payload["sub"])
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as _err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token: malformed user ID",
-        )
+        ) from _err
 
 
 def get_admin_user_id(token: str = Depends(oauth2_scheme)) -> int:
@@ -154,9 +154,9 @@ def verify_admin_token(token: str) -> int:
 
     try:
         return int(payload["sub"])
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as _err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token: malformed user ID",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from _err

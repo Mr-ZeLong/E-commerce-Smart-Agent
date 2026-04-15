@@ -285,5 +285,14 @@ class Settings(BaseSettings):
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)
 
 
-# Settings reads from .env at runtime; ty flags required fields as missing during static analysis.
-settings: Settings = Settings()  # type: ignore
+def _create_settings() -> Settings:
+    """Create settings from environment at runtime.
+
+    This factory avoids top-level instantiation errors during static analysis.
+    ty does not understand pydantic-settings' env-file defaulting, so we
+    suppress the missing-argument diagnostic locally.
+    """
+    return Settings()  # ty: ignore[missing-argument]
+
+
+settings: Settings = _create_settings()

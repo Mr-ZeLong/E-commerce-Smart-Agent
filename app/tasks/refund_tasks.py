@@ -28,8 +28,8 @@ def _process_refund_payment_body(
         exc = ValueError(f"Refund application {refund_id} not found")
         try:
             raise self.retry(exc=exc)
-        except self.MaxRetriesExceededError:
-            raise exc
+        except self.MaxRetriesExceededError as _err:
+            raise exc from _err
 
     logger.info(f"💰 [Payment] 退款 ¥{amount} 到 {payment_method}")
 
@@ -55,8 +55,8 @@ def _notify_admin_audit_body(self, audit_log_id: int, session: Session) -> dict[
         exc = ValueError(f"Audit log {audit_log_id} not found")
         try:
             raise self.retry(exc=exc)
-        except self.MaxRetriesExceededError:
-            raise exc
+        except self.MaxRetriesExceededError as _err:
+            raise exc from _err
 
     logger.info("  [Notify] 通知管理员审核任务:")
     logger.info(f"  - 风险等级: {audit_log.risk_level}")

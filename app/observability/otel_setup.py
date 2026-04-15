@@ -32,10 +32,7 @@ def setup_otel_tracing(service_name: str = "ecommerce-smart-agent") -> TracerPro
     provider = TracerProvider(resource=resource)
 
     endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT
-    if endpoint:
-        exporter = OTLPSpanExporter(endpoint=endpoint, timeout=5)
-    else:
-        exporter = NoOpSpanExporter()
+    exporter = OTLPSpanExporter(endpoint=endpoint, timeout=5) if endpoint else NoOpSpanExporter()
 
     processor = BatchSpanProcessor(exporter)
     provider.add_span_processor(processor)

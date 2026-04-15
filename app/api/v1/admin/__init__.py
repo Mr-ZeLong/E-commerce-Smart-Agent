@@ -109,16 +109,16 @@ async def admin_decision(
             return await service.process_admin_decision(
                 session, audit_log_id, request.action, request.admin_comment, current_admin_id
             )
-        except AuditNotFoundError:
+        except AuditNotFoundError as _err:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Audit log not found",
-            )
-        except AuditAlreadyProcessedError:
+            ) from _err
+        except AuditAlreadyProcessedError as _err:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This audit has already been processed",
-            )
+            ) from _err
 
 
 @router.get("/admin/evaluation/dataset")

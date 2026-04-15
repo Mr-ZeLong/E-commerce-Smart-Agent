@@ -99,8 +99,8 @@ Every query involving orders, refunds, carts, or user memories must filter by th
 Use `app.core.config.settings` for all configuration. Never read `os.environ` directly outside of `app/core/config.py`.
 
 ### 4. Type Safety
-- Python: never suppress type errors with `typing.Any` casts or `# type: ignore`.
-- Frontend: follow the existing TypeScript strict mode.
+- Python: never suppress type errors with `typing.Any` casts or `# type: ignore`, **except** when the diagnostic originates from a third-party package (e.g., missing stubs, incorrect annotations, or known compatibility issues like `ty` vs `pydantic-settings`). In that case, suppression is allowed only in the smallest scope and must include a comment explaining the reason and the package/version involved.
+- Frontend: follow the existing TypeScript strict mode. Do not use `@ts-ignore` or implicit `any`.
 
 ### 5. Testing Requirements
 - Every bug fix must include a test that reproduces the issue.

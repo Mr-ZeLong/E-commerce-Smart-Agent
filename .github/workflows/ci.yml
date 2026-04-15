@@ -110,6 +110,9 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check app tests
 
+      - name: Type check with ty
+        run: uv run ty check --error-on-warning app tests
+
       - name: Run evaluation tests (tests/evaluation/)
         run: uv run pytest tests/evaluation/ -v -s
         env:
