@@ -51,8 +51,8 @@ For any other area, this root file applies.
 # Manual backend
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Manual Celery worker (run from repo root)
-uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+# Manual Celery worker (run from repo root, with Beat scheduler)
+uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
 ```
 
 ### Database

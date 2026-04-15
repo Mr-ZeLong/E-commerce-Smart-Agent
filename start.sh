@@ -49,8 +49,8 @@ echo " 启动 FastAPI 服务..."
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 FASTAPI_PID=$!
 
-echo " 启动 Celery Worker..."
-uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo &
+echo " 启动 Celery Worker (含 Beat)..."
+uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat &
 CELERY_PID=$!
 
 echo ""

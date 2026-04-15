@@ -57,11 +57,10 @@ services:
       timeout: 3s
       retries: 5
 
-  # v4.0 新增:  Celery Worker
   celery_worker: 
     build: .
     container_name: ecommerce_celery_worker
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo -E
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat -E
     depends_on:
       db:
         condition: service_healthy

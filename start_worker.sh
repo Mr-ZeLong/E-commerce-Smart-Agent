@@ -56,4 +56,5 @@ uv run celery -A app.celery_app worker \
   --loglevel=info \
   --concurrency=4 \
   --pool=solo \
+  --beat \
   -E

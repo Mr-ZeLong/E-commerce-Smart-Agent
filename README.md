@@ -4,7 +4,7 @@
 
 E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过结合大型语言模型（LLM）和人工审核流程，为电商平台提供高效、精准、安全的客户服务。该系统支持用户进行订单查询、政策咨询、商品查询、购物车管理、退货申请、投诉工单等操作，并能够自动识别高风险请求并转交人工审核，同时为管理员提供一个直观的工作台进行决策与知识库管理。
 
-本项目采用 LangChain & LangGraph 构建核心 Agent 逻辑，引入基于 `SupervisorAgent` 的多 Agent 编排架构，支持串行/并行智能调度与多意图并行执行；进一步构建**结构化记忆系统**（PostgreSQL 用户画像/偏好/事实 + Qdrant 向量对话记忆）和**Agent 配置中心**（B 端热重载、路由规则、审计日志）。通过 FastAPI 提供 API 服务，SQLModel 进行数据管理，Celery 处理异步任务。前端采用 React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui 构建现代化的 C 端用户界面和 B 端管理后台，支持 SSE 流式响应和 WebSocket 实时通知。WebSocket 的引入实现了实时状态同步和消息推送，打造了沉浸式人机协作体验。
+本项目采用 LangChain & LangGraph 构建核心 Agent 逻辑，引入基于 `SupervisorAgent` 的多 Agent 编排架构，支持串行/并行智能调度与多意图并行执行；进一步构建**结构化记忆系统**（PostgreSQL 用户画像/偏好/事实 + Qdrant 向量对话记忆）和**Agent 配置中心**（B 端热重载、路由规则、审计日志）。通过 FastAPI 提供 API 服务，SQLModel 进行数据管理，Celery 处理异步任务。前端采用 React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui 构建现代化的 C 端用户界面和 B 端管理后台，支持 SSE 流式响应；后端已提供 WebSocket 端点，前端实时通知待实现。
 
 ## 🚀 主要特性
 
@@ -20,13 +20,13 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 *   **智能投诉处理** (`ComplaintAgent`)：基于 LLM 自动识别用户投诉意图并分类（商品质量、物流问题、服务态度等），自动创建投诉工单 (`ComplaintTicket`) 并支持紧急度分级与管理员分配。
 *   **A/B 测试框架** (`Experiment`)：支持多版本 Agent 配置对比实验，基于用户 ID 哈希实现确定性流量分配，提供实验结果统计与转化率分析。
 *   **在线评估与反馈** (`OnlineEval`)：支持用户对每条助手回复进行 👍/👎 反馈，自动计算 CSAT 分数，基于 LLM 对对话质量进行自动评分。
-*   **自动告警系统** (`AutoAlert`)：Celery Beat 定时检测服务质量下降（CSAT 低于阈值、投诉量激增），通过邮件和 WebSocket 实时通知管理员。
+*   **自动告警系统** (`AutoAlert`)：Celery Beat 定时检测服务质量下降（CSAT 低于阈值、投诉量激增），通过邮件通知管理员（WebSocket 推送待实现）。
 *   **高级分析面板** (`AnalyticsV2`)：B 端 Analytics V2 页面展示 CSAT 趋势、投诉根因分析、Agent 性能对比、LangSmith Trace 链路追踪。
 *   **离线评估 Pipeline** (`EvaluationPipeline`)：基于 Golden Dataset 进行意图准确率、槽位召回、RAG 精确率、回答正确性等多维度离线评估。
 *   **可观测性建设** (`OpenTelemetry`)：集成 OpenTelemetry tracing，支持 OTLP 导出与 FastAPI 自动埋点，实现全链路可观测。
 *   **智能风控与人工审核**：按金额分级风控（<¥500 低风险 / ¥500~<¥2000 中风险 / ≥¥2000 高风险），自动识别高风险退款申请并转交管理员进行人工审核。
-*   **实时状态同步**：通过 WebSocket 实现用户和管理员界面的实时状态更新。
-*   **管理员工作台**：React + TypeScript 构建的现代化 B 端界面，支持任务队列、实时通知、一键决策、知识库文档上传与同步、Agent 配置管理、投诉工单管理、A/B 实验管理、高级数据分析。
+*   **实时状态同步**：后端已提供 WebSocket 端点，前端 WebSocket 集成待实现。
+*   **管理员工作台**：React + TypeScript 构建的现代化 B 端界面，支持任务队列、一键决策、知识库文档上传与同步、Agent 配置管理、投诉工单管理、A/B 实验管理、高级数据分析（前端实时通知待实现）。
 *   **异步任务处理**：Celery 处理退款支付、短信通知、知识库 ETL 同步、记忆抽取、告警通知等耗时操作。
 *   **知识库管理**：支持从 PDF/Markdown 文件加载政策文档并进行 Embedding 检索；Admin 后台可对知识库文档进行上传、删除与手动同步。
 
@@ -36,15 +36,21 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 
 ├── README.md
 ├── architecture.md                 # 系统架构文档
+├── AGENTS.md                       # AI Agent 开发规范
 ├── .env.example                    # 环境变量模板
+├── .gitignore                      # Git 忽略规则
 ├── alembic.ini                     # Alembic 迁移配置
+├── celery_worker.py                # Celery Worker 启动脚本
 ├── Dockerfile                      # 容器构建配置
+├── docker-compose.yaml             # Docker Compose 配置
 ├── docs/                           # 文档目录
 │   └── resume-guide.md             # 简历写作指南
 ├── .github/                        # GitHub 工作流
 │   └── workflows/ci.yml            # CI 配置
 ├── pyproject.toml                  # Python 项目配置 (uv)
 ├── uv.lock                         # uv 依赖锁定文件
+├── start.sh                        # 项目一键启动脚本
+├── start_worker.sh                 # 单独启动 Celery Worker
 ├── app/                            # 主应用目录
 │   ├── __init__.py
 │   ├── main.py                     # FastAPI 主应用入口
@@ -56,7 +62,8 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   │       ├── auth.py             # 认证接口 (登录)
 │   │       ├── chat.py             # 聊天接口 (SSE 流式)
 │   │       ├── chat_utils.py       # SSE 流式响应工具
-│   │       ├── admin/              # 管理员相关 API (含知识库 CRUD + 同步)
+│   │       ├── admin/              # 管理员相关 API
+│   │       │   ├── __init__.py     # 管理员核心 API (任务 / 决策 / 评估 / 指标 / 会话 / 知识库) + 子路由聚合
 │   │       │   ├── agent_config.py # Agent 配置中心 API (路由规则 / 系统提示词 / 审计日志)
 │   │       │   ├── complaints.py   # 投诉工单管理 API
 │   │       │   ├── experiments.py  # A/B 实验管理 API
@@ -80,12 +87,15 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   │
 │   ├── graph/                      # LangGraph 核心逻辑
 │   │   ├── __init__.py
+│   │   ├── AGENTS.md
 │   │   ├── workflow.py             # 工作流定义
 │   │   ├── nodes.py                # 节点定义 (router / supervisor / synthesis / evaluator / decider / memory)
 │   │   ├── subgraphs.py            # Agent Subgraph 标准化封装
 │   │   └── parallel.py             # 并行多意图调度 (plan_dispatch + build_parallel_sends)
 │   │
 │   ├── agents/                     # Agent 实现层
+│   │   ├── __init__.py
+│   │   ├── AGENTS.md
 │   │   ├── base.py                 # Agent 基类
 │   │   ├── router.py               # IntentRouterAgent
 │   │   ├── supervisor.py           # SupervisorAgent (串行/并行调度)
@@ -112,9 +122,11 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   │   └── complaint_tool.py       # 投诉工单创建 Tool
 │   │
 │   ├── confidence/                 # 置信度信号模块
+│   │   ├── __init__.py
 │   │   └── signals.py              # 置信度评估信号计算
 │   │
 │   ├── retrieval/                  # RAG 检索层
+│   │   ├── __init__.py
 │   │   ├── client.py               # 检索客户端
 │   │   ├── embeddings.py           # 向量嵌入
 │   │   ├── retriever.py            # 检索器
@@ -123,10 +135,12 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   │   └── sparse_embedder.py      # 稀疏嵌入
 │   │
 │   ├── utils/                      # 通用工具函数
+│   │   ├── __init__.py
 │   │   └── order_utils.py          # 订单相关工具
 │   │
 │   ├── intent/                     # 意图识别模块
 │   │   ├── __init__.py
+│   │   ├── AGENTS.md
 │   │   ├── service.py              # 意图识别服务 (Redis 会话/缓存)
 │   │   ├── models.py               # 意图/槽位/澄清状态模型
 │   │   ├── config.py               # 意图识别配置（兼容性矩阵、槽位优先级）
@@ -145,15 +159,16 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   │   ├── audit.py                # 审计日志表
 │   │   ├── message.py              # 消息卡片表
 │   │   ├── knowledge_document.py   # 知识库文档表
-│   │   ├── observability.py        # 可观测性模型 (GraphExecutionLog / SupervisorDecision)
-│   │   ├── memory.py               # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig)
-│   │   ├── complaint.py            # 投诉工单模型 (ComplaintTicket)
-│   │   ├── experiment.py           # A/B 实验模型 (Experiment / Variant / Assignment)
-│   │   ├── evaluation.py           # 在线评估模型 (MessageFeedback / QualityScore)
-│   │   └── state.py                # AgentState (LangGraph 状态定义)
+│   │   ├── observability.py        # 可观测性模型 (GraphExecutionLog / GraphNodeLog / SupervisorDecision)
+│   │   ├── memory.py               # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / RoutingRule / AgentConfigAuditLog)
+│   │   ├── complaint.py            # 投诉工单模型
+│   │   ├── evaluation.py           # 在线评估模型
+│   │   ├── experiment.py           # A/B 实验模型
+│   │   └── state.py                # AgentState + AgentProcessResult (LangGraph 状态定义)
 │   │
 │   ├── memory/                     # 记忆系统
 │   │   ├── __init__.py
+│   │   ├── AGENTS.md
 │   │   ├── structured_manager.py   # 结构化记忆管理器 (PostgreSQL)
 │   │   ├── vector_manager.py       # 向量对话记忆管理器 (Qdrant conversation_memory)
 │   │   ├── extractor.py            # 事实抽取器 (FactExtractor)
@@ -200,9 +215,16 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │
 ├── frontend/                       # React + TypeScript 前端
 │   ├── package.json                # npm 依赖
+│   ├── package-lock.json           # npm 锁定文件
+│   ├── .env.example                # 前端环境变量模板
 │   ├── vite.config.ts              # Vite 配置
 │   ├── tailwind.config.ts          # Tailwind 配置
+│   ├── postcss.config.mjs          # PostCSS 配置
 │   ├── tsconfig.json               # TypeScript 配置
+│   ├── tsconfig.node.json          # Node TypeScript 配置
+│   ├── eslint.config.js            # ESLint 配置
+│   ├── playwright.config.ts        # Playwright E2E 配置
+│   ├── components.json             # shadcn/ui 组件配置
 │   ├── index.html                  # C端入口
 │   ├── admin.html                  # B端入口
 │   └── src/
@@ -287,6 +309,7 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │           └── index.ts            # 统一类型导出
 │
 ├── scripts/                        # 辅助脚本
+│   ├── __init__.py
 │   ├── seed_data.py                # 数据库初始化
 │   ├── seed_large_data.py          # 大批量测试数据
 │   ├── seed_product_catalog.py     # 商品目录种子数据 (→ Qdrant product_catalog)
@@ -297,6 +320,9 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 ├── tests/                          # 后端测试
 │   ├── conftest.py                 # pytest 全局 fixtures
 │   ├── _db_config.py               # 测试数据库配置
+│   ├── _agents.py                  # 测试用 Agent mock
+│   ├── _llm.py                     # LLM 测试辅助
+│   ├── _reranker.py                # Reranker 测试辅助
 │   ├── AGENTS.md                   # 测试规范
 │   ├── test_auth_api.py            # 认证 API 测试
 │   ├── test_chat_api.py            # 聊天 API 测试
@@ -314,18 +340,58 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   ├── test_chat_utils.py          # 聊天工具测试
 │   ├── test_refund_tasks.py        # 退款任务测试
 │   ├── test_knowledge_admin.py     # 知识库管理 API 测试
+│   ├── test_knowledge_tasks.py     # 知识库同步任务测试
+│   ├── test_online_eval_service.py # 在线评估服务测试
 │   ├── test_users.py               # 用户模型测试
 │   ├── test_confidence_signals.py  # 置信度信号测试
 │   ├── test_observability_api.py   # 可观测性 API 测试
 │   ├── admin/                      # 管理员相关测试
 │   │   └── test_agent_config_api.py
 │   ├── agents/                     # Agent 单元测试
+│   │   ├── test_account.py
+│   │   ├── test_base_agent_memory.py
+│   │   ├── test_cart.py
+│   │   ├── test_logistics.py
+│   │   ├── test_payment.py
+│   │   ├── test_policy.py
+│   │   ├── test_product.py
+│   │   └── test_supervisor.py
 │   ├── tools/                      # Tool 单元测试
+│   │   ├── test_account_tool.py
+│   │   ├── test_cart_tool.py
+│   │   ├── test_logistics_tool.py
+│   │   ├── test_payment_tool.py
+│   │   ├── test_product_tool.py
+│   │   └── test_registry.py
 │   ├── graph/                      # LangGraph 测试
+│   │   ├── test_memory_integration.py
+│   │   ├── test_nodes.py
+│   │   ├── test_parallel.py
+│   │   └── test_workflow.py
 │   ├── intent/                     # 意图模块测试
+│   │   ├── test_clarification.py
+│   │   ├── test_classifier.py
+│   │   ├── test_config.py
+│   │   ├── test_models.py
+│   │   ├── test_multi_intent.py
+│   │   ├── test_safety.py
+│   │   ├── test_service.py
+│   │   ├── test_slot_validator.py
+│   │   └── test_topic_switch.py
 │   ├── memory/                     # 记忆系统测试
+│   │   ├── test_extractor.py
+│   │   ├── test_memory_tasks.py
+│   │   ├── test_structured_manager.py
+│   │   ├── test_summarizer.py
+│   │   └── test_vector_manager.py
 │   ├── evaluation/                 # 离线评估测试
+│   │   └── test_pipeline.py
 │   ├── retrieval/                  # RAG 检索测试
+│   │   ├── test_client.py
+│   │   ├── test_reranker.py
+│   │   ├── test_retriever.py
+│   │   ├── test_rewriter.py
+│   │   └── test_sparse_embedder.py
 │   └── integration/                # 集成测试
 │       └── test_workflow_invoke.py
 │
@@ -334,12 +400,7 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 │   ├── return_policy.md            # 退货政策文档
 │   └── products.json               # 商品目录种子数据
 ├── migrations/                     # Alembic 数据库迁移
-├── celery_worker.py                # Celery Worker 启动
-├── start.sh                        # 项目一键启动脚本
-├── start_worker.sh                 # 单独启动 Celery Worker
-├── docker-compose.yaml             # Docker Compose 配置
-├── .pre-commit-config.yaml         # pre-commit 配置
-└── pyproject.toml                  # Python 项目配置 (uv)
+└── .pre-commit-config.yaml         # pre-commit 配置
 
 ```
 
@@ -355,7 +416,7 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 *   **Celery**：异步任务队列，处理耗时操作（如退款支付、短信通知、知识库 ETL 同步、记忆抽取、告警通知）。
 *   **React 19 + TypeScript**：现代前端框架，构建 C 端用户界面和 B 端管理后台。
 *   **Vite**：前端构建工具，支持多页面配置。
-*   **Tailwind CSS + shadcn/ui**：原子化 CSS 和组件库，实现现代化设计系统。
+*   **Tailwind CSS + PostCSS + shadcn/ui**：原子化 CSS 和组件库，实现现代化设计系统。
 *   **Zustand + TanStack Query**：状态管理，区分客户端状态和服务端状态。
 *   **React Router v7**：前端路由管理。
 *   **Python >= 3.12**：后端运行环境。
@@ -402,8 +463,8 @@ uv run alembic upgrade head
 # 4. 启动 FastAPI
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 5. 启动 Celery Worker（另开终端）
-uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo
+# 5. 启动 Celery Worker（另开终端，含 Beat 定时任务）
+uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
 ```
 
 ### 前端开发模式
@@ -438,9 +499,15 @@ REDIS_PASSWORD=devpassword
 # Qdrant
 QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=...
+QDRANT_COLLECTION_NAME=knowledge_chunks
 
-# Reranker
+# Reranker / Rewriter（可选，不填时使用默认值）
 RERANK_BASE_URL=https://dashscope.aliyuncs.com/compatible-api/v1
+RERANK_MODEL=qwen3-rerank
+REWRITE_MODEL=qwen-turbo
+RERANK_TIMEOUT=10.0
+REWRITE_TIMEOUT=5.0
+REWRITE_CACHE_TTL_SECONDS=3600
 
 # LLM
 OPENAI_API_KEY=...
@@ -452,6 +519,30 @@ LLM_MODEL=qwen-plus
 EMBEDDING_MODEL=text-embedding-v3
 EMBEDDING_DIM=1024
 
+# LangSmith / LangChain tracing（可选，不填时使用默认值）
+LANGCHAIN_TRACING_V2=False
+LANGSMITH_API_KEY=
+LANGSMITH_PROJECT=ecommerce-smart-agent
+LANGSMITH_OTEL_ENABLED=False
+
+# Retriever（可选，不填时使用默认值）
+RETRIEVER_DENSE_TOPK=15
+RETRIEVER_SPARSE_TOPK=15
+RETRIEVER_RRF_K=60
+RETRIEVER_FINAL_TOPK=5
+RETRIEVER_MULTI_QUERY=False
+RETRIEVER_MULTI_QUERY_N=3
+
+# Confidence（可选，不填时使用默认值）
+CONFIDENCE__THRESHOLD=0.7
+CONFIDENCE__HIGH_THRESHOLD=0.8
+CONFIDENCE__MEDIUM_THRESHOLD=0.5
+CONFIDENCE__LOW_THRESHOLD=0.3
+CONFIDENCE__RAG_WEIGHT=0.3
+CONFIDENCE__LLM_WEIGHT=0.5
+CONFIDENCE__EMOTION_WEIGHT=0.2
+CONFIDENCE__EVALUATION_MODEL=qwen-turbo
+
 # Celery
 CELERY_BROKER_URL=redis://:devpassword@localhost:6379/0
 CELERY_RESULT_BACKEND=redis://:devpassword@localhost:6379/0
@@ -461,10 +552,23 @@ SECRET_KEY=...                    # openssl rand -hex 32
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
+# WebSocket（可选，不填时使用默认值）
+WEBSOCKET_HEARTBEAT_INTERVAL=30
+WEBSOCKET_RECONNECT_TIMEOUT=60
+
+# 退款规则与风控阈值（可选，不填时使用默认值）
+HIGH_RISK_REFUND_AMOUNT=2000.0
+MEDIUM_RISK_REFUND_AMOUNT=500.0
+REFUND_DEADLINE_DAYS=7
+
 # 其他
 ENABLE_OPENAPI_DOCS=True
 CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+KNOWLEDGE_UPLOAD_DIR=uploads/knowledge
+OTEL_EXPORTER_OTLP_ENDPOINT=
 ```
+
+> 完整环境变量列表（含 SMTP、告警阈值、Graph 路由限制等更多可选配置）请参考 `.env.example`。
 
 ## 🧪 测试
 
@@ -487,7 +591,7 @@ pre-commit install
 # 手动检查
 uv run ruff check app tests --fix
 uv run ruff format app tests
-uv run ty check --error-on-warning
+uv run ty check --error-on-warning app tests
 ```
 
 ## 🔄 CI/CD
@@ -495,7 +599,7 @@ uv run ty check --error-on-warning
 GitHub Actions 工作流位于 `.github/workflows/ci.yml`：
 - 触发条件：`push` / `pull_request` 到 `main`
 - 服务：PostgreSQL 16、Redis 7、Qdrant v1.16.3
-- 步骤：检出代码 → 设置 Python 3.12 + uv 0.6.5 → 创建 test database → Cache uv dependencies → `uv sync` 安装依赖 → Lint (`uv run ruff check app tests`) → 测试 (`uv run pytest --cov=app --cov-fail-under=75`)
+- 步骤：检出代码 → 设置 Python 3.12 + uv 0.6.5 → 创建 test database → Cache uv dependencies → `uv sync` 安装依赖 → Lint (`uv run ruff check app tests`) → 类型检查 (`uv run ty check --error-on-warning app tests`) → 离线评估测试 (`uv run pytest tests/evaluation/`) → 测试 (`uv run pytest --cov=app --cov-fail-under=75`)
 
 ### 订单查询
 <img src="assets/image/order_query.png" width="600" alt="订单查询" />

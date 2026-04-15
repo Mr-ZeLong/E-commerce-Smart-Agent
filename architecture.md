@@ -16,9 +16,16 @@ flowchart TB
             AUTH["/api/v1/login<br/>登录认证"]
             CHAT["/api/v1/chat<br/>聊天接口 (SSE)"]
             WS["/api/v1/ws<br/>WebSocket"]
-            ADMIN["/api/v1/admin<br/>管理员 API"]
+            ADMIN["/api/v1/admin<br/>管理员 API<br/>(任务 / 决策 / 知识库)"]
             KB_ADMIN["/admin/knowledge<br/>知识库管理"]
-            AGENT_CFG["/admin/agent-config<br/>Agent 配置中心"]
+            AGENT_CFG["/api/v1/admin/agents<br/>Agent 配置中心"]
+            COMPLAINT_ADMIN["/admin/complaints<br/>投诉工单"]
+            FEEDBACK_ADMIN["/admin/feedback<br/>反馈评估"]
+            EXPERIMENTS_ADMIN["/admin/experiments<br/>A/B 实验"]
+            ANALYTICS_ADMIN["/admin/analytics<br/>高级分析"]
+            EVAL_ADMIN["/admin/evaluation<br/>离线评估"]
+            METRICS_ADMIN["/admin/metrics<br/>指标监控"]
+            CONV_ADMIN["/admin/conversations<br/>会话日志"]
             STATUS["/api/v1/status<br/>状态查询"]
         end
     end
@@ -41,6 +48,7 @@ flowchart TB
             SUB_LOGISTICS["logistics<br/>Subgraph"]
             SUB_ACCOUNT["account<br/>Subgraph"]
             SUB_PAYMENT["payment<br/>Subgraph"]
+            SUB_COMPLAINT["complaint<br/>Subgraph"]
         end
 
         subgraph Nodes["📍 节点定义"]
@@ -85,6 +93,7 @@ flowchart TB
             TBL_FACT[(user_facts<br/>原子事实)]
             TBL_AGENT_CFG[(agent_configs<br/>Agent 配置)]
             TBL_AGENT_AUDIT[(agent_config_audit_logs<br/>配置审计)]
+            TBL_ROUTING[(routing_rules<br/>路由规则)]
             TBL_COMPLAINT[(complaint_tickets<br/>投诉工单)]
 
             TBL_FEEDBACK[(message_feedbacks<br/>用户反馈)]
@@ -105,6 +114,9 @@ flowchart TB
             TBL_AUDIT[(audit_logs<br/>审计日志表)]
             TBL_MSG[(message_cards<br/>消息卡片表)]
             TBL_KB[(knowledge_documents<br/>知识库文档表)]
+            TBL_EXPERIMENTS[(experiments<br/>A/B 实验)]
+            TBL_EXPERIMENT_VAR[(experiment_variants<br/>实验变体)]
+            TBL_EXPERIMENT_ASSIGN[(experiment_assignments<br/>实验分配)]
         end
 
         subgraph Qdrant["🔷 Qdrant"]
@@ -139,7 +151,16 @@ flowchart TB
     ADMIN --> REFUND_SVC
     KB_ADMIN --> KB_TASKS
     AGENT_CFG --> MemoryLayer
+    COMPLAINT_ADMIN --> DB
+    FEEDBACK_ADMIN --> DB
+    EXPERIMENTS_ADMIN --> DB
+    ANALYTICS_ADMIN --> DB
+    EVAL_ADMIN --> DB
+    METRICS_ADMIN --> DB
+    CONV_ADMIN --> DB
     WS --> WS_MGR
+    ADMIN --> TBL_EXPERIMENTS
+    AGENT_CFG --> TBL_ROUTING
 
     GRAPH --> Nodes
     Nodes --> State
@@ -203,6 +224,7 @@ flowchart LR
     SUPERVISOR -->|"串行"| LOGISTICS["🚚 logistics\nSubgraph"]
     SUPERVISOR -->|"串行"| ACCOUNT["👤 account\nSubgraph"]
     SUPERVISOR -->|"串行"| PAYMENT["💳 payment\nSubgraph"]
+    SUPERVISOR -->|"串行"| COMPLAINT["📋 complaint\nSubgraph"]
 
     POLICY --> SYNTHESIS["🔄 synthesis_node\n多 Agent 回复融合"]
     ORDER --> SYNTHESIS
@@ -211,6 +233,7 @@ flowchart LR
     LOGISTICS --> SYNTHESIS
     ACCOUNT --> SYNTHESIS
     PAYMENT --> SYNTHESIS
+    COMPLAINT --> SYNTHESIS
 
     SYNTHESIS --> EVAL["⚖️ evaluator_node\n置信度评估"]
     EVAL -->|"低置信度"| ROUTER
@@ -238,10 +261,16 @@ erDiagram
     users ||--o{ user_facts : "拥有"
     users ||--o{ complaint_tickets : "提交"
     users ||--o{ message_feedbacks : "提交"
+    users ||--o{ graph_execution_logs : "执行"
     orders ||--o{ refund_applications : "关联"
     orders ||--o{ audit_logs : "关联"
     orders ||--o{ complaint_tickets : "关联"
     refund_applications ||--o{ audit_logs : "触发"
+    graph_execution_logs ||--o{ graph_node_logs : "包含"
+    experiments ||--o{ experiment_variants : "包含"
+    experiments ||--o{ experiment_assignments : "分配"
+    experiment_variants ||--o{ experiment_assignments : "拥有"
+    users ||--o{ experiment_assignments : "参与"
 
 
 
@@ -267,6 +296,7 @@ erDiagram
         json items
         string tracking_number
         string shipping_address
+        datetime delivered_at
         datetime created_at
         datetime updated_at
     }
@@ -325,9 +355,11 @@ erDiagram
         int id PK
         string filename
         string storage_path
-        string doc_type
-        int chunk_count
-        string status
+        string content_type
+        int doc_size_bytes
+        string sync_status
+        string sync_message
+        datetime last_synced_at
         datetime created_at
         datetime updated_at
     }
@@ -416,8 +448,7 @@ erDiagram
         string urgency
         string status
         text description
-        text expected_resolution
-        text resolution_notes
+        string expected_resolution
         int assigned_to FK
         datetime created_at
         datetime updated_at
@@ -425,49 +456,124 @@ erDiagram
 
     message_feedbacks {
         int id PK
+        int user_id FK
         string thread_id
         int message_index
-        string sentiment
+        int score
         text comment
-        int user_id FK
         datetime created_at
     }
 
     quality_scores {
         int id PK
-        string thread_id
-        float coherence
-        float helpfulness
-        float safety
-        float overall
-        text reasoning
+        date score_date
+        string score_type
+        int total_sessions
+        float human_transfer_rate
+        float avg_confidence
+        float avg_turns
+        float implicit_satisfaction_rate
+        int explicit_upvotes
+        int explicit_downvotes
+        int immediate_transfer_count
+        int contradictory_followup_count
+        int low_confidence_retry_count
+        json intent_breakdown
+        json top_degraded_intents
+        json sample_trace_ids
         datetime created_at
+        datetime updated_at
+    }
+
+    graph_execution_logs {
+        int id PK
+        string thread_id
+        int user_id FK
+        string intent_category
+        string final_agent
+        float confidence_score
+        boolean needs_human_transfer
+        text langsmith_run_url
+        int total_latency_ms
+        datetime created_at
+    }
+
+    graph_node_logs {
+        int id PK
+        int execution_id FK
+        string node_name
+        int latency_ms
+        datetime created_at
+    }
+
+    experiments {
+        int id PK
+        string name
+        text description
+        string status
+        json target_dimensions
+        datetime created_at
+        datetime updated_at
+    }
+
+    experiment_variants {
+        int id PK
+        int experiment_id FK
+        string name
+        int weight
+        text system_prompt
+        string llm_model
+        int retriever_top_k
+        boolean reranker_enabled
+        json extra_config
+        datetime created_at
+        datetime updated_at
+    }
+
+    experiment_assignments {
+        int id PK
+        int experiment_id FK
+        int variant_id FK
+        int user_id FK
+        datetime created_at
+    }
+
+    routing_rules {
+        int id PK
+        string intent_category
+        string target_agent
+        int priority
+        json condition_json
+        datetime created_at
+        datetime updated_at
     }
 
     knowledge_chunks[Qdrant Collection: knowledge_chunks] {
-        string source
         text content
+        string source
+        json meta_data
         vector embedding
-        boolean is_active
-        datetime created_at
     }
 
     product_catalog[Qdrant Collection: product_catalog] {
-        string source
-        text content
+        string name
+        text description
+        float price
+        string category
+        string sku
+        boolean in_stock
+        json attributes
         vector embedding
-        json meta_data
-        datetime created_at
     }
 
     conversation_memory[Qdrant Collection: conversation_memory] {
+        int user_id
         string thread_id
-        string message_id
-        string role
+        string message_role
         text content
+        datetime timestamp
+        string intent
         vector embedding
-        json meta_data
-        datetime created_at
     }
 ```
 
@@ -546,6 +652,7 @@ sequenceDiagram
         AdminSvc->>Celery: process_refund_payment
         AdminSvc->>Celery: send_refund_sms
         AdminSvc->>WS: 通知状态变更
+        Note over WS,CUI: 前端 WebSocket 集成待实现
         WS-->>CUI: 审核结果通知
         CUI-->>User: 显示审核通过
     end
@@ -771,7 +878,7 @@ sequenceDiagram
     participant Graph as LangGraph
 
     Admin->>ADM: 修改 Agent 系统提示词 / 路由规则
-    ADM->>API: PUT /api/v1/admin/agent-config/{agent_name}
+    ADM->>API: PUT /api/v1/admin/agents/{agent_name}
     API->>Svc: update_agent_config()
     Svc->>DB: UPDATE agent_configs (version ++)
     Svc->>DB: INSERT agent_config_audit_logs
@@ -807,7 +914,7 @@ flowchart TB
         B1["LangGraph\nSupervisor-based 工作流引擎 (含 memory_node)"]
         B2["意图识别\nIntent Router + 多意图独立判断"]
         B3["RAG 检索\nDense + Sparse + Rerank + Rewriter"]
-        B4["专家 Agent 舰队\nProduct / Cart / Order / Policy / Logistics / Account / Payment"]
+        B4["专家 Agent 舰队\nProduct / Cart / Order / Policy / Logistics / Account / Payment / Complaint"]
         B5["退货服务\nRefund Service"]
         B6["记忆系统\nStructured + Vector + Extractor + Summarizer"]
         B7["Agent 配置中心\n热重载 + 路由规则 + 审计日志"]
@@ -847,7 +954,9 @@ flowchart TB
 E-commerce-Smart-Agent/
 ├── 📄 README.md                    # 项目文档
 ├── 📄 architecture.md              # 系统架构文档
+├── 📄 AGENTS.md                    # AI Agent 开发规范
 ├── 📄 .env.example                 # 环境变量模板
+├── 📄 .gitignore                   # Git 忽略规则
 ├── 📄 alembic.ini                  # Alembic 迁移配置
 ├── 📄 pyproject.toml               # Python 项目配置 (uv)
 ├── 📄 uv.lock                      # uv 依赖锁定文件
@@ -862,7 +971,8 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 auth.py              # 认证接口 (登录)
 │   │   ├── 📄 chat.py              # 聊天接口 (SSE 流式)
 │   │   ├── 📄 chat_utils.py        # SSE 流式响应工具
-│   │   ├── 📁 admin/               # 管理员接口 (含知识库 CRUD + 同步)
+│   │   ├── 📁 admin/               # 管理员接口
+│   │   │   ├── 📄 __init__.py      # 管理员核心 API (任务 / 决策 / 评估 / 指标 / 会话 / 知识库) + 子路由聚合
 │   │   │   ├── 📄 agent_config.py  # Agent 配置中心 API (路由规则 / 提示词 / 审计日志)
 │   │   │   ├── 📄 complaints.py    # 投诉工单管理 API
 │   │   │   ├── 📄 experiments.py   # A/B 实验管理 API
@@ -873,6 +983,7 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 schemas.py           # Pydantic 数据模型
 │   │
 │   ├── 📁 core/                    # 核心基础设施
+│   │   ├── 📄 __init__.py
 │   │   ├── 📄 config.py            # 配置管理 (Pydantic Settings)
 │   │   ├── 📄 database.py          # 数据库连接 (SQLModel)
 │   │   ├── 📄 redis.py             # 统一 Redis 客户端
@@ -883,35 +994,47 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 email.py             # 邮件发送工具
 │   │   └── 📄 utils.py             # 工具函数（utc_now 等）
 │   │
+│   ├── 📁 observability/           # 可观测性基础设施
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 otel_setup.py        # OpenTelemetry 初始化
+│   │   └── 📄 execution_logger.py  # Graph 执行日志记录器
+│   │
 │   ├── 📁 models/                  # 数据库模型 (SQLModel)
+│   │   ├── 📄 __init__.py
 │   │   ├── 📄 user.py              # 用户表
 │   │   ├── 📄 order.py             # 订单表
 │   │   ├── 📄 refund.py            # 退款申请表
 │   │   ├── 📄 audit.py             # 审计日志表
 │   │   ├── 📄 message.py           # 消息卡片表
 │   │   ├── 📄 knowledge_document.py # 知识库文档表
-│   │   ├── 📄 observability.py     # 可观测性模型
-│   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig)
+│   │   ├── 📄 observability.py     # 可观测性模型 (GraphExecutionLog / GraphNodeLog / SupervisorDecision)
+│   │   ├── 📄 memory.py            # 记忆模型 (UserProfile / UserPreference / InteractionSummary / UserFact / AgentConfig / RoutingRule / AgentConfigAuditLog)
 │   │   ├── 📄 complaint.py         # 投诉工单模型
-
 │   │   ├── 📄 evaluation.py        # 在线评估模型
-│   │   └── 📄 state.py             # AgentState TypedDict
+│   │   ├── 📄 experiment.py        # A/B 实验模型
+│   │   └── 📄 state.py             # AgentState + AgentProcessResult TypedDict
 │   │
 │   ├── 📁 memory/                  # 记忆系统
 │   │   ├── 📄 __init__.py
+│   │   ├── 📄 AGENTS.md
 │   │   ├── 📄 structured_manager.py # 结构化记忆管理器 (PostgreSQL)
 │   │   ├── 📄 vector_manager.py    # 向量对话记忆管理器 (Qdrant conversation_memory)
 │   │   ├── 📄 extractor.py         # 事实抽取器 (FactExtractor)
 │   │   └── 📄 summarizer.py        # 会话摘要器 (SessionSummarizer)
 │   │
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 AGENTS.md
 │   │   ├── 📄 workflow.py          # 工作流定义 (含 Supervisor 模式与兼容模式)
 │   │   ├── 📄 nodes.py             # 节点定义 (router / memory / supervisor / synthesis / evaluator / decider)
 │   │   ├── 📄 subgraphs.py         # Agent Subgraph 标准化封装
 │   │   └── 📄 parallel.py          # 并行多意图调度 (plan_dispatch + build_parallel_sends)
 │   │
 │   ├── 📁 agents/                  # Agent 实现层
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 AGENTS.md
 │   │   ├── 📄 base.py              # Agent 基类
+│   │   ├── 📄 config_loader.py     # Agent 配置与路由规则加载
 │   │   ├── 📄 router.py            # IntentRouterAgent
 │   │   ├── 📄 supervisor.py        # SupervisorAgent (串行/并行调度)
 │   │   ├── 📄 order.py             # 订单 Agent
@@ -939,10 +1062,18 @@ E-commerce-Smart-Agent/
 │   │   ├── 📄 __init__.py
 │   │   └── 📄 signals.py           # 置信度评估信号计算
 │   │
+│   ├── 📁 evaluation/              # 离线评估
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 pipeline.py          # 评估流水线 (Golden Dataset)
+│   │   └── 📄 metrics.py           # 评估指标计算
+│   │
 │   ├── 📁 utils/                   # 通用工具函数
+│   │   ├── 📄 __init__.py
 │   │   └── 📄 order_utils.py       # 订单相关工具
 │   │
 │   ├── 📁 intent/                  # 意图识别模块
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 AGENTS.md
 │   │   ├── 📄 service.py           # IntentRecognitionService (Redis 会话/缓存)
 │   │   ├── 📄 models.py            # 意图/槽位/澄清状态数据模型
 │   │   ├── 📄 config.py            # 意图识别配置
@@ -954,6 +1085,7 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 safety.py            # 安全过滤器
 │   │
 │   ├── 📁 retrieval/               # RAG 检索层
+│   │   ├── 📄 __init__.py
 │   │   ├── 📄 client.py            # 检索客户端
 │   │   ├── 📄 embeddings.py        # 向量嵌入
 │   │   ├── 📄 retriever.py         # 检索器
@@ -962,13 +1094,14 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 sparse_embedder.py   # 稀疏嵌入
 │   │
 │   ├── 📁 services/                # 业务服务层
+│   │   ├── 📄 __init__.py
 │   │   ├── 📄 refund_service.py    # 退货业务逻辑
 │   │   ├── 📄 status_service.py    # 状态服务
 │   │   ├── 📄 order_service.py     # 订单服务
 │   │   ├── 📄 admin_service.py     # 管理员服务
 │   │   ├── 📄 auth_service.py      # 认证服务
 │   │   ├── 📄 experiment.py        # A/B 实验服务
-
+│   │   ├── 📄 experiment_assigner.py # 实验流量分配
 │   │   └── 📄 online_eval.py       # 在线评估服务
 │   │
 │   ├── 📁 schemas/                 # 共享 Schema
@@ -986,12 +1119,14 @@ E-commerce-Smart-Agent/
 │   │   └── 📄 notifications.py     # 告警通知任务
 │   │
 │   ├── 📁 websocket/               # WebSocket 服务
+│   │   ├── 📄 __init__.py
 │   │   └── 📄 manager.py           # 连接管理器
 │   │
 │
 ├── 📁 frontend/                    # React 前端 (Vite + TypeScript)
 │   ├── 📄 package.json             # npm 依赖配置
 │   ├── 📄 package-lock.json        # npm 锁定文件
+│   ├── 📄 .env.example             # 前端环境变量模板
 │   ├── 📄 vite.config.ts           # Vite 多页面配置
 │   ├── 📄 tailwind.config.ts       # Tailwind CSS 配置
 │   ├── 📄 tsconfig.json            # TypeScript 配置
@@ -1008,6 +1143,7 @@ E-commerce-Smart-Agent/
 │       │   ├── 📁 customer/        # C端用户应用
 │       │   │   ├── 📄 App.tsx
 │       │   │   ├── 📄 main.tsx
+│       │   │   ├── 📄 AGENTS.md
 │       │   │   ├── 📁 hooks/
 │       │   │   │   └── 📄 useChat.ts
 │       │   │   └── 📁 components/
@@ -1017,6 +1153,7 @@ E-commerce-Smart-Agent/
 │       │   └── 📁 admin/           # B端管理后台
 │       │       ├── 📄 App.tsx
 │       │       ├── 📄 main.tsx
+│       │       ├── 📄 AGENTS.md
 │       │       ├── 📁 pages/
 │       │       │   ├── 📄 Login.tsx
 │       │       │   ├── 📄 Dashboard.tsx
@@ -1080,11 +1217,11 @@ E-commerce-Smart-Agent/
 │       │   └── 📄 useExperiments.ts    # A/B 实验 Hooks
 │       ├── 📁 types/               # TypeScript 类型定义
 │       │   └── 📄 index.ts         # 统一类型导出
+│       └── 📄 env.d.ts             # Vite 环境类型声明
 │
 ├── 📄 start.sh                     # 本地一键启动脚本
 ├── 📄 start_worker.sh              # 单独启动 Celery Worker
 ├── 📄 Dockerfile                   # 容器构建配置
-├── 📄 alembic.ini                  # Alembic 迁移配置
 │
 ├── 📁 scripts/                     # 辅助脚本
 │   ├── 📄 __init__.py
@@ -1117,6 +1254,10 @@ E-commerce-Smart-Agent/
 └── 📁 tests/                       # 测试文件
     ├── 📄 conftest.py              # pytest 全局 fixtures
     ├── 📄 _db_config.py            # 测试数据库配置
+    ├── 📄 _agents.py               # 测试用 Agent mock
+    ├── 📄 _llm.py                  # LLM 测试辅助
+    ├── 📄 _reranker.py             # Reranker 测试辅助
+    ├── 📄 AGENTS.md                # 测试规范
     ├── 📄 test_auth_api.py         # 认证 API 测试
     ├── 📄 test_chat_api.py         # 聊天 API 测试
     ├── 📄 test_admin_api.py        # 管理员 API 测试
@@ -1133,14 +1274,60 @@ E-commerce-Smart-Agent/
     ├── 📄 test_chat_utils.py       # 聊天工具测试
     ├── 📄 test_refund_tasks.py     # 退款任务测试
     ├── 📄 test_knowledge_admin.py  # 知识库管理 API 测试
+    ├── 📄 test_knowledge_tasks.py  # 知识库同步任务测试
+    ├── 📄 test_online_eval_service.py # 在线评估服务测试
     ├── 📄 test_users.py            # 用户模型测试
     ├── 📄 test_confidence_signals.py # 置信度信号测试
+    ├── 📄 test_observability_api.py # 可观测性 API 测试
+    ├── 📁 admin/                   # 管理员相关测试
+    │   └── 📄 test_agent_config_api.py
     ├── 📁 agents/                  # Agent 单元测试
-    ├── 📁 tools/                   # Tool 单元测试 (product_tool / cart_tool)
+    │   ├── 📄 test_account.py
+    │   ├── 📄 test_base_agent_memory.py
+    │   ├── 📄 test_cart.py
+    │   ├── 📄 test_logistics.py
+    │   ├── 📄 test_payment.py
+    │   ├── 📄 test_policy.py
+    │   ├── 📄 test_product.py
+    │   └── 📄 test_supervisor.py
+    ├── 📁 tools/                   # Tool 单元测试
+    │   ├── 📄 test_account_tool.py
+    │   ├── 📄 test_cart_tool.py
+    │   ├── 📄 test_logistics_tool.py
+    │   ├── 📄 test_payment_tool.py
+    │   ├── 📄 test_product_tool.py
+    │   └── 📄 test_registry.py
     ├── 📁 graph/                   # LangGraph 测试
+    │   ├── 📄 test_memory_integration.py
+    │   ├── 📄 test_nodes.py
+    │   ├── 📄 test_parallel.py
+    │   └── 📄 test_workflow.py
     ├── 📁 intent/                  # 意图模块测试
+    │   ├── 📄 test_clarification.py
+    │   ├── 📄 test_classifier.py
+    │   ├── 📄 test_config.py
+    │   ├── 📄 test_models.py
+    │   ├── 📄 test_multi_intent.py
+    │   ├── 📄 test_safety.py
+    │   ├── 📄 test_service.py
+    │   ├── 📄 test_slot_validator.py
+    │   └── 📄 test_topic_switch.py
+    ├── 📁 memory/                  # 记忆系统测试
+    │   ├── 📄 test_extractor.py
+    │   ├── 📄 test_memory_tasks.py
+    │   ├── 📄 test_structured_manager.py
+    │   ├── 📄 test_summarizer.py
+    │   └── 📄 test_vector_manager.py
+    ├── 📁 evaluation/              # 离线评估测试
+    │   └── 📄 test_pipeline.py
     ├── 📁 retrieval/               # RAG 检索测试
+    │   ├── 📄 test_client.py
+    │   ├── 📄 test_reranker.py
+    │   ├── 📄 test_retriever.py
+    │   ├── 📄 test_rewriter.py
+    │   └── 📄 test_sparse_embedder.py
     └── 📁 integration/             # 集成测试
+        └── 📄 test_workflow_invoke.py
 ```
 
 ## 7. 核心特性
@@ -1167,13 +1354,12 @@ E-commerce-Smart-Agent/
 | **退货流程** | 多步骤退货申请流程 | LangGraph 状态机 |
 | **智能风控** | 按金额分级风控 (¥500/¥2000 阈值) | 规则引擎 |
 | **人工审核** | 高风险订单转人工审核 | 审计日志 + 管理后台 |
-| **实时通知** | WebSocket 状态同步 | ConnectionManager |
+| **实时通知** | 后端提供 WebSocket 状态同步端点，前端集成待实现 | ConnectionManager |
 | **异步任务** | 退款支付、短信通知、知识库 ETL 同步异步处理 | Celery + Redis |
 | **多租户隔离** | 用户只能访问自己的订单和购物车 | JWT + 数据隔离 |
 | **智能投诉处理** | `ComplaintAgent` 自动识别投诉意图并分类，支持工单创建与分配 | `app/agents/complaint.py` + `ComplaintTicket` |
-
 | **在线评估** | 用户反馈收集 (👍/👎)、CSAT 计算、LLM 自动质量评分 | `app/services/online_eval.py` + `MessageFeedback` |
-| **自动告警** | 定时检测服务质量下降，邮件/WebSocket 通知管理员 | `app/tasks/notifications.py` + Celery Beat |
+| **自动告警** | 定时检测服务质量下降，邮件通知管理员（WebSocket 推送待实现） | `app/tasks/notifications.py` + Celery Beat |
 | **高级分析** | CSAT 趋势、投诉根因、Agent 对比、LangSmith Trace | `AnalyticsV2` + `app/api/v1/admin/analytics.py` |
 
 ## 8. 启动流程
@@ -1209,4 +1395,6 @@ CI 流程：
 4. Cache uv dependencies (`actions/cache@v4`)
 5. `uv sync` 安装依赖
 6. `uv run ruff check app tests`
-7. `uv run pytest --cov=app --cov-fail-under=75`
+7. `uv run ty check --error-on-warning app tests`
+8. `uv run pytest tests/evaluation/ -v -s`
+9. `uv run pytest --cov=app --cov-fail-under=75`
