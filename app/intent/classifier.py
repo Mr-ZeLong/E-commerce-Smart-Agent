@@ -152,9 +152,12 @@ class IntentClassifier:
         self, query: str, context: dict[str, Any] | None = None
     ) -> IntentResult | None:
         messages = self._create_messages(query, context)
+        tool_choice: Any = {"type": "function", "function": {"name": "classify_intent"}}
+        if "dashscope" in settings.OPENAI_BASE_URL.lower() or settings.LLM_MODEL.startswith("qwen"):
+            tool_choice = "auto"
         llm_with_tools = self.llm.bind_tools(
             [self.INTENT_FUNCTION_SCHEMA],
-            tool_choice={"type": "function", "function": {"name": "classify_intent"}},  # type: ignore
+            tool_choice=tool_choice,  # type: ignore
         )
         response = await llm_with_tools.ainvoke(messages)
         tool_calls = response.tool_calls or []

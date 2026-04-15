@@ -129,8 +129,8 @@ SLOT_PRIORITY_CONFIG: dict[str, dict[str, dict[str, list[str]]]] = {
     },
     "ORDER": {
         "QUERY": {
-            "P0": ["order_sn"],  # 可为"最近订单"
-            "P1": ["query_type"],
+            "P0": [],
+            "P1": ["order_sn", "query_type"],
             "P2": ["phone"],
         },
         "MODIFY": {

@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any
 
 from sqlalchemy import JSON, Column, DateTime, String, Text, text
+from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
 from app.core.utils import utc_now
@@ -82,7 +83,9 @@ class AuditLog(SQLModel, table=True):
     # 触发类型
     trigger_type: AuditTriggerType = Field(
         default=AuditTriggerType.RISK,
-        sa_column=Column(String, index=True, nullable=False),
+        sa_column=Column(
+            SAEnum(AuditTriggerType, name="audittriggertype"), index=True, nullable=False
+        ),
         description="触发审核的类型",
     )
 

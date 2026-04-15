@@ -7,6 +7,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import Command
 from opentelemetry import trace
 from pydantic import BaseModel
 
@@ -152,7 +153,7 @@ async def chat(
 
                     # v4.1: 捕获 on_chain_end 事件获取最终状态
                     elif kind == "on_chain_end":
-                        output = event.get("data", {}).get("output", {})
+                        raw_output = event.get("data", {}).get("output", {})
                         metadata = event.get("metadata", {})
                         langgraph_node = metadata.get("langgraph_node", "")
 
@@ -165,7 +166,16 @@ async def chat(
                             )
                             del node_start_times[run_id]
 
-                        if output and isinstance(output, dict):
+                        # LangGraph 1.1+ returns Command objects for nodes that use Command;
+                        # unwrap the update dict so answer/confidence fields are accessible.
+                        if isinstance(raw_output, Command):
+                            output = raw_output.update
+                        elif isinstance(raw_output, dict):
+                            output = raw_output
+                        else:
+                            output = {}
+
+                        if output:
                             # 从 router/policy/order/logistics/account/payment 节点获取 answer 发送给用户
                             # (对于 OrderAgent 等非 LLM 节点，answer 直接来自 state)
                             if (

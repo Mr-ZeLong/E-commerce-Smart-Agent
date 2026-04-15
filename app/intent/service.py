@@ -51,6 +51,12 @@ class IntentRecognitionService:
 
         cached_result = await self._get_cached_result(query)
         if cached_result:
+            # Ensure session state exists so clarify() can resolve missing slots
+            state = await self._load_session_state(session_id)
+            if state is None:
+                state = ClarificationState(session_id=session_id)
+            state.current_intent = cached_result
+            await self._save_session_state(state)
             return cached_result
 
         state = await self._load_session_state(session_id)
@@ -83,9 +89,10 @@ class IntentRecognitionService:
             result.needs_clarification = True
             result.missing_slots = validation.missing_p0_slots
 
-        if state:
-            state.current_intent = result
-            await self._save_session_state(state)
+        if state is None:
+            state = ClarificationState(session_id=session_id)
+        state.current_intent = result
+        await self._save_session_state(state)
 
         await self._cache_result(query, result)
         return result

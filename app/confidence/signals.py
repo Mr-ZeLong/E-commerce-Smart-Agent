@@ -147,7 +147,7 @@ async def calculate_llm_signal(
 ) -> SignalResult:
     """计算 LLM 自我评估信号"""
     _ = context
-    structured_llm = llm.with_structured_output(LLMConfidenceScore, method="json_mode")
+    structured_llm = llm.with_structured_output(LLMConfidenceScore, method="function_calling")
 
     prompt = f"""评估回答置信度（0-1）：
 问题：{query}

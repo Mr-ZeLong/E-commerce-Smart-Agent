@@ -200,5 +200,8 @@ class IntentRouterAgent(BaseAgent):
             if isinstance(result.primary_intent, IntentCategory)
             else str(result.primary_intent)
         )
-        fallback = _INTENT_MAPPINGS.get(result.primary_intent, "supervisor")
+        fallback = _INTENT_MAPPINGS.get(
+            result.primary_intent if isinstance(result.primary_intent, IntentCategory) else None,
+            "supervisor",
+        )
         return await get_target_agent_for_intent(intent_name, fallback=fallback)

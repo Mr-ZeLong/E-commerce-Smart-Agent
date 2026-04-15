@@ -42,7 +42,13 @@ class SupervisorAgent(BaseAgent):
 
         from app.agents.config_loader import get_target_agent_for_intent
 
-        primary_str = str(primary) if primary is not None else "OTHER"
+        primary_str = (
+            primary.value
+            if hasattr(primary, "value")
+            else str(primary)
+            if primary is not None
+            else "OTHER"
+        )
         primary_agent = await get_target_agent_for_intent(
             primary_str, fallback=_INTENT_TO_AGENT.get(primary_str, "policy_agent")
         )
