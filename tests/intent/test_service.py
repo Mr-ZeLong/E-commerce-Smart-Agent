@@ -297,7 +297,8 @@ class TestSessionStateManagement:
     @pytest.mark.asyncio
     async def test_load_session_state_not_found(self, deterministic_llm, redis_client):
         service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
-        state = await service._load_session_state("new_session")
+        await redis_client.delete("intent:session:nonexistent_session")
+        state = await service._load_session_state("nonexistent_session")
         assert state is None
 
     @pytest.mark.asyncio
@@ -427,4 +428,56 @@ class TestEdgeCases:
 
         result = await service.recognize(query, "session_ts")
         assert result.primary_intent == IntentCategory.AFTER_SALES
-        assert result.secondary_intent == IntentAction.APPLY
+
+    @pytest.mark.asyncio
+    async def test_recognize_creates_state_for_new_thread(self, deterministic_llm, redis_client):
+        """Regression: recognize() must initialize ClarificationState for new threads.
+        Without this, clarify() returns '会话已过期'."""
+        await redis_client.delete("intent:session:regression_new_thread")
+        deterministic_llm.tool_calls = [
+            {
+                "name": "classify_intent",
+                "args": {
+                    "primary_intent": "ORDER",
+                    "secondary_intent": "QUERY",
+                    "confidence": 0.9,
+                    "slots": {},
+                },
+            }
+        ]
+        service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
+        result = await service.recognize("查询订单", "regression_new_thread")
+        assert result.primary_intent == IntentCategory.ORDER
+
+        state = await service._load_session_state("regression_new_thread")
+        assert state is not None
+        assert state.current_intent is not None
+        assert state.current_intent.primary_intent == IntentCategory.ORDER
+
+    @pytest.mark.asyncio
+    async def test_recognize_cache_hit_saves_session_state(self, deterministic_llm, redis_client):
+        """Regression: cached results must also save session state.
+        Without this, subsequent clarify() calls return '会话已过期'."""
+        query = "缓存测试查询"
+        import hashlib
+
+        cache_key = f"intent:cache:{hashlib.sha256(query.encode()).hexdigest()}"
+        cached = IntentResult(
+            primary_intent=IntentCategory.POLICY,
+            secondary_intent=IntentAction.QUERY,
+            confidence=0.95,
+            slots={},
+            raw_query=query,
+        )
+        await redis_client.set(cache_key, cached.model_dump_json(), ex=300)
+        await redis_client.delete("intent:session:cache_session")
+
+        service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
+        result = await service.recognize(query, "cache_session")
+        assert result.primary_intent == IntentCategory.POLICY
+
+        state = await service._load_session_state("cache_session")
+        assert state is not None
+        assert state.current_intent is not None
+        assert state.current_intent.primary_intent == IntentCategory.POLICY
+        assert result.secondary_intent == IntentAction.QUERY

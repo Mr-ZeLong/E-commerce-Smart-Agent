@@ -365,3 +365,53 @@ async def test_invalid_function_result_falls_back_to_rules(classifier, determini
 
     assert result.primary_intent == IntentCategory.ORDER
     assert result.secondary_intent == IntentAction.QUERY
+
+
+# ========== Regression Tests for Critical LLM/Routing Bugs ==========
+
+
+@pytest.mark.asyncio
+async def test_dashscope_uses_auto_tool_choice(classifier, monkeypatch):
+    """Regression: DashScope/Qwen rejects object-format tool_choice in thinking mode.
+    Verify that tool_choice falls back to 'auto' for DashScope endpoints."""
+    monkeypatch.setattr(
+        "app.intent.classifier.settings.OPENAI_BASE_URL", "https://dashscope.aliyuncs.com/v1"
+    )
+    monkeypatch.setattr("app.intent.classifier.settings.LLM_MODEL", "qwen-max")
+
+    bound_tools_calls = []
+
+    class _FakeLLM:
+        async def ainvoke(self, messages):
+            return type("Resp", (), {"tool_calls": []})()
+
+        def bind_tools(self, tools, tool_choice):
+            bound_tools_calls.append(tool_choice)
+            return self
+
+    classifier.llm = _FakeLLM()
+    await classifier._classify_with_function_calling("测试")
+    assert bound_tools_calls == ["auto"]
+
+
+@pytest.mark.asyncio
+async def test_non_dashscope_uses_object_tool_choice(classifier, monkeypatch):
+    """Verify non-DashScope endpoints still use object-format tool_choice."""
+    monkeypatch.setattr(
+        "app.intent.classifier.settings.OPENAI_BASE_URL", "https://api.openai.com/v1"
+    )
+    monkeypatch.setattr("app.intent.classifier.settings.LLM_MODEL", "gpt-4o")
+
+    bound_tools_calls = []
+
+    class _FakeLLM:
+        async def ainvoke(self, messages):
+            return type("Resp", (), {"tool_calls": []})()
+
+        def bind_tools(self, tools, tool_choice):
+            bound_tools_calls.append(tool_choice)
+            return self
+
+    classifier.llm = _FakeLLM()
+    await classifier._classify_with_function_calling("测试")
+    assert bound_tools_calls == [{"type": "function", "function": {"name": "classify_intent"}}]

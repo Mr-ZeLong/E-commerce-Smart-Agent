@@ -112,4 +112,20 @@ def test_are_independent():
     assert are_independent("ORDER", "POLICY") is True
     assert are_independent("PRODUCT", "POLICY") is True
     assert are_independent("CART", "PAYMENT") is False
+
+
+@pytest.mark.asyncio
+async def test_supervisor_routes_with_enum_value(supervisor):
+    """Regression: str(IntentCategory.ORDER) returns 'IntentCategory.ORDER'.
+    Ensure routing works when primary_intent is an enum instance."""
+    from app.intent.models import IntentCategory
+
+    state = make_agent_state(
+        question="查询订单",
+        intent_result={"primary_intent": IntentCategory.ORDER},
+        slots={},
+    )
+    result = await supervisor.process(state)
+    updated = result["updated_state"]
+    assert updated["next_agent"] == "order_agent"
     assert are_independent("ORDER", "ORDER") is False

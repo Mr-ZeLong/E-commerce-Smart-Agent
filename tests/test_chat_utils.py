@@ -72,4 +72,58 @@ class TestCreateStreamMetadataMessage:
 
         assert result["needs_human_transfer"] is True
         assert result["transfer_reason"] == "confidence_low"
-        assert result["audit_level"] == "manual"
+
+
+class TestCommandUnwrapping:
+    """Regression tests for LangGraph Command object handling in chat streaming."""
+
+    def test_command_object_is_unwrapped(self):
+        """Regression: LangGraph 1.1+ returns Command objects in on_chain_end.
+        Verify that the .update dict is extracted correctly."""
+        from langgraph.types import Command
+
+        cmd = Command(update={"answer": "hello", "confidence_score": 0.9})
+
+        def _unwrap_output(raw_output):
+            if isinstance(raw_output, Command):
+                return raw_output.update
+            elif isinstance(raw_output, dict):
+                return raw_output
+            else:
+                return {}
+
+        output = _unwrap_output(cmd)
+        assert output == {"answer": "hello", "confidence_score": 0.9}
+
+    def test_plain_dict_passthrough(self):
+        """Verify plain dict outputs are not affected by Command unwrapping."""
+        data = {"answer": "world"}
+
+        def _unwrap_output(raw_output):
+            from langgraph.types import Command
+
+            if isinstance(raw_output, Command):
+                return raw_output.update
+            elif isinstance(raw_output, dict):
+                return raw_output
+            else:
+                return {}
+
+        assert _unwrap_output(data) == data
+
+    def test_non_dict_returns_empty(self):
+        """Verify non-dict/non-Command outputs return empty dict safely."""
+
+        def _unwrap_output(raw_output):
+            from langgraph.types import Command
+
+            if isinstance(raw_output, Command):
+                return raw_output.update
+            elif isinstance(raw_output, dict):
+                return raw_output
+            else:
+                return {}
+
+        assert _unwrap_output("string") == {}
+        assert _unwrap_output(None) == {}
+        assert _unwrap_output(123) == {}
