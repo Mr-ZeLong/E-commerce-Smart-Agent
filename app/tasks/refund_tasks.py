@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any
 
-from sqlmodel import select, Session
+from sqlmodel import Session, select
 
 from app.celery_app import celery_app
 from app.core.database import sync_session_maker

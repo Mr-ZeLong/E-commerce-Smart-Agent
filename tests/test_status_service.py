@@ -10,7 +10,6 @@ from app.models.user import User
 from app.schemas.status import StatusResponse
 from app.services.status_service import StatusService
 
-
 USER_ID = 42
 THREAD_ID = "thread-abc"
 SCOPED_THREAD_ID = build_thread_id(USER_ID, THREAD_ID)

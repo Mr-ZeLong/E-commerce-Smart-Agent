@@ -9,7 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from app.core.database import async_session_maker
 from app.core.security import create_access_token
 from app.main import app
-from app.models.state import AgentState, make_agent_state
+from app.models.state import AgentState
 from app.models.user import User
 
 EXPECTED_AGENT_STATE_KEYS = set(AgentState.__annotations__.keys())

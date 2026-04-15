@@ -64,12 +64,13 @@ def db_sync_session():
 async def redis_client():
     client = create_redis_client()
     prefix = f"test:{uuid.uuid4().hex}:"
-    client._test_prefix = prefix
+    object.__setattr__(client, "_test_prefix", prefix)
     try:
         yield client
     finally:
         keys = []
-        async for key in client.scan_iter(match=f"{prefix}*"):
+        stored_prefix = object.__getattribute__(client, "_test_prefix")
+        async for key in client.scan_iter(match=f"{stored_prefix}*"):
             keys.append(key)
         if keys:
             await client.delete(*keys)

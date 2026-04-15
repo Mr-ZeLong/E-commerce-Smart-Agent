@@ -12,7 +12,8 @@ from tests._llm import DeterministicChatModel
 @pytest_asyncio.fixture(autouse=True, loop_scope="session")
 async def _clear_routing_rules():
     async with async_session_maker() as session:
-        await session.execute(text("DELETE FROM routing_rules"))
+        conn = await session.connection()
+        await conn.execute(text("DELETE FROM routing_rules"))
         await session.commit()
     yield
 

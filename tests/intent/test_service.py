@@ -6,7 +6,6 @@ from datetime import datetime
 
 import pytest
 
-from app.intent.clarification import ClarificationResponse
 from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
 from app.intent.safety import SafetyCheckResult
 from app.intent.service import IntentRecognitionService

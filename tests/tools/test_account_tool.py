@@ -2,7 +2,7 @@ import pytest
 
 from app.models.state import make_agent_state
 from app.models.user import User
-from app.tools.account_tool import AccountTool, _MEMBERSHIP_LEVELS
+from app.tools.account_tool import _MEMBERSHIP_LEVELS, AccountTool
 from app.tools.base import ToolResult
 
 

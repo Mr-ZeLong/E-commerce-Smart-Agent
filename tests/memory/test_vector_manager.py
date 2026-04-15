@@ -1,6 +1,4 @@
 import pytest
-from qdrant_client import models
-from qdrant_client.models import Distance, VectorParams
 
 from app.core.config import settings
 from app.memory.vector_manager import VectorMemoryManager
@@ -155,7 +153,6 @@ async def test_prune_old_messages_collection_missing(qdrant_client, deterministi
 
 @pytest.mark.asyncio
 async def test_aclose(deterministic_embedder):
-    from app.core.config import settings
     from qdrant_client import AsyncQdrantClient
 
     client = AsyncQdrantClient(

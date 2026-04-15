@@ -10,7 +10,6 @@ from app.graph.nodes import (
 )
 from app.models.state import make_agent_state
 from tests._agents import (
-    DeterministicAgent,
     DeterministicEvaluator,
     DeterministicOrderAgent,
     DeterministicPolicyAgent,

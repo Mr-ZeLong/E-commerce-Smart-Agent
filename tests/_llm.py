@@ -70,9 +70,13 @@ class DeterministicChatModel(BaseChatModel):
         # Only validate dicts into Pydantic models when the dict is empty or
         # when we want a default instance. Otherwise return data as-is so
         # callers can handle both valid models and invalid dicts.
-        if data is None and schema is not None:
-            if isinstance(schema, type) and issubclass(schema, BaseModel):
-                data = schema.model_construct()
+        if (
+            data is None
+            and schema is not None
+            and isinstance(schema, type)
+            and issubclass(schema, BaseModel)
+        ):
+            data = schema.model_construct()
 
         return _StructuredRunnable(data)
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from app.agents.base import BaseAgent
 from app.agents.evaluator import ConfidenceEvaluator
@@ -7,26 +7,34 @@ from app.agents.order import OrderAgent
 from app.agents.policy import PolicyAgent
 from app.agents.router import IntentRouterAgent
 from app.models.state import AgentProcessResult, AgentState
+from app.retrieval.retriever import HybridRetriever
 from app.tools.base import ToolResult
+from app.tools.registry import ToolRegistry
 
 
-class DeterministicToolRegistry:
+class DeterministicToolRegistry(ToolRegistry):
     def __init__(self, responses=None):
+        super().__init__()
         self.responses = responses or {}
 
-    async def execute(self, tool_name, state):
-        resp = self.responses.get(tool_name, {})
+    async def execute(self, name: str, state: AgentState, **kwargs) -> ToolResult:
+        resp = self.responses.get(name, {})
         return ToolResult(
             output=resp.get("output", {"status": "success"}),
-            source=resp.get("source", tool_name),
+            source=resp.get("source", name),
         )
 
 
-class DeterministicRetriever:
+class DeterministicRetriever(HybridRetriever):
     def __init__(self, results=None):
         self._results = results or []
 
-    async def retrieve(self, question, conversation_history=None, memory_context=None):
+    async def retrieve(
+        self,
+        query: str,
+        conversation_history: list[dict] | None = None,
+        memory_context: dict | None = None,
+    ) -> list:
         return self._results
 
 

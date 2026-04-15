@@ -8,13 +8,15 @@ from tests._agents import DeterministicToolRegistry
 @pytest.fixture
 def payment_agent(deterministic_llm):
     registry = DeterministicToolRegistry()
-    return PaymentAgent(tool_registry=registry, llm=deterministic_llm)
+    agent = PaymentAgent(tool_registry=registry, llm=deterministic_llm)
+    return agent, registry
 
 
 @pytest.mark.asyncio
-async def test_payment_agent_process_with_records(payment_agent: PaymentAgent):
+async def test_payment_agent_process_with_records(payment_agent):
     """有支付/退款记录时返回格式化回复"""
-    payment_agent.tool_registry.responses = {
+    agent, registry = payment_agent
+    registry.responses = {
         "payment": {
             "output": {
                 "payment_status": "已支付",
@@ -33,21 +35,19 @@ async def test_payment_agent_process_with_records(payment_agent: PaymentAgent):
     }
 
     state = make_agent_state(question="查询支付状态", user_id=1)
-    result = await payment_agent.process(state)
+    result = await agent.process(state)
 
     assert "已支付" in result["response"]
     assert "已开票" in result["response"]
     assert "SN20240001" in result["response"]
-    assert (
-        result["updated_state"]["payment_data"]
-        == payment_agent.tool_registry.responses["payment"]["output"]
-    )
+    assert result["updated_state"]["payment_data"] == registry.responses["payment"]["output"]
 
 
 @pytest.mark.asyncio
-async def test_payment_agent_process_empty_records(payment_agent: PaymentAgent):
+async def test_payment_agent_process_empty_records(payment_agent):
     """无记录时返回友好空状态提示"""
-    payment_agent.tool_registry.responses = {
+    agent, registry = payment_agent
+    registry.responses = {
         "payment": {
             "output": {
                 "payment_status": "未知",
@@ -59,10 +59,7 @@ async def test_payment_agent_process_empty_records(payment_agent: PaymentAgent):
     }
 
     state = make_agent_state(question="查询退款记录", user_id=1)
-    result = await payment_agent.process(state)
+    result = await agent.process(state)
 
     assert "未查询到" in result["response"]
-    assert (
-        result["updated_state"]["payment_data"]
-        == payment_agent.tool_registry.responses["payment"]["output"]
-    )
+    assert result["updated_state"]["payment_data"] == registry.responses["payment"]["output"]

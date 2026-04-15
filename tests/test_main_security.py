@@ -8,14 +8,12 @@ import sys
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport
 
 # Ensure app.main can be reloaded for each test
 MODULE_NAME = "app.main"
 CONFIG_MODULE = "app.core.config"
-
-
-from fastapi import FastAPI
 
 
 @pytest.fixture(autouse=True)

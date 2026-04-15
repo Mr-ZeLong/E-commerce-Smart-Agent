@@ -5,7 +5,6 @@ from sqlmodel import Session, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import async_engine, sync_engine
-from app.core.utils import build_thread_id
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
 from app.models.message import MessageCard, MessageType
 from app.models.order import Order, OrderStatus

@@ -1,4 +1,3 @@
-import pytest
 from sqlmodel import select
 
 from app.memory.extractor import FactExtractor

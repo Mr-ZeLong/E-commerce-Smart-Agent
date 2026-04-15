@@ -3,7 +3,6 @@ import pytest
 from app.confidence.signals import (
     ConfidenceSignalCalculator,
     LLMConfidenceScore,
-    SignalResult,
     calculate_llm_signal,
     calculate_rag_signal,
 )
@@ -78,6 +77,7 @@ class TestCalculateLLMSignal:
     @pytest.mark.asyncio
     async def test_calculate_langchain_exception_raises_runtime_error(self):
         from langchain_core.exceptions import LangChainException
+
         from tests._llm import DeterministicChatModel
 
         class FailingLLM(DeterministicChatModel):

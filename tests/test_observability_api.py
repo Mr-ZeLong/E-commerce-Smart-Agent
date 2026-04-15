@@ -34,14 +34,15 @@ async def create_admin_user() -> tuple[User, str]:
 
 async def seed_logs() -> None:
     async with async_session_maker() as session:
-        await session.execute(  # type: ignore
+        conn = await session.connection()
+        await conn.execute(
             text(
                 "DELETE FROM graph_node_logs WHERE execution_id IN (SELECT id FROM graph_execution_logs)"
             )
         )
-        await session.execute(text("DELETE FROM graph_execution_logs"))  # type: ignore
+        await conn.execute(text("DELETE FROM graph_execution_logs"))
         for uid in (1, 2, 3):
-            await session.execute(
+            await conn.execute(
                 text(
                     "INSERT INTO users (id, username, email, password_hash, full_name, phone, is_active, is_admin) "
                     "VALUES (:id, :username, :email, :password_hash, :full_name, :phone, true, false) "

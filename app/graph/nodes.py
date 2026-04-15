@@ -7,6 +7,7 @@ from typing import Any, Literal
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.account import AccountAgent
 from app.agents.cart import CartAgent
@@ -28,7 +29,6 @@ from app.memory.vector_manager import VectorMemoryManager
 from app.models.observability import SupervisorDecision
 from app.models.state import AgentProcessResult, AgentState
 from app.tasks.memory_tasks import extract_and_save_facts
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 def _log_supervisor_decision(
