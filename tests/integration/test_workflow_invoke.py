@@ -1,77 +1,73 @@
 from typing import Any, cast
-from unittest.mock import AsyncMock
 
 import pytest
-from langgraph.checkpoint.memory import MemorySaver
 
 from app.graph.workflow import create_workflow
 from app.models.state import make_agent_state
-
-
-def _mock_agent(name="mock"):
-    m = AsyncMock()
-    m.name = name
-    return m
+from tests._agents import DeterministicAgent, DeterministicEvaluator, DeterministicSupervisor
 
 
 def _supervisor_mock(next_agent: str):
-    m = AsyncMock()
-    m.name = "supervisor"
-    m.process.return_value = {
-        "response": "",
-        "updated_state": {
-            "next_agent": next_agent,
-            "execution_mode": "serial",
-            "pending_agent_results": [next_agent],
-        },
-    }
-    return m
+    return DeterministicSupervisor(
+        process_result={
+            "response": "",
+            "updated_state": {
+                "next_agent": next_agent,
+                "execution_mode": "serial",
+                "pending_agent_results": [next_agent],
+            },
+        }
+    )
 
 
 @pytest.mark.asyncio
-async def test_workflow_order_query():
-    checkpointer = MemorySaver()
+async def test_workflow_order_query(deterministic_llm, redis_checkpointer):
+    checkpointer = redis_checkpointer
 
     initial_state = make_agent_state(
         question="帮我查下订单 SN20240001",
         thread_id="1__test_order",
     )
 
-    mock_router = _mock_agent()
-    mock_router.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "order_agent"},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "order_agent"},
+            "needs_human": False,
+            "transfer_reason": None,
+        }
+    )
 
-    mock_agent = _mock_agent("order_agent")
-    mock_agent.process.return_value = {
-        "response": "订单状态：已发货",
-        "updated_state": {"order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_agent = DeterministicAgent(
+        name="order_agent",
+        process_result={
+            "response": "订单状态：已发货",
+            "updated_state": {"order_data": {"order_sn": "SN20240001", "status": "SHIPPED"}},
+            "needs_human": False,
+            "transfer_reason": None,
+        },
+    )
 
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = {
-        "confidence_score": 0.9,
-        "confidence_signals": {},
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-    }
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
 
     workflow = create_workflow(
         router_agent=mock_router,
-        policy_agent=AsyncMock(),
+        policy_agent=DeterministicAgent(),
         order_agent=mock_agent,
-        logistics_agent=AsyncMock(),
-        account_agent=AsyncMock(),
-        payment_agent=AsyncMock(),
+        logistics_agent=DeterministicAgent(),
+        account_agent=DeterministicAgent(),
+        payment_agent=DeterministicAgent(),
         evaluator=mock_eval,
         supervisor_agent=_supervisor_mock("order_agent"),
-        llm=AsyncMock(),
+        llm=deterministic_llm,
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -82,49 +78,53 @@ async def test_workflow_order_query():
 
 
 @pytest.mark.asyncio
-async def test_workflow_policy_query():
-    checkpointer = MemorySaver()
+async def test_workflow_policy_query(deterministic_llm, redis_checkpointer):
+    checkpointer = redis_checkpointer
 
     initial_state = make_agent_state(
         question="运费怎么算？",
         thread_id="1__test_policy",
     )
 
-    mock_router = _mock_agent()
-    mock_router.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "policy_agent"},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "policy_agent"},
+            "needs_human": False,
+            "transfer_reason": None,
+        }
+    )
 
-    mock_agent = _mock_agent("policy_agent")
-    mock_agent.process.return_value = {
-        "response": "满100免运费",
-        "updated_state": {"retrieval_result": None},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_agent = DeterministicAgent(
+        name="policy_agent",
+        process_result={
+            "response": "满100免运费",
+            "updated_state": {"retrieval_result": None},
+            "needs_human": False,
+            "transfer_reason": None,
+        },
+    )
 
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = {
-        "confidence_score": 0.9,
-        "confidence_signals": {},
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-    }
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
 
     workflow = create_workflow(
         router_agent=mock_router,
         policy_agent=mock_agent,
-        order_agent=AsyncMock(),
-        logistics_agent=AsyncMock(),
-        account_agent=AsyncMock(),
-        payment_agent=AsyncMock(),
+        order_agent=DeterministicAgent(),
+        logistics_agent=DeterministicAgent(),
+        account_agent=DeterministicAgent(),
+        payment_agent=DeterministicAgent(),
         evaluator=mock_eval,
         supervisor_agent=_supervisor_mock("policy_agent"),
-        llm=AsyncMock(),
+        llm=deterministic_llm,
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -135,49 +135,55 @@ async def test_workflow_policy_query():
 
 
 @pytest.mark.asyncio
-async def test_workflow_logistics_query():
-    checkpointer = MemorySaver()
+async def test_workflow_logistics_query(deterministic_llm, redis_checkpointer):
+    checkpointer = redis_checkpointer
 
     initial_state = make_agent_state(
         question="我的快递到哪了？",
         thread_id="1__test_logistics",
     )
 
-    mock_router = _mock_agent()
-    mock_router.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "logistics"},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "logistics"},
+            "needs_human": False,
+            "transfer_reason": None,
+        }
+    )
 
-    mock_agent = _mock_agent("logistics")
-    mock_agent.process.return_value = {
-        "response": "物流单号: SF1234567890, 状态: 运输中",
-        "updated_state": {"order_data": {"tracking_number": "SF1234567890", "status": "运输中"}},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_agent = DeterministicAgent(
+        name="logistics",
+        process_result={
+            "response": "物流单号: SF1234567890, 状态: 运输中",
+            "updated_state": {
+                "order_data": {"tracking_number": "SF1234567890", "status": "运输中"}
+            },
+            "needs_human": False,
+            "transfer_reason": None,
+        },
+    )
 
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = {
-        "confidence_score": 0.9,
-        "confidence_signals": {},
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-    }
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
 
     workflow = create_workflow(
         router_agent=mock_router,
-        policy_agent=AsyncMock(),
-        order_agent=AsyncMock(),
+        policy_agent=DeterministicAgent(),
+        order_agent=DeterministicAgent(),
         logistics_agent=mock_agent,
-        account_agent=AsyncMock(),
-        payment_agent=AsyncMock(),
+        account_agent=DeterministicAgent(),
+        payment_agent=DeterministicAgent(),
         evaluator=mock_eval,
         supervisor_agent=_supervisor_mock("logistics"),
-        llm=AsyncMock(),
+        llm=deterministic_llm,
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -188,49 +194,53 @@ async def test_workflow_logistics_query():
 
 
 @pytest.mark.asyncio
-async def test_workflow_account_query():
-    checkpointer = MemorySaver()
+async def test_workflow_account_query(deterministic_llm, redis_checkpointer):
+    checkpointer = redis_checkpointer
 
     initial_state = make_agent_state(
         question="我的账户余额是多少？",
         thread_id="1__test_account",
     )
 
-    mock_router = _mock_agent()
-    mock_router.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "account"},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "account"},
+            "needs_human": False,
+            "transfer_reason": None,
+        }
+    )
 
-    mock_agent = _mock_agent("account")
-    mock_agent.process.return_value = {
-        "response": "账户余额: ¥128.50",
-        "updated_state": {"account_data": {"balance": 128.50}},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_agent = DeterministicAgent(
+        name="account",
+        process_result={
+            "response": "账户余额: ¥128.50",
+            "updated_state": {"account_data": {"balance": 128.50}},
+            "needs_human": False,
+            "transfer_reason": None,
+        },
+    )
 
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = {
-        "confidence_score": 0.9,
-        "confidence_signals": {},
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-    }
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
 
     workflow = create_workflow(
         router_agent=mock_router,
-        policy_agent=AsyncMock(),
-        order_agent=AsyncMock(),
-        logistics_agent=AsyncMock(),
+        policy_agent=DeterministicAgent(),
+        order_agent=DeterministicAgent(),
+        logistics_agent=DeterministicAgent(),
         account_agent=mock_agent,
-        payment_agent=AsyncMock(),
+        payment_agent=DeterministicAgent(),
         evaluator=mock_eval,
         supervisor_agent=_supervisor_mock("account"),
-        llm=AsyncMock(),
+        llm=deterministic_llm,
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -241,49 +251,53 @@ async def test_workflow_account_query():
 
 
 @pytest.mark.asyncio
-async def test_workflow_payment_query():
-    checkpointer = MemorySaver()
+async def test_workflow_payment_query(deterministic_llm, redis_checkpointer):
+    checkpointer = redis_checkpointer
 
     initial_state = make_agent_state(
         question="我的退款到账了吗？",
         thread_id="1__test_payment",
     )
 
-    mock_router = _mock_agent()
-    mock_router.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "payment"},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "payment"},
+            "needs_human": False,
+            "transfer_reason": None,
+        }
+    )
 
-    mock_agent = _mock_agent("payment")
-    mock_agent.process.return_value = {
-        "response": "退款状态: 已到账",
-        "updated_state": {"payment_data": {"refund_status": "已到账"}},
-        "needs_human": False,
-        "transfer_reason": None,
-    }
+    mock_agent = DeterministicAgent(
+        name="payment",
+        process_result={
+            "response": "退款状态: 已到账",
+            "updated_state": {"payment_data": {"refund_status": "已到账"}},
+            "needs_human": False,
+            "transfer_reason": None,
+        },
+    )
 
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = {
-        "confidence_score": 0.9,
-        "confidence_signals": {},
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-    }
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
 
     workflow = create_workflow(
         router_agent=mock_router,
-        policy_agent=AsyncMock(),
-        order_agent=AsyncMock(),
-        logistics_agent=AsyncMock(),
-        account_agent=AsyncMock(),
+        policy_agent=DeterministicAgent(),
+        order_agent=DeterministicAgent(),
+        logistics_agent=DeterministicAgent(),
+        account_agent=DeterministicAgent(),
         payment_agent=mock_agent,
         evaluator=mock_eval,
         supervisor_agent=_supervisor_mock("payment"),
-        llm=AsyncMock(),
+        llm=deterministic_llm,
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(
@@ -294,8 +308,8 @@ async def test_workflow_payment_query():
 
 
 @pytest.mark.asyncio
-async def test_workflow_parallel_multi_intent():
-    checkpointer = MemorySaver()
+async def test_workflow_parallel_multi_intent(deterministic_llm, redis_checkpointer):
+    checkpointer = redis_checkpointer
 
     initial_state = make_agent_state(
         question="查订单顺便问下退货政策",
@@ -304,54 +318,62 @@ async def test_workflow_parallel_multi_intent():
         slots={"pending_intents": [{"primary_intent": "POLICY"}]},
     )
 
-    mock_router = _mock_agent()
-    mock_router.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "order_agent"},
-    }
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "order_agent"},
+        }
+    )
 
-    mock_order = _mock_agent("order_agent")
-    mock_order.process.return_value = {
-        "response": "订单已发货",
-        "updated_state": {"order_data": {"status": "SHIPPED"}},
-    }
-
-    mock_policy = _mock_agent("policy_agent")
-    mock_policy.process.return_value = {
-        "response": "7天无理由退货",
-        "updated_state": {"retrieval_result": None},
-    }
-
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = {
-        "confidence_score": 0.9,
-        "confidence_signals": {},
-        "needs_human_transfer": False,
-        "transfer_reason": None,
-        "audit_level": "none",
-    }
-
-    supervisor = AsyncMock()
-    supervisor.name = "supervisor"
-    supervisor.process.return_value = {
-        "response": "",
-        "updated_state": {
-            "next_agent": "order_agent",
-            "execution_mode": "parallel",
-            "pending_agent_results": ["order_agent", "policy_agent"],
+    mock_order = DeterministicAgent(
+        name="order_agent",
+        process_result={
+            "response": "订单已发货",
+            "updated_state": {"order_data": {"status": "SHIPPED"}},
         },
-    }
+    )
+
+    mock_policy = DeterministicAgent(
+        name="policy_agent",
+        process_result={
+            "response": "7天无理由退货",
+            "updated_state": {"retrieval_result": None},
+        },
+    )
+
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
+
+    supervisor = DeterministicSupervisor(
+        process_result={
+            "response": "",
+            "updated_state": {
+                "next_agent": "order_agent",
+                "execution_mode": "parallel",
+                "pending_agent_results": ["order_agent", "policy_agent"],
+            },
+        }
+    )
+
+    deterministic_llm.responses = [("整合员", "订单已发货，支持7天无理由退货")]
 
     workflow = create_workflow(
         router_agent=mock_router,
         policy_agent=mock_policy,
         order_agent=mock_order,
-        logistics_agent=AsyncMock(),
-        account_agent=AsyncMock(),
-        payment_agent=AsyncMock(),
+        logistics_agent=DeterministicAgent(),
+        account_agent=DeterministicAgent(),
+        payment_agent=DeterministicAgent(),
         evaluator=mock_eval,
         supervisor_agent=supervisor,
-        llm=AsyncMock(),
+        llm=deterministic_llm,
     )
     app_graph = workflow.compile(checkpointer=checkpointer)
     result = await app_graph.ainvoke(

@@ -1,134 +1,143 @@
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.state import make_agent_state
+from app.models.user import User
 from app.tools.payment_tool import PaymentTool
 
 
 @pytest.fixture
-def payment_tool() -> PaymentTool:
+def payment_tool():
     return PaymentTool()
 
 
-@pytest.mark.asyncio
-async def test_payment_tool_with_order_sn(payment_tool: PaymentTool):
-    """提供订单号时查询订单和退款记录"""
-    mock_order = MagicMock(spec=Order)
-    mock_order.order_sn = "SN20240001"
-    mock_order.status = OrderStatus.PAID
-    mock_order.total_amount = 199.0
+@pytest.mark.asyncio(loop_scope="session")
+async def test_payment_tool_with_order_sn(payment_tool, db_session):
+    user = User(
+        username="payment_user",
+        password_hash="hashed_password",
+        email="payment@example.com",
+        full_name="Payment User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
 
-    mock_refund = MagicMock(spec=RefundApplication)
-    mock_refund.id = 1
-    mock_refund.refund_amount = 199.0
-    mock_refund.status = RefundStatus.PENDING
-    mock_refund.created_at = datetime(2024, 1, 1, 12, 0, 0)
-    mock_refund.order_sn = "SN20240001"
+    order = Order(
+        order_sn="SN20240001",
+        user_id=user.id,
+        status=OrderStatus.PAID,
+        total_amount=199.0,
+        shipping_address="Test Address",
+    )
+    db_session.add(order)
+    await db_session.flush()
+    await db_session.refresh(order)
+    assert order.id is not None
 
-    # Mock session exec results: first for refund query, second for order query
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
+    refund = RefundApplication(
+        order_id=order.id,
+        user_id=user.id,
+        refund_amount=199.0,
+        status=RefundStatus.PENDING,
+        reason_detail="Test refund reason",
+        created_at=datetime(2024, 1, 1, 12, 0, 0),
+    )
+    db_session.add(refund)
+    await db_session.flush()
+    await db_session.refresh(refund)
+    assert refund.id is not None
 
-    refund_result = MagicMock()
-    refund_result.all.return_value = [mock_refund]
-    order_result = MagicMock()
-    order_result.one_or_none.return_value = mock_order
-
-    def exec_side_effect(stmt):
-        # Determine which query based on model type in statement
-        if "RefundApplication" in str(stmt) or "refund_applications" in str(stmt):
-            return refund_result
-        return order_result
-
-    mock_session.exec = AsyncMock(side_effect=exec_side_effect)
-
-    with patch(
-        "app.tools.payment_tool.async_session_maker",
-        return_value=mock_session,
-    ):
-        state = make_agent_state(
-            question="查询支付状态 SN20240001",
-            user_id=1,
-            slots={"order_sn": "SN20240001"},
-        )
-        result = await payment_tool.execute(state)
+    state = make_agent_state(
+        question="查询支付状态 SN20240001",
+        user_id=user.id,
+        slots={"order_sn": "SN20240001"},
+    )
+    result = await payment_tool.execute(state, session=db_session)
 
     assert result.output["payment_status"] == "已支付"
     assert result.output["invoice_status"] == "已开票"
     assert len(result.output["refund_records"]) == 1
-    assert result.output["refund_records"][0]["refund_id"] == 1
+    assert result.output["refund_records"][0]["refund_id"] == refund.id
     assert result.output["refund_records"][0]["amount"] == 199.0
     assert result.output["refund_records"][0]["status"] == "PENDING"
 
 
-@pytest.mark.asyncio
-async def test_payment_tool_without_order_sn(payment_tool: PaymentTool):
-    """未提供订单号时仅查询退款记录"""
-    mock_refund = MagicMock(spec=RefundApplication)
-    mock_refund.id = 2
-    mock_refund.refund_amount = 99.0
-    mock_refund.status = RefundStatus.APPROVED
-    mock_refund.created_at = datetime(2024, 1, 2, 12, 0, 0)
+@pytest.mark.asyncio(loop_scope="session")
+async def test_payment_tool_without_order_sn(payment_tool, db_session):
+    user = User(
+        username="payment_user2",
+        password_hash="hashed_password",
+        email="payment2@example.com",
+        full_name="Payment User 2",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
 
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
+    order = Order(
+        order_sn="SN20240002",
+        user_id=user.id,
+        status=OrderStatus.PAID,
+        total_amount=99.0,
+        shipping_address="Test Address 2",
+    )
+    db_session.add(order)
+    await db_session.flush()
+    await db_session.refresh(order)
+    assert order.id is not None
 
-    refund_result = MagicMock()
-    refund_result.all.return_value = [mock_refund]
+    refund = RefundApplication(
+        order_id=order.id,
+        user_id=user.id,
+        refund_amount=99.0,
+        status=RefundStatus.APPROVED,
+        reason_detail="Test refund reason 2",
+        created_at=datetime(2024, 1, 2, 12, 0, 0),
+    )
+    db_session.add(refund)
+    await db_session.flush()
+    await db_session.refresh(refund)
+    assert refund.id is not None
 
-    mock_session.exec = AsyncMock(return_value=refund_result)
-
-    with patch(
-        "app.tools.payment_tool.async_session_maker",
-        return_value=mock_session,
-    ):
-        state = make_agent_state(
-            question="查询我的退款记录",
-            user_id=1,
-        )
-        result = await payment_tool.execute(state)
+    state = make_agent_state(
+        question="查询我的退款记录",
+        user_id=user.id,
+    )
+    result = await payment_tool.execute(state, session=db_session)
 
     assert result.output["payment_status"] == "未知"
     assert result.output["invoice_status"] == "未查询到发票信息"
     assert len(result.output["refund_records"]) == 1
-    assert result.output["refund_records"][0]["refund_id"] == 2
+    assert result.output["refund_records"][0]["refund_id"] == refund.id
+    assert result.output["refund_records"][0]["amount"] == 99.0
+    assert result.output["refund_records"][0]["status"] == "APPROVED"
 
 
-@pytest.mark.asyncio
-async def test_payment_tool_no_records(payment_tool: PaymentTool):
-    """无任何记录时返回空状态"""
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
+@pytest.mark.asyncio(loop_scope="session")
+async def test_payment_tool_no_records(payment_tool, db_session):
+    user = User(
+        username="payment_user3",
+        password_hash="hashed_password",
+        email="payment3@example.com",
+        full_name="Payment User 3",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
 
-    refund_result = MagicMock()
-    refund_result.all.return_value = []
-    order_result = MagicMock()
-    order_result.one_or_none.return_value = None
-
-    def exec_side_effect(stmt):
-        if "RefundApplication" in str(stmt) or "refund_applications" in str(stmt):
-            return refund_result
-        return order_result
-
-    mock_session.exec = AsyncMock(side_effect=exec_side_effect)
-
-    with patch(
-        "app.tools.payment_tool.async_session_maker",
-        return_value=mock_session,
-    ):
-        state = make_agent_state(
-            question="查询支付状态 SN99999999",
-            user_id=1,
-            slots={"order_sn": "SN99999999"},
-        )
-        result = await payment_tool.execute(state)
+    state = make_agent_state(
+        question="查询支付状态 SN99999999",
+        user_id=user.id,
+        slots={"order_sn": "SN99999999"},
+    )
+    result = await payment_tool.execute(state, session=db_session)
 
     assert result.output["payment_status"] == "未知"
     assert result.output["invoice_status"] == "未查询到发票信息"

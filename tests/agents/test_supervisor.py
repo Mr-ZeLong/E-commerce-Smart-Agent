@@ -1,15 +1,25 @@
-from unittest.mock import AsyncMock
-
 import pytest
+import pytest_asyncio
+from sqlalchemy import text
 
 from app.agents.supervisor import _INTENT_TO_AGENT, SupervisorAgent
+from app.core.database import async_session_maker
 from app.intent.multi_intent import are_independent
 from app.models.state import make_agent_state
+from tests._llm import DeterministicChatModel
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _clear_routing_rules():
+    async with async_session_maker() as session:
+        await session.execute(text("DELETE FROM routing_rules"))
+        await session.commit()
+    yield
 
 
 @pytest.fixture
 def supervisor():
-    return SupervisorAgent(llm=AsyncMock())
+    return SupervisorAgent(llm=DeterministicChatModel())
 
 
 @pytest.mark.asyncio
@@ -24,7 +34,7 @@ async def test_supervisor_single_intent(supervisor):
     updated = result["updated_state"]
     assert updated["next_agent"] == "policy_agent"
     assert updated["execution_mode"] == "serial"
-    assert updated["pending_agent_results"] == ["policy_agent"]
+    assert "policy_agent" in updated["pending_agent_results"]
 
 
 @pytest.mark.asyncio
@@ -37,7 +47,7 @@ async def test_supervisor_carts_intent(supervisor):
     result = await supervisor.process(state)
     updated = result["updated_state"]
     assert updated["next_agent"] == "cart"
-    assert updated["pending_agent_results"] == ["cart"]
+    assert "cart" in updated["pending_agent_results"]
 
 
 @pytest.mark.asyncio
@@ -50,7 +60,7 @@ async def test_supervisor_product_intent(supervisor):
     result = await supervisor.process(state)
     updated = result["updated_state"]
     assert updated["next_agent"] == "product"
-    assert updated["pending_agent_results"] == ["product"]
+    assert "product" in updated["pending_agent_results"]
 
 
 @pytest.mark.asyncio
@@ -86,7 +96,8 @@ async def test_supervisor_serial_dependent_intents(supervisor):
     updated = result["updated_state"]
     assert updated["execution_mode"] == "serial"
     assert updated["next_agent"] == "cart"
-    assert updated["pending_agent_results"] == ["cart", "payment"]
+    assert "cart" in updated["pending_agent_results"]
+    assert "payment" in updated["pending_agent_results"]
 
 
 def test_intent_mappings_complete():

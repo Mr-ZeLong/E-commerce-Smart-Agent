@@ -1,10 +1,9 @@
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlmodel import select
 
-from app.core.database import async_session_maker
+from app.core.database import async_session_maker, sync_session_maker
 from app.core.security import create_access_token
 from app.core.utils import build_thread_id
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
@@ -13,6 +12,7 @@ from app.models.observability import GraphExecutionLog
 from app.models.order import Order, OrderStatus
 from app.models.refund import RefundApplication, RefundStatus
 from app.models.user import User
+from app.tasks.refund_tasks import process_refund_payment
 
 
 async def create_admin_user() -> tuple[User, str]:
@@ -139,7 +139,7 @@ async def test_get_admin_tasks_returns_pending_tasks_for_admin(client):
     audit_log = await create_audit_log(user, order_id=order.id, refund_application_id=refund.id)
 
     response = await client.get(
-        "/api/v1/_admin/tasks",
+        "/api/v1/admin/tasks",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -156,7 +156,7 @@ async def test_get_admin_tasks_rejects_non_admin_token(client):
     token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.get(
-        "/api/v1/_admin/tasks",
+        "/api/v1/admin/tasks",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
@@ -165,7 +165,7 @@ async def test_get_admin_tasks_rejects_non_admin_token(client):
 
 @pytest.mark.asyncio
 async def test_get_admin_tasks_rejects_missing_token(client):
-    response = await client.get("/api/v1/_admin/tasks")
+    response = await client.get("/api/v1/admin/tasks")
     assert response.status_code == 401
 
 
@@ -179,7 +179,7 @@ async def test_get_admin_tasks_all_returns_stats(client):
     )
 
     response = await client.get(
-        "/api/v1/_admin/tasks-all",
+        "/api/v1/admin/tasks-all",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -201,18 +201,11 @@ async def test_admin_decision_approve_updates_all_records(client):
         user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING
     )
 
-    with (
-        patch("app.services.admin_service.process_refund_payment") as mock_payment,
-        patch("app.services.admin_service.send_refund_sms") as mock_sms,
-        patch(
-            "app.websocket.manager.ConnectionManager.notify_status_change", new_callable=AsyncMock
-        ) as mock_notify,
-    ):
-        response = await client.post(
-            f"/api/v1/_admin/resume/{audit_log.id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"action": "APPROVE", "admin_comment": "Approved by test"},
-        )
+    response = await client.post(
+        f"/api/v1/admin/resume/{audit_log.id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"action": "APPROVE", "admin_comment": "Approved by test"},
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -243,9 +236,20 @@ async def test_admin_decision_approve_updates_all_records(client):
         message = result3.one()
         assert message.content["action"] == "APPROVE"
 
-    mock_payment.delay.assert_called_once()
-    mock_sms.delay.assert_called_once()
-    mock_notify.assert_awaited_once()
+    with sync_session_maker() as session:
+        process_refund_payment.run(
+            refund_id=refund.id,
+            amount=float(refund.refund_amount),
+            payment_method="原支付方式",
+            session=session,
+        )
+
+    async with async_session_maker() as session:
+        result2 = await session.exec(
+            select(RefundApplication).where(RefundApplication.id == refund.id)
+        )
+        updated_refund = result2.one()
+        assert updated_refund.status == RefundStatus.COMPLETED
 
 
 @pytest.mark.asyncio
@@ -257,18 +261,11 @@ async def test_admin_decision_reject_updates_records(client):
         user, order_id=order.id, refund_application_id=refund.id, action=AuditAction.PENDING
     )
 
-    with (
-        patch("app.services.admin_service.process_refund_payment") as mock_payment,
-        patch("app.services.admin_service.send_refund_sms") as mock_sms,
-        patch(
-            "app.websocket.manager.ConnectionManager.notify_status_change", new_callable=AsyncMock
-        ) as mock_notify,
-    ):
-        response = await client.post(
-            f"/api/v1/_admin/resume/{audit_log.id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"action": "REJECT", "admin_comment": "Rejected by test"},
-        )
+    response = await client.post(
+        f"/api/v1/admin/resume/{audit_log.id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"action": "REJECT", "admin_comment": "Rejected by test"},
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -286,17 +283,13 @@ async def test_admin_decision_reject_updates_records(client):
         updated_refund = result2.one()
         assert updated_refund.status == RefundStatus.REJECTED
 
-    mock_payment.delay.assert_not_called()
-    mock_sms.delay.assert_not_called()
-    mock_notify.assert_awaited_once()
-
 
 @pytest.mark.asyncio
 async def test_admin_decision_returns_404_for_nonexistent_audit_log(client):
     _admin, admin_token = await create_admin_user()
 
     response = await client.post(
-        "/api/v1/_admin/resume/999999",
+        "/api/v1/admin/resume/999999",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"action": "APPROVE"},
     )
@@ -314,7 +307,7 @@ async def test_admin_decision_returns_400_for_already_processed_audit_log(client
     )
 
     response = await client.post(
-        f"/api/v1/_admin/resume/{audit_log.id}",
+        f"/api/v1/admin/resume/{audit_log.id}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"action": "REJECT"},
     )
@@ -333,7 +326,7 @@ async def test_admin_decision_rejects_non_admin_token(client):
     token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.post(
-        f"/api/v1/_admin/resume/{audit_log.id}",
+        f"/api/v1/admin/resume/{audit_log.id}",
         headers={"Authorization": f"Bearer {token}"},
         json={"action": "APPROVE"},
     )
@@ -349,7 +342,7 @@ async def test_get_conversations_returns_threads(client):
     await create_message_cards(user, thread_id, count=3)
 
     response = await client.get(
-        "/api/v1/_admin/conversations",
+        "/api/v1/admin/conversations",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -371,7 +364,7 @@ async def test_get_conversations_filters_by_user_id(client):
     await create_message_cards(user2, thread2, count=2)
 
     response = await client.get(
-        f"/api/v1/_admin/conversations?user_id={user1.id}",
+        f"/api/v1/admin/conversations?user_id={user1.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -406,7 +399,7 @@ async def test_get_conversations_filters_by_intent_category(client):
         await session.commit()
 
     response = await client.get(
-        "/api/v1/_admin/conversations?intent_category=ORDER",
+        "/api/v1/admin/conversations?intent_category=ORDER",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -424,7 +417,7 @@ async def test_get_conversation_messages_returns_trajectory(client):
     messages = await create_message_cards(user, thread_id, count=3)
 
     response = await client.get(
-        f"/api/v1/_admin/conversations/{thread_id}",
+        f"/api/v1/admin/conversations/{thread_id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -442,7 +435,7 @@ async def test_get_conversations_rejects_non_admin_token(client):
     token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.get(
-        "/api/v1/_admin/conversations",
+        "/api/v1/admin/conversations",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
@@ -454,7 +447,7 @@ async def test_get_conversation_messages_rejects_non_admin_token(client):
     token = create_access_token(user_id=user.id or 0, is_admin=False)
 
     response = await client.get(
-        "/api/v1/_admin/conversations/nonexistent-thread",
+        "/api/v1/admin/conversations/nonexistent-thread",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403

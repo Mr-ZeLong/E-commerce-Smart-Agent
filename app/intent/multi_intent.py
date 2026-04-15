@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
-from app.intent.classifier import IntentClassifier
 from app.intent.models import IntentResult
+
+
+class _Classifier(Protocol):
+    async def classify(self, query: str, context: dict[str, Any] | None = None) -> IntentResult: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +71,7 @@ class MultiIntentProcessor:
     SEPARATORS = ["顺便", "还有", "另外", "以及", "，然后", "。另外", "。还有", ";", "；"]
     MAX_INTENTS = 2
 
-    def __init__(self, classifier: IntentClassifier, mode: str = "cascade"):
+    def __init__(self, classifier: _Classifier, mode: str = "cascade"):
         self.classifier = classifier
         self.mode = mode
 

@@ -1,20 +1,21 @@
-from unittest.mock import MagicMock
-
 import pytest
 
 from app.agents.base import BaseAgent
 from app.models.state import AgentState
+from tests._llm import DeterministicChatModel
 
 
 class DummyAgent(BaseAgent):
     async def process(self, state: AgentState):
         _ = state
-        return {"response": "ok"}
+        return {"response": "ok", "updated_state": {}}
 
 
 @pytest.fixture
 def agent():
-    return DummyAgent(name="test", llm=MagicMock(), system_prompt="You are a test agent.")
+    return DummyAgent(
+        name="test", llm=DeterministicChatModel(), system_prompt="You are a test agent."
+    )
 
 
 def test_create_messages_with_system_prompt_only(agent):
@@ -81,7 +82,7 @@ def test_create_messages_empty_memory_context(agent):
 
 
 def test_create_messages_no_system_prompt():
-    agent_no_prompt = DummyAgent(name="test2", llm=MagicMock())
+    agent_no_prompt = DummyAgent(name="test2", llm=DeterministicChatModel())
     messages = agent_no_prompt._create_messages("hello")
     assert len(messages) == 1
     assert messages[0].content == "hello"

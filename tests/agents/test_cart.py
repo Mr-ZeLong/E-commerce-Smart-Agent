@@ -1,23 +1,26 @@
-from unittest.mock import AsyncMock
-
 import pytest
 
 from app.agents.cart import CartAgent
 from app.models.state import make_agent_state
+from tests._agents import DeterministicToolRegistry
 
 
 @pytest.fixture
-def agent():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {
-        "action": "QUERY",
-        "items": [
-            {"name": "T恤", "quantity": 2, "price": 99.0, "subtotal": 198.0},
-        ],
-        "total": 198.0,
-    }
-    return CartAgent(tool_registry=registry, llm=AsyncMock())
+def agent(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "cart": {
+                "output": {
+                    "action": "QUERY",
+                    "items": [
+                        {"name": "T恤", "quantity": 2, "price": 99.0, "subtotal": 198.0},
+                    ],
+                    "total": 198.0,
+                }
+            }
+        }
+    )
+    return CartAgent(tool_registry=registry, llm=deterministic_llm)
 
 
 @pytest.mark.asyncio
@@ -30,11 +33,11 @@ async def test_cart_agent_query(agent):
 
 
 @pytest.mark.asyncio
-async def test_cart_agent_empty():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {"action": "QUERY", "items": [], "total": 0.0}
-    agent = CartAgent(tool_registry=registry, llm=AsyncMock())
+async def test_cart_agent_empty(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={"cart": {"output": {"action": "QUERY", "items": [], "total": 0.0}}}
+    )
+    agent = CartAgent(tool_registry=registry, llm=deterministic_llm)
 
     state = make_agent_state(question="我的购物车")
     result = await agent.process(state)
@@ -42,17 +45,21 @@ async def test_cart_agent_empty():
 
 
 @pytest.mark.asyncio
-async def test_cart_agent_add():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {
-        "action": "ADD",
-        "name": "运动鞋",
-        "quantity": 1,
-        "items": [{"name": "运动鞋", "quantity": 1, "subtotal": 399.0}],
-        "total": 399.0,
-    }
-    agent = CartAgent(tool_registry=registry, llm=AsyncMock())
+async def test_cart_agent_add(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "cart": {
+                "output": {
+                    "action": "ADD",
+                    "name": "运动鞋",
+                    "quantity": 1,
+                    "items": [{"name": "运动鞋", "quantity": 1, "subtotal": 399.0}],
+                    "total": 399.0,
+                }
+            }
+        }
+    )
+    agent = CartAgent(tool_registry=registry, llm=deterministic_llm)
 
     state = make_agent_state(question="加一双运动鞋")
     result = await agent.process(state)
@@ -61,16 +68,20 @@ async def test_cart_agent_add():
 
 
 @pytest.mark.asyncio
-async def test_cart_agent_remove():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {
-        "action": "REMOVE",
-        "name": "T恤",
-        "items": [],
-        "total": 0.0,
-    }
-    agent = CartAgent(tool_registry=registry, llm=AsyncMock())
+async def test_cart_agent_remove(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "cart": {
+                "output": {
+                    "action": "REMOVE",
+                    "name": "T恤",
+                    "items": [],
+                    "total": 0.0,
+                }
+            }
+        }
+    )
+    agent = CartAgent(tool_registry=registry, llm=deterministic_llm)
 
     state = make_agent_state(question="把T恤删掉")
     result = await agent.process(state)
@@ -78,14 +89,18 @@ async def test_cart_agent_remove():
 
 
 @pytest.mark.asyncio
-async def test_cart_agent_error():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {
-        "status": "error",
-        "reason": "商品库存不足",
-    }
-    agent = CartAgent(tool_registry=registry, llm=AsyncMock())
+async def test_cart_agent_error(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "cart": {
+                "output": {
+                    "status": "error",
+                    "reason": "商品库存不足",
+                }
+            }
+        }
+    )
+    agent = CartAgent(tool_registry=registry, llm=deterministic_llm)
 
     state = make_agent_state(question="加一件缺货商品")
     result = await agent.process(state)

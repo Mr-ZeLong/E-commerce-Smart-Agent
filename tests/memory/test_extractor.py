@@ -1,22 +1,21 @@
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 
 from app.memory.extractor import FactExtractor
 
 
 @pytest.fixture
-def extractor():
-    return FactExtractor(llm=MagicMock())
+def extractor(deterministic_llm):
+    return FactExtractor(llm=deterministic_llm)
 
 
 @pytest.mark.asyncio
-async def test_extract_facts_valid_json(extractor):
-    extractor.llm.ainvoke = AsyncMock(
-        return_value=MagicMock(
-            content='[{"fact_type": "preference", "content": "likes fast shipping", "confidence": 0.9}, {"fact_type": "general", "content": "is a vip", "confidence": 0.95}]'
+async def test_extract_facts_valid_json(extractor, deterministic_llm):
+    deterministic_llm.responses = [
+        (
+            "send it fast",
+            '[{"fact_type": "preference", "content": "likes fast shipping", "confidence": 0.9}, {"fact_type": "general", "content": "is a vip", "confidence": 0.95}]',
         )
-    )
+    ]
 
     facts = await extractor.extract_facts(
         user_id=1,
@@ -28,15 +27,18 @@ async def test_extract_facts_valid_json(extractor):
     assert len(facts) == 2
     assert facts[0]["fact_type"] == "preference"
     assert facts[0]["confidence"] == 0.9
+    assert facts[1]["fact_type"] == "general"
+    assert facts[1]["confidence"] == 0.95
 
 
 @pytest.mark.asyncio
-async def test_extract_facts_markdown_wrapped(extractor):
-    extractor.llm.ainvoke = AsyncMock(
-        return_value=MagicMock(
-            content='```json\n[{"fact_type": "preference", "content": "likes blue", "confidence": 0.8}]\n```'
+async def test_extract_facts_markdown_wrapped(extractor, deterministic_llm):
+    deterministic_llm.responses = [
+        (
+            "what color",
+            '```json\n[{"fact_type": "preference", "content": "likes blue", "confidence": 0.8}]\n```',
         )
-    )
+    ]
 
     facts = await extractor.extract_facts(
         user_id=1,
@@ -50,40 +52,55 @@ async def test_extract_facts_markdown_wrapped(extractor):
 
 
 @pytest.mark.asyncio
-async def test_extract_facts_invalid_json(extractor):
-    extractor.llm.ainvoke = AsyncMock(return_value=MagicMock(content="not json"))
+async def test_extract_facts_invalid_json(extractor, deterministic_llm):
+    deterministic_llm.responses = [("not json", "not json")]
 
     facts = await extractor.extract_facts(
         user_id=1,
         thread_id="t1",
         history=[],
-        question="hi",
+        question="not json",
         answer="hello",
     )
     assert facts == []
 
 
 @pytest.mark.asyncio
-async def test_extract_facts_non_list_response(extractor):
-    extractor.llm.ainvoke = AsyncMock(return_value=MagicMock(content='{"fact_type": "general"}'))
+async def test_extract_facts_empty_response(extractor, deterministic_llm):
+    deterministic_llm.responses = [("empty", "")]
 
     facts = await extractor.extract_facts(
         user_id=1,
         thread_id="t1",
         history=[],
-        question="hi",
+        question="empty",
+        answer="response",
+    )
+    assert facts == []
+
+
+@pytest.mark.asyncio
+async def test_extract_facts_non_list_response(extractor, deterministic_llm):
+    deterministic_llm.responses = [("general", '{"fact_type": "general"}')]
+
+    facts = await extractor.extract_facts(
+        user_id=1,
+        thread_id="t1",
+        history=[],
+        question="general",
         answer="hello",
     )
     assert facts == []
 
 
 @pytest.mark.asyncio
-async def test_extract_facts_filters_low_confidence(extractor):
-    extractor.llm.ainvoke = AsyncMock(
-        return_value=MagicMock(
-            content='[{"fact_type": "preference", "content": "likes red", "confidence": 0.95}, {"fact_type": "general", "content": "maybe tall", "confidence": 0.5}]'
+async def test_extract_facts_filters_low_confidence(extractor, deterministic_llm):
+    deterministic_llm.responses = [
+        (
+            "what do you like",
+            '[{"fact_type": "preference", "content": "likes red", "confidence": 0.95}, {"fact_type": "general", "content": "maybe tall", "confidence": 0.5}]',
         )
-    )
+    ]
 
     facts = await extractor.extract_facts(
         user_id=1,
@@ -102,7 +119,7 @@ async def test_extract_facts_skips_credit_card_pii(extractor):
         user_id=1,
         thread_id="t1",
         history=[],
-        question="my card is 4111111111111111",
+        question="my card is 123456789012345",
         answer="ok",
     )
     assert facts == []

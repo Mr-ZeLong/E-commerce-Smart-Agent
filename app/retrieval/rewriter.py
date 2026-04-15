@@ -265,6 +265,9 @@ class QueryRewriter:
         if memory_context:
             facts = memory_context.get("structured_facts", [])
             for fact in facts[:2]:
-                parts.append(f"[fact] {str(fact)}")
+                if isinstance(fact, dict):
+                    parts.append(f"[fact] {fact.get('fact_text', str(fact))}")
+                else:
+                    parts.append(f"[fact] {str(fact)}")
         parts.append(f"[user] {current_query}")
         return "\n".join(parts)

@@ -301,8 +301,16 @@ class SafetyFilter:
             result = await structured_llm.ainvoke([{"role": "user", "content": prompt}])
             if isinstance(result, SafetyCheckResult):
                 return result
+            if isinstance(result, dict):
+                return SafetyCheckResult.model_validate(result)
         except (LangChainException, ConnectionError) as e:
             logger.error(f"Semantic check failed: {e}")
+            return SafetyCheckResult(
+                is_safe=True,
+                risk_level="low",
+                risk_type=None,
+                reason="语义检测失败，默认通过",
+            )
 
         return SafetyCheckResult(
             is_safe=False,

@@ -17,16 +17,21 @@ class VectorMemoryManager:
 
     COLLECTION_NAME = "conversation_memory"
 
-    def __init__(self) -> None:
-        if settings.QDRANT_URL == ":memory:":
-            self.client = AsyncQdrantClient(location=":memory:", timeout=settings.QDRANT_TIMEOUT)
+    def __init__(self, client=None, embedder=None):
+        if client is None:
+            if settings.QDRANT_URL == ":memory:":
+                self.client = AsyncQdrantClient(
+                    location=":memory:", timeout=settings.QDRANT_TIMEOUT
+                )
+            else:
+                self.client = AsyncQdrantClient(
+                    url=settings.QDRANT_URL,
+                    api_key=settings.QDRANT_API_KEY,
+                    timeout=settings.QDRANT_TIMEOUT,
+                )
         else:
-            self.client = AsyncQdrantClient(
-                url=settings.QDRANT_URL,
-                api_key=settings.QDRANT_API_KEY,
-                timeout=settings.QDRANT_TIMEOUT,
-            )
-        self._embedder = create_embedding_model()
+            self.client = client
+        self._embedder = embedder if embedder is not None else create_embedding_model()
         self._collection_ensured: bool = False
 
     async def aclose(self) -> None:

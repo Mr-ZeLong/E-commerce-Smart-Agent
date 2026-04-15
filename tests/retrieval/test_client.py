@@ -1,30 +1,30 @@
 import pytest
-from qdrant_client import AsyncQdrantClient, models
+from qdrant_client import models
 
 from app.retrieval.client import QdrantKnowledgeClient
 
 
 @pytest.mark.asyncio
-async def test_ensure_collection_creates_collection():
-    client = AsyncQdrantClient(location=":memory:")
+async def test_ensure_collection_creates_collection(qdrant_client):
+    client, collection_name = qdrant_client
     knowledge_client = QdrantKnowledgeClient(
-        url=":memory:",
-        collection_name="test_knowledge",
+        url="",
+        collection_name=collection_name,
         api_key="",
         client=client,
     )
     await knowledge_client.ensure_collection()
 
     collections = await client.get_collections()
-    assert "test_knowledge" in [c.name for c in collections.collections]
+    assert collection_name in [c.name for c in collections.collections]
 
 
 @pytest.mark.asyncio
-async def test_query_hybrid_returns_scored_points_with_payloads():
-    client = AsyncQdrantClient(location=":memory:")
+async def test_query_hybrid_returns_scored_points_with_payloads(qdrant_client):
+    client, collection_name = qdrant_client
     knowledge_client = QdrantKnowledgeClient(
-        url=":memory:",
-        collection_name="test_hybrid",
+        url="",
+        collection_name=collection_name,
         api_key="",
         client=client,
     )

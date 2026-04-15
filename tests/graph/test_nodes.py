@@ -1,5 +1,3 @@
-from unittest.mock import AsyncMock
-
 import pytest
 from langgraph.types import Command
 
@@ -11,19 +9,23 @@ from app.graph.nodes import (
     decider_node,
 )
 from app.models.state import make_agent_state
-
-
-def _mock_agent():
-    return AsyncMock()
+from tests._agents import (
+    DeterministicAgent,
+    DeterministicEvaluator,
+    DeterministicOrderAgent,
+    DeterministicPolicyAgent,
+    DeterministicRouterAgent,
+)
 
 
 @pytest.mark.asyncio
 async def test_router_node_direct_response():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "您好！",
-        "updated_state": {"next_agent": "supervisor", "iteration_count": 1},
-    }
+    mock_agent = DeterministicRouterAgent(
+        process_result={
+            "response": "您好！",
+            "updated_state": {"next_agent": "supervisor", "iteration_count": 1},
+        }
+    )
 
     node = build_router_node(mock_agent)
     state = make_agent_state(
@@ -42,11 +44,12 @@ async def test_router_node_direct_response():
 
 @pytest.mark.asyncio
 async def test_router_node_routes_to_supervisor():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "",
-        "updated_state": {"next_agent": "policy_agent", "iteration_count": 1},
-    }
+    mock_agent = DeterministicRouterAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "policy_agent", "iteration_count": 1},
+        }
+    )
 
     node = build_router_node(mock_agent)
     state = make_agent_state(
@@ -65,11 +68,12 @@ async def test_router_node_routes_to_supervisor():
 
 @pytest.mark.asyncio
 async def test_router_node_missing_next_agent():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "",
-        "updated_state": {"needs_human_transfer": True},
-    }
+    mock_agent = DeterministicRouterAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"needs_human_transfer": True},
+        }
+    )
 
     node = build_router_node(mock_agent)
     state = make_agent_state(
@@ -87,11 +91,12 @@ async def test_router_node_missing_next_agent():
 
 @pytest.mark.asyncio
 async def test_policy_node():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "运费满100免运费",
-        "updated_state": {"context": ["policy chunk"]},
-    }
+    mock_agent = DeterministicPolicyAgent(
+        process_result={
+            "response": "运费满100免运费",
+            "updated_state": {"context": ["policy chunk"]},
+        }
+    )
 
     node = build_policy_node(mock_agent)
     state = make_agent_state(question="运费", thread_id="t6")
@@ -106,11 +111,12 @@ async def test_policy_node():
 
 @pytest.mark.asyncio
 async def test_order_node():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "您的订单已发货",
-        "updated_state": {"order_data": {"status": "shipped"}},
-    }
+    mock_agent = DeterministicOrderAgent(
+        process_result={
+            "response": "您的订单已发货",
+            "updated_state": {"order_data": {"status": "shipped"}},
+        }
+    )
 
     node = build_order_node(mock_agent)
     state = make_agent_state(question="订单", thread_id="t7")
@@ -125,14 +131,15 @@ async def test_order_node():
 
 @pytest.mark.asyncio
 async def test_policy_node_returns_updates():
-    mock_agent = _mock_agent()
-    mock_agent.process.return_value = {
-        "response": "请转人工",
-        "updated_state": {
-            "needs_human_transfer": True,
-            "transfer_reason": "policy_specialist_request",
-        },
-    }
+    mock_agent = DeterministicPolicyAgent(
+        process_result={
+            "response": "请转人工",
+            "updated_state": {
+                "needs_human_transfer": True,
+                "transfer_reason": "policy_specialist_request",
+            },
+        }
+    )
 
     node = build_policy_node(mock_agent)
     state = make_agent_state(question="投诉", thread_id="t8")
@@ -145,7 +152,7 @@ async def test_policy_node_returns_updates():
 
 @pytest.mark.asyncio
 async def test_evaluator_node_skips_when_needs_human():
-    node = build_evaluator_node(_mock_agent())
+    node = build_evaluator_node(DeterministicEvaluator())
     state = make_agent_state(
         question="转人工",
         answer="请转人工",
@@ -168,8 +175,7 @@ async def test_evaluator_node_low_confidence_retries():
         "transfer_reason": None,
         "audit_level": "auto",
     }
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = eval_result
+    mock_eval = DeterministicEvaluator(evaluate_result=eval_result)
 
     node = build_evaluator_node(mock_eval)
     state = make_agent_state(
@@ -198,8 +204,7 @@ async def test_evaluator_node_retry_excludes_transfer_flags():
         "transfer_reason": "置信度不足",
         "audit_level": "manual",
     }
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = eval_result
+    mock_eval = DeterministicEvaluator(evaluate_result=eval_result)
 
     node = build_evaluator_node(mock_eval)
     state = make_agent_state(
@@ -226,8 +231,7 @@ async def test_evaluator_node_high_confidence_goes_to_decider():
         "transfer_reason": None,
         "audit_level": "none",
     }
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = eval_result
+    mock_eval = DeterministicEvaluator(evaluate_result=eval_result)
 
     node = build_evaluator_node(mock_eval)
     state = make_agent_state(
@@ -252,8 +256,7 @@ async def test_evaluator_node_boundary_confidence_retries():
         "transfer_reason": None,
         "audit_level": "auto",
     }
-    mock_eval = _mock_agent()
-    mock_eval.evaluate.return_value = eval_result
+    mock_eval = DeterministicEvaluator(evaluate_result=eval_result)
 
     node = build_evaluator_node(mock_eval)
     state = make_agent_state(

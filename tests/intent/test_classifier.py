@@ -8,93 +8,39 @@
 - LLM异常直接抛出
 """
 
-import json
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
-from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.intent.classifier import IntentClassifier
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
-# ========== Fixtures ==========
-
 
 @pytest.fixture
-def mock_llm():
-    """创建Mock LLM"""
-    mock = MagicMock(spec=BaseChatModel)
-    mock.with_structured_output = MagicMock(return_value=mock)
-    return mock
-
-
-@pytest.fixture
-def classifier(mock_llm):
-    """创建带Mock LLM的分类器"""
-    return IntentClassifier(llm=mock_llm)
-
-
-# ========== Helper Functions ==========
-
-
-def create_mock_response_with_tool_calls(tool_args: dict):
-    """创建带工具调用的Mock响应（兼容新版 LangChain API）"""
-    mock_response = MagicMock()
-    arguments = json.dumps(tool_args) if isinstance(tool_args, dict) else tool_args
-    mock_response.additional_kwargs = {
-        "tool_calls": [
-            {
-                "id": "call_123",
-                "type": "function",
-                "function": {"name": "classify_intent", "arguments": arguments},
-            }
-        ]
-    }
-    # 新版 API: response.tool_calls
-    mock_response.tool_calls = [
-        {
-            "name": "classify_intent",
-            "args": tool_args if isinstance(tool_args, dict) else json.loads(arguments),
-            "id": "call_123",
-            "type": "tool_call",
-        }
-    ]
-    return mock_response
-
-
-def create_mock_response_with_content(content: str):
-    """创建带文本内容的Mock响应"""
-    mock_response = MagicMock()
-    mock_response.additional_kwargs = {}  # 无工具调用
-    mock_response.content = content
-    mock_response.tool_calls = []
-    return mock_response
+def classifier(deterministic_llm):
+    """创建带Deterministic LLM的分类器"""
+    return IntentClassifier(llm=deterministic_llm)
 
 
 # ========== Layer 1: Function Calling Tests ==========
 
 
 @pytest.mark.asyncio
-async def test_function_calling_success(classifier, mock_llm):
+async def test_function_calling_success(classifier, deterministic_llm):
     """测试Function Calling成功场景"""
-    # 准备Mock响应
-    tool_args = {
-        "primary_intent": "ORDER",
-        "secondary_intent": "QUERY",
-        "tertiary_intent": "ORDER_TRACKING_DETAIL",
-        "confidence": 0.95,
-        "slots": {"order_sn": "SN20240001"},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "ORDER",
+                "secondary_intent": "QUERY",
+                "tertiary_intent": "ORDER_TRACKING_DETAIL",
+                "confidence": 0.95,
+                "slots": {"order_sn": "SN20240001"},
+            },
+        }
+    ]
 
-    # 设置Mock
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
-
-    # 执行测试
     result = await classifier.classify("我想查订单SN20240001")
 
-    # 验证结果
     assert result.primary_intent == IntentCategory.ORDER
     assert result.secondary_intent == IntentAction.QUERY
     assert result.tertiary_intent == "ORDER_TRACKING_DETAIL"
@@ -103,27 +49,20 @@ async def test_function_calling_success(classifier, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_function_calling_no_tool_calls(classifier, mock_llm):
+async def test_function_calling_no_tool_calls(classifier, deterministic_llm):
     """测试Function Calling无工具调用时降级到规则匹配"""
-    # Function Calling返回无工具调用
-    mock_response_no_tools = create_mock_response_with_content("")
+    deterministic_llm.tool_calls = []
 
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response_no_tools)
-
-    # 执行测试 - 使用规则能匹配的关键词
     result = await classifier.classify("我想退货")
 
-    # 验证降级到规则匹配
     assert result.primary_intent == IntentCategory.AFTER_SALES
     assert result.secondary_intent == IntentAction.APPLY
 
 
 @pytest.mark.asyncio
-async def test_function_calling_exception_propagates(classifier, mock_llm):
+async def test_function_calling_exception_propagates(classifier, deterministic_llm):
     """测试Function Calling异常直接抛出"""
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(side_effect=ValueError("Function calling failed"))
+    deterministic_llm.exception = ValueError("Function calling failed")
 
     with pytest.raises(ValueError, match="Function calling failed"):
         await classifier.classify("运费怎么算")
@@ -167,7 +106,6 @@ def test_rule_matching_cart_add(classifier):
 
 def test_rule_matching_default_other(classifier):
     """测试规则匹配 - 无匹配时默认OTHER"""
-    # 使用无法匹配任何规则的关键词
     result = classifier._classify_with_rules("xyzabc123")
 
     assert result.primary_intent == IntentCategory.OTHER
@@ -195,19 +133,20 @@ def test_rule_matching_greeting(classifier):
 
 
 @pytest.mark.asyncio
-async def test_valid_tertiary_intent(classifier, mock_llm):
+async def test_valid_tertiary_intent(classifier, deterministic_llm):
     """测试合法的三级意图"""
-    tool_args = {
-        "primary_intent": "AFTER_SALES",
-        "secondary_intent": "APPLY",
-        "tertiary_intent": "REFUND",  # 合法的三级意图
-        "confidence": 0.90,
-        "slots": {},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "AFTER_SALES",
+                "secondary_intent": "APPLY",
+                "tertiary_intent": "REFUND",
+                "confidence": 0.90,
+                "slots": {},
+            },
+        }
+    ]
 
     result = await classifier.classify("我要退款")
 
@@ -215,40 +154,41 @@ async def test_valid_tertiary_intent(classifier, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_invalid_tertiary_intent_filtered(classifier, mock_llm):
+async def test_invalid_tertiary_intent_filtered(classifier, deterministic_llm):
     """测试非法的三级意图被过滤"""
-    tool_args = {
-        "primary_intent": "AFTER_SALES",
-        "secondary_intent": "APPLY",
-        "tertiary_intent": "INVALID_TERTIARY",  # 非法的三级意图
-        "confidence": 0.90,
-        "slots": {},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "AFTER_SALES",
+                "secondary_intent": "APPLY",
+                "tertiary_intent": "INVALID_TERTIARY",
+                "confidence": 0.90,
+                "slots": {},
+            },
+        }
+    ]
 
     result = await classifier.classify("我要退款")
 
-    # 非法的三级意图应该被设为None
     assert result.tertiary_intent is None
 
 
 @pytest.mark.asyncio
-async def test_none_tertiary_intent_allowed(classifier, mock_llm):
+async def test_none_tertiary_intent_allowed(classifier, deterministic_llm):
     """测试None三级意图是合法的"""
-    tool_args = {
-        "primary_intent": "ORDER",
-        "secondary_intent": "QUERY",
-        "tertiary_intent": None,
-        "confidence": 0.85,
-        "slots": {"order_sn": "SN123"},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "ORDER",
+                "secondary_intent": "QUERY",
+                "tertiary_intent": None,
+                "confidence": 0.85,
+                "slots": {"order_sn": "SN123"},
+            },
+        }
+    ]
 
     result = await classifier.classify("查订单")
 
@@ -313,7 +253,7 @@ def test_validate_intent_result_invalid_confidence(classifier):
     result = IntentResult(
         primary_intent=IntentCategory.ORDER,
         secondary_intent=IntentAction.QUERY,
-        confidence=1.5,  # 超出范围
+        confidence=1.5,
         slots={},
         raw_query="测试",
     )
@@ -328,19 +268,20 @@ def test_validate_intent_result_invalid_confidence(classifier):
 
 
 @pytest.mark.asyncio
-async def test_classification_with_context(classifier, mock_llm):
+async def test_classification_with_context(classifier, deterministic_llm):
     """测试带上下文的分类"""
-    tool_args = {
-        "primary_intent": "ORDER",
-        "secondary_intent": "QUERY",
-        "tertiary_intent": "ORDER_TRACKING_DETAIL",
-        "confidence": 0.90,
-        "slots": {"order_sn": "SN20240001"},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "ORDER",
+                "secondary_intent": "QUERY",
+                "tertiary_intent": "ORDER_TRACKING_DETAIL",
+                "confidence": 0.90,
+                "slots": {"order_sn": "SN20240001"},
+            },
+        }
+    ]
 
     context = {
         "session_id": "sess_123",
@@ -360,24 +301,24 @@ def test_empty_query(classifier):
     """测试空输入直接走规则匹配"""
     result = classifier._classify_with_rules("")
 
-    # 应该降级到规则匹配，默认OTHER
     assert result.primary_intent == IntentCategory.OTHER
 
 
 @pytest.mark.asyncio
-async def test_very_long_query(classifier, mock_llm):
+async def test_very_long_query(classifier, deterministic_llm):
     """测试超长输入"""
-    tool_args = {
-        "primary_intent": "COMPLAINT",
-        "secondary_intent": "CONSULT",
-        "tertiary_intent": None,
-        "confidence": 0.80,
-        "slots": {"complaint_content": "很长的内容"},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "COMPLAINT",
+                "secondary_intent": "CONSULT",
+                "tertiary_intent": None,
+                "confidence": 0.80,
+                "slots": {"complaint_content": "很长的内容"},
+            },
+        }
+    ]
 
     long_query = "我要投诉" + "!" * 1000
 
@@ -388,7 +329,6 @@ async def test_very_long_query(classifier, mock_llm):
 
 def test_special_characters_query(classifier):
     """测试特殊字符输入直接走规则匹配"""
-    # 使用规则能匹配的关键词
     result = classifier._classify_with_rules("订单!@#$%^&*()")
 
     assert result is not None
@@ -397,33 +337,31 @@ def test_special_characters_query(classifier):
 
 def test_multiple_keywords_match(classifier):
     """测试多个关键词匹配"""
-    # 同时包含订单和退货关键词
     result = classifier._classify_with_rules("订单SN123我想退货")
 
-    # 应该匹配其中一个规则
-    assert result.confidence == 0.5  # 规则匹配的置信度
+    assert result.confidence == 0.5
 
 
 # ========== Invalid Function Calling Result Tests ==========
 
 
 @pytest.mark.asyncio
-async def test_invalid_function_result_falls_back_to_rules(classifier, mock_llm):
+async def test_invalid_function_result_falls_back_to_rules(classifier, deterministic_llm):
     """测试Function Calling返回无效结果时降级到规则匹配"""
-    tool_args = {
-        "primary_intent": "ORDER",
-        "secondary_intent": "QUERY",
-        "tertiary_intent": None,
-        "confidence": 1.5,  # 无效置信度，触发 _finalize_result 验证失败
-        "slots": {},
-    }
-    mock_response = create_mock_response_with_tool_calls(tool_args)
-
-    mock_llm.bind_tools = MagicMock(return_value=mock_llm)
-    mock_llm.ainvoke = AsyncMock(return_value=mock_response)
+    deterministic_llm.tool_calls = [
+        {
+            "name": "classify_intent",
+            "args": {
+                "primary_intent": "ORDER",
+                "secondary_intent": "QUERY",
+                "tertiary_intent": None,
+                "confidence": 1.5,
+                "slots": {},
+            },
+        }
+    ]
 
     result = await classifier.classify("我的订单状态")
 
-    # 无效结果触发 _finalize_result 中的验证失败，降级到规则匹配
     assert result.primary_intent == IntentCategory.ORDER
     assert result.secondary_intent == IntentAction.QUERY

@@ -1,25 +1,18 @@
-from unittest.mock import MagicMock, patch
+import uuid
 
-from app.models.refund import RefundStatus
+import pytest
+from sqlmodel import select
+
+from app.models.audit import AuditAction, AuditLog, AuditTriggerType, RiskLevel
+from app.models.message import MessageCard, MessageType
+from app.models.order import Order, OrderStatus
+from app.models.refund import RefundApplication, RefundStatus
+from app.models.user import User
 from app.tasks.refund_tasks import (
     notify_admin_audit,
     process_refund_payment,
     send_refund_sms,
 )
-
-
-def _make_sync_session_mock():
-    session = MagicMock()
-    session.exec = MagicMock()
-    session.commit = MagicMock()
-    session.add = MagicMock()
-
-    cm = MagicMock()
-    cm.__enter__ = MagicMock(return_value=session)
-    cm.__exit__ = MagicMock(return_value=False)
-
-    maker = MagicMock(return_value=cm)
-    return maker, session
 
 
 class TestSendRefundSms:
@@ -31,112 +24,99 @@ class TestSendRefundSms:
 
 
 class TestProcessRefundPayment:
-    def test_process_refund_payment_success(self):
-        mock_refund = MagicMock()
-        mock_refund.status = RefundStatus.PENDING
-        mock_refund.updated_at = None
+    def test_process_refund_payment_success(self, db_sync_session):
+        user = User(
+            username=f"refund_user_{uuid.uuid4().hex[:8]}",
+            password_hash=User.hash_password("testpass"),
+            email=f"{uuid.uuid4().hex[:8]}@test.com",
+            full_name="Test User",
+        )
+        db_sync_session.add(user)
+        db_sync_session.commit()
+        db_sync_session.refresh(user)
+        assert user.id is not None
 
-        mock_result = MagicMock()
-        mock_result.one_or_none = MagicMock(return_value=mock_refund)
+        order = Order(
+            order_sn=f"ORD{uuid.uuid4().hex[:12].upper()}",
+            user_id=user.id,
+            status=OrderStatus.DELIVERED,
+            total_amount=199.99,
+            shipping_address="Test Address",
+        )
+        db_sync_session.add(order)
+        db_sync_session.commit()
+        db_sync_session.refresh(order)
+        assert order.id is not None
 
-        maker, session = _make_sync_session_mock()
-        session.exec.return_value = mock_result
+        refund = RefundApplication(
+            order_id=order.id,
+            user_id=user.id,
+            status=RefundStatus.PENDING,
+            reason_detail="Test refund",
+            refund_amount=99.9,
+        )
+        db_sync_session.add(refund)
+        db_sync_session.commit()
+        db_sync_session.refresh(refund)
 
-        with patch("app.tasks.refund_tasks.sync_session_maker", maker):
-            result = process_refund_payment.run(1, 99.9, "alipay")
+        result = process_refund_payment.run(refund.id, 99.9, "alipay", session=db_sync_session)
 
         assert result["status"] == "success"
-        assert result["refund_id"] == 1
+        assert result["refund_id"] == refund.id
         assert result["amount"] == 99.9
-        assert mock_refund.status == RefundStatus.COMPLETED
-        assert mock_refund.updated_at is not None
-        session.add.assert_called_once_with(mock_refund)
-        session.commit.assert_called_once()
+
+        updated = db_sync_session.exec(
+            select(RefundApplication).where(RefundApplication.id == refund.id)
+        ).one()
+        assert updated.status == RefundStatus.COMPLETED
+        assert updated.updated_at is not None
+
+
+def test_process_refund_payment_not_found(db_sync_session):
+    with pytest.raises(ValueError, match="Refund application 999 not found"):
+        process_refund_payment.run(999, 99.9, "alipay", session=db_sync_session)
 
 
 class TestNotifyAdminAudit:
-    def test_notify_admin_audit_success(self):
-        mock_audit = MagicMock()
-        mock_audit.risk_level = "HIGH"
-        mock_audit.trigger_reason = "金额过大"
-        mock_audit.user_id = 100
-        mock_audit.thread_id = "thread-abc"
+    def test_notify_admin_audit_success(self, db_sync_session):
+        user = User(
+            username=f"audit_user_{uuid.uuid4().hex[:8]}",
+            password_hash=User.hash_password("testpass"),
+            email=f"{uuid.uuid4().hex[:8]}@test.com",
+            full_name="Test User",
+        )
+        db_sync_session.add(user)
+        db_sync_session.commit()
+        db_sync_session.refresh(user)
+        assert user.id is not None
 
-        mock_result = MagicMock()
-        mock_result.one_or_none = MagicMock(return_value=mock_audit)
+        log = AuditLog(
+            thread_id=f"thread-{uuid.uuid4().hex[:8]}",
+            user_id=user.id,
+            trigger_reason="金额过大",
+            risk_level=RiskLevel.HIGH,
+            action=AuditAction.PENDING,
+            trigger_type=AuditTriggerType.RISK,
+            context_snapshot={},
+        )
+        db_sync_session.add(log)
+        db_sync_session.commit()
+        db_sync_session.refresh(log)
 
-        maker, session = _make_sync_session_mock()
-        session.exec.return_value = mock_result
-
-        mock_message_instance = MagicMock()
-
-        with (
-            patch("app.tasks.refund_tasks.sync_session_maker", maker),
-            patch(
-                "app.tasks.refund_tasks.MessageCard",
-                return_value=mock_message_instance,
-            ) as mock_message_cls,
-        ):
-            result = notify_admin_audit.run(5)
+        result = notify_admin_audit.run(log.id, session=db_sync_session)
 
         assert result["status"] == "success"
-        assert result["audit_log_id"] == 5
-        mock_message_cls.assert_called_once()
-        call_kwargs = mock_message_cls.call_args.kwargs
-        assert call_kwargs["thread_id"] == "thread-abc"
-        assert call_kwargs["content"]["type"] == "admin_notification"
-        assert call_kwargs["content"]["risk_level"] == "HIGH"
-        session.add.assert_called_once_with(mock_message_instance)
-        session.commit.assert_called_once()
+        assert result["audit_log_id"] == log.id
+
+        message = db_sync_session.exec(
+            select(MessageCard).where(MessageCard.thread_id == log.thread_id)
+        ).one_or_none()
+        assert message is not None
+        assert message.message_type == MessageType.SYSTEM
+        assert message.content["type"] == "admin_notification"
+        assert message.content["risk_level"] == RiskLevel.HIGH
 
 
-def test_process_refund_payment_not_found():
-    mock_result = MagicMock()
-    mock_result.one_or_none = MagicMock(return_value=None)
-
-    maker, session = _make_sync_session_mock()
-    session.exec.return_value = mock_result
-
-    with patch("app.tasks.refund_tasks.sync_session_maker", maker):
-        try:
-            process_refund_payment.run(999, 99.9, "alipay")
-            raise AssertionError("应抛出异常")
-        except ValueError as e:
-            assert "Refund application 999 not found" in str(e)
-
-
-def test_notify_admin_audit_not_found():
-    mock_result = MagicMock()
-    mock_result.one_or_none = MagicMock(return_value=None)
-
-    maker, session = _make_sync_session_mock()
-    session.exec.return_value = mock_result
-
-    with patch("app.tasks.refund_tasks.sync_session_maker", maker):
-        try:
-            notify_admin_audit.run(999)
-            raise AssertionError("应抛出异常")
-        except ValueError as e:
-            assert "Audit log 999 not found" in str(e)
-
-
-def test_notify_admin_audit_commit_exception():
-    mock_audit = MagicMock()
-    mock_audit.risk_level = "HIGH"
-    mock_audit.trigger_reason = "金额过大"
-    mock_audit.user_id = 100
-    mock_audit.thread_id = "thread-abc"
-
-    mock_result = MagicMock()
-    mock_result.one_or_none = MagicMock(return_value=mock_audit)
-
-    maker, session = _make_sync_session_mock()
-    session.exec.return_value = mock_result
-    session.commit = MagicMock(side_effect=Exception("DB write failed"))
-
-    with patch("app.tasks.refund_tasks.sync_session_maker", maker):
-        try:
-            notify_admin_audit.run(5)
-            raise AssertionError("应抛出异常")
-        except Exception as e:
-            assert "DB write failed" in str(e)
+def test_notify_admin_audit_not_found(db_sync_session):
+    with pytest.raises(ValueError, match="Audit log 999 not found"):
+        notify_admin_audit.run(999, session=db_sync_session)

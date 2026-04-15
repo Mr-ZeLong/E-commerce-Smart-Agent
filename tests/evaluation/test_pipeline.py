@@ -1,6 +1,7 @@
-from unittest.mock import AsyncMock, MagicMock
+import json
 
 import pytest
+from langgraph.graph import END, START, StateGraph
 
 from app.evaluation.metrics import (
     answer_correctness,
@@ -9,6 +10,8 @@ from app.evaluation.metrics import (
     slot_recall,
 )
 from app.evaluation.pipeline import EvaluationPipeline
+from app.intent.service import IntentRecognitionService
+from app.models.state import AgentState
 
 
 def test_intent_accuracy_full_match():
@@ -65,71 +68,88 @@ def test_rag_precision_empty_chunks():
 
 
 @pytest.mark.asyncio
-async def test_answer_correctness_parses_score():
-    mock_llm = AsyncMock()
-    mock_llm.ainvoke.return_value = MagicMock(content="0.85")
-    score = await answer_correctness("Q", "expected", "actual", mock_llm)
+async def test_answer_correctness_parses_score(deterministic_llm):
+    deterministic_llm.responses = [("correctness", "0.85")]
+    score = await answer_correctness("Q", "expected", "actual", deterministic_llm)
     assert score == pytest.approx(0.85)
-    mock_llm.ainvoke.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_answer_correctness_clamps_score():
-    mock_llm = AsyncMock()
-    mock_llm.ainvoke.return_value = MagicMock(content="1.5")
-    score = await answer_correctness("Q", "expected", "actual", mock_llm)
+async def test_answer_correctness_clamps_score(deterministic_llm):
+    deterministic_llm.responses = [("correctness", "1.5")]
+    score = await answer_correctness("Q", "expected", "actual", deterministic_llm)
     assert score == pytest.approx(1.0)
 
 
 @pytest.mark.asyncio
-async def test_answer_correctness_empty_actual():
-    mock_llm = AsyncMock()
-    score = await answer_correctness("Q", "expected", "", mock_llm)
+async def test_answer_correctness_empty_actual(deterministic_llm):
+    score = await answer_correctness("Q", "expected", "", deterministic_llm)
     assert score == 0.0
-    mock_llm.ainvoke.assert_not_awaited()
+
+
+def _build_success_graph():
+    def _node(state: AgentState):
+        return {
+            "answer": "这是预期答案",
+            "retrieval_result": {"chunks": ["政策A", "政策B"]},
+        }
+
+    workflow = StateGraph(AgentState)  # type: ignore
+    workflow.add_node("policy_agent", _node)
+    workflow.add_edge(START, "policy_agent")
+    workflow.add_edge("policy_agent", END)
+    return workflow.compile()
+
+
+def _build_failing_graph():
+    def _node(state: AgentState):
+        raise Exception("graph failure")
+
+    workflow = StateGraph(AgentState)  # type: ignore
+    workflow.add_node("policy_agent", _node)
+    workflow.add_edge(START, "policy_agent")
+    workflow.add_edge("policy_agent", END)
+    return workflow.compile()
+
+
+async def _cleanup_intent_keys(redis_client):
+    keys = []
+    async for key in redis_client.scan_iter(match="intent:cache:*"):
+        keys.append(key)
+    async for key in redis_client.scan_iter(match="intent:session:*"):
+        keys.append(key)
+    if keys:
+        await redis_client.delete(*keys)
 
 
 @pytest.mark.asyncio
-async def test_pipeline_run(tmp_path):
+async def test_pipeline_run_full(tmp_path, deterministic_llm, redis_client):
+    deterministic_llm.responses = [("correctness", "1.0")]
+
     dataset_path = tmp_path / "golden_dataset.jsonl"
-    dataset_path.write_text(
-        '{"query": "查询订单SN20240001的状态", "expected_intent": "ORDER", '
-        '"expected_slots": {"order_sn": "SN20240001"}, '
-        '"expected_answer_fragment": "订单", "expected_audit_level": "auto"}\n'
-        '{"query": "你们的退换货政策是什么", "expected_intent": "POLICY", '
-        '"expected_slots": {}, "expected_answer_fragment": "退换货政策", '
-        '"expected_audit_level": "auto"}\n',
-        encoding="utf-8",
-    )
-
-    mock_intent_service = AsyncMock()
-    mock_intent_service.recognize.side_effect = [
-        MagicMock(
-            primary_intent=MagicMock(value="ORDER"),
-            slots={"order_sn": "SN20240001"},
-        ),
-        MagicMock(
-            primary_intent=MagicMock(value="POLICY"),
-            slots={},
-        ),
-    ]
-
-    mock_graph = AsyncMock()
-    mock_graph.ainvoke.side_effect = [
-        {"answer": "订单已发货"},
+    records = [
         {
-            "answer": "支持7天无理由退换货",
-            "retrieval_result": {"chunks": ["退换货政策: 7天无理由"]},
+            "query": "查订单状态",
+            "expected_intent": "ORDER",
+            "expected_slots": {},
+            "expected_answer_fragment": "订单",
+        },
+        {
+            "query": "退换货政策",
+            "expected_intent": "POLICY",
+            "expected_slots": {"matched_pattern": ""},
+            "expected_answer_fragment": "预期",
         },
     ]
+    dataset_path.write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in records), encoding="utf-8"
+    )
 
-    mock_llm = AsyncMock()
-    mock_llm.ainvoke.return_value = MagicMock(content="1.0")
-
+    service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
     pipeline = EvaluationPipeline(
-        intent_service=mock_intent_service,
-        llm=mock_llm,
-        graph=mock_graph,
+        intent_service=service,
+        llm=deterministic_llm,
+        graph=_build_success_graph(),
     )
 
     results = await pipeline.run(str(dataset_path))
@@ -140,44 +160,33 @@ async def test_pipeline_run(tmp_path):
     assert results["answer_correctness"] == pytest.approx(1.0)
     assert results["total_records"] == 2
 
-    print("EVALUATION_METRICS:", results)
-
-    assert mock_intent_service.recognize.await_count == 2
-    assert mock_graph.ainvoke.await_count == 2
-    assert mock_llm.ainvoke.await_count == 2
+    await _cleanup_intent_keys(redis_client)
 
 
 @pytest.mark.asyncio
-async def test_pipeline_run_graph_failure_graceful(tmp_path):
+async def test_pipeline_run_graph_failure_graceful(tmp_path, deterministic_llm, redis_client):
     dataset_path = tmp_path / "golden_dataset.jsonl"
-    dataset_path.write_text(
-        '{"query": "查询订单", "expected_intent": "ORDER", '
-        '"expected_slots": {}, "expected_answer_fragment": "订单", '
-        '"expected_audit_level": "auto"}\n',
-        encoding="utf-8",
-    )
+    record = {
+        "query": "查订单",
+        "expected_intent": "ORDER",
+        "expected_slots": {},
+        "expected_answer_fragment": "订单",
+    }
+    dataset_path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
 
-    mock_intent_service = AsyncMock()
-    mock_intent_service.recognize.return_value = MagicMock(
-        primary_intent=MagicMock(value="ORDER"),
-        slots={},
-    )
-
-    mock_graph = AsyncMock()
-    mock_graph.ainvoke.side_effect = Exception("graph failure")
-
-    mock_llm = AsyncMock()
-
+    service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
     pipeline = EvaluationPipeline(
-        intent_service=mock_intent_service,
-        llm=mock_llm,
-        graph=mock_graph,
+        intent_service=service,
+        llm=deterministic_llm,
+        graph=_build_failing_graph(),
     )
 
     results = await pipeline.run(str(dataset_path))
 
     assert results["intent_accuracy"] == pytest.approx(1.0)
     assert results["slot_recall"] == pytest.approx(0.0)
-    assert results["rag_precision"] == 0.0
-    assert results["answer_correctness"] == 0.0
+    assert results["rag_precision"] == pytest.approx(0.0)
+    assert results["answer_correctness"] == pytest.approx(0.0)
     assert results["total_records"] == 1
+
+    await _cleanup_intent_keys(redis_client)

@@ -14,8 +14,9 @@ class CartTool(BaseTool):
     name = "cart"
     description = "购物车增删查改操作"
 
-    def __init__(self, redis_client: aioredis.Redis | None = None):
+    def __init__(self, redis_client: aioredis.Redis | None = None, key_prefix: str = ""):
         self._redis = redis_client
+        self._key_prefix = key_prefix
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
@@ -33,7 +34,7 @@ class CartTool(BaseTool):
         price = float(slots.get("price", 0) or kwargs.get("price", 0))
 
         redis = await self._get_redis()
-        key = f"cart:{user_id}"
+        key = f"{self._key_prefix}cart:{user_id}"
 
         try:
             if action == "QUERY":

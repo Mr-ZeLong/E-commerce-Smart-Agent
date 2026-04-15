@@ -1,25 +1,23 @@
-from unittest.mock import AsyncMock
-
 import pytest
-from langgraph.checkpoint.memory import MemorySaver
 
 from app.graph.workflow import create_workflow
+from tests._agents import DeterministicAgent
 
 
 @pytest.mark.asyncio
-async def test_workflow_compiles():
-    checkpointer = MemorySaver()
+async def test_workflow_compiles(redis_checkpointer):
+    checkpointer = redis_checkpointer
     app_graph = create_workflow(
-        router_agent=AsyncMock(),
-        policy_agent=AsyncMock(),
-        order_agent=AsyncMock(),
-        logistics_agent=AsyncMock(),
-        account_agent=AsyncMock(),
-        payment_agent=AsyncMock(),
-        evaluator=AsyncMock(),
-        supervisor_agent=AsyncMock(),
-        product_agent=AsyncMock(),
-        cart_agent=AsyncMock(),
-        llm=AsyncMock(),
+        router_agent=DeterministicAgent(),
+        policy_agent=DeterministicAgent(),
+        order_agent=DeterministicAgent(),
+        logistics_agent=DeterministicAgent(),
+        account_agent=DeterministicAgent(),
+        payment_agent=DeterministicAgent(),
+        evaluator=DeterministicAgent(),
+        supervisor_agent=DeterministicAgent(),
+        product_agent=DeterministicAgent(),
+        cart_agent=DeterministicAgent(),
+        llm=DeterministicAgent(),
     ).compile(checkpointer=checkpointer)
     assert app_graph is not None

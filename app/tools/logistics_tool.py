@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 from sqlmodel import select
 
 from app.core.database import async_session_maker
@@ -10,13 +12,14 @@ class LogisticsTool(BaseTool):
     name = "logistics"
     description = "查询订单物流状态"
 
-    async def execute(self, state: AgentState, **kwargs) -> ToolResult:
+    async def execute(self, state: AgentState, session=None, **kwargs) -> ToolResult:
         slots = state.get("slots") or {}
         order_sn = slots.get("order_sn") or kwargs.get("order_sn")
         user_id = state.get("user_id")
 
-        async with async_session_maker() as session:
-            result = await session.exec(
+        session_cm = nullcontext(session) if session is not None else async_session_maker()
+        async with session_cm as sess:
+            result = await sess.exec(
                 select(Order).where(Order.order_sn == order_sn, Order.user_id == user_id)
             )
             order = result.one_or_none()

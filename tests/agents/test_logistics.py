@@ -1,48 +1,34 @@
-from unittest.mock import MagicMock
-
 import pytest
 
 from app.agents.logistics import LogisticsAgent
 from app.models.state import make_agent_state
-from app.tools.base import BaseTool, ToolResult
-from app.tools.registry import ToolRegistry
-
-
-class MockLogisticsTool(BaseTool):
-    name = "logistics"
-    description = "mock"
-
-    def __init__(self, output):
-        self._output = output
-
-    async def execute(self, state, **kwargs):
-        _ = state
-        _ = kwargs
-        return ToolResult(output=self._output)
+from tests._agents import DeterministicToolRegistry
 
 
 @pytest.fixture
-def agent():
-    registry = ToolRegistry()
-    registry.register(
-        MockLogisticsTool(
-            {
-                "tracking_number": "SF1234567890",
-                "carrier": "顺丰速运",
-                "status": "运输中",
-                "latest_update": "快件已到达【北京顺义集散中心】",
-                "estimated_delivery": "2024-01-20",
+def agent(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "logistics": {
+                "output": {
+                    "tracking_number": "SF1234567890",
+                    "carrier": "顺丰速运",
+                    "status": "运输中",
+                    "latest_update": "快件已到达【北京顺义集散中心】",
+                    "estimated_delivery": "2024-01-20",
+                }
             }
-        )
+        }
     )
-    return LogisticsAgent(tool_registry=registry, llm=MagicMock())
+    return LogisticsAgent(tool_registry=registry, llm=deterministic_llm)
 
 
 @pytest.fixture
-def agent_not_found():
-    registry = ToolRegistry()
-    registry.register(MockLogisticsTool({"status": "未找到订单"}))
-    return LogisticsAgent(tool_registry=registry, llm=MagicMock())
+def agent_not_found(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={"logistics": {"output": {"status": "未找到订单"}}}
+    )
+    return LogisticsAgent(tool_registry=registry, llm=deterministic_llm)
 
 
 @pytest.mark.asyncio

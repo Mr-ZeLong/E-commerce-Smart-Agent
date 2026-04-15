@@ -62,34 +62,43 @@ class AuthService:
         Raises:
             HTTPException: 400 if username or email already exists.
         """
-        try:
-            async with session.begin():
-                result = await session.exec(select(User).where(User.username == username))
-                if result.first():
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="用户名已存在",
-                    )
 
-                result = await session.exec(select(User).where(User.email == email))
-                if result.first():
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="邮箱已被注册",
-                    )
-
-                password_hash = await asyncio.to_thread(User.hash_password, password)
-                user = User(
-                    username=username,
-                    password_hash=password_hash,
-                    email=email,
-                    full_name=full_name,
-                    phone=phone,
-                    is_admin=False,
-                    is_active=True,
+        async def _do_register() -> User:
+            result = await session.exec(select(User).where(User.username == username))
+            if result.first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="用户名已存在",
                 )
 
-                session.add(user)
+            result = await session.exec(select(User).where(User.email == email))
+            if result.first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="邮箱已被注册",
+                )
+
+            password_hash = await asyncio.to_thread(User.hash_password, password)
+            user = User(
+                username=username,
+                password_hash=password_hash,
+                email=email,
+                full_name=full_name,
+                phone=phone,
+                is_admin=False,
+                is_active=True,
+            )
+
+            session.add(user)
+            return user
+
+        try:
+            if session.in_transaction():
+                user = await _do_register()
+                await session.flush()
+            else:
+                async with session.begin():
+                    user = await _do_register()
         except IntegrityError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

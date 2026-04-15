@@ -1,40 +1,37 @@
-from unittest.mock import AsyncMock
-
 import pytest
+import pytest_asyncio
 
 from app.models.state import make_agent_state
 from app.tools.cart_tool import CartTool
 
 
-@pytest.fixture
-def cart_tool():
-    return CartTool()
+@pytest_asyncio.fixture(loop_scope="function")
+async def cart_tool(redis_client):
+    prefix = getattr(redis_client, "_test_prefix", "test:")
+    return CartTool(redis_client=redis_client, key_prefix=prefix)
 
 
 @pytest.mark.asyncio
-async def test_cart_tool_query_empty(cart_tool):
-    mock_redis = AsyncMock()
-    mock_redis.get.return_value = None
-    cart_tool._redis = mock_redis
-
-    state = make_agent_state(question="查看购物车", user_id=42)
+async def test_cart_tool_query_empty(cart_tool, redis_client):
+    user_id = 42
+    state = make_agent_state(question="查看购物车", user_id=user_id)
     result = await cart_tool.execute(state)
 
     assert result.output["action"] == "QUERY"
     assert result.output["items"] == []
     assert result.output["total"] == 0.0
-    mock_redis.get.assert_awaited_once_with("cart:42")
+
+    key = f"{cart_tool._key_prefix}cart:{user_id}"
+    raw = await redis_client.get(key)
+    assert raw is None
 
 
 @pytest.mark.asyncio
-async def test_cart_tool_add_item(cart_tool):
-    mock_redis = AsyncMock()
-    mock_redis.get.return_value = None
-    cart_tool._redis = mock_redis
-
+async def test_cart_tool_add_item(cart_tool, redis_client):
+    user_id = 1
     state = make_agent_state(
         question="加入购物车",
-        user_id=1,
+        user_id=user_id,
         slots={
             "action": "ADD",
             "sku": "SKU-001",
@@ -49,18 +46,25 @@ async def test_cart_tool_add_item(cart_tool):
     assert result.output["name"] == "测试商品"
     assert result.output["quantity"] == 2
     assert result.output["total"] == 199.0
-    mock_redis.setex.assert_awaited_once()
+
+    key = f"{cart_tool._key_prefix}cart:{user_id}"
+    raw = await redis_client.get(key)
+    assert raw is not None
 
 
 @pytest.mark.asyncio
-async def test_cart_tool_remove_item(cart_tool):
-    mock_redis = AsyncMock()
-    mock_redis.get.return_value = '{"user_id": "1", "items": [{"sku": "SKU-001", "name": "测试商品", "quantity": 1, "price": 10.0, "subtotal": 10.0}], "total": 10.0}'
-    cart_tool._redis = mock_redis
+async def test_cart_tool_remove_item(cart_tool, redis_client):
+    user_id = 1
+    key = f"{cart_tool._key_prefix}cart:{user_id}"
+    await redis_client.setex(
+        key,
+        86400,
+        '{"user_id": "1", "items": [{"sku": "SKU-001", "name": "测试商品", "quantity": 1, "price": 10.0, "subtotal": 10.0}], "total": 10.0}',
+    )
 
     state = make_agent_state(
         question="移除商品",
-        user_id=1,
+        user_id=user_id,
         slots={"action": "REMOVE", "sku": "SKU-001"},
     )
     result = await cart_tool.execute(state)
@@ -72,14 +76,18 @@ async def test_cart_tool_remove_item(cart_tool):
 
 
 @pytest.mark.asyncio
-async def test_cart_tool_modify_quantity(cart_tool):
-    mock_redis = AsyncMock()
-    mock_redis.get.return_value = '{"user_id": "1", "items": [{"sku": "SKU-001", "name": "测试商品", "quantity": 1, "price": 10.0, "subtotal": 10.0}], "total": 10.0}'
-    cart_tool._redis = mock_redis
+async def test_cart_tool_modify_quantity(cart_tool, redis_client):
+    user_id = 1
+    key = f"{cart_tool._key_prefix}cart:{user_id}"
+    await redis_client.setex(
+        key,
+        86400,
+        '{"user_id": "1", "items": [{"sku": "SKU-001", "name": "测试商品", "quantity": 1, "price": 10.0, "subtotal": 10.0}], "total": 10.0}',
+    )
 
     state = make_agent_state(
         question="修改数量",
-        user_id=1,
+        user_id=user_id,
         slots={"action": "MODIFY", "sku": "SKU-001", "quantity": 3},
     )
     result = await cart_tool.execute(state)
@@ -91,13 +99,10 @@ async def test_cart_tool_modify_quantity(cart_tool):
 
 @pytest.mark.asyncio
 async def test_cart_tool_add_missing_sku(cart_tool):
-    mock_redis = AsyncMock()
-    mock_redis.get.return_value = None
-    cart_tool._redis = mock_redis
-
+    user_id = 1
     state = make_agent_state(
         question="加入购物车",
-        user_id=1,
+        user_id=user_id,
         slots={"action": "ADD"},
     )
     result = await cart_tool.execute(state)

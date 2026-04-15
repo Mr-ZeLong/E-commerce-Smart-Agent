@@ -1,33 +1,36 @@
-from unittest.mock import AsyncMock
-
 import pytest
 
 from app.agents.product import ProductAgent
 from app.models.state import make_agent_state
+from tests._agents import DeterministicToolRegistry
 
 
 @pytest.fixture
-def agent():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {
-        "status": "success",
-        "products": [
-            {
-                "name": "纯棉T恤",
-                "price": 99.0,
-                "in_stock": True,
-                "description": "舒适透气的纯棉T恤",
-            },
-            {
-                "name": "速干运动衫",
-                "price": 129.0,
-                "in_stock": False,
-                "description": "专业速干面料",
-            },
-        ],
-    }
-    return ProductAgent(tool_registry=registry, llm=AsyncMock())
+def agent(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "product": {
+                "output": {
+                    "status": "success",
+                    "products": [
+                        {
+                            "name": "纯棉T恤",
+                            "price": 99.0,
+                            "in_stock": True,
+                            "description": "舒适透气的纯棉T恤",
+                        },
+                        {
+                            "name": "速干运动衫",
+                            "price": 129.0,
+                            "in_stock": False,
+                            "description": "专业速干面料",
+                        },
+                    ],
+                }
+            }
+        }
+    )
+    return ProductAgent(tool_registry=registry, llm=deterministic_llm)
 
 
 @pytest.mark.asyncio
@@ -40,11 +43,9 @@ async def test_product_agent_listing(agent):
 
 
 @pytest.mark.asyncio
-async def test_product_agent_not_found():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {"status": "not_found"}
-    agent = ProductAgent(tool_registry=registry, llm=AsyncMock())
+async def test_product_agent_not_found(deterministic_llm):
+    registry = DeterministicToolRegistry(responses={"product": {"output": {"status": "not_found"}}})
+    agent = ProductAgent(tool_registry=registry, llm=deterministic_llm)
 
     state = make_agent_state(question="找一些不存在的东西")
     result = await agent.process(state)
@@ -52,22 +53,26 @@ async def test_product_agent_not_found():
 
 
 @pytest.mark.asyncio
-async def test_product_agent_direct_answer():
-    registry = AsyncMock()
-    registry.execute.return_value = AsyncMock()
-    registry.execute.return_value.output = {
-        "status": "success",
-        "products": [
-            {
-                "name": "智能手机",
-                "price": 2999.0,
-                "in_stock": True,
-                "description": "旗舰手机",
+async def test_product_agent_direct_answer(deterministic_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "product": {
+                "output": {
+                    "status": "success",
+                    "products": [
+                        {
+                            "name": "智能手机",
+                            "price": 2999.0,
+                            "in_stock": True,
+                            "description": "旗舰手机",
+                        }
+                    ],
+                    "direct_answer": "智能手机 的屏幕为 6.7英寸。",
+                }
             }
-        ],
-        "direct_answer": "智能手机 的屏幕为 6.7英寸。",
-    }
-    agent = ProductAgent(tool_registry=registry, llm=AsyncMock())
+        }
+    )
+    agent = ProductAgent(tool_registry=registry, llm=deterministic_llm)
 
     state = make_agent_state(question="这款手机屏幕多大")
     result = await agent.process(state)

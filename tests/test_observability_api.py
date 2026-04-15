@@ -40,6 +40,22 @@ async def seed_logs() -> None:
             )
         )
         await session.execute(text("DELETE FROM graph_execution_logs"))  # type: ignore
+        for uid in (1, 2, 3):
+            await session.execute(
+                text(
+                    "INSERT INTO users (id, username, email, password_hash, full_name, phone, is_active, is_admin) "
+                    "VALUES (:id, :username, :email, :password_hash, :full_name, :phone, true, false) "
+                    "ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email"
+                ),
+                {
+                    "id": uid,
+                    "username": f"obs_user_{uid}",
+                    "email": f"obs_user_{uid}@test.com",
+                    "password_hash": User.hash_password("pass"),
+                    "full_name": "Obs User",
+                    "phone": "13800138000",
+                },
+            )
         await session.commit()
         now = utc_now()
         # execution 1: recent, policy agent, high confidence, no transfer

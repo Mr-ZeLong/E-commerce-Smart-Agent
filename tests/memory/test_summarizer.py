@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, Mock
+import uuid
 
 import pytest
 
@@ -7,8 +7,23 @@ from app.models.state import make_agent_state
 
 
 @pytest.fixture
-def summarizer():
-    return SessionSummarizer(llm=MagicMock())
+def summarizer(deterministic_llm):
+    return SessionSummarizer(llm=deterministic_llm)
+
+
+async def _create_test_user(session):
+    from app.models.user import User
+
+    user = User(
+        username=f"test-user-{uuid.uuid4().hex}",
+        email=f"{uuid.uuid4().hex}@example.com",
+        full_name="Test User",
+        password_hash=User.hash_password("password"),
+    )
+    session.add(user)
+    await session.flush()
+    await session.refresh(user)
+    return user
 
 
 def test_should_summarize_history_over_20(summarizer):
@@ -41,74 +56,61 @@ def test_should_summarize_short_thread_blocked_by_human_transfer(summarizer):
 
 
 @pytest.mark.asyncio
-async def test_summarize_thread(summarizer):
-    summarizer.llm.ainvoke = AsyncMock(
-        return_value=MagicMock(content="The user asked about shipping.")
-    )
+async def test_summarize_thread(summarizer, deterministic_llm):
+    deterministic_llm.responses = [("Conversation messages:", "The user asked about shipping.")]
     summary = await summarizer.summarize_thread([{"role": "user", "content": "hi"}])
     assert summary == "The user asked about shipping."
 
 
 @pytest.mark.asyncio
-async def test_run_persists_summary(summarizer):
+async def test_run_persists_summary(summarizer, deterministic_llm, db_session):
+    user = await _create_test_user(db_session)
+    thread_id = f"test-thread-{uuid.uuid4().hex}"
     state = dict(
         make_agent_state(
             question="how long is shipping",
-            user_id=1,
-            thread_id="t1",
+            user_id=user.id,
+            thread_id=thread_id,
             history=[{"role": "user", "content": "how long"}] * 21,
         )
     )
     state["current_intent"] = "LOGISTICS"
-    summarizer.llm.ainvoke = AsyncMock(return_value=MagicMock(content="Shipping takes 3 days."))
+    deterministic_llm.responses = [("Conversation messages:", "Shipping takes 3 days.")]
 
-    mock_manager = MagicMock()
-    mock_manager.save_interaction_summary = AsyncMock(return_value=MagicMock(id=100))
-    summarizer.memory_manager = mock_manager
-
-    mock_session = AsyncMock()
-    result_mock = Mock()
-    result_mock.one_or_none.return_value = None
-    mock_session.exec.return_value = result_mock
-    record = await summarizer.run(state, mock_session)
-
+    record = await summarizer.run(state, db_session)
     assert record is not None
-    mock_manager.save_interaction_summary.assert_awaited_once()
-    call_kwargs = mock_manager.save_interaction_summary.call_args.kwargs
-    assert call_kwargs["user_id"] == 1
-    assert call_kwargs["thread_id"] == "t1"
-    assert call_kwargs["resolved_intent"] == "LOGISTICS"
+    assert record.user_id == user.id
+    assert record.thread_id == thread_id
+    assert record.summary_text == "Shipping takes 3 days."
+    assert record.resolved_intent == "LOGISTICS"
 
 
 @pytest.mark.asyncio
-async def test_run_summarizes_short_thread_on_natural_end(summarizer):
+async def test_run_summarizes_short_thread_on_natural_end(
+    summarizer, deterministic_llm, db_session
+):
+    user = await _create_test_user(db_session)
+    thread_id = f"test-thread-{uuid.uuid4().hex}"
     state = make_agent_state(
         question="q",
-        user_id=1,
-        thread_id="natural-end-thread",
+        user_id=user.id,
+        thread_id=thread_id,
         history=[
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "hello"},
         ],
     )
-    summarizer.llm.ainvoke = AsyncMock(return_value=MagicMock(content="Short summary."))
+    deterministic_llm.responses = [("Conversation messages:", "Short summary.")]
 
-    mock_manager = MagicMock()
-    mock_manager.save_interaction_summary = AsyncMock(return_value=MagicMock(id=101))
-    summarizer.memory_manager = mock_manager
-
-    mock_session = AsyncMock()
-    result_mock = Mock()
-    result_mock.one_or_none.return_value = None
-    mock_session.exec.return_value = result_mock
-
-    record = await summarizer.run(state, mock_session)
+    record = await summarizer.run(state, db_session)
     assert record is not None
-    mock_manager.save_interaction_summary.assert_awaited_once()
+    assert record.user_id == user.id
+    assert record.thread_id == thread_id
+    assert record.summary_text == "Short summary."
 
 
 @pytest.mark.asyncio
-async def test_run_skips_when_should_not_summarize(summarizer):
+async def test_run_skips_when_should_not_summarize(summarizer, db_session):
     state = make_agent_state(
         question="q",
         user_id=1,
@@ -116,37 +118,36 @@ async def test_run_skips_when_should_not_summarize(summarizer):
         history=[],
         needs_human_transfer=True,
     )
-    result = await summarizer.run(state, AsyncMock())
+    result = await summarizer.run(state, db_session)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_run_skips_when_no_history(summarizer):
+async def test_run_skips_when_no_history(summarizer, db_session):
     state = make_agent_state(
         question="q",
         user_id=1,
         thread_id="t1",
         history=[],
     )
-    result = await summarizer.run(state, AsyncMock())
+    result = await summarizer.run(state, db_session)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_run_skips_when_missing_user_id(summarizer):
+async def test_run_skips_when_missing_user_id(summarizer, db_session):
     state = make_agent_state(
         question="q",
         user_id=None,  # type: ignore
         thread_id="t1",
         history=[{"role": "user", "content": "hi"}],
     )
-    summarizer.llm.ainvoke = AsyncMock(return_value=MagicMock(content="Summary."))
-    result = await summarizer.run(state, AsyncMock())
+    result = await summarizer.run(state, db_session)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_run_skips_short_thread_with_human_transfer(summarizer):
+async def test_run_skips_short_thread_with_human_transfer(summarizer, db_session):
     state = make_agent_state(
         question="q",
         user_id=1,
@@ -154,25 +155,24 @@ async def test_run_skips_short_thread_with_human_transfer(summarizer):
         history=[{"role": "user", "content": "hi"}] * 5,
         needs_human_transfer=True,
     )
-    result = await summarizer.run(state, AsyncMock())
+    result = await summarizer.run(state, db_session)
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_run_skips_when_summary_already_exists(summarizer):
+async def test_run_skips_when_summary_already_exists(summarizer, deterministic_llm, db_session):
+    user = await _create_test_user(db_session)
+    thread_id = f"test-thread-{uuid.uuid4().hex}"
     state = make_agent_state(
         question="q",
-        user_id=1,
-        thread_id="existing-thread",
+        user_id=user.id,
+        thread_id=thread_id,
         history=[{"role": "user", "content": "hi"}] * 21,
     )
-    summarizer.llm.ainvoke = AsyncMock(return_value=MagicMock(content="Summary."))
+    deterministic_llm.responses = [("Conversation messages:", "Summary.")]
 
-    mock_session = AsyncMock()
-    result_mock = Mock()
-    result_mock.one_or_none.return_value = Mock(id=999)
-    mock_session.exec.return_value = result_mock
+    record = await summarizer.run(state, db_session)
+    assert record is not None
 
-    record = await summarizer.run(state, mock_session)
-    assert record is None
-    mock_session.exec.assert_awaited_once()
+    record2 = await summarizer.run(state, db_session)
+    assert record2 is None

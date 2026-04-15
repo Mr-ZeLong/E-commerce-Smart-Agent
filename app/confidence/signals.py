@@ -17,13 +17,6 @@ URGENT_WORDS = frozenset(settings.URGENT_WORDS)
 POSITIVE_WORDS = frozenset(settings.POSITIVE_WORDS)
 
 
-def _extract_tokens(text: str) -> set[str]:
-    """提取中英文混合 token：中文字符单独提取，英文按空格分词保留长度>2的词。"""
-    chinese_chars = set(re.findall(r"[\u4e00-\u9fff]", text))
-    words = {w.lower() for w in re.findall(r"[a-zA-Z0-9]+", text) if len(w) > 2}
-    return chinese_chars | words
-
-
 class LLMConfidenceScore(BaseModel):
     score: float
 
@@ -34,6 +27,82 @@ class SignalResult(BaseModel):
     score: float
     reason: str
     metadata: dict | None = None
+
+
+class ConfidenceSignalCalculator:
+    """Encapsulates emotion signal calculation with overridable word lists."""
+
+    def __init__(
+        self,
+        negative_words: set[str] | frozenset[str] | list[str] | None = None,
+        urgent_words: set[str] | frozenset[str] | list[str] | None = None,
+        positive_words: set[str] | frozenset[str] | list[str] | None = None,
+        history_rounds: int | None = None,
+    ) -> None:
+        self.negative_words = (
+            frozenset(negative_words) if negative_words is not None else NEGATIVE_WORDS
+        )
+        self.urgent_words = frozenset(urgent_words) if urgent_words is not None else URGENT_WORDS
+        self.positive_words = (
+            frozenset(positive_words) if positive_words is not None else POSITIVE_WORDS
+        )
+        self.history_rounds = (
+            history_rounds
+            if history_rounds is not None
+            else settings.CONFIDENCE.EMOTION_HISTORY_ROUNDS
+        )
+
+    async def calculate_emotion_signal(
+        self,
+        query: str,
+        history: list[dict],
+    ) -> SignalResult:
+        """用户情感检测信号"""
+        recent_history = (
+            history[-self.history_rounds :] if len(history) >= self.history_rounds else history
+        )
+
+        all_texts = [msg.get("content", "") for msg in recent_history] + [query]
+        all_text = " ".join(all_texts).lower()
+
+        negative_count = sum(1 for w in self.negative_words if w in all_text)
+        urgent_count = sum(1 for w in self.urgent_words if w in all_text)
+        positive_count = sum(1 for w in self.positive_words if w in all_text)
+
+        if negative_count >= 3 or urgent_count >= 2:
+            score = max(0.0, 0.3 - negative_count * 0.05)
+            emotion_type = "high_frustration"
+            reason = f"高挫败感(负面词{negative_count},紧急词{urgent_count})"
+        elif negative_count >= 1:
+            score = max(0.3, 0.6 - negative_count * 0.1)
+            emotion_type = "mild_frustration"
+            reason = f"轻微不满(负面词{negative_count})"
+        elif positive_count > 0:
+            score = min(1.0, 0.8 + positive_count * 0.05)
+            emotion_type = "positive"
+            reason = f"正面情绪(正面词{positive_count})"
+        else:
+            score = 0.7
+            emotion_type = "neutral"
+            reason = "无明显情绪"
+
+        return SignalResult(
+            score=score,
+            reason=reason,
+            metadata={
+                "emotion_type": emotion_type,
+                "negative_count": negative_count,
+                "urgent_count": urgent_count,
+                "positive_count": positive_count,
+            },
+        )
+
+
+def _extract_tokens(text: str) -> set[str]:
+    """提取中英文混合 token：中文字符单独提取，英文按空格分词保留长度>2的词。"""
+    chinese_chars = set(re.findall(r"[\u4e00-\u9fff]", text))
+    words = {w.lower() for w in re.findall(r"[a-zA-Z0-9]+", text) if len(w) > 2}
+    return chinese_chars | words
 
 
 async def calculate_rag_signal(
@@ -108,42 +177,8 @@ async def calculate_emotion_signal(
     history_rounds: int = 3,
 ) -> SignalResult:
     """用户情感检测信号"""
-    recent_history = history[-history_rounds:] if len(history) >= history_rounds else history
-
-    all_texts = [msg.get("content", "") for msg in recent_history] + [query]
-    all_text = " ".join(all_texts).lower()
-
-    negative_count = sum(1 for w in NEGATIVE_WORDS if w in all_text)
-    urgent_count = sum(1 for w in URGENT_WORDS if w in all_text)
-    positive_count = sum(1 for w in POSITIVE_WORDS if w in all_text)
-
-    if negative_count >= 3 or urgent_count >= 2:
-        score = max(0.0, 0.3 - negative_count * 0.05)
-        emotion_type = "high_frustration"
-        reason = f"高挫败感(负面词{negative_count},紧急词{urgent_count})"
-    elif negative_count >= 1:
-        score = max(0.3, 0.6 - negative_count * 0.1)
-        emotion_type = "mild_frustration"
-        reason = f"轻微不满(负面词{negative_count})"
-    elif positive_count > 0:
-        score = min(1.0, 0.8 + positive_count * 0.05)
-        emotion_type = "positive"
-        reason = f"正面情绪(正面词{positive_count})"
-    else:
-        score = 0.7
-        emotion_type = "neutral"
-        reason = "无明显情绪"
-
-    return SignalResult(
-        score=score,
-        reason=reason,
-        metadata={
-            "emotion_type": emotion_type,
-            "negative_count": negative_count,
-            "urgent_count": urgent_count,
-            "positive_count": positive_count,
-        },
-    )
+    calculator = ConfidenceSignalCalculator(history_rounds=history_rounds)
+    return await calculator.calculate_emotion_signal(query, history)
 
 
 async def calculate_confidence_signals(

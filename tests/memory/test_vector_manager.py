@@ -1,141 +1,170 @@
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+from qdrant_client import models
+from qdrant_client.models import Distance, VectorParams
 
+from app.core.config import settings
 from app.memory.vector_manager import VectorMemoryManager
 
 
+class DeterministicEmbedder:
+    async def aembed_documents(self, texts):
+        return [[0.1] * 1024 for _ in texts]
+
+
 @pytest.fixture
-def manager():
-    return VectorMemoryManager()
+def deterministic_embedder():
+    return DeterministicEmbedder()
 
 
 @pytest.mark.asyncio
-async def test_ensure_collection_already_exists(manager):
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = True
-        await manager.ensure_collection()
-        mock_exists.assert_awaited_once_with("conversation_memory")
+async def test_ensure_collection_already_exists(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+
+    await manager.ensure_collection()
+    await manager.ensure_collection()
+
+    assert await client.collection_exists(collection_name)
 
 
 @pytest.mark.asyncio
-async def test_ensure_collection_creates_when_missing(manager):
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = False
-        with patch.object(
-            manager.client, "create_collection", new_callable=AsyncMock
-        ) as mock_create:
-            await manager.ensure_collection()
-            mock_exists.assert_awaited_once_with("conversation_memory")
-            mock_create.assert_awaited_once()
-            call_kwargs = mock_create.call_args.kwargs
-            assert call_kwargs["collection_name"] == "conversation_memory"
+async def test_ensure_collection_creates_when_missing(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+
+    assert not await client.collection_exists(collection_name)
+    await manager.ensure_collection()
+    assert await client.collection_exists(collection_name)
 
 
 @pytest.mark.asyncio
-async def test_upsert_message(manager):
-    mock_embedder = AsyncMock()
-    mock_embedder.aembed_documents.return_value = [[0.1] * 1024]
-    manager._embedder = mock_embedder
+async def test_upsert_message(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+    await manager.ensure_collection()
 
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = True
-        with patch.object(manager.client, "upsert", new_callable=AsyncMock) as mock_upsert:
-            await manager.upsert_message(
-                user_id=1,
-                thread_id="t1",
-                message_role="user",
-                content="hello",
-                timestamp="2024-01-01T00:00:00Z",
-                intent="GREETING",
-            )
-            mock_upsert.assert_awaited_once()
-            call_kwargs = mock_upsert.call_args.kwargs
-            assert call_kwargs["collection_name"] == "conversation_memory"
-            point = call_kwargs["points"][0]
-            assert point.payload["content"] == "hello"
-            assert point.payload["intent"] == "GREETING"
+    await manager.upsert_message(
+        user_id=1,
+        thread_id="t1",
+        message_role="user",
+        content="hello",
+        timestamp="2024-01-01T00:00:00Z",
+        intent="GREETING",
+    )
 
+    response = await client.query_points(
+        collection_name=collection_name,
+        query=[0.1] * 1024,
+        using="dense",
+        limit=10,
+        with_payload=True,
+    )
 
-@pytest.mark.asyncio
-async def test_search_similar(manager):
-    mock_embedder = AsyncMock()
-    mock_embedder.aembed_documents.return_value = [[0.2] * 1024]
-    manager._embedder = mock_embedder
-
-    mock_point = MagicMock()
-    mock_point.payload = {
-        "user_id": 1,
-        "content": "previous hello",
-        "message_role": "user",
-    }
-    mock_response = MagicMock()
-    mock_response.points = [mock_point]
-
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = True
-        with patch.object(manager.client, "query_points", new_callable=AsyncMock) as mock_query:
-            mock_query.return_value = mock_response
-            results = await manager.search_similar(user_id=1, query_text="hello", top_k=3)
-
-            assert len(results) == 1
-            assert results[0]["content"] == "previous hello"
-            mock_query.assert_awaited_once()
-            call_kwargs = mock_query.call_args.kwargs
-            assert call_kwargs["limit"] == 3
-            assert call_kwargs["using"] == "dense"
+    assert len(response.points) == 1
+    payload = response.points[0].payload
+    assert payload["content"] == "hello"
+    assert payload["intent"] == "GREETING"
+    assert payload["user_id"] == 1
+    assert payload["thread_id"] == "t1"
+    assert payload["message_role"] == "user"
 
 
 @pytest.mark.asyncio
-async def test_search_similar_no_collection(manager):
-    mock_embedder = AsyncMock()
-    mock_embedder.aembed_documents.return_value = [[0.2] * 1024]
-    manager._embedder = mock_embedder
+async def test_search_similar(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+    await manager.ensure_collection()
 
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = True
-        with patch.object(manager.client, "query_points", new_callable=AsyncMock) as mock_query:
-            mock_query.return_value = MagicMock(points=[])
-            results = await manager.search_similar(user_id=1, query_text="hello")
-            assert results == []
+    await manager.upsert_message(
+        user_id=1,
+        thread_id="t1",
+        message_role="user",
+        content="previous hello",
+        timestamp="2024-01-01T00:00:00Z",
+    )
+
+    results = await manager.search_similar(user_id=1, query_text="hello", top_k=3)
+
+    assert len(results) == 1
+    assert results[0]["content"] == "previous hello"
+    assert results[0]["user_id"] == 1
+    assert results[0]["message_role"] == "user"
 
 
 @pytest.mark.asyncio
-async def test_prune_old_messages(manager):
+async def test_search_similar_no_collection(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+
+    results = await manager.search_similar(user_id=1, query_text="hello")
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_prune_old_messages(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+    await manager.ensure_collection()
+
     old_timestamp = "2020-01-01T00:00:00+00:00"
     new_timestamp = "2099-01-01T00:00:00+00:00"
 
-    mock_old_point = MagicMock()
-    mock_old_point.id = "point-1"
-    mock_old_point.payload = {"timestamp": old_timestamp}
+    await manager.upsert_message(
+        user_id=1,
+        thread_id="t1",
+        message_role="user",
+        content="old message",
+        timestamp=old_timestamp,
+    )
+    await manager.upsert_message(
+        user_id=1,
+        thread_id="t1",
+        message_role="user",
+        content="new message",
+        timestamp=new_timestamp,
+    )
 
-    mock_new_point = MagicMock()
-    mock_new_point.id = "point-2"
-    mock_new_point.payload = {"timestamp": new_timestamp}
+    await manager.prune_old_messages(retention_days=30)
 
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = True
-        with patch.object(manager.client, "scroll", new_callable=AsyncMock) as mock_scroll:
-            mock_scroll.return_value = ([mock_old_point, mock_new_point], None)
-            with patch.object(manager.client, "delete", new_callable=AsyncMock) as mock_delete:
-                await manager.prune_old_messages(retention_days=30)
+    response = await client.query_points(
+        collection_name=collection_name,
+        query=[0.1] * 1024,
+        using="dense",
+        limit=10,
+        with_payload=True,
+    )
 
-                mock_delete.assert_awaited_once()
-                call_kwargs = mock_delete.call_args.kwargs
-                points = call_kwargs["points_selector"].points
-                assert points == ["point-1"]
+    assert len(response.points) == 1
+    assert response.points[0].payload["content"] == "new message"
 
 
 @pytest.mark.asyncio
-async def test_prune_old_messages_collection_missing(manager):
-    with patch.object(manager.client, "collection_exists", new_callable=AsyncMock) as mock_exists:
-        mock_exists.return_value = False
-        await manager.prune_old_messages(retention_days=30)
-        mock_exists.assert_awaited_once_with("conversation_memory")
+async def test_prune_old_messages_collection_missing(qdrant_client, deterministic_embedder):
+    client, collection_name = qdrant_client
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+
+    await manager.prune_old_messages(retention_days=30)
 
 
 @pytest.mark.asyncio
-async def test_aclose(manager):
-    with patch.object(manager.client, "close", new_callable=AsyncMock) as mock_close:
-        await manager.aclose()
-        mock_close.assert_awaited_once()
+async def test_aclose(deterministic_embedder):
+    from app.core.config import settings
+    from qdrant_client import AsyncQdrantClient
+
+    client = AsyncQdrantClient(
+        url=settings.QDRANT_URL,
+        api_key=settings.QDRANT_API_KEY or None,
+        timeout=settings.QDRANT_TIMEOUT,
+    )
+    collection_name = "test_aclose_collection"
+    manager = VectorMemoryManager(client=client, embedder=deterministic_embedder)
+    manager.COLLECTION_NAME = collection_name
+
+    await manager.aclose()

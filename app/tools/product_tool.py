@@ -5,7 +5,6 @@ from qdrant_client import AsyncQdrantClient, models
 
 from app.core.config import settings
 from app.models.state import AgentState
-from app.retrieval.rewriter import QueryRewriter
 from app.tools.base import BaseTool, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -18,10 +17,14 @@ class ProductTool(BaseTool):
     def __init__(
         self,
         qdrant_client: AsyncQdrantClient | None = None,
-        rewriter: QueryRewriter | None = None,
+        rewriter: Any | None = None,
+        embedder: Any | None = None,
+        collection_name: str = "product_catalog",
     ):
         self._qdrant = qdrant_client
         self._rewriter = rewriter
+        self._embedder = embedder
+        self.collection_name = collection_name
 
     async def _get_client(self) -> AsyncQdrantClient:
         if self._qdrant is None:
@@ -48,7 +51,6 @@ class ProductTool(BaseTool):
             )
 
         client = await self._get_client()
-        collection = "product_catalog"
 
         conditions: list[Any] = []
         if category is not None:
@@ -70,13 +72,13 @@ class ProductTool(BaseTool):
         query_filter = models.Filter(must=conditions) if conditions else None
 
         try:
-            exists = await client.collection_exists(collection)
+            exists = await client.collection_exists(self.collection_name)
             if not exists:
                 return ToolResult(output={"status": "not_found", "reason": "商品目录尚未初始化"})
 
             query_vector = await self._embed_query(query)
             results = await client.query_points(
-                collection_name=collection,
+                collection_name=self.collection_name,
                 query=query_vector,
                 using="dense",
                 limit=5,
@@ -116,6 +118,8 @@ class ProductTool(BaseTool):
             return ToolResult(output={"status": "error", "reason": "商品搜索失败，请稍后重试"})
 
     async def _embed_query(self, query: str) -> list[float]:
+        if self._embedder is not None:
+            return await self._embedder.aembed_query(query)
         try:
             from app.retrieval.embeddings import create_embedding_model
 

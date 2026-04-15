@@ -1,6 +1,7 @@
 import json
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -27,6 +28,7 @@ from app.memory.vector_manager import VectorMemoryManager
 from app.models.observability import SupervisorDecision
 from app.models.state import AgentProcessResult, AgentState
 from app.tasks.memory_tasks import extract_and_save_facts
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 def _log_supervisor_decision(
@@ -77,6 +79,15 @@ async def _alog_supervisor_decision(
 logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def _memory_session(session: AsyncSession | None = None):
+    if session is not None:
+        yield session
+    else:
+        async with async_session_maker() as s:
+            yield s
+
+
 def build_router_node(
     agent: IntentRouterAgent,
 ) -> Callable[
@@ -101,6 +112,7 @@ def build_memory_node(
     structured_manager: StructuredMemoryManager | None = None,
     vector_manager: VectorMemoryManager | None = None,
     use_supervisor: bool = True,
+    session: AsyncSession | None = None,
 ) -> Callable[[AgentState], Awaitable[Command]]:
     async def memory_node(state: AgentState) -> Command:
         user_id = state.get("user_id")
@@ -121,9 +133,9 @@ def build_memory_node(
             and user_id is not None
             and thread_id is not None
         ):
-            async with async_session_maker() as session:
+            async with _memory_session(session) as mem_session:
                 try:
-                    profile = await structured_manager.get_user_profile(session, user_id)
+                    profile = await structured_manager.get_user_profile(mem_session, user_id)
                     if profile:
                         memory_context["user_profile"] = {
                             "user_id": profile.user_id,
@@ -137,7 +149,9 @@ def build_memory_node(
                     logger.exception("Failed to fetch user profile for memory context")
 
                 try:
-                    preferences = await structured_manager.get_user_preferences(session, user_id)
+                    preferences = await structured_manager.get_user_preferences(
+                        mem_session, user_id
+                    )
                     if preferences:
                         memory_context["preferences"] = [
                             {
@@ -150,7 +164,7 @@ def build_memory_node(
                     logger.exception("Failed to fetch user preferences for memory context")
 
                 try:
-                    facts = await structured_manager.get_user_facts(session, user_id, limit=3)
+                    facts = await structured_manager.get_user_facts(mem_session, user_id, limit=3)
                     if facts:
                         memory_context["structured_facts"] = [
                             {
@@ -165,7 +179,7 @@ def build_memory_node(
 
                 try:
                     summaries = await structured_manager.get_recent_summaries(
-                        session, user_id, limit=2
+                        mem_session, user_id, limit=2
                     )
                     if summaries:
                         memory_context["interaction_summaries"] = [

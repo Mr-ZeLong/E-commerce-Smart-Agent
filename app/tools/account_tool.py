@@ -1,4 +1,5 @@
 import logging
+from contextlib import nullcontext
 from datetime import datetime
 
 from sqlmodel import select
@@ -19,7 +20,7 @@ class AccountTool(BaseTool):
     name = "account"
     description = "查询用户账户信息、会员等级、优惠券"
 
-    async def execute(self, state: AgentState, **kwargs) -> ToolResult:
+    async def execute(self, state: AgentState, session=None, **kwargs) -> ToolResult:
         _ = kwargs
         user_id = state.get("user_id")
         if user_id is None:
@@ -29,8 +30,9 @@ class AccountTool(BaseTool):
                 source="account_tool",
             )
 
-        async with async_session_maker() as session:
-            result = await session.exec(select(User).where(User.id == user_id))
+        session_cm = nullcontext(session) if session is not None else async_session_maker()
+        async with session_cm as sess:
+            result = await sess.exec(select(User).where(User.id == user_id))
             user = result.one_or_none()
 
             if user is None:

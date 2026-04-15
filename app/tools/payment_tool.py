@@ -1,4 +1,5 @@
 import logging
+from contextlib import nullcontext
 from datetime import datetime
 
 from sqlmodel import select
@@ -16,7 +17,7 @@ class PaymentTool(BaseTool):
     name = "payment"
     description = "查询支付状态、发票信息、退款记录"
 
-    async def execute(self, state: AgentState, **kwargs) -> ToolResult:
+    async def execute(self, state: AgentState, session=None, **kwargs) -> ToolResult:
         user_id = state.get("user_id")
         slots = state.get("slots") or {}
         order_sn = slots.get("order_sn") or kwargs.get("order_sn")
@@ -25,14 +26,15 @@ class PaymentTool(BaseTool):
         payment_status = "未知"
         invoice_status = "未查询到发票信息"
 
+        session_cm = nullcontext(session) if session is not None else async_session_maker()
         try:
-            async with async_session_maker() as session:
+            async with session_cm as sess:
                 target_order_id: int | None = None
                 if order_sn:
                     order_stmt = select(Order).where(
                         Order.order_sn == order_sn, Order.user_id == user_id
                     )
-                    order_result = await session.exec(order_stmt)
+                    order_result = await sess.exec(order_stmt)
                     order = order_result.one_or_none()
 
                     if order:
@@ -51,7 +53,7 @@ class PaymentTool(BaseTool):
                         RefundApplication.user_id == user_id
                     )
 
-                refund_result = await session.exec(refund_stmt)
+                refund_result = await sess.exec(refund_stmt)
                 refunds: list[RefundApplication] = list(refund_result.all())
 
                 for refund in refunds:

@@ -1,9 +1,9 @@
 import logging
 import re
-from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from starlette.testclient import TestClient
 
 from app.core.logging import (
     CorrelationIdFilter,
@@ -94,33 +94,55 @@ class TestMiddlewareIntegration:
             assert response.headers["X-Correlation-ID"] == custom_cid
 
 
+class _CaptureHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
+
+
 class TestWebSocketCorrelationId:
     def test_websocket_sets_correlation_id(self):
-        from starlette.testclient import TestClient
-
-        with patch("app.api.v1.websocket.set_correlation_id") as mock_set:
+        logger = logging.getLogger("app.api.v1.websocket")
+        handler = _CaptureHandler()
+        handler.addFilter(CorrelationIdFilter())
+        logger.addHandler(handler)
+        try:
             test_client = TestClient(app)
             try:
-                with test_client.websocket_connect("/api/v1/ws/test-thread"):
+                with test_client.websocket_connect("/api/v1/ws/test-thread?token=invalid-token"):
                     pass
             except Exception:
                 pass
-            mock_set.assert_called_once()
-            cid = mock_set.call_args[0][0]
+
+            assert len(handler.records) > 0
+            cid = getattr(handler.records[0], "correlation_id", None)
             assert isinstance(cid, str)
             assert len(cid) == 16
+            assert cid != "-"
+        finally:
+            logger.removeHandler(handler)
 
     def test_websocket_echoes_provided_correlation_id(self):
-        from starlette.testclient import TestClient
-
-        with patch("app.api.v1.websocket.set_correlation_id") as mock_set:
+        logger = logging.getLogger("app.api.v1.websocket")
+        handler = _CaptureHandler()
+        handler.addFilter(CorrelationIdFilter())
+        logger.addHandler(handler)
+        try:
             test_client = TestClient(app)
             try:
                 with test_client.websocket_connect(
-                    "/api/v1/ws/test-thread",
+                    "/api/v1/ws/test-thread?token=invalid-token",
                     headers={"X-Correlation-ID": "my-custom-cid-1234"},
                 ):
                     pass
             except Exception:
                 pass
-            mock_set.assert_called_once_with("my-custom-cid-1234")
+
+            assert len(handler.records) > 0
+            cid = getattr(handler.records[0], "correlation_id", None)
+            assert cid == "my-custom-cid-1234"
+        finally:
+            logger.removeHandler(handler)

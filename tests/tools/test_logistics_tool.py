@@ -1,8 +1,8 @@
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
+from app.models.order import Order
 from app.models.state import make_agent_state
+from app.models.user import User
 from app.tools.logistics_tool import LogisticsTool
 
 
@@ -11,27 +11,36 @@ def logistics_tool():
     return LogisticsTool()
 
 
-@pytest.mark.asyncio
-async def test_logistics_tool_found(logistics_tool):
-    mock_order = MagicMock()
-    mock_order.tracking_number = "SF1234567890"
+@pytest.mark.asyncio(loop_scope="session")
+async def test_logistics_tool_found(logistics_tool, db_session):
+    user = User(
+        username="logistics_user",
+        password_hash="hashed_password",
+        email="logistics@example.com",
+        full_name="Logistics User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
 
-    mock_result = MagicMock()
-    mock_result.one_or_none.return_value = mock_order
+    order = Order(
+        order_sn="SN20240001",
+        user_id=user.id,
+        total_amount=100.0,
+        shipping_address="Beijing",
+        tracking_number="SF1234567890",
+    )
+    db_session.add(order)
+    await db_session.flush()
 
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
-    mock_session.exec = AsyncMock(return_value=mock_result)
+    state = make_agent_state(
+        question="查询物流",
+        user_id=user.id,
+        slots={"order_sn": "SN20240001"},
+    )
+    result = await logistics_tool.execute(state, session=db_session)
 
-    with patch(
-        "app.tools.logistics_tool.async_session_maker",
-        return_value=mock_session,
-    ) as mock_maker:
-        state = make_agent_state(question="查询物流", user_id=1, slots={"order_sn": "SN20240001"})
-        result = await logistics_tool.execute(state)
-
-    mock_maker.assert_called_once()
     assert result.output["tracking_number"] == "SF1234567890"
     assert result.output["carrier"] == "顺丰速运"
     assert result.output["status"] == "运输中"
@@ -39,46 +48,54 @@ async def test_logistics_tool_found(logistics_tool):
     assert result.output["estimated_delivery"] == "2024-01-20"
 
 
-@pytest.mark.asyncio
-async def test_logistics_tool_not_found(logistics_tool):
-    mock_result = MagicMock()
-    mock_result.one_or_none.return_value = None
+@pytest.mark.asyncio(loop_scope="session")
+async def test_logistics_tool_not_found(logistics_tool, db_session):
+    user = User(
+        username="logistics_user2",
+        password_hash="hashed_password",
+        email="logistics2@example.com",
+        full_name="Logistics User 2",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
 
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
-    mock_session.exec = AsyncMock(return_value=mock_result)
+    state = make_agent_state(
+        question="查询物流",
+        user_id=user.id,
+        slots={"order_sn": "SN99999999"},
+    )
+    result = await logistics_tool.execute(state, session=db_session)
 
-    with patch(
-        "app.tools.logistics_tool.async_session_maker",
-        return_value=mock_session,
-    ) as mock_maker:
-        state = make_agent_state(question="查询物流", user_id=1, slots={"order_sn": "SN99999999"})
-        result = await logistics_tool.execute(state)
-
-    mock_maker.assert_called_once()
     assert result.output["status"] == "未找到订单"
 
 
-@pytest.mark.asyncio
-async def test_logistics_tool_uses_kwargs_when_slots_empty(logistics_tool):
-    mock_order = MagicMock()
-    mock_order.tracking_number = None
+@pytest.mark.asyncio(loop_scope="session")
+async def test_logistics_tool_uses_kwargs_when_slots_empty(logistics_tool, db_session):
+    user = User(
+        username="logistics_user3",
+        password_hash="hashed_password",
+        email="logistics3@example.com",
+        full_name="Logistics User 3",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
 
-    mock_result = MagicMock()
-    mock_result.one_or_none.return_value = mock_order
+    order = Order(
+        order_sn="SN20240002",
+        user_id=user.id,
+        total_amount=200.0,
+        shipping_address="Shanghai",
+        tracking_number=None,
+    )
+    db_session.add(order)
+    await db_session.flush()
 
-    mock_session = AsyncMock()
-    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_session.__aexit__ = AsyncMock(return_value=False)
-    mock_session.exec = AsyncMock(return_value=mock_result)
-
-    with patch(
-        "app.tools.logistics_tool.async_session_maker",
-        return_value=mock_session,
-    ):
-        state = make_agent_state(question="查询物流", user_id=1)
-        result = await logistics_tool.execute(state, order_sn="SN20240002")
+    state = make_agent_state(question="查询物流", user_id=user.id)
+    result = await logistics_tool.execute(state, session=db_session, order_sn="SN20240002")
 
     assert result.output["tracking_number"] == "暂无"
     assert result.output["status"] == "运输中"

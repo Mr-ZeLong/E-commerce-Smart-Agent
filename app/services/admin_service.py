@@ -25,7 +25,7 @@ class AuditAlreadyProcessedError(Exception):
 
 
 class AdminService:
-    def __init__(self, manager: ConnectionManager):
+    def __init__(self, manager: ConnectionManager | None = None):
         self.manager = manager
 
     async def get_pending_tasks(
@@ -185,17 +185,18 @@ class AdminService:
         if sms_task_kwargs is not None:
             send_refund_sms.delay(**sms_task_kwargs)
 
-        try:
-            await self.manager.notify_status_change(
-                thread_id=build_thread_id(audit_log.user_id, audit_log.thread_id),
-                status=action,
-                data={
-                    "message": status_message,
-                    "admin_comment": admin_comment,
-                },
-            )
-        except (RuntimeError, ConnectionError):
-            logger.exception("Failed to notify status change via WebSocket")
+        if self.manager is not None:
+            try:
+                await self.manager.notify_status_change(
+                    thread_id=build_thread_id(audit_log.user_id, audit_log.thread_id),
+                    status=action,
+                    data={
+                        "message": status_message,
+                        "admin_comment": admin_comment,
+                    },
+                )
+            except (RuntimeError, ConnectionError):
+                logger.exception("Failed to notify status change via WebSocket")
 
         return AdminDecisionResponse(
             success=True,

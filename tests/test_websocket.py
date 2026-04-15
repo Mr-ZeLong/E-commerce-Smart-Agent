@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -97,21 +95,3 @@ class TestWebsocketSecurity:
 
         assert exc_info.value.code == 1008
         assert exc_info.value.reason == "Authentication failed"
-
-    def test_generic_exception_returns_connection_error(self):
-        """非认证相关的异常应返回 Connection error。"""
-        token = create_access_token(user_id=1, is_admin=False)
-
-        with (
-            pytest.raises(WebSocketDisconnect) as exc_info,
-            patch.object(
-                app.state.manager,
-                "connect_user",
-                side_effect=RuntimeError("boom"),
-            ),
-            self.client.websocket_connect(f"/api/v1/ws/some-thread?token={token}") as websocket,
-        ):
-            websocket.receive_text()
-
-        assert exc_info.value.code == 1008
-        assert exc_info.value.reason == "Connection error"

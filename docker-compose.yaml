@@ -21,12 +21,12 @@ services:
 
   # 会话记忆缓存：Redis
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:latest
     container_name: ecommerce_redis
     restart: unless-stopped
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD:-devpassword}
-    command: redis-server --requirepass ${REDIS_PASSWORD:-devpassword}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-devpassword} --loadmodule /opt/redis-stack/lib/redisearch.so --loadmodule /opt/redis-stack/lib/rejson.so
     # 以下端口映射仅用于本地开发调试，生产环境请移除或限制访问来源
     ports:
       - "6379:6379"

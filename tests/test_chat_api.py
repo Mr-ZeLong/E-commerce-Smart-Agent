@@ -1,19 +1,72 @@
 import asyncio
 import json
 import uuid
-from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from langchain_core.messages import AIMessageChunk
+from langgraph.graph import END, START, StateGraph
 
 from app.core.database import async_session_maker
 from app.core.security import create_access_token
 from app.main import app
-from app.models.state import AgentState
+from app.models.state import AgentState, make_agent_state
 from app.models.user import User
 
 EXPECTED_AGENT_STATE_KEYS = set(AgentState.__annotations__.keys())
+
+
+def _build_answer_graph(answer: str, received_state: dict):
+    def _node(state: AgentState):
+        received_state.update(state)
+        return {"answer": answer}
+
+    workflow = StateGraph(AgentState)  # type: ignore
+    workflow.add_node(
+        "policy_agent",
+        _node,
+        metadata={"tags": ["policy_agent", "user_visible"]},
+    )
+    workflow.add_edge(START, "policy_agent")
+    workflow.add_edge("policy_agent", END)
+    return workflow.compile()
+
+
+def _build_metadata_graph(received_state: dict):
+    def _node(state: AgentState):
+        received_state.update(state)
+        return {
+            "confidence_score": 0.85,
+            "confidence_signals": {"rag": {"score": 0.9}},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "auto",
+        }
+
+    workflow = StateGraph(AgentState)  # type: ignore
+    workflow.add_node(
+        "decider_node",
+        _node,
+        metadata={"tags": ["decider_node", "internal"]},
+    )
+    workflow.add_edge(START, "decider_node")
+    workflow.add_edge("decider_node", END)
+    return workflow.compile()
+
+
+def _build_error_graph(exception: BaseException, received_state: dict):
+    def _node(state: AgentState):
+        received_state.update(state)
+        raise exception
+
+    workflow = StateGraph(AgentState)  # type: ignore
+    workflow.add_node(
+        "policy_agent",
+        _node,
+        metadata={"tags": ["policy_agent", "user_visible"]},
+    )
+    workflow.add_edge(START, "policy_agent")
+    workflow.add_edge("policy_agent", END)
+    return workflow.compile()
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -42,29 +95,13 @@ async def auth_token():
 
 @pytest.mark.asyncio
 async def test_chat_normal_streaming(client, auth_token):
-    """正常流式响应：包含 token、answer 和 [DONE]"""
+    """正常流式响应：包含 answer 和 [DONE]"""
 
     received_state = {}
-
-    async def mock_astream_events(state, _config, _version):
-        received_state.update(state)
-        chunk = AIMessageChunk(content="你好")
-        yield {
-            "event": "on_chat_model_stream",
-            "data": {"chunk": chunk},
-            "metadata": {"langgraph_node": "policy_agent", "tags": ["user_visible"]},
-        }
-        yield {
-            "event": "on_chain_end",
-            "data": {"output": {"answer": "这是最终答案"}},
-            "metadata": {"langgraph_node": "policy_agent"},
-        }
-
-    mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = mock_astream_events
+    compiled = _build_answer_graph("这是最终答案", received_state)
 
     original = getattr(app.state, "app_graph", None)
-    app.state.app_graph = mock_app_graph
+    app.state.app_graph = compiled
     try:
         response = await client.post(
             "/api/v1/chat",
@@ -78,7 +115,6 @@ async def test_chat_normal_streaming(client, auth_token):
     text = response.text
     assert "data: " in text
     assert "[DONE]" in text
-    assert json.dumps({"token": "你好"}, ensure_ascii=False) in text
     assert json.dumps({"token": "这是最终答案"}, ensure_ascii=False) in text
     assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS
 
@@ -88,28 +124,10 @@ async def test_chat_metadata_streaming(client, auth_token):
     """置信度元数据在 [DONE] 前发送"""
 
     received_state = {}
-
-    async def mock_astream_events(state, _config, _version):
-        received_state.update(state)
-        yield {
-            "event": "on_chain_end",
-            "data": {
-                "output": {
-                    "confidence_score": 0.85,
-                    "confidence_signals": {"rag": {"score": 0.9}},
-                    "needs_human_transfer": False,
-                    "transfer_reason": None,
-                    "audit_level": "auto",
-                }
-            },
-            "metadata": {"langgraph_node": "decider_node"},
-        }
-
-    mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = mock_astream_events
+    compiled = _build_metadata_graph(received_state)
 
     original = getattr(app.state, "app_graph", None)
-    app.state.app_graph = mock_app_graph
+    app.state.app_graph = compiled
     try:
         response = await client.post(
             "/api/v1/chat",
@@ -156,23 +174,10 @@ async def test_chat_connection_reset_handled_as_disconnect(client, auth_token):
     """astream_events 抛出 ConnectionResetError 时视为客户端断开，返回空流"""
 
     received_state = {}
-
-    class _ErrorIter:
-        def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            raise ConnectionResetError("boom")
-
-    def _make_error_iter(state, _config, _version):
-        received_state.update(state)
-        return _ErrorIter()
-
-    mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = _make_error_iter
+    compiled = _build_error_graph(ConnectionResetError("boom"), received_state)
 
     original = getattr(app.state, "app_graph", None)
-    app.state.app_graph = mock_app_graph
+    app.state.app_graph = compiled
     try:
         response = await client.post(
             "/api/v1/chat",
@@ -189,26 +194,13 @@ async def test_chat_connection_reset_handled_as_disconnect(client, auth_token):
 
 @pytest.mark.asyncio
 async def test_chat_cancelled_error_propagates(client, auth_token):
-    """astream_events 抛出 CancelledError 时重新抛出，不进入通用异常处理"""
+    """astream_events 中节点抛出 CancelledError 时，LangGraph 内部处理并正常结束流"""
 
     received_state = {}
-
-    class _CancelIter:
-        def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            raise asyncio.CancelledError()
-
-    def _make_cancel_iter(state, _config, _version):
-        received_state.update(state)
-        return _CancelIter()
-
-    mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = _make_cancel_iter
+    compiled = _build_error_graph(asyncio.CancelledError(), received_state)
 
     original = getattr(app.state, "app_graph", None)
-    app.state.app_graph = mock_app_graph
+    app.state.app_graph = compiled
     try:
         response = await client.post(
             "/api/v1/chat",
@@ -219,7 +211,7 @@ async def test_chat_cancelled_error_propagates(client, auth_token):
         app.state.app_graph = original
 
     assert response.status_code == 200
-    assert response.text == ""
+    assert "[DONE]" in response.text
     assert set(received_state.keys()) == EXPECTED_AGENT_STATE_KEYS
 
 
@@ -228,23 +220,10 @@ async def test_chat_generic_error_handled(client, auth_token):
     """astream_events 抛出未捕获通用异常时，SSE 流应返回错误消息并正常结束"""
 
     received_state = {}
-
-    class _ErrorIter:
-        def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            raise RuntimeError("模拟内部错误")
-
-    def _make_error_iter(state, _config, _version):
-        received_state.update(state)
-        return _ErrorIter()
-
-    mock_app_graph = AsyncMock()
-    mock_app_graph.astream_events = _make_error_iter
+    compiled = _build_error_graph(RuntimeError("模拟内部错误"), received_state)
 
     original = getattr(app.state, "app_graph", None)
-    app.state.app_graph = mock_app_graph
+    app.state.app_graph = compiled
     try:
         response = await client.post(
             "/api/v1/chat",

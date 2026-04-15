@@ -52,6 +52,10 @@ packages = ["app"]
 # 确保 asyncio 插件使用 session 级别的 loop 作用域
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+markers = [
+    "requires_llm: marks tests that require a real LLM API key",
+    "slow: marks tests as slow",
+]
 
 [dependency-groups]
 dev = [

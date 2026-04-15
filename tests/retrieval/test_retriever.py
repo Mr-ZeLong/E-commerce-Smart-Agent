@@ -1,86 +1,117 @@
-from unittest.mock import AsyncMock
-
 import pytest
+from qdrant_client import models
 
+from app.retrieval.client import QdrantKnowledgeClient
+from app.retrieval.reranker import RerankResult
 from app.retrieval.retriever import HybridRetriever
 
 
+class DeterministicRewriter:
+    async def rewrite(self, query, **kwargs):
+        return f"rewritten:{query}"
+
+    async def rewrite_multi(self, query, **kwargs):
+        return [query, f"variant:{query}"]
+
+
+class DeterministicDenseEmbedder:
+    async def aembed_query(self, text):
+        return [0.1] * 1024
+
+
+class DeterministicSparseEmbedder:
+    async def aembed(self, texts):
+        return [models.SparseVector(indices=[0, 1], values=[1.0, 0.5]) for _ in texts]
+
+
+class DeterministicReranker:
+    async def rerank(self, query, documents, top_n=5):
+        return [
+            RerankResult(index=i, score=0.99 - i * 0.1) for i in range(min(top_n, len(documents)))
+        ]
+
+
+class FailingSparseEmbedder:
+    async def aembed(self, texts):
+        raise ConnectionError("sparse fail")
+
+
+class FailingReranker:
+    async def rerank(self, query, documents, top_n=5):
+        raise ConnectionError("rerank fail")
+
+
+class SingleResultReranker:
+    async def rerank(self, query, documents, top_n=5):
+        return [RerankResult(index=0, score=0.99)]
+
+
 @pytest.mark.asyncio
-async def test_retriever_orchestrates_all_steps():
-    rewriter = AsyncMock()
-    rewriter.rewrite.return_value = "改写后"
-
-    qdrant_client = AsyncMock()
-    qdrant_client.query_hybrid.return_value = [
-        type(
-            "P",
-            (),
-            {
-                "id": 1,
-                "score": 0.1,
-                "payload": {"content": "c1", "source": "s1", "meta_data": {}},
-            },
-        )(),
-        type(
-            "P",
-            (),
-            {
-                "id": 2,
-                "score": 0.05,
-                "payload": {"content": "c2", "source": "s2", "meta_data": {}},
-            },
-        )(),
-    ]
-
-    dense_embedder = AsyncMock()
-    dense_embedder.aembed_query.return_value = [0.1] * 1024
-
-    sparse_embedder = AsyncMock()
-    sparse_embedder.aembed.return_value = [AsyncMock(indices=[0], values=[1.0])]
-
-    reranker = AsyncMock()
-    reranker.rerank.return_value = [
-        type("R", (), {"index": 0, "score": 0.99})(),
-        type("R", (), {"index": 1, "score": 0.88})(),
-    ]
+async def test_retriever_orchestrates_all_steps(qdrant_client):
+    client, collection_name = qdrant_client
+    knowledge_client = QdrantKnowledgeClient(
+        url="",
+        collection_name=collection_name,
+        api_key="",
+        client=client,
+    )
+    await knowledge_client.ensure_collection()
+    dense_vec_c1 = [0.1] * 1024
+    dense_vec_c2 = [-0.1] + [0.1] * 1023
+    await knowledge_client.upsert_chunks(
+        [
+            models.PointStruct(
+                id=1,
+                vector={
+                    "dense": dense_vec_c1,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
+                },
+                payload={"content": "c1", "source": "s1", "meta_data": {}},
+            ),
+            models.PointStruct(
+                id=2,
+                vector={
+                    "dense": dense_vec_c2,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
+                },
+                payload={"content": "c2", "source": "s2", "meta_data": {}},
+            ),
+        ]
+    )
 
     retriever = HybridRetriever(
-        qdrant_client=qdrant_client,
-        dense_embedder=dense_embedder,
-        sparse_embedder=sparse_embedder,
-        reranker=reranker,
-        rewriter=rewriter,
+        qdrant_client=knowledge_client,
+        dense_embedder=DeterministicDenseEmbedder(),
+        sparse_embedder=DeterministicSparseEmbedder(),
+        reranker=DeterministicReranker(),
+        rewriter=DeterministicRewriter(),
     )
 
     results = await retriever.retrieve("怎么退货")
     assert len(results) == 2
     assert results[0].content == "c1"
     assert results[0].score == pytest.approx(0.99)
-    qdrant_client.query_hybrid.assert_called_once()
-    rewriter.rewrite.assert_awaited_once()
+    assert results[1].content == "c2"
+    assert results[1].score == pytest.approx(0.89)
 
 
 @pytest.mark.asyncio
-async def test_retriever_sparse_embedder_failure_propagates():
-    rewriter = AsyncMock()
-    rewriter.rewrite.return_value = "改写后"
-
-    qdrant_client = AsyncMock()
-
-    dense_embedder = AsyncMock()
-    dense_embedder.aembed_query.return_value = [0.1] * 1024
-
-    sparse_embedder = AsyncMock()
-    sparse_embedder.aembed.side_effect = ConnectionError("sparse fail")
-
-    reranker = AsyncMock()
+async def test_retriever_sparse_embedder_failure_propagates(qdrant_client):
+    client, collection_name = qdrant_client
+    knowledge_client = QdrantKnowledgeClient(
+        url="",
+        collection_name=collection_name,
+        api_key="",
+        client=client,
+    )
+    await knowledge_client.ensure_collection()
 
     retriever = HybridRetriever(
-        qdrant_client=qdrant_client,
-        dense_embedder=dense_embedder,
-        sparse_embedder=sparse_embedder,
-        reranker=reranker,
-        rewriter=rewriter,
+        qdrant_client=knowledge_client,
+        dense_embedder=DeterministicDenseEmbedder(),
+        sparse_embedder=FailingSparseEmbedder(),
+        reranker=DeterministicReranker(),
+        rewriter=DeterministicRewriter(),
     )
 
     with pytest.raises(ConnectionError, match="sparse fail"):
@@ -88,38 +119,34 @@ async def test_retriever_sparse_embedder_failure_propagates():
 
 
 @pytest.mark.asyncio
-async def test_retriever_reranker_failure_propagates():
-    rewriter = AsyncMock()
-    rewriter.rewrite.return_value = "改写后"
-
-    qdrant_client = AsyncMock()
-    qdrant_client.query_hybrid.return_value = [
-        type(
-            "P",
-            (),
-            {
-                "id": 1,
-                "score": 0.77,
-                "payload": {"content": "c1", "source": "s1", "meta_data": {}},
-            },
-        )(),
-    ]
-
-    dense_embedder = AsyncMock()
-    dense_embedder.aembed_query.return_value = [0.1] * 1024
-
-    sparse_embedder = AsyncMock()
-    sparse_embedder.aembed.return_value = [AsyncMock(indices=[0], values=[1.0])]
-
-    reranker = AsyncMock()
-    reranker.rerank.side_effect = ConnectionError("rerank fail")
+async def test_retriever_reranker_failure_propagates(qdrant_client):
+    client, collection_name = qdrant_client
+    knowledge_client = QdrantKnowledgeClient(
+        url="",
+        collection_name=collection_name,
+        api_key="",
+        client=client,
+    )
+    await knowledge_client.ensure_collection()
+    await knowledge_client.upsert_chunks(
+        [
+            models.PointStruct(
+                id=1,
+                vector={
+                    "dense": [0.1] * 1024,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
+                },
+                payload={"content": "c1", "source": "s1", "meta_data": {}},
+            ),
+        ]
+    )
 
     retriever = HybridRetriever(
-        qdrant_client=qdrant_client,
-        dense_embedder=dense_embedder,
-        sparse_embedder=sparse_embedder,
-        reranker=reranker,
-        rewriter=rewriter,
+        qdrant_client=knowledge_client,
+        dense_embedder=DeterministicDenseEmbedder(),
+        sparse_embedder=DeterministicSparseEmbedder(),
+        reranker=FailingReranker(),
+        rewriter=DeterministicRewriter(),
     )
 
     with pytest.raises(ConnectionError, match="rerank fail"):
@@ -127,102 +154,92 @@ async def test_retriever_reranker_failure_propagates():
 
 
 @pytest.mark.asyncio
-async def test_retriever_multi_query_mode():
-    rewriter = AsyncMock()
-    rewriter.rewrite_multi.return_value = ["怎么退货", "退货流程"]
-
-    def _make_point(pid, content, source):
-        return type(
-            "P",
-            (),
-            {
-                "id": pid,
-                "score": 0.1 * pid,
-                "payload": {"content": content, "source": source, "meta_data": {}},
-            },
-        )()
-
-    qdrant_client = AsyncMock()
-    qdrant_client.query_hybrid.return_value = [
-        _make_point(1, "c1", "s1"),
-        _make_point(2, "c2", "s2"),
-    ]
-
-    dense_embedder = AsyncMock()
-    dense_embedder.aembed_query.return_value = [0.1] * 1024
-
-    sparse_embedder = AsyncMock()
-    sparse_embedder.aembed.return_value = [AsyncMock(indices=[0], values=[1.0])]
-
-    reranker = AsyncMock()
-    reranker.rerank.return_value = [
-        type("R", (), {"index": 0, "score": 0.99})(),
-        type("R", (), {"index": 1, "score": 0.88})(),
-    ]
+async def test_retriever_multi_query_mode(qdrant_client):
+    client, collection_name = qdrant_client
+    knowledge_client = QdrantKnowledgeClient(
+        url="",
+        collection_name=collection_name,
+        api_key="",
+        client=client,
+    )
+    await knowledge_client.ensure_collection()
+    dense_vec_c1 = [0.1] * 1024
+    dense_vec_c2 = [-0.1] + [0.1] * 1023
+    await knowledge_client.upsert_chunks(
+        [
+            models.PointStruct(
+                id=1,
+                vector={
+                    "dense": dense_vec_c1,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
+                },
+                payload={"content": "c1", "source": "s1", "meta_data": {}},
+            ),
+            models.PointStruct(
+                id=2,
+                vector={
+                    "dense": dense_vec_c2,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
+                },
+                payload={"content": "c2", "source": "s2", "meta_data": {}},
+            ),
+        ]
+    )
 
     retriever = HybridRetriever(
-        qdrant_client=qdrant_client,
-        dense_embedder=dense_embedder,
-        sparse_embedder=sparse_embedder,
-        reranker=reranker,
-        rewriter=rewriter,
+        qdrant_client=knowledge_client,
+        dense_embedder=DeterministicDenseEmbedder(),
+        sparse_embedder=DeterministicSparseEmbedder(),
+        reranker=DeterministicReranker(),
+        rewriter=DeterministicRewriter(),
         use_multi_query=True,
     )
 
     results = await retriever.retrieve("怎么退货")
     assert len(results) == 2
-    assert qdrant_client.query_hybrid.await_count == 2
-    rewriter.rewrite_multi.assert_awaited_once()
+    assert results[0].content == "c1"
+    assert results[0].score == pytest.approx(0.99)
+    assert results[1].content == "c2"
+    assert results[1].score == pytest.approx(0.89)
 
 
 @pytest.mark.asyncio
-async def test_retriever_multi_query_deduplicates():
-    rewriter = AsyncMock()
-    rewriter.rewrite_multi.return_value = ["q1", "q2"]
-
-    qdrant_client = AsyncMock()
-    qdrant_client.query_hybrid.side_effect = [
+async def test_retriever_multi_query_deduplicates(qdrant_client):
+    client, collection_name = qdrant_client
+    knowledge_client = QdrantKnowledgeClient(
+        url="",
+        collection_name=collection_name,
+        api_key="",
+        client=client,
+    )
+    await knowledge_client.ensure_collection()
+    await knowledge_client.upsert_chunks(
         [
-            type(
-                "P",
-                (),
-                {
-                    "id": 1,
-                    "score": 0.1,
-                    "payload": {"content": "same", "source": "s1", "meta_data": {}},
+            models.PointStruct(
+                id=1,
+                vector={
+                    "dense": [0.1] * 1024,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
                 },
-            )(),
-        ],
-        [
-            type(
-                "P",
-                (),
-                {
-                    "id": 2,
-                    "score": 0.2,
-                    "payload": {"content": "same", "source": "s2", "meta_data": {}},
+                payload={"content": "same", "source": "s1", "meta_data": {}},
+            ),
+            models.PointStruct(
+                id=2,
+                vector={
+                    "dense": [0.1] * 1024,
+                    "sparse": models.SparseVector(indices=[0, 1], values=[1.0, 0.5]),
                 },
-            )(),
-        ],
-    ]
-
-    dense_embedder = AsyncMock()
-    dense_embedder.aembed_query.return_value = [0.1] * 1024
-
-    sparse_embedder = AsyncMock()
-    sparse_embedder.aembed.return_value = [AsyncMock(indices=[0], values=[1.0])]
-
-    reranker = AsyncMock()
-    reranker.rerank.return_value = [
-        type("R", (), {"index": 0, "score": 0.99})(),
-    ]
+                payload={"content": "same", "source": "s2", "meta_data": {}},
+            ),
+        ]
+    )
 
     retriever = HybridRetriever(
-        qdrant_client=qdrant_client,
-        dense_embedder=dense_embedder,
-        sparse_embedder=sparse_embedder,
-        reranker=reranker,
-        rewriter=rewriter,
+        qdrant_client=knowledge_client,
+        dense_embedder=DeterministicDenseEmbedder(),
+        sparse_embedder=DeterministicSparseEmbedder(),
+        reranker=SingleResultReranker(),
+        rewriter=DeterministicRewriter(),
         use_multi_query=True,
     )
 
