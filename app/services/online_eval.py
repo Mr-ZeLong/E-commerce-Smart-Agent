@@ -2,7 +2,7 @@ import logging
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlmodel import desc, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -74,8 +74,8 @@ class OnlineEvalService:
         stmt = (
             select(
                 func.date(MessageFeedback.created_at).label("day"),
-                func.sum(func.case((MessageFeedback.score == 1, 1), else_=0)).label("up"),
-                func.sum(func.case((MessageFeedback.score == -1, 1), else_=0)).label("down"),
+                func.sum(case((MessageFeedback.score == 1, 1), else_=0)).label("up"),  # type: ignore
+                func.sum(case((MessageFeedback.score == -1, 1), else_=0)).label("down"),  # type: ignore
             )
             .where(MessageFeedback.created_at >= since)
             .group_by(func.date(MessageFeedback.created_at))

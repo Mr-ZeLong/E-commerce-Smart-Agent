@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -30,7 +31,7 @@ async def _create_test_order(
     user_id: int,
     order_sn: str,
     status: OrderStatus = OrderStatus.DELIVERED,
-    total_amount: float = 199.0,
+    total_amount: Decimal = Decimal("199.0"),
     created_at: datetime | None = None,
     items: list | None = None,
 ) -> Order:
@@ -89,7 +90,7 @@ async def test_handle_refund_request_success(order_service: OrderService, db_ses
         user.id,
         "SN20240001",
         status=OrderStatus.DELIVERED,
-        total_amount=199.0,
+        total_amount=Decimal("199.0"),
         created_at=datetime.now(UTC) - timedelta(days=1),
     )
 
@@ -157,7 +158,7 @@ async def test_handle_refund_request_refund_failed(order_service: OrderService, 
         user.id,
         "SN20240001",
         status=OrderStatus.PENDING,
-        total_amount=199.0,
+        total_amount=Decimal("199.0"),
         created_at=datetime.now(UTC) - timedelta(days=1),
     )
 

@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import pytest
 from sqlmodel import select
@@ -63,7 +64,7 @@ async def create_order_and_refund(user: User) -> tuple[Order, RefundApplication]
             order_sn=f"ORD{uuid.uuid4().hex[:12].upper()}",
             user_id=user.id,
             status=OrderStatus.DELIVERED,
-            total_amount=199.99,
+            total_amount=Decimal("199.99"),
             items=[{"name": "Test Item", "price": 199.99}],
             shipping_address="Test Address",
         )

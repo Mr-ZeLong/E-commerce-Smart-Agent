@@ -2,6 +2,7 @@
 import asyncio
 import os
 import sys
+from decimal import Decimal
 
 sys.path.append(os.getcwd())
 
@@ -126,7 +127,7 @@ async def seed_data():
                 order_sn="SN20240001",
                 user_id=user.id,  # ty:ignore[invalid-argument-type]
                 status=OrderStatus.SHIPPED,
-                total_amount=128.50,
+                total_amount=Decimal("128.50"),
                 items=[{"name": "运动内衣", "qty": 1, "price": 128.50}],
                 tracking_number="SF123456789",
                 shipping_address="上海市浦东新区张江高科技园区",
@@ -137,7 +138,7 @@ async def seed_data():
                 order_sn="SN20240002",
                 user_id=user.id,  # ty:ignore[invalid-argument-type]
                 status=OrderStatus.PENDING,
-                total_amount=50.00,
+                total_amount=Decimal("50.00"),
                 items=[{"name": "全棉袜子", "qty": 5, "price": 10.00}],
                 shipping_address="北京市朝阳区三里屯",
             )
@@ -147,7 +148,7 @@ async def seed_data():
                 order_sn="SN20240003",
                 user_id=user.id,  # ty:ignore[invalid-argument-type]
                 status=OrderStatus.SHIPPED,  # 已发货，符合退货条件
-                total_amount=199.00,
+                total_amount=Decimal("199.00"),
                 items=[
                     {"name": "运动T恤", "qty": 1, "price": 99.00},
                     {"name": "运动短裤", "qty": 1, "price": 100.00},
@@ -161,7 +162,7 @@ async def seed_data():
                 order_sn="SN20240004",
                 user_id=user.id,  # ty:ignore[invalid-argument-type]
                 status=OrderStatus.DELIVERED,  # 已签收，符合退货条件
-                total_amount=599.00,
+                total_amount=Decimal("599.00"),
                 items=[{"name": "耐克篮球鞋", "qty": 1, "price": 599.00}],
                 tracking_number="SF555666777",
                 shipping_address="北京市海淀区中关村",

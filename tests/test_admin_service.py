@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import pytest
 from sqlmodel import Session, select
@@ -66,7 +67,7 @@ def _create_committed_order(user_id: int):
                 order_sn=f"ORD{uuid.uuid4().hex[:12].upper()}",
                 user_id=user_id,
                 status=OrderStatus.DELIVERED,
-                total_amount=199.99,
+                total_amount=Decimal("199.99"),
                 shipping_address="Test Address",
             )
             session.add(order)
