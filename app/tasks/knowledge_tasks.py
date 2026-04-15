@@ -6,7 +6,6 @@ import subprocess
 import sys
 from typing import Any
 
-from celery import states
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -147,7 +146,6 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
         doc = result.one_or_none()
         if not doc:
             logger.error(f"Knowledge document {document_id} not found")
-            self.update_state(state=states.FAILURE, meta={"message": "Document not found"})
             raise ValueError(f"Knowledge document {document_id} not found")
 
         doc.sync_status = "running"
