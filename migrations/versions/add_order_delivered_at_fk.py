@@ -1,6 +1,6 @@
-"""add_order_delivered_at_and_fix_complaint_fk
+"""add_order_delivered_at_fk
 
-Revision ID: add_order_delivered_at_and_fix_complaint_fk
+Revision ID: add_order_delivered_at_fk
 Revises: 49f33c393451
 Create Date: 2025-01-13 00:00:00.000000
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "add_order_delivered_at_and_fix_complaint_fk"
+revision: str = "add_order_delivered_at_fk"
 down_revision: Union[str, None] = "49f33c393451"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
