@@ -258,6 +258,14 @@ if os.path.exists(frontend_dist_path):
             return FileResponse(file_path)
         return FileResponse(os.path.join(frontend_dist_path, "admin.html"))
 
+    @app.get("/favicon.svg")
+    async def serve_favicon():
+        return FileResponse(os.path.join(frontend_dist_path, "favicon.svg"))
+
+    @app.get("/icons.svg")
+    async def serve_icons():
+        return FileResponse(os.path.join(frontend_dist_path, "icons.svg"))
+
     @app.get("/")
     async def root():
         return RedirectResponse(url="/app")

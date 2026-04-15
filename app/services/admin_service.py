@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from sqlmodel import desc, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.utils import build_thread_id, utc_now
+from app.core.utils import utc_now
 from app.models.audit import AuditAction, AuditLog, AuditTriggerType
 from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.refund import RefundApplication, RefundStatus
@@ -188,7 +188,7 @@ class AdminService:
         if self.manager is not None:
             try:
                 await self.manager.notify_status_change(
-                    thread_id=build_thread_id(audit_log.user_id, audit_log.thread_id),
+                    thread_id=audit_log.thread_id,
                     status=action,
                     data={
                         "message": status_message,
