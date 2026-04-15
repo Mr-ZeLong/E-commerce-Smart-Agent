@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import pytest
 from sqlmodel import select
@@ -40,7 +41,7 @@ class TestProcessRefundPayment:
             order_sn=f"ORD{uuid.uuid4().hex[:12].upper()}",
             user_id=user.id,
             status=OrderStatus.DELIVERED,
-            total_amount=199.99,
+            total_amount=Decimal("199.99"),
             shipping_address="Test Address",
         )
         db_sync_session.add(order)
@@ -53,7 +54,7 @@ class TestProcessRefundPayment:
             user_id=user.id,
             status=RefundStatus.PENDING,
             reason_detail="Test refund",
-            refund_amount=99.9,
+            refund_amount=Decimal("99.9"),
         )
         db_sync_session.add(refund)
         db_sync_session.commit()

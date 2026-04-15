@@ -150,7 +150,7 @@ async def update_agent_config(
     try:
         await _invalidate_cached_config(redis, agent_name)
     finally:
-        await redis.close()
+        await redis.aclose()
 
     return AgentConfigUpdateResponse(
         success=True,
@@ -202,7 +202,7 @@ async def rollback_agent_config(
     try:
         await _invalidate_cached_config(redis, agent_name)
     finally:
-        await redis.close()
+        await redis.aclose()
 
     return AgentConfigRollbackResponse(
         success=True,

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 
 from app.models.order import Order
@@ -27,7 +29,7 @@ async def test_logistics_tool_found(logistics_tool, db_session):
     order = Order(
         order_sn="SN20240001",
         user_id=user.id,
-        total_amount=100.0,
+        total_amount=Decimal("100.0"),
         shipping_address="Beijing",
         tracking_number="SF1234567890",
     )
@@ -87,7 +89,7 @@ async def test_logistics_tool_uses_kwargs_when_slots_empty(logistics_tool, db_se
     order = Order(
         order_sn="SN20240002",
         user_id=user.id,
-        total_amount=200.0,
+        total_amount=Decimal("200.0"),
         shipping_address="Shanghai",
         tracking_number=None,
     )

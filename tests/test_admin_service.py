@@ -88,7 +88,7 @@ def _create_committed_refund(order_id: int, user_id: int):
                 user_id=user_id,
                 status=RefundStatus.PENDING,
                 reason_detail="Test refund",
-                refund_amount=199.99,
+                refund_amount=Decimal("199.99"),
             )
             session.add(refund)
             session.commit()

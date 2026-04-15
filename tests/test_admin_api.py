@@ -78,7 +78,7 @@ async def create_order_and_refund(user: User) -> tuple[Order, RefundApplication]
             user_id=user.id,
             status=RefundStatus.PENDING,
             reason_detail="Test refund",
-            refund_amount=199.99,
+            refund_amount=Decimal("199.99"),
         )
         session.add(refund)
         await session.commit()

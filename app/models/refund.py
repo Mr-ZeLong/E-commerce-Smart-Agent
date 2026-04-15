@@ -1,5 +1,6 @@
 # app/models/refund.py
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, Numeric, String, Text, text
@@ -60,7 +61,7 @@ class RefundApplication(SQLModel, table=True):
     )
 
     # 退款金额（可能部分退款）
-    refund_amount: float = Field(
+    refund_amount: Decimal = Field(
         sa_column=Column(Numeric(precision=10, scale=2)), description="退款金额"
     )
 

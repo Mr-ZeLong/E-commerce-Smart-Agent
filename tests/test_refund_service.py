@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -30,7 +31,7 @@ async def _create_test_order(
     user_id: int,
     order_sn: str,
     status: OrderStatus = OrderStatus.DELIVERED,
-    total_amount: float = 199.0,
+    total_amount: Decimal = Decimal("199.0"),
     created_at: datetime | None = None,
     items: list | None = None,
 ) -> Order:
@@ -225,7 +226,7 @@ async def test_process_refund_for_order_success(db_session):
         "ORD2024001",
         status=OrderStatus.DELIVERED,
         created_at=datetime.now(UTC) - timedelta(days=1),
-        total_amount=199.0,
+        total_amount=Decimal("199.0"),
     )
     success, _msg, data, refund_app = await process_refund_for_order(
         order_sn="ORD2024001",

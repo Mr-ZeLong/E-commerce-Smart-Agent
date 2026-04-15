@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 import pytest
 
@@ -31,7 +32,7 @@ async def test_payment_tool_with_order_sn(payment_tool, db_session):
         order_sn="SN20240001",
         user_id=user.id,
         status=OrderStatus.PAID,
-        total_amount=199.0,
+        total_amount=Decimal("199.0"),
         shipping_address="Test Address",
     )
     db_session.add(order)
@@ -42,7 +43,7 @@ async def test_payment_tool_with_order_sn(payment_tool, db_session):
     refund = RefundApplication(
         order_id=order.id,
         user_id=user.id,
-        refund_amount=199.0,
+        refund_amount=Decimal("199.0"),
         status=RefundStatus.PENDING,
         reason_detail="Test refund reason",
         created_at=datetime(2024, 1, 1, 12, 0, 0),
@@ -84,7 +85,7 @@ async def test_payment_tool_without_order_sn(payment_tool, db_session):
         order_sn="SN20240002",
         user_id=user.id,
         status=OrderStatus.PAID,
-        total_amount=99.0,
+        total_amount=Decimal("99.0"),
         shipping_address="Test Address 2",
     )
     db_session.add(order)
@@ -95,7 +96,7 @@ async def test_payment_tool_without_order_sn(payment_tool, db_session):
     refund = RefundApplication(
         order_id=order.id,
         user_id=user.id,
-        refund_amount=99.0,
+        refund_amount=Decimal("99.0"),
         status=RefundStatus.APPROVED,
         reason_detail="Test refund reason 2",
         created_at=datetime(2024, 1, 2, 12, 0, 0),
