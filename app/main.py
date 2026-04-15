@@ -266,6 +266,14 @@ if os.path.exists(frontend_dist_path):
     async def serve_icons():
         return FileResponse(os.path.join(frontend_dist_path, "icons.svg"))
 
+    @app.get("/index.html")
+    async def serve_index_html():
+        return FileResponse(os.path.join(frontend_dist_path, "index.html"))
+
+    @app.get("/admin.html")
+    async def serve_admin_html():
+        return FileResponse(os.path.join(frontend_dist_path, "admin.html"))
+
     @app.get("/")
     async def root():
         return RedirectResponse(url="/app")

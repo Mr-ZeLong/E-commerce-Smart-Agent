@@ -111,8 +111,6 @@ scripts/dev_*.py
 
 # Playwright CLI artifacts
 .playwright-cli/
-*.yaml
-*.yml
 
 # Sisyphus plans
 .sisyphus/
