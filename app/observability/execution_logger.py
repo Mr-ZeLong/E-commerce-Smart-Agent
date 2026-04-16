@@ -12,6 +12,7 @@ async def log_graph_execution(
     confidence_score: float | None,
     needs_human_transfer: bool,
     total_latency_ms: int | None,
+    agent_config_version_id: int | None = None,
 ) -> int:
     log = GraphExecutionLog(
         thread_id=thread_id,
@@ -21,6 +22,7 @@ async def log_graph_execution(
         confidence_score=confidence_score,
         needs_human_transfer=needs_human_transfer,
         total_latency_ms=total_latency_ms,
+        agent_config_version_id=agent_config_version_id,
     )
     session.add(log)
     await session.commit()

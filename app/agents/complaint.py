@@ -5,6 +5,11 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
 from app.agents.base import BaseAgent
+from app.intent.few_shot_loader import (
+    format_complaint_examples_for_prompt,
+    load_complaint_examples,
+    select_top_k_examples,
+)
 from app.models.state import AgentProcessResult, AgentState
 from app.tools.complaint_tool import ComplaintTool
 
@@ -21,7 +26,7 @@ class ComplaintClassification(BaseModel):
     empathetic_response: str = Field(description="对用户的同理心回复，包含工单号占位符 {ticket_id}")
 
 
-COMPLAINT_SYSTEM_PROMPT = """你是专业的用户投诉处理专家。
+_COMPLAINT_SYSTEM_PROMPT = """你是专业的用户投诉处理专家。
 
 规则：
 1. 认真倾听用户的不满，表达理解和同理心
@@ -43,16 +48,33 @@ COMPLAINT_SYSTEM_PROMPT = """你是专业的用户投诉处理专家。
 
 class ComplaintAgent(BaseAgent):
     def __init__(self, llm: BaseChatModel):
-        super().__init__(name="complaint", llm=llm, system_prompt=COMPLAINT_SYSTEM_PROMPT)
+        super().__init__(name="complaint", llm=llm, system_prompt=_COMPLAINT_SYSTEM_PROMPT)
         self._tool: ComplaintTool = ComplaintTool()
+        self._few_shot_examples = load_complaint_examples()
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         question = state.get("question", "")
         user_id = state.get("user_id", 0)
         thread_id = state.get("thread_id", "")
 
-        messages = self._create_messages(question, memory_context=state.get("memory_context"))
+        system_prompt = (
+            self._dynamic_system_prompt or self.system_prompt or _COMPLAINT_SYSTEM_PROMPT
+        )
+        if self._few_shot_examples:
+            top_examples = select_top_k_examples(question, self._few_shot_examples, k=3)
+            if top_examples:
+                system_prompt += format_complaint_examples_for_prompt(top_examples)
+
+        messages = self._create_messages(
+            question,
+            memory_context=state.get("memory_context"),
+            user_context=self._build_user_context(state.get("memory_context")),
+            system_prompt_override=system_prompt,
+        )
         raw_response = await self._call_llm(messages, tags=["user_visible"])
 
         classification = self._parse_classification(raw_response)

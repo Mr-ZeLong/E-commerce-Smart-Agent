@@ -10,14 +10,17 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 from opentelemetry import trace
 from pydantic import BaseModel
+from sqlmodel import desc, select
 
 from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
 from app.core.database import async_session_maker
 from app.core.security import get_current_user_id
 from app.core.utils import build_thread_id, utc_now
+from app.models.memory import AgentConfigVersion
 from app.models.state import make_agent_state
 from app.observability.execution_logger import log_graph_execution, log_graph_node
+from app.services.experiment_assigner import ExperimentAssigner
 from app.services.online_eval import OnlineEvalService
 
 router = APIRouter()
@@ -78,11 +81,17 @@ async def chat(
                 },
             }
 
+            variant_id: int | None = None
+            async with async_session_maker() as db:
+                assigner = ExperimentAssigner()
+                variant_id = await assigner.assign(str(current_user_id), "agent_prompt", db=db)
+
             initial_state = make_agent_state(
                 question=chat_request.question,
                 user_id=current_user_id,
                 thread_id=thread_id,
                 history=[{"role": "user", "content": chat_request.question}],
+                experiment_variant_id=variant_id,
             )
 
             vector_manager = getattr(http_request.app.state, "vector_manager", None)
@@ -244,15 +253,20 @@ async def chat(
                 # Log execution metrics asynchronously after streaming completes
                 total_latency_ms = int((time.time() - start_time) * 1000)
                 async with async_session_maker() as session:
+                    final_agent_name = final_state.get("current_agent")
+                    version_id = await _resolve_agent_config_version_id(
+                        session, final_agent_name, utc_now()
+                    )
                     execution_id = await log_graph_execution(
                         session=session,
                         thread_id=thread_id,
                         user_id=current_user_id,
                         intent_category=intent_category,
-                        final_agent=final_state.get("current_agent"),
+                        final_agent=final_agent_name,
                         confidence_score=final_state.get("confidence_score"),
                         needs_human_transfer=bool(final_state.get("needs_human_transfer", False)),
                         total_latency_ms=total_latency_ms,
+                        agent_config_version_id=version_id,
                     )
                     for node_name, latency_ms in node_latencies.items():
                         await log_graph_node(
@@ -281,6 +295,22 @@ async def chat(
 
 
 _feedback_service = OnlineEvalService()
+
+
+async def _resolve_agent_config_version_id(
+    session, agent_name: str | None, before_time
+) -> int | None:
+    if not agent_name:
+        return None
+    result = await session.exec(
+        select(AgentConfigVersion)
+        .where(AgentConfigVersion.agent_name == agent_name)
+        .where(AgentConfigVersion.created_at <= before_time)
+        .order_by(desc(AgentConfigVersion.created_at))
+        .limit(1)
+    )
+    version = result.one_or_none()
+    return version.id if version else None
 
 
 class SubmitFeedbackRequest(BaseModel):

@@ -21,6 +21,11 @@ class GraphExecutionLog(SQLModel, table=True):
     confidence_score: float | None = None
     needs_human_transfer: bool = False
     langsmith_run_url: str | None = Field(default=None, description="LangSmith trace 链接")
+    agent_config_version_id: int | None = Field(
+        default=None,
+        foreign_key="agent_config_versions.id",
+        description="关联的 AgentConfigVersion 快照 ID",
+    )
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(

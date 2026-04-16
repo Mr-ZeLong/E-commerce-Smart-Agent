@@ -26,6 +26,9 @@ class AccountAgent(BaseAgent):
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("account", state)
         output = tool_result.output
         memory_prefix = self._format_memory_prefix(state.get("memory_context"))

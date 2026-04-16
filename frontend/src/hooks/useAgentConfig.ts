@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { AgentConfig, AgentsConfigResponse, AgentConfigPayload, AgentConfigAuditLog, RoutingRule } from '@/types'
+import type { AgentConfig, AgentsConfigResponse, AgentConfigPayload, AgentConfigAuditLog, AgentConfigVersion, AgentConfigVersionMetrics, PromptEffectReport, RoutingRule } from '@/types'
 import { apiFetch } from '@/lib/api'
 
 export function useAgentAuditLog(agentName: string | undefined) {
@@ -14,6 +14,41 @@ export function useAgentAuditLog(agentName: string | undefined) {
   })
 }
 
+export function useAgentVersions(agentName: string | undefined) {
+  return useQuery<AgentConfigVersion[]>({
+    queryKey: ['admin', 'agents', 'config', agentName, 'versions'],
+    queryFn: async () => {
+      const res = await apiFetch(`/admin/agents/config/${agentName}/versions`)
+      if (!res.ok) throw new Error('获取版本历史失败')
+      return res.json() as Promise<AgentConfigVersion[]>
+    },
+    enabled: !!agentName,
+  })
+}
+
+export function useAgentVersionMetrics(agentName: string | undefined, versionId: number | undefined) {
+  return useQuery<AgentConfigVersionMetrics>({
+    queryKey: ['admin', 'agents', 'config', agentName, 'versions', versionId, 'metrics'],
+    queryFn: async () => {
+      const res = await apiFetch(`/admin/agents/config/${agentName}/versions/${versionId}/metrics`)
+      if (!res.ok) throw new Error('获取版本指标失败')
+      return res.json() as Promise<AgentConfigVersionMetrics>
+    },
+    enabled: !!agentName && !!versionId,
+  })
+}
+
+export function useAgentReports(agentName: string | undefined) {
+  return useQuery<PromptEffectReport[]>({
+    queryKey: ['admin', 'agents', 'config', agentName, 'reports'],
+    queryFn: async () => {
+      const res = await apiFetch(`/admin/agents/config/${agentName}/reports`)
+      if (!res.ok) throw new Error('获取月度报告失败')
+      return res.json() as Promise<PromptEffectReport[]>
+    },
+    enabled: !!agentName,
+  })
+}
 
 export function useAgentConfig() {
   const queryClient = useQueryClient()
@@ -125,6 +160,44 @@ export function useAgentConfig() {
     },
   })
 
+  const rollbackToVersionMutation = useMutation<AgentConfig, Error, { agentName: string; versionId: number }>({
+    mutationFn: async ({ agentName, versionId }) => {
+      const res = await apiFetch(`/admin/agents/config/${agentName}/versions/${versionId}/rollback`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { detail?: string }
+        throw new Error(err.detail || '回滚失败')
+      }
+      return res.json() as Promise<AgentConfig>
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'agents', 'config'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'agents', 'config', variables.agentName, 'versions'] })
+    },
+  })
+
+  const generateReportMutation = useMutation<
+    { task_id: string; agent_name: string; report_month: string },
+    Error,
+    { agentName: string; reportMonth: string }
+  >({
+    mutationFn: async ({ agentName, reportMonth }) => {
+      const res = await apiFetch(`/admin/agents/config/${agentName}/reports/generate`, {
+        method: 'POST',
+        body: JSON.stringify({ report_month: reportMonth }),
+      })
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { detail?: string }
+        throw new Error(err.detail || '生成报告失败')
+      }
+      return res.json() as Promise<{ task_id: string; agent_name: string; report_month: string }>
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'agents', 'config', variables.agentName, 'reports'] })
+    },
+  })
+
   return {
     agents: data?.configs ?? [],
     routingRules: data?.routing_rules ?? [],
@@ -133,6 +206,10 @@ export function useAgentConfig() {
     isUpdating: updateMutation.isPending,
     rollbackAgent: rollbackMutation.mutateAsync,
     isRollingBack: rollbackMutation.isPending,
+    rollbackToVersion: rollbackToVersionMutation.mutateAsync,
+    isRollingBackToVersion: rollbackToVersionMutation.isPending,
+    generateReport: generateReportMutation.mutateAsync,
+    isGeneratingReport: generateReportMutation.isPending,
     saveRoutingRule: updateRoutingRuleMutation.mutateAsync,
     isSavingRule: updateRoutingRuleMutation.isPending,
     deleteRoutingRule: deleteRoutingRuleMutation.mutateAsync,

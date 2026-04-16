@@ -36,7 +36,7 @@ class IntentRecognitionService:
         self.slot_validator = SlotValidator()
         self.clarification_engine = ClarificationEngine(slot_validator=self.slot_validator)
         self.topic_switch_detector = TopicSwitchDetector()
-        self.multi_intent_processor = MultiIntentProcessor(classifier=self.classifier)
+        self.multi_intent_processor = MultiIntentProcessor(classifier=self.classifier, llm=llm)
         self.safety_filter = SafetyFilter(llm=llm, config=SafetyConfig())
 
     async def recognize(

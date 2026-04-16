@@ -14,6 +14,19 @@ import {
 } from '@/components/ui/dialog'
 import type { AgentConfig, AgentConfigPayload } from '@/types'
 
+const AVAILABLE_VARIABLES: { key: string; description: string; value: string }[] = [
+  { key: 'company_name', description: '平台名称', value: 'XX电商平台' },
+  { key: 'current_date', description: '当前日期', value: new Date().toISOString().split('T')[0] },
+  { key: 'user_membership_level', description: '用户会员等级', value: '普通会员' },
+]
+
+function renderPromptPreview(template: string): string {
+  return AVAILABLE_VARIABLES.reduce((result, variable) => {
+    const regex = new RegExp(`\\{\\{\\s*${variable.key}\\s*\\}\\}`, 'g')
+    return result.replace(regex, variable.value)
+  }, template)
+}
+
 interface AgentConfigEditorProps {
   agent: AgentConfig | null
   open: boolean
@@ -76,7 +89,22 @@ export function AgentConfigEditor({
 
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="system-prompt">系统提示词 (System Prompt)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="system-prompt">系统提示词 (System Prompt)</Label>
+              <div className="flex items-center gap-2">
+                {AVAILABLE_VARIABLES.map((v) => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    onClick={() => setSystemPrompt((prev) => prev + `{{${v.key}}}`)}
+                    className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted/80"
+                    title={`插入变量: ${v.description}`}
+                  >
+                    {'{{' + v.key + '}}'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Textarea
               id="system-prompt"
               value={systemPrompt}
@@ -84,11 +112,14 @@ export function AgentConfigEditor({
               rows={5}
               placeholder="输入系统提示词..."
             />
+            <p className="text-xs text-muted-foreground">
+              点击上方标签快速插入变量，保存后会在运行时自动替换为对应值。
+            </p>
           </div>
 
           <div className="rounded-md border bg-muted/40 p-3">
             <p className="mb-1 text-xs font-medium text-muted-foreground">实时预览</p>
-            <p className="whitespace-pre-wrap text-sm">{systemPrompt || '（无内容）'}</p>
+            <p className="whitespace-pre-wrap text-sm">{renderPromptPreview(systemPrompt) || '（无内容）'}</p>
           </div>
 
           <div className="grid gap-2">

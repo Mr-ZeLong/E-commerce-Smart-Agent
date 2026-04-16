@@ -1,0 +1,8 @@
+{"query": "这款手机支持5G吗，电池容量多少", "primary_intent": "PRODUCT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"product_name": "手机"}, "reasoning": "用户询问商品参数规格。"}
+{"query": "这件羽绒服充绒量是多少克", "primary_intent": "PRODUCT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"product_name": "羽绒服"}, "reasoning": "用户询问具体商品参数。"}
+{"query": "这个面膜敏感肌能用吗", "primary_intent": "PRODUCT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"product_name": "面膜"}, "reasoning": "用户询问商品适用人群。"}
+{"query": "这款笔记本电脑是什么显卡", "primary_intent": "PRODUCT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"product_name": "笔记本电脑"}, "reasoning": "用户询问商品配置信息。"}
+{"query": "这个扫地机器人续航多久", "primary_intent": "PRODUCT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"product_name": "扫地机器人"}, "reasoning": "用户询问商品续航能力。"}
+{"query": "A品牌和B品牌的洗发水哪个好用", "primary_intent": "PRODUCT", "secondary_intent": "COMPARE", "tertiary_intent": null, "slots": {"product_a": "A品牌洗发水", "product_b": "B品牌洗发水"}, "reasoning": "用户对比两款同类商品。"}
+{"query": "64G和128G的版本有什么区别", "primary_intent": "PRODUCT", "secondary_intent": "COMPARE", "tertiary_intent": null, "slots": {"product_a": "64G版本", "product_b": "128G版本"}, "reasoning": "用户对比同一商品的不同规格。"}
+{"query": "银色的和黑色的哪个耐看", "primary_intent": "PRODUCT", "secondary_intent": "COMPARE", "tertiary_intent": null, "slots": {"product_a": "银色", "product_b": "黑色"}, "reasoning": "用户对比不同颜色款式。"}

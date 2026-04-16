@@ -27,6 +27,9 @@ class OrderAgent(BaseAgent):
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         question = state.get("question", "")
         user_id = state.get("user_id")
         intent_result = state.get("intent_result") or {}

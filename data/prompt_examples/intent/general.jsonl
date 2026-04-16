@@ -1,0 +1,16 @@
+{"query": "帮我查一下订单 SN2024001 的状态", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"order_sn": "SN2024001"}, "reasoning": "用户明确提到订单号并询问状态，属于订单查询意图。"}
+{"query": "我的订单到哪了，什么时候能到？", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户询问订单物流进度，属于订单查询意图。"}
+{"query": "我要申请退款，这个商品我不想要了", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "REFUND", "slots": {"reason": "不想要"}, "reasoning": "用户明确表示要退款，属于售后申请-退款意图。"}
+{"query": "这件衣服太长了，能不能换货？", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "EXCHANGE", "slots": {"reason": "尺寸不合适"}, "reasoning": "用户提到换货，属于售后申请-换货意图。"}
+{"query": "你们运费怎么算的？", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "SHIPPING_FEE", "slots": {}, "reasoning": "用户询问运费计算规则，属于政策咨询-运费意图。"}
+{"query": "退货的话多久能到账？", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "REFUND_TIMELINE", "slots": {}, "reasoning": "用户询问退货退款时效，属于政策咨询意图。"}
+{"query": "这款手机有货吗，多少钱？", "primary_intent": "PRODUCT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"product_name": "手机"}, "reasoning": "用户询问商品库存和价格，属于商品查询意图。"}
+{"query": "A款和B款有什么区别，哪个更好？", "primary_intent": "PRODUCT", "secondary_intent": "COMPARE", "tertiary_intent": null, "slots": {"product_a": "A款", "product_b": "B款"}, "reasoning": "用户对比两款商品，属于商品对比意图。"}
+{"query": "帮我看看购物车里有什么", "primary_intent": "CART", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户想查看购物车内容，属于购物车查询意图。"}
+{"query": "把这件T恤加到购物车", "primary_intent": "CART", "secondary_intent": "ADD", "tertiary_intent": null, "slots": {"product_name": "T恤"}, "reasoning": "用户要求添加商品到购物车，属于购物车添加意图。"}
+{"query": "帮我删了购物车里的那条裤子", "primary_intent": "CART", "secondary_intent": "REMOVE", "tertiary_intent": null, "slots": {"product_name": "裤子"}, "reasoning": "用户要求删除购物车商品，属于购物车移除意图。"}
+{"query": "我的包裹到哪里了，物流怎么不动？", "primary_intent": "LOGISTICS", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户询问物流进度，属于物流查询意图。"}
+{"query": "快递什么时候能送到？", "primary_intent": "LOGISTICS", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户询问送达时间，属于物流查询意图。"}
+{"query": "你好，有人工客服吗？", "primary_intent": "OTHER", "secondary_intent": "CONSULT", "tertiary_intent": null, "slots": {}, "reasoning": "用户只是打招呼，没有明确业务意图，属于其他意图。"}
+{"query": "怎么修改我的收货地址？", "primary_intent": "ACCOUNT", "secondary_intent": "MODIFY", "tertiary_intent": "ADDRESS", "slots": {}, "reasoning": "用户想修改账户信息中的地址，属于账户修改意图。"}
+{"query": "我想投诉你们的客服态度太差了", "primary_intent": "COMPLAINT", "secondary_intent": "APPLY", "tertiary_intent": "SERVICE_ATTITUDE", "slots": {"complaint_target": "客服"}, "reasoning": "用户明确表达投诉意愿，属于投诉申请意图。"}

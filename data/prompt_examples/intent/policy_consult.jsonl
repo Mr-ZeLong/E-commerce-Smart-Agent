@@ -1,0 +1,8 @@
+{"query": "你们支持货到付款吗", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "PAYMENT", "slots": {}, "reasoning": "用户咨询支付方式政策。"}
+{"query": "满多少可以包邮", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "SHIPPING_FEE", "slots": {}, "reasoning": "用户咨询包邮门槛。"}
+{"query": "会员有什么专属优惠", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "MEMBER_BENEFIT", "slots": {}, "reasoning": "用户咨询会员权益政策。"}
+{"query": "赠品不喜欢可以不要吗", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "GIFT_POLICY", "slots": {}, "reasoning": "用户咨询赠品相关政策。"}
+{"query": "预售商品一般多久发货", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "SHIPPING_TIMELINE", "slots": {}, "reasoning": "用户咨询预售发货政策。"}
+{"query": "能不能开发票，怎么开", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "INVOICE", "slots": {}, "reasoning": "用户咨询发票政策。"}
+{"query": "保价服务是什么意思", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "PRICE_PROTECTION", "slots": {}, "reasoning": "用户咨询价保政策。"}
+{"query": "海外购商品需要交关税吗", "primary_intent": "POLICY", "secondary_intent": "CONSULT", "tertiary_intent": "CUSTOMS", "slots": {}, "reasoning": "用户咨询跨境购物政策。"}

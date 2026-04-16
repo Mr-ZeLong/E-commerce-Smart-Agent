@@ -1,9 +1,13 @@
 import pytest
 
-from app.agents.policy import PolicyAgent
+from app.agents.policy import POLICY_SYSTEM_PROMPT, PolicyAgent
 from app.models.state import make_agent_state
 from tests._agents import DeterministicRetriever
 from tests._llm import DeterministicChatModel
+
+
+def test_policy_system_prompt_requires_citation():
+    assert "[来源:" in POLICY_SYSTEM_PROMPT
 
 
 class _Result:
@@ -64,4 +68,47 @@ async def test_process_with_empty_retrieval():
     state = make_agent_state(question="请问这个政策是什么意思？", user_id=1)
     result = await agent.process(state)
 
+    assert "抱歉" in result["response"] or "暂未查询" in result["response"]
+
+
+@pytest.mark.asyncio
+async def test_retrieve_knowledge_filters_low_score_chunks():
+    class LowScoreRetriever(DeterministicRetriever):
+        async def retrieve(self, query, conversation_history=None, memory_context=None):
+            return [
+                _Result("高相关", "doc1", 0.6),
+                _Result("低相关", "doc2", 0.3),
+                _Result("刚好相关", "doc3", 0.5),
+            ]
+
+    agent = PolicyAgent(retriever=LowScoreRetriever(), llm=DeterministicChatModel())
+    state = make_agent_state(question="运费政策", user_id=1)
+    chunks, sims, sources = await agent._retrieve_knowledge(state)
+    assert "低相关" not in chunks
+    assert len(chunks) == 2
+
+
+@pytest.mark.asyncio
+async def test_retrieve_knowledge_returns_empty_when_grader_rejects_all():
+    class OneResultRetriever(DeterministicRetriever):
+        async def retrieve(self, query, conversation_history=None, memory_context=None):
+            return [_Result("某个文档", "doc1", 0.8)]
+
+    llm = DeterministicChatModel(structured={"GradeDocuments": {"binary_score": "no"}})
+    agent = PolicyAgent(retriever=OneResultRetriever(), llm=llm)
+    state = make_agent_state(question="退换货", user_id=1)
+    chunks, sims, sources = await agent._retrieve_knowledge(state)
+    assert chunks == []
+
+
+@pytest.mark.asyncio
+async def test_process_self_rag_refusal_when_no_relevant_docs():
+    class OneResultRetriever(DeterministicRetriever):
+        async def retrieve(self, query, conversation_history=None, memory_context=None):
+            return [_Result("不相关文档", "doc1", 0.8)]
+
+    llm = DeterministicChatModel(structured={"GradeDocuments": {"binary_score": "no"}})
+    agent = PolicyAgent(retriever=OneResultRetriever(), llm=llm)
+    state = make_agent_state(question="运费政策", user_id=1)
+    result = await agent.process(state)
     assert "抱歉" in result["response"] or "暂未查询" in result["response"]

@@ -194,6 +194,38 @@ export interface AgentConfigAuditLog {
   created_at: string
 }
 
+export interface AgentConfigVersion {
+  id: number
+  agent_name: string
+  changed_by: number
+  system_prompt: string | null
+  confidence_threshold: number
+  max_retries: number
+  enabled: boolean
+  created_at: string
+}
+
+export interface AgentConfigVersionMetrics {
+  total_sessions: number
+  avg_confidence: number | null
+  transfer_rate: number
+  avg_latency_ms: number | null
+}
+
+export interface PromptEffectReport {
+  id: number
+  report_month: string
+  agent_name: string
+  version_id: number | null
+  total_sessions: number
+  avg_confidence: number | null
+  transfer_rate: number
+  avg_latency_ms: number | null
+  key_changes: string | null
+  recommendation: string | null
+  created_at: string
+}
+
 export interface AgentsConfigResponse {
   configs: AgentConfig[]
   routing_rules: RoutingRule[]

@@ -1,0 +1,16 @@
+{"query": "收到的手机屏幕碎了，根本没法用", "complaint_category": "PRODUCT_DEFECT", "urgency": "high", "expected_action": "发起退货或换货，安排上门取件", "reasoning": "商品存在严重物理损坏，影响正常使用，应优先处理。"}
+{"query": "买的鞋子左右脚颜色不一样，明显是质量问题", "complaint_category": "PRODUCT_DEFECT", "urgency": "medium", "expected_action": "提供换货服务并承担运费", "reasoning": "商品存在质量瑕疵但不影响安全，建议换货处理。"}
+{"query": "你们客服态度太差了，问什么都不耐烦", "complaint_category": "SERVICE_ATTITUDE", "urgency": "medium", "expected_action": "记录投诉并反馈至客服主管，向用户致歉", "reasoning": "服务态度投诉需要内部培训和反馈，优先级中等。"}
+{"query": "物流已经卡在转运中心五天了，一点动静都没有", "complaint_category": "LOGISTICS_DELAY", "urgency": "high", "expected_action": "联系物流公司催促配送，必要时补偿运费", "reasoning": "物流严重延误影响用户体验，需要主动跟进并补偿。"}
+{"query": "快递显示已签收但我根本没收到东西", "complaint_category": "LOGISTICS_DELAY", "urgency": "high", "expected_action": "核实签收信息，启动丢件调查或补发", "reasoning": "疑似丢件或误签收，需紧急调查并给出解决方案。"}
+{"query": "明明承诺当天发货，结果三天了还没发", "complaint_category": "LOGISTICS_DELAY", "urgency": "medium", "expected_action": "催促仓库发货并发放延迟补偿券", "reasoning": "商家未履行发货承诺，应加速发货并给予补偿。"}
+{"query": "你们平台的活动规则太坑了，根本不符合描述", "complaint_category": "PLATFORM_POLICY", "urgency": "medium", "expected_action": "核查活动规则说明，如属实则补偿差额", "reasoning": "活动规则争议需要核实详情，若平台有责应补偿。"}
+{"query": "订单被你们莫名其妙取消了，没有任何通知", "complaint_category": "ORDER_ISSUE", "urgency": "high", "expected_action": "核查取消原因并恢复订单或赔偿", "reasoning": "订单异常取消涉及用户财产权益，需优先处理。"}
+{"query": "收到的水果全都烂掉了，一股臭味", "complaint_category": "PRODUCT_DEFECT", "urgency": "high", "expected_action": "全额退款并道歉，调查冷链运输", "reasoning": "生鲜商品严重变质，需立即退款并溯源。"}
+{"query": "保修期内耳机坏了，售后却说要收费维修", "complaint_category": "AFTER_SALES", "urgency": "medium", "expected_action": "核实保修状态，免费维修或更换", "reasoning": "保修期内不应收费，需纠正售后处理。"}
+{"query": "快递员把包裹扔门口就走了，连电话都没打", "complaint_category": "LOGISTICS_DELAY", "urgency": "medium", "expected_action": "联系快递网点反馈，提醒规范派送", "reasoning": "派送服务不规范，需反馈改进。"}
+{"query": "你们推荐的理财产品有风险怎么不提前说", "complaint_category": "PLATFORM_POLICY", "urgency": "high", "expected_action": "转交金融合规部门处理并记录投诉", "reasoning": "金融产品风险提示涉及合规，需升级处理。"}
+{"query": "买的手表走了两天就不走了，明显是假货", "complaint_category": "PRODUCT_DEFECT", "urgency": "high", "expected_action": "退货退款并核查供应商资质", "reasoning": "疑似假货且功能失效，需退款并追责供应商。"}
+{"query": "客服一直让我等，等了半小时也没解决问题", "complaint_category": "SERVICE_ATTITUDE", "urgency": "medium", "expected_action": "致歉并安排专人跟进，优化排队机制", "reasoning": "服务效率低下，需专人跟进并改进流程。"}
+{"query": "积分兑换的商品质量太差了，根本不能用", "complaint_category": "PRODUCT_DEFECT", "urgency": "low", "expected_action": "补发合格商品或退回积分", "reasoning": "积分商品质量问题，建议补发或退积分。"}
+{"query": "你们广告说买一送一，结果只发了一件", "complaint_category": "PLATFORM_POLICY", "urgency": "medium", "expected_action": "核实促销活动记录，补发缺失商品", "reasoning": "促销履约争议，需核实并补发。"}

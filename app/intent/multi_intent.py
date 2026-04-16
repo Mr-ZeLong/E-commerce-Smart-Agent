@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
 from app.intent.models import IntentResult
@@ -15,6 +16,11 @@ class _Classifier(Protocol):
 
 
 logger = logging.getLogger(__name__)
+
+
+class IndependenceCheck(BaseModel):
+    are_independent: bool = Field(description="两个意图是否可以独立并行处理")
+    reason: str = Field(description="判断理由")
 
 
 class MultiIntentResult(BaseModel):
@@ -71,12 +77,18 @@ class MultiIntentProcessor:
     SEPARATORS = ["顺便", "还有", "另外", "以及", "，然后", "。另外", "。还有", ";", "；"]
     MAX_INTENTS = 2
 
-    def __init__(self, classifier: _Classifier, mode: str = "cascade"):
+    def __init__(
+        self, classifier: _Classifier, mode: str = "cascade", llm: BaseChatModel | None = None
+    ):
         self.classifier = classifier
         self.mode = mode
+        self.llm = llm
 
     async def process(
-        self, query: str, conversation_history: list | None = None
+        self,
+        query: str,
+        conversation_history: list | None = None,
+        db_session=None,
     ) -> MultiIntentResult:
         context = {"history": conversation_history} if conversation_history else None
         segments = self._split_query(query)
@@ -98,9 +110,26 @@ class MultiIntentProcessor:
         shared_slots = self._extract_shared_slots(sub_intents)
         execution_order = list(range(len(sub_intents)))
         independent = False
+        rule_based: bool | None = None
+        llm_check: IndependenceCheck | None = None
         if len(sub_intents) == 2:
-            independent = are_independent(
+            rule_based = are_independent(
                 sub_intents[0].primary_intent.value, sub_intents[1].primary_intent.value
+            )
+            if rule_based:
+                independent = True
+            elif self.llm is not None:
+                llm_check = await self._llm_independence_check(query, sub_intents)
+                independent = llm_check.are_independent
+
+        if db_session is not None and llm_check is not None:
+            await self._log_decision(
+                db_session,
+                query,
+                sub_intents[0].primary_intent.value,
+                sub_intents[1].primary_intent.value,
+                rule_based,
+                llm_check,
             )
 
         if self.mode == "single" and sub_intents:
@@ -120,6 +149,64 @@ class MultiIntentProcessor:
             execution_order=execution_order,
             are_independent=independent,
         )
+
+    async def _log_decision(
+        self,
+        db_session,
+        query: str,
+        intent_a: str,
+        intent_b: str,
+        rule_based: bool | None,
+        llm_check: IndependenceCheck,
+    ) -> None:
+        from app.models.multi_intent_log import MultiIntentDecisionLog
+
+        log = MultiIntentDecisionLog(
+            query=query,
+            intent_a=intent_a,
+            intent_b=intent_b,
+            rule_based_result=rule_based,
+            llm_result=llm_check.are_independent,
+            llm_reason=llm_check.reason,
+        )
+        db_session.add(log)
+        await db_session.commit()
+
+    async def _llm_independence_check(
+        self, query: str, sub_intents: list[IntentResult]
+    ) -> IndependenceCheck:
+        from langchain_core.prompts import ChatPromptTemplate
+
+        intent_a = sub_intents[0].primary_intent.value
+        intent_b = sub_intents[1].primary_intent.value
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "你是一位意图分析专家。判断以下两个用户意图是否可以独立并行处理，互不干扰。",
+                ),
+                (
+                    "human",
+                    f"用户原始问题: {query}\n"
+                    f"意图A: {intent_a}\n"
+                    f"意图B: {intent_b}\n"
+                    "这两个意图是否可以由两个不同的客服专员同时处理？",
+                ),
+            ]
+        )
+        try:
+            if self.llm is None:
+                raise RuntimeError("LLM not available")
+            checker = prompt | self.llm.with_structured_output(IndependenceCheck)
+            result = await checker.ainvoke({})
+            if isinstance(result, IndependenceCheck):
+                return result
+            if isinstance(result, dict):
+                return IndependenceCheck(**result)
+            return IndependenceCheck(are_independent=False, reason="Unexpected output type")
+        except Exception as exc:
+            logger.warning("LLM independence check failed: %s", exc)
+            return IndependenceCheck(are_independent=False, reason="LLM check failed")
 
     def _split_query(self, query: str) -> list[str]:
         segments: list[str] = [query]

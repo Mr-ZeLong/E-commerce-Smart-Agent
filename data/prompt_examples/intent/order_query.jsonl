@@ -1,0 +1,8 @@
+{"query": "帮我查下订单 SN2024055 现在什么状态", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"order_sn": "SN2024055"}, "reasoning": "用户询问特定订单的状态。"}
+{"query": "我昨天下的单发货了吗", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户询问订单是否已发货。"}
+{"query": "订单号 SN2024099 的物流信息怎么查不到", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"order_sn": "SN2024099"}, "reasoning": "用户查询订单物流，但查不到信息。"}
+{"query": "我的订单显示已签收但我没收到", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户对订单签收状态有疑问。"}
+{"query": "帮我看看最近的订单", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户想查看最近订单列表。"}
+{"query": "订单里买了什么，总价多少", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户查询订单详情和金额。"}
+{"query": "SN2024111 什么时候能到", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"order_sn": "SN2024111"}, "reasoning": "用户询问订单预计到达时间。"}
+{"query": "为什么我的订单被取消了", "primary_intent": "ORDER", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户询问订单取消原因。"}

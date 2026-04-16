@@ -36,6 +36,10 @@ celery_app.conf.update(
             "task": "notifications.check_quality_alerts",
             "schedule": 300.0,
         },
+        "generate-prompt-effect-reports-monthly": {
+            "task": "prompt_effect.generate_monthly_report",
+            "schedule": 2592000.0,
+        },
     },
 )
 

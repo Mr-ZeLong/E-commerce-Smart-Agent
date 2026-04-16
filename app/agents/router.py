@@ -45,6 +45,9 @@ class IntentRouterAgent(BaseAgent):
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         query = state.get("question", "")
         session_id = state.get("thread_id", "")
         user_id = state.get("user_id")

@@ -1,0 +1,8 @@
+{"query": "我要退货，这件衣服尺码不合适", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "REFUND", "slots": {"reason": "尺码不合适"}, "reasoning": "用户因尺码问题要求退货退款。"}
+{"query": "这个商品有质量问题，我要换货", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "EXCHANGE", "slots": {"reason": "质量问题"}, "reasoning": "用户因质量问题要求换货。"}
+{"query": "买错了型号，能帮我退款吗", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "REFUND", "slots": {"reason": "买错型号"}, "reasoning": "用户买错型号申请退款。"}
+{"query": "收到货发现颜色跟图片差太多了，想退", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "REFUND", "slots": {"reason": "色差"}, "reasoning": "用户因色差问题申请退货。"}
+{"query": "这个电子产品开不了机，我要换一台", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "EXCHANGE", "slots": {"reason": "无法开机"}, "reasoning": "用户因商品故障申请换货。"}
+{"query": "家里已经有一样的了，能退吗", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "REFUND", "slots": {"reason": "重复购买"}, "reasoning": "用户因重复购买申请退款。"}
+{"query": "鞋子有一只大了，能不能换一双", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "EXCHANGE", "slots": {"reason": "尺码不匹配"}, "reasoning": "用户因尺码问题申请换货。"}
+{"query": "七天无理由退货怎么操作", "primary_intent": "AFTER_SALES", "secondary_intent": "APPLY", "tertiary_intent": "REFUND", "slots": {}, "reasoning": "用户咨询并申请七天无理由退货。"}

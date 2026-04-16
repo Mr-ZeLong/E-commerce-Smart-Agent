@@ -48,7 +48,7 @@ async def test_assign_chooses_variant_based_on_weight(db_session):
     await db_session.refresh(v2)
 
     result = await assigner.assign("999", "exp_weighted", db_session)
-    assert result in {"control", "treatment"}
+    assert result in {v1.id, v2.id}
 
 
 @pytest.mark.asyncio
@@ -66,7 +66,7 @@ async def test_assign_creates_assignment_record(db_session):
     await db_session.refresh(v1)
 
     result = await assigner.assign("42", "exp_record", db_session)
-    assert result == "variant_a"
+    assert result == v1.id
 
 
 @pytest.mark.asyncio
@@ -101,4 +101,4 @@ async def test_assign_non_numeric_user_id(db_session):
     await db_session.refresh(v1)
 
     result = await assigner.assign("abc", "exp_str_user", db_session)
-    assert result == "variant_a"
+    assert result == v1.id

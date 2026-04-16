@@ -1,0 +1,6 @@
+{"query": "为什么我的支付宝扣款失败了", "primary_intent": "PAYMENT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {"payment_method": "支付宝"}, "reasoning": "用户咨询支付失败原因。"}
+{"query": "可以分期付款吗", "primary_intent": "PAYMENT", "secondary_intent": "CONSULT", "tertiary_intent": "INSTALLMENT", "slots": {}, "reasoning": "用户咨询分期支付。"}
+{"query": "支付后没有订单记录怎么办", "primary_intent": "PAYMENT", "secondary_intent": "QUERY", "tertiary_intent": null, "slots": {}, "reasoning": "用户支付后查不到订单。"}
+{"query": "退款一般原路退回吗", "primary_intent": "PAYMENT", "secondary_intent": "CONSULT", "tertiary_intent": "REFUND_METHOD", "slots": {}, "reasoning": "用户咨询退款路径。"}
+{"query": "能不能用微信支付", "primary_intent": "PAYMENT", "secondary_intent": "CONSULT", "tertiary_intent": null, "slots": {"payment_method": "微信支付"}, "reasoning": "用户咨询支持的支付方式。"}
+{"query": "银行卡支付有优惠吗", "primary_intent": "PAYMENT", "secondary_intent": "CONSULT", "tertiary_intent": null, "slots": {"payment_method": "银行卡"}, "reasoning": "用户咨询银行卡支付优惠。"}

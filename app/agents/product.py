@@ -1,7 +1,6 @@
 import json
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage
 
 from app.agents.base import BaseAgent
 from app.models.state import AgentProcessResult, AgentState
@@ -24,6 +23,9 @@ class ProductAgent(BaseAgent):
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("product", state)
         output = tool_result.output
 
@@ -52,49 +54,16 @@ class ProductAgent(BaseAgent):
                         if p.get("attributes"):
                             part += f", 参数: {json.dumps(p['attributes'], ensure_ascii=False)}"
                         context_parts.append(part)
-                    context = "\n".join(context_parts)
 
-                    memory_context = state.get("memory_context")
-                    memory_parts: list[str] = []
-                    if memory_context:
-                        structured_facts = memory_context.get("structured_facts") or []
-                        user_profile = memory_context.get("user_profile") or {}
-                        relevant_past_messages = memory_context.get("relevant_past_messages") or []
-                        if structured_facts or user_profile:
-                            memory_parts.append("[User Context]")
-                            for fact in structured_facts:
-                                memory_parts.append(
-                                    f"- {fact.get('fact_type', 'Fact')}: {fact.get('content', '')}"
-                                )
-                            for key, value in user_profile.items():
-                                memory_parts.append(f"- {key}: {value}")
-                            memory_parts.append("")
-                        if relevant_past_messages:
-                            memory_parts.append("[来自你的历史对话]")
-                            for msg in relevant_past_messages:
-                                role = msg.get("role", "User")
-                                content = msg.get("content", "")
-                                display_role = (
-                                    "Assistant" if role.lower() == "assistant" else "User"
-                                )
-                                memory_parts.append(f"{display_role}: {content}")
-                            memory_parts.append("")
-
-                    memory_text = "\n".join(memory_parts) if memory_parts else ""
-                    prompt = (
-                        f"{memory_text}"
-                        "你是商品咨询助手。请根据以下商品信息回答用户问题。"
-                        "如果用户询问的参数在商品信息中，直接作答；"
-                        "如果不在，基于商品描述合理推断并明确说明。"
-                        "严禁编造不存在的商品信息。\n\n"
-                        f"用户问题: {question}\n\n"
-                        f"商品信息:\n{context}\n\n"
-                        "请直接回复用户:"
+                    messages = self._create_messages(
+                        question,
+                        context={"context": context_parts},
+                        memory_context=state.get("memory_context"),
+                        user_context=self._build_user_context(state.get("memory_context")),
                     )
-                    messages = [HumanMessage(content=prompt)]
                     try:
-                        response = await self.llm.ainvoke(messages)
-                        response_text = str(response.content)
+                        response = await self._call_llm(messages, tags=["user_visible"])
+                        response_text = response
                     except Exception:
                         response_text = self._format_product_list(products)
                 else:

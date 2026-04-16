@@ -21,6 +21,9 @@ class PaymentAgent(BaseAgent):
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("payment", state)
         data = tool_result.output
         payment_status = data.get("payment_status", "未知")

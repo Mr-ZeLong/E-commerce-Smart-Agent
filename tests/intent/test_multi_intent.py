@@ -417,6 +417,100 @@ class TestMultiIntentProcessorProcess:
             await processor.process("查询订单顺便申请退款")
 
 
+class TestLLMFallback:
+    @pytest.mark.asyncio
+    async def test_llm_fallback_when_rules_uncertain(self):
+        from tests._llm import DeterministicChatModel
+
+        llm = DeterministicChatModel(
+            structured={"IndependenceCheck": {"are_independent": True, "reason": "测试"}}
+        )
+        classifier = DeterministicClassifier(
+            [
+                IntentResult(
+                    primary_intent=IntentCategory.ORDER,
+                    secondary_intent=IntentAction.QUERY,
+                    confidence=0.9,
+                    slots={},
+                ),
+                IntentResult(
+                    primary_intent=IntentCategory.COMPLAINT,
+                    secondary_intent=IntentAction.APPLY,
+                    confidence=0.85,
+                    slots={},
+                ),
+            ]
+        )
+        processor = MultiIntentProcessor(classifier=classifier, llm=llm)
+        result = await processor.process("查询订单顺便投诉一下")
+        assert result.is_multi_intent is True
+        assert result.are_independent is True
+
+    @pytest.mark.asyncio
+    async def test_llm_fallback_logs_decision_when_db_session_provided(self, db_session):
+        from sqlmodel import select
+
+        from app.models.multi_intent_log import MultiIntentDecisionLog
+        from tests._llm import DeterministicChatModel
+
+        llm = DeterministicChatModel(
+            structured={"IndependenceCheck": {"are_independent": False, "reason": "投诉与订单相关"}}
+        )
+        classifier = DeterministicClassifier(
+            [
+                IntentResult(
+                    primary_intent=IntentCategory.ORDER,
+                    secondary_intent=IntentAction.QUERY,
+                    confidence=0.9,
+                    slots={},
+                ),
+                IntentResult(
+                    primary_intent=IntentCategory.COMPLAINT,
+                    secondary_intent=IntentAction.APPLY,
+                    confidence=0.85,
+                    slots={},
+                ),
+            ]
+        )
+        processor = MultiIntentProcessor(classifier=classifier, llm=llm)
+        result = await processor.process("查询订单顺便投诉一下", db_session=db_session)
+        assert result.are_independent is False
+
+        logs_result = await db_session.exec(select(MultiIntentDecisionLog))
+        logs = logs_result.all()
+        assert len(logs) == 1
+        assert logs[0].intent_a == "ORDER"
+        assert logs[0].intent_b == "COMPLAINT"
+        assert logs[0].llm_result is False
+        assert logs[0].rule_based_result is False
+
+    @pytest.mark.asyncio
+    async def test_llm_fallback_graceful_on_llm_failure(self):
+        from tests._llm import DeterministicChatModel
+
+        llm = DeterministicChatModel(exception=ValueError("模型失败"))
+        classifier = DeterministicClassifier(
+            [
+                IntentResult(
+                    primary_intent=IntentCategory.ORDER,
+                    secondary_intent=IntentAction.QUERY,
+                    confidence=0.9,
+                    slots={},
+                ),
+                IntentResult(
+                    primary_intent=IntentCategory.COMPLAINT,
+                    secondary_intent=IntentAction.APPLY,
+                    confidence=0.85,
+                    slots={},
+                ),
+            ]
+        )
+        processor = MultiIntentProcessor(classifier=classifier, llm=llm)
+        result = await processor.process("查询订单顺便投诉一下")
+        assert result.is_multi_intent is True
+        assert result.are_independent is False
+
+
 class TestAreIndependent:
     def test_order_policy_independent(self):
         assert are_independent("ORDER", "POLICY") is True

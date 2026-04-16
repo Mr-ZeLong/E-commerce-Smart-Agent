@@ -21,7 +21,7 @@ def _deterministic_hash(user_id: str, experiment_key: str) -> int:
 
 
 class ExperimentAssigner:
-    async def assign(self, user_id: str, experiment_key: str, db: AsyncSession) -> str | None:
+    async def assign(self, user_id: str, experiment_key: str, db: AsyncSession) -> int | None:
         result = await db.exec(
             select(Experiment).where(
                 Experiment.name == experiment_key,
@@ -74,4 +74,4 @@ class ExperimentAssigner:
             except IntegrityError:
                 await db.rollback()
                 logger.debug("Experiment assignment race condition for user %s", user_id)
-        return chosen.name
+        return chosen.id

@@ -1,0 +1,8 @@
+{"query": "怎么修改登录密码", "primary_intent": "ACCOUNT", "secondary_intent": "MODIFY", "tertiary_intent": "PASSWORD", "slots": {}, "reasoning": "用户想修改账户密码。"}
+{"query": "我想换绑手机号", "primary_intent": "ACCOUNT", "secondary_intent": "MODIFY", "tertiary_intent": "PHONE", "slots": {}, "reasoning": "用户想修改绑定手机号。"}
+{"query": "我的优惠券怎么不见了", "primary_intent": "ACCOUNT", "secondary_intent": "QUERY", "tertiary_intent": "COUPON", "slots": {}, "reasoning": "用户查询账户优惠券。"}
+{"query": "余额可以提现吗", "primary_intent": "ACCOUNT", "secondary_intent": "QUERY", "tertiary_intent": "BALANCE", "slots": {}, "reasoning": "用户查询账户余额提现规则。"}
+{"query": "怎么注销账号", "primary_intent": "ACCOUNT", "secondary_intent": "CANCEL", "tertiary_intent": "ACCOUNT_DELETION", "slots": {}, "reasoning": "用户想注销账户。"}
+{"query": "我的积分什么时候过期", "primary_intent": "ACCOUNT", "secondary_intent": "QUERY", "tertiary_intent": "POINTS", "slots": {}, "reasoning": "用户查询账户积分有效期。"}
+{"query": "怎么查看我的历史订单", "primary_intent": "ACCOUNT", "secondary_intent": "QUERY", "tertiary_intent": "ORDER_HISTORY", "slots": {}, "reasoning": "用户想查看账户关联的历史订单记录。"}
+{"query": "我的会员等级是什么", "primary_intent": "ACCOUNT", "secondary_intent": "QUERY", "tertiary_intent": "MEMBERSHIP", "slots": {}, "reasoning": "用户查询自己的会员等级信息。"}

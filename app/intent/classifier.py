@@ -11,6 +11,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
 from app.intent.config import validate_tertiary_intent
+from app.intent.few_shot_loader import (
+    format_intent_examples_for_prompt,
+    load_intent_examples,
+    select_top_k_examples,
+)
 from app.intent.models import IntentAction, IntentCategory, IntentResult
 
 logger = logging.getLogger(__name__)
@@ -110,6 +115,7 @@ class IntentClassifier:
             key: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
             for key, patterns in self.RULE_PATTERNS.items()
         }
+        self._few_shot_examples = load_intent_examples()
 
     async def classify(
         self, query: str, context: dict[str, Any] | None = None, min_confidence: float = 0.5
@@ -192,11 +198,16 @@ class IntentClassifier:
 
     def _create_messages(self, query: str, context: dict[str, Any] | None = None) -> list:
         messages: list = [HumanMessage(content=query)]
+        prompt = self.SYSTEM_PROMPT
+        if self._few_shot_examples:
+            top_examples = select_top_k_examples(query, self._few_shot_examples, k=3)
+            if top_examples:
+                prompt += format_intent_examples_for_prompt(top_examples)
         if context:
             context_str = "\n".join(f"{k}: {v}" for k, v in context.items())
-            messages.insert(0, SystemMessage(content=self.SYSTEM_PROMPT + "\n" + context_str))
+            messages.insert(0, SystemMessage(content=prompt + "\n" + context_str))
         else:
-            messages.insert(0, SystemMessage(content=self.SYSTEM_PROMPT))
+            messages.insert(0, SystemMessage(content=prompt))
         return messages
 
     def _parse_result(self, data: dict[str, Any], query: str) -> IntentResult:

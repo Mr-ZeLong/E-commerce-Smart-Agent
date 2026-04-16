@@ -29,6 +29,9 @@ class SupervisorAgent(BaseAgent):
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()
+        override = await self._resolve_experiment_prompt(state)
+        if override:
+            self._dynamic_system_prompt = override
         from app.agents.config_loader import is_agent_enabled
 
         intent_result = state.get("intent_result") or {}

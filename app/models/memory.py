@@ -187,6 +187,27 @@ class RoutingRule(SQLModel, table=True):
     )
 
 
+class AgentConfigVersion(SQLModel, table=True):
+    """Agent 配置版本快照表"""
+
+    __tablename__ = "agent_config_versions"
+
+    id: int | None = Field(default=None, primary_key=True)
+    agent_name: str = Field(index=True, max_length=32, description="Agent 名称")
+    changed_by: int = Field(foreign_key="users.id", description="管理员用户 ID")
+    system_prompt: str | None = Field(default=None, description="系统提示词快照")
+    confidence_threshold: float = Field(default=0.7, description="置信度阈值")
+    max_retries: int = Field(default=3, description="最大重试次数")
+    enabled: bool = Field(default=True, description="是否启用")
+
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        ),
+    )
+
+
 class AgentConfigAuditLog(SQLModel, table=True):
     """Agent 配置变更审计日志表"""
 

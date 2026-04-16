@@ -61,6 +61,7 @@ class AgentState(TypedDict):
     product_data: dict[str, Any] | None
     cart_data: dict[str, Any] | None
     memory_context: dict[str, Any] | None
+    experiment_variant_id: int | None
 
 
 def make_agent_state(
@@ -101,6 +102,7 @@ def make_agent_state(
     product_data: dict[str, Any] | None = None,
     cart_data: dict[str, Any] | None = None,
     memory_context: dict[str, Any] | None = None,
+    experiment_variant_id: int | None = None,
 ) -> AgentState:
     return {
         "question": question,
@@ -139,4 +141,5 @@ def make_agent_state(
         "product_data": product_data,
         "cart_data": cart_data,
         "memory_context": memory_context,
+        "experiment_variant_id": experiment_variant_id,
     }

@@ -66,6 +66,26 @@ class RoutingRuleUpdateRequest(BaseModel):
     condition_json: dict | None = Field(default=None)
 
 
+class AgentConfigVersionResponse(BaseModel):
+    id: int
+    agent_name: str
+    changed_by: int
+    system_prompt: str | None = None
+    confidence_threshold: float
+    max_retries: int
+    enabled: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AgentConfigVersionMetricsResponse(BaseModel):
+    total_sessions: int
+    avg_confidence: float | None = None
+    transfer_rate: float
+    avg_latency_ms: float | None = None
+
+
 class AgentConfigAuditLogResponse(BaseModel):
     id: int
     agent_name: str
@@ -73,6 +93,47 @@ class AgentConfigAuditLogResponse(BaseModel):
     field_name: str
     old_value: str | None = None
     new_value: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PromptEffectReportResponse(BaseModel):
+    id: int
+    report_month: str
+    agent_name: str
+    version_id: int | None = None
+    total_sessions: int
+    avg_confidence: float | None = None
+    transfer_rate: float
+    avg_latency_ms: float | None = None
+    key_changes: str | None = None
+    recommendation: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FewShotEvalResponse(BaseModel):
+    without_few_shot: dict
+    with_few_shot: dict
+    improvement: float
+    meets_target: bool
+
+
+class MultiIntentDecisionLogLabelRequest(BaseModel):
+    human_label: bool = Field(description="人工标注结果")
+
+
+class MultiIntentDecisionLogResponse(BaseModel):
+    id: int
+    query: str
+    intent_a: str
+    intent_b: str
+    rule_based_result: bool | None = None
+    llm_result: bool | None = None
+    llm_reason: str | None = None
+    human_label: bool | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
