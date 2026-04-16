@@ -189,3 +189,14 @@ class ConnectionManager:
                     "timestamp": utc_now().isoformat(),
                 }
             )
+
+
+manager: ConnectionManager | None = None
+
+
+def get_manager() -> ConnectionManager:
+    """Return the module-level ConnectionManager singleton."""
+    global manager
+    if manager is None:
+        manager = ConnectionManager()
+    return manager

@@ -16,12 +16,10 @@ from app.websocket.manager import ConnectionManager
 logger = logging.getLogger(__name__)
 
 
-class AuditNotFoundError(Exception):
-    pass
+class AuditNotFoundError(Exception): ...
 
 
-class AuditAlreadyProcessedError(Exception):
-    pass
+class AuditAlreadyProcessedError(Exception): ...
 
 
 class AdminService:

@@ -28,6 +28,9 @@ COPY celery_worker.py ./
 COPY alembic.ini ./
 COPY migrations/ ./migrations/
 COPY data/ ./data/
+COPY scripts/ ./scripts/
+COPY start.sh ./
+COPY start_worker.sh ./
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 RUN chown -R appuser:appgroup /app

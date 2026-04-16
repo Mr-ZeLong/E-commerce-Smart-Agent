@@ -180,7 +180,7 @@ class QueryRewriter:
                 if isinstance(parsed, list) and parsed:
                     return parsed
             except json.JSONDecodeError:
-                pass
+                ...
 
         contextualized_query = query
         if conversation_history:

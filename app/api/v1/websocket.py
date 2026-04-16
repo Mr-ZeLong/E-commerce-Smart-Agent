@@ -76,7 +76,7 @@ async def websocket_endpoint(
                 if data == "ping":
                     await websocket.send_text("pong")
         except WebSocketDisconnect:
-            pass
+            ...
         except RuntimeError as e:
             logger.warning(" [WS] 连接错误: %s", e)
         finally:
@@ -136,7 +136,7 @@ async def admin_websocket_endpoint(
                 if data == "ping":
                     await websocket.send_text("pong")
         except WebSocketDisconnect:
-            pass
+            ...
         except RuntimeError as e:
             logger.warning(" [WS] 管理员连接错误: %s", e)
         finally:

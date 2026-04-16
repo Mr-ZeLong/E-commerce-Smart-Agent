@@ -18,8 +18,7 @@ class NoOpSpanExporter(SpanExporter):
         _ = spans
         return SpanExportResult.SUCCESS
 
-    def shutdown(self):
-        pass
+    def shutdown(self): ...
 
     def force_flush(self, timeout_millis=30000):
         _ = timeout_millis

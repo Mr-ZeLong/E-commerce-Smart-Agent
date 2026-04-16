@@ -99,7 +99,7 @@ class EvaluationPipeline:
             if expected_intent == "POLICY":
                 retrieval_result = final_state.get("retrieval_result") or {}
                 chunks = retrieval_result.get("chunks", [])
-                rag_scores.append(rag_precision(query, chunks))
+                rag_scores.append(await rag_precision(query, chunks))
 
             if expected_answer_fragment and actual_answer:
                 score = await answer_correctness(

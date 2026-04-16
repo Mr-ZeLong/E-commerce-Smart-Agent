@@ -1,10 +1,11 @@
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.models.evaluation import MessageFeedback
 from app.models.user import User
-from app.services.online_eval import OnlineEvalService
+from app.services.online_eval import FEEDBACK_SCORE_MAP, OnlineEvalService
 
 
 @pytest.fixture
@@ -30,6 +31,7 @@ async def _create_feedback(
     user_id: int,
     score: int,
     created_at: datetime | None = None,
+    comment: str | None = None,
 ) -> MessageFeedback:
     fb = MessageFeedback(
         user_id=user_id,
@@ -37,6 +39,7 @@ async def _create_feedback(
         message_index=0,
         score=score,
         created_at=created_at or datetime.now(UTC),
+        comment=comment,
     )
     session.add(fb)
     await session.flush()
@@ -87,3 +90,81 @@ async def test_get_csat_trend_empty_returns_one(online_eval_service: OnlineEvalS
     """When no feedback exists, CSAT defaults to 1.0 (perfect satisfaction)."""
     trend = await online_eval_service.get_csat_trend(db_session, days=7)
     assert trend == []
+
+
+@pytest.mark.asyncio
+async def test_submit_feedback(online_eval_service: OnlineEvalService, db_session):
+    user = await _create_test_user(db_session, "feedback_user")
+    assert user.id is not None
+
+    fb = await online_eval_service.submit_feedback(
+        db_session,
+        user_id=user.id,
+        thread_id="thread-fb",
+        message_index=2,
+        sentiment="up",
+        comment="Great!",
+    )
+    assert fb.user_id == user.id
+    assert fb.thread_id == "thread-fb"
+    assert fb.score == FEEDBACK_SCORE_MAP["up"]
+    assert fb.comment == "Great!"
+
+
+@pytest.mark.asyncio
+async def test_list_feedback_filters_by_sentiment(
+    online_eval_service: OnlineEvalService, db_session
+):
+    user = await _create_test_user(db_session, "list_fb_user")
+    assert user.id is not None
+
+    await _create_feedback(db_session, user.id, score=1)
+    await _create_feedback(db_session, user.id, score=-1)
+
+    ups, up_count = await online_eval_service.list_feedback(db_session, sentiment="up")
+    assert up_count == 1
+    assert all(f.score == 1 for f in ups)
+
+    downs, down_count = await online_eval_service.list_feedback(db_session, sentiment="down")
+    assert down_count == 1
+    assert all(f.score == -1 for f in downs)
+
+
+@pytest.mark.asyncio
+async def test_list_feedback_pagination(online_eval_service: OnlineEvalService, db_session):
+    user = await _create_test_user(db_session, "pag_fb_user")
+    assert user.id is not None
+
+    for _ in range(5):
+        await _create_feedback(db_session, user.id, score=1)
+
+    page, total = await online_eval_service.list_feedback(db_session, offset=0, limit=2)
+    assert total == 5
+    assert len(page) == 2
+
+
+@pytest.mark.asyncio
+async def test_compute_quality_scores_with_no_comment(
+    online_eval_service: OnlineEvalService, db_session
+):
+    result = await online_eval_service.compute_quality_scores(db_session, sample_size=10)
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_compute_quality_scores_with_llm(online_eval_service: OnlineEvalService, db_session):
+    user = await _create_test_user(db_session, "qs_user")
+    assert user.id is not None
+
+    await _create_feedback(db_session, user.id, score=1, comment="Very helpful")
+
+    mock_llm = AsyncMock()
+    mock_llm.ainvoke.return_value.content = '{"helpfulness": 4, "accuracy": 5, "empathy": 3}'
+
+    with patch("app.services.online_eval.create_openai_llm", return_value=mock_llm):
+        scores = await online_eval_service.compute_quality_scores(db_session, sample_size=10)
+
+    assert len(scores) == 3
+    score_types = {s.score_type for s in scores}
+    assert score_types == {"helpfulness", "accuracy", "empathy"}
+    mock_llm.ainvoke.assert_awaited_once()

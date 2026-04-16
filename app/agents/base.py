@@ -33,8 +33,7 @@ class BaseAgent(ABC):
         )
 
     @abstractmethod
-    async def process(self, state: AgentState) -> AgentProcessResult:
-        pass
+    async def process(self, state: AgentState) -> AgentProcessResult: ...
 
     async def _call_llm(
         self, messages: list, temperature: float | None = None, tags: list[str] | None = None

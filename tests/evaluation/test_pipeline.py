@@ -48,23 +48,27 @@ def test_slot_recall_skips_empty_refs():
     assert slot_recall(preds, refs) == pytest.approx(1.0)
 
 
-def test_rag_precision_exact_match():
+@pytest.mark.asyncio
+async def test_rag_precision_exact_match():
     chunks = ["退换货政策: 7天无理由", "其他信息"]
-    assert rag_precision("退换货政策", chunks) == pytest.approx(1.0)
+    assert await rag_precision("退换货政策", chunks) == pytest.approx(1.0)
 
 
-def test_rag_precision_token_match():
+@pytest.mark.asyncio
+async def test_rag_precision_token_match():
     chunks = ["关于发货时效的说明", "其他信息"]
-    assert rag_precision("发货时效", chunks) == pytest.approx(1.0)
+    assert await rag_precision("发货时效", chunks) == pytest.approx(1.0)
 
 
-def test_rag_precision_no_match():
+@pytest.mark.asyncio
+async def test_rag_precision_no_match():
     chunks = ["不相关的内容", "其他信息"]
-    assert rag_precision("退换货政策", chunks) == pytest.approx(0.0)
+    assert await rag_precision("退换货政策", chunks) == pytest.approx(0.0)
 
 
-def test_rag_precision_empty_chunks():
-    assert rag_precision("query", []) == 0.0
+@pytest.mark.asyncio
+async def test_rag_precision_empty_chunks():
+    assert await rag_precision("query", []) == 0.0
 
 
 @pytest.mark.asyncio

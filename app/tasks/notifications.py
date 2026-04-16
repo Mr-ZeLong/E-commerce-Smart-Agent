@@ -7,8 +7,10 @@ from sqlmodel import func, select
 from app.celery_app import celery_app
 from app.core.database import async_session_maker
 from app.core.email import send_email
+from app.core.utils import utc_now
 from app.models.complaint import ComplaintTicket
 from app.models.evaluation import MessageFeedback
+from app.websocket.redis_bridge import RedisBroadcastBridge
 
 logger = logging.getLogger(__name__)
 
@@ -77,18 +79,34 @@ def check_quality_alerts(_self) -> dict:
                 alert_triggered = True
                 reasons.append(f"complaints {complaint_count} > max {complaint_max}")
 
-            if alert_triggered and admin_emails:
-                subject = "智能客服质量告警"
+            if alert_triggered:
                 body = (
                     f"过去 {window_hours} 小时指标异常:\n"
                     f"- CSAT: {csat:.2f} (点赞 {thumbs_up}, 点踩 {thumbs_down})\n"
                     f"- 投诉工单数: {complaint_count}\n"
                     f"原因: {', '.join(reasons)}"
                 )
-                for email in admin_emails:
-                    await send_email([email], subject, body)
+                if admin_emails:
+                    subject = "智能客服质量告警"
+                    for email in admin_emails:
+                        await send_email([email], subject, body)
 
-            # TODO: broadcast WebSocket alert to admin dashboards when manager is available
+                bridge = RedisBroadcastBridge(settings.REDIS_URL)
+                try:
+                    await bridge.publish(
+                        event="notification",
+                        data={
+                            "type": "notification",
+                            "title": "智能客服质量告警",
+                            "message": body,
+                            "severity": "warning",
+                            "timestamp": utc_now().isoformat(),
+                        },
+                        room="admins",
+                    )
+                finally:
+                    await bridge.close()
+
             return {
                 "alert_triggered": alert_triggered,
                 "csat": csat,

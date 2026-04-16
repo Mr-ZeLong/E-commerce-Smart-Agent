@@ -270,6 +270,31 @@ export interface TraceListResponse {
   offset: number
 }
 
+export interface FeedbackItem {
+  id: number
+  user_id: number
+  thread_id: string
+  message_index: number
+  score: number
+  comment: string | null
+  created_at: string
+}
+
+export interface FeedbackFilters {
+  sentiment?: string
+  date_from?: string
+  date_to?: string
+  offset?: number
+  limit?: number
+}
+
+export interface FeedbackListResponse {
+  items: FeedbackItem[]
+  total: number
+  offset: number
+  limit: number
+}
+
 // Experiment types
 export interface Experiment {
   id: number
@@ -301,4 +326,19 @@ export interface ExperimentResult {
   variant_name: string
   weight: number
   assignments: number
+}
+
+// WebSocket types
+export interface WSMessage {
+  type: string
+  data?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+export interface WSNotification extends WSMessage {
+  type: 'notification'
+  title: string
+  message: string
+  severity: 'success' | 'error' | 'warning' | 'info'
+  timestamp?: string
 }

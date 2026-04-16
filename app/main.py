@@ -1,4 +1,6 @@
 # app/main.py
+import asyncio
+import contextlib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -21,7 +23,8 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
 from app.observability.otel_setup import instrument_fastapi, setup_otel_tracing
-from app.websocket.manager import ConnectionManager
+from app.websocket.manager import get_manager
+from app.websocket.redis_bridge import RedisBroadcastBridge
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,8 @@ async def lifespan(app: FastAPI):
     redis_client = None
     retriever = None
     vector_manager = None
+    bridge = None
+    listener_task = None
     try:
         redis_client = create_redis_client()
         checkpointer = AsyncRedisSaver(redis_client=redis_client)
@@ -89,7 +94,22 @@ async def lifespan(app: FastAPI):
         )
         retriever = create_retriever(llm=llm, redis_client=redis_client)
 
-        app.state.manager = ConnectionManager()
+        app.state.manager = get_manager()
+
+        bridge = RedisBroadcastBridge(settings.REDIS_URL)
+
+        async def _redis_listener() -> None:
+            try:
+                async for payload in bridge.subscribe("admins"):
+                    if payload.get("room") == "admins":
+                        await get_manager().broadcast_to_admins(payload.get("data", {}))
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Redis broadcast listener error")
+
+        listener_task = asyncio.create_task(_redis_listener())
+
         tool_registry = ToolRegistry()
         tool_registry.register(LogisticsTool())
         tool_registry.register(AccountTool())
@@ -134,6 +154,12 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("Shutting down...")
+        if listener_task is not None:
+            listener_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await listener_task
+        if bridge is not None:
+            await bridge.close()
         if redis_client is not None:
             await redis_client.close()
         if retriever is not None:

@@ -27,6 +27,17 @@ async def db_setup():
     yield
 
 
+@pytest_asyncio.fixture(scope="function", autouse=True, loop_scope="session")
+async def _truncate_leaky_tables():
+    from sqlalchemy import text
+
+    async with async_engine.begin() as conn:
+        await conn.execute(
+            text("TRUNCATE TABLE message_feedbacks, quality_scores RESTART IDENTITY CASCADE")
+        )
+    yield
+
+
 @pytest_asyncio.fixture(loop_scope="function")
 async def client():
     limiter.reset()

@@ -2,19 +2,49 @@ import { FC, useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bot } from 'lucide-react'
+import { Bot, X } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useChat } from './hooks/useChat'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import { ChatMessageList } from './components/ChatMessageList'
 import { ChatInput } from './components/ChatInput'
+import type { WSMessage } from '@/types'
+
+interface StatusToast {
+  id: string
+  title: string
+  message: string
+}
 
 const App: FC = () => {
   const { isAuthenticated, login, logout, isLoading: isLoginLoading, error: loginError } = useAuth()
   const { messages, isLoading, sendMessage, submitFeedback } = useChat()
   const [input, setInput] = useState('')
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
+  const [toasts, setToasts] = useState<StatusToast[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const threadId = useRef(`thread_${Date.now()}`)
+
+  const addToast = (title: string, message: string) => {
+    const id = `${Date.now()}_${Math.random()}`
+    setToasts((prev) => [...prev, { id, title, message }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 5000)
+  }
+
+  const handleWsMessage = (msg: WSMessage) => {
+    if (msg.type === 'status_change') {
+      const payload = msg.payload as { title?: string; message?: string; status?: string } | undefined
+      const title = payload?.title || '状态更新'
+      const message = payload?.message || payload?.status || '您的请求状态已更新'
+      addToast(title, message)
+    }
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/${threadId.current}`
+  useWebSocket({ url: wsUrl, enabled: isAuthenticated, onMessage: handleWsMessage })
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -107,10 +137,33 @@ const App: FC = () => {
         </Button>
       </header>
 
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="bg-white border shadow-lg rounded-lg px-4 py-3 min-w-[16rem] max-w-xs"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{toast.title}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{toast.message}</p>
+              </div>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600"
+                onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Chat Area */}
-      <ChatMessageList 
-        messages={messages} 
-        isLoading={isLoading} 
+      <ChatMessageList
+        messages={messages}
+        isLoading={isLoading}
         ref={scrollRef}
         onFeedback={handleFeedback}
       />
