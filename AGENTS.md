@@ -83,8 +83,22 @@ cd frontend && npm run dev
 # Frontend build
 cd frontend && npm run build
 
+# Frontend lint + format
+cd frontend && npm run lint
+cd frontend && npm run format
+
 # Frontend E2E
 cd frontend && npm run test:e2e
+```
+
+### Pre-commit
+
+```bash
+# Install hooks (run once)
+pre-commit install
+
+# Run all hooks manually
+pre-commit run --all-files
 ```
 
 ## Repo-Wide Invariants
@@ -109,6 +123,65 @@ Use `app.core.config.settings` for all configuration. Never read `os.environ` di
 
 ### 6. AGENTS.md Hygiene
 When modifying code in a scoped directory, check whether the nearest `AGENTS.md` needs updating (new conventions, changed file mappings, new anti-patterns).
+
+## Code Style Guidelines
+
+### Python
+- **Docstrings**: Use Google-style docstrings for all public modules, classes, and functions.
+- **Type hints**: Mandatory on all function signatures and class attributes. Never suppress type errors with `typing.Any` or `# type: ignore` except for third-party compatibility issues (see Invariant 4).
+- **Error handling**: Never use bare `except:`. Always catch specific exceptions and propagate or log them.
+- **Path handling**: Prefer `pathlib.Path` over `os.path` for file system operations.
+- **Async**: All I/O-bound code must be `async`. No synchronous blocking calls in FastAPI routes or graph nodes.
+- **Configuration**: All settings live in `@app/core/config.py`. Do not read `os.environ` directly outside this file.
+
+### Frontend
+- **TypeScript**: Follow strict mode. No implicit `any`.
+- **Return types**: Explicit return types on all custom hooks and utility functions.
+- **Components**: Prefer functional components with explicit prop interfaces.
+- **Styling**: Use Tailwind CSS utilities. For dark mode, rely on `dark:` prefixes with `dark-mode: class` strategy.
+
+## Testing Guidance
+
+### Backend
+- **Bug-fix TDD**: Every bug fix must start with a failing reproduction test.
+- **Async tests**: All async tests must be decorated with `@pytest.mark.asyncio`.
+- **Fixtures**: Reuse session-scoped fixtures from `@tests/conftest.py`. Use `@app/models/state.py` for `make_agent_state()` and `@tests/_llm.py` for LLM mocks.
+- **Mock external I/O**: Mock LLM calls, database sessions, Redis, Qdrant, and email/SMS gateways in unit tests.
+- **Coverage gate**: CI enforces `pytest --cov=app --cov-fail-under=75`. Do not let coverage drop below this threshold.
+- **Test naming**: Use descriptive names: `test_<module>_<scenario>_<expected_outcome>`.
+
+### Frontend
+- **Unit tests**: Use Vitest for hooks and pure utilities.
+- **E2E tests**: Use Playwright for critical user flows (login, chat, admin decisions, knowledge sync).
+- **API mocking**: Mock API calls in unit tests; E2E tests hit the real backend or use MSW where appropriate.
+
+## Formatting Rules
+
+- **Python**: `ruff` enforces line length 100, double quotes for strings, and 4-space indentation. Run `uv run ruff format app tests` before committing.
+- **Python types**: Run `uv run ty check --error-on-warning app tests` and resolve all diagnostics.
+- **Frontend**: `prettier` + `eslint` enforce consistent formatting. Run `cd frontend && npm run format && npm run lint` before committing.
+- **Pre-commit**: The project uses `pre-commit` hooks (ruff, ty). Install them with `pre-commit install`.
+
+## Comments Style
+
+- **Docstrings**: Write docstrings in English for all public APIs. Start with a capital letter and end with a period.
+- **Inline comments**: Use inline comments only for non-obvious logic or business-rule caveats. Keep them concise and in English.
+- **No Chinese in code comments**: Project documentation and AGENTS.md can be bilingual; source-code comments should be in English to maintain consistency with upstream tooling and LLM context windows.
+- **TODO/FIXME**: Prefix with `TODO(user):` or `FIXME(user):` and include a brief explanation and issue link if available.
+
+## Committing Conventions
+
+- **Conventional Commits**: All commits must follow the Conventional Commits specification:
+  - `feat(scope): description`
+  - `fix(scope): description`
+  - `test(scope): description`
+  - `docs(scope): description`
+  - `refactor(scope): description`
+  - `chore(scope): description`
+  - `ci(scope): description`
+- **Atomic commits**: Each commit should represent a single logical change. Do not mix unrelated features, fixes, and refactors in one commit.
+- **AGENTS.md hygiene**: When a PR changes repo-wide architecture, workflows, dependency boundaries, or security processes, update the root `AGENTS.md` in the same PR. For package-local changes, update the nearest nested `AGENTS.md`.
+- **Scope examples**: `feat(memory):`, `fix(agent):`, `test(graph):`, `docs(agents):`, `ci(frontend):`.
 
 ## Security Notes
 
