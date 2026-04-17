@@ -139,6 +139,74 @@ WEBSOCKET_RECONNECT_TIMEOUT=60
 HIGH_RISK_REFUND_AMOUNT=2000.0
 MEDIUM_RISK_REFUND_AMOUNT=500.0
 REFUND_DEADLINE_DAYS=7
+NON_REFUNDABLE_CATEGORIES=["内衣","食品","定制商品"]
+```
+
+## 情感信号词
+
+可选，不填时使用默认值。
+
+```bash
+NEGATIVE_WORDS=["生气","愤怒","不满","投诉","差评","退款","骗子","垃圾","太差","失望","欺骗","坑","忽悠","恶劣","糟糕","气愤","恼火","心烦"]
+URGENT_WORDS=["马上","立刻","现在","急","紧急","hurry","urgent","asap","立即","赶紧","赶快","快点","等着","急用"]
+POSITIVE_WORDS=["谢谢","感谢","满意","好评","不错","好用","推荐","喜欢","完美","优秀","棒","赞","给力","靠谱"]
+```
+
+## Graph 路由限制
+
+可选，不填时使用默认值。
+
+```bash
+MAX_ROUTER_ITERATIONS=5
+MAX_EVALUATOR_RETRIES=3
+CONFIDENCE_RETRY_THRESHOLD=0.3
+```
+
+## 意图分类阈值
+
+可选，不填时使用默认值。
+
+```bash
+FUNCTION_CALLING_THRESHOLD=0.7
+```
+
+## 记忆系统
+
+可选，不填时使用默认值。
+
+```bash
+MEMORY_RETENTION_DAYS=90
+MEMORY_CONTEXT_TOKEN_BUDGET=2048
+COMPACTION_THRESHOLD=0.75
+VECTOR_MEMORY_SCORE_THRESHOLD=0.5
+OBSERVATION_MASKING_MAX_CHARS=500
+AGENT_CONFIG_CACHE_TTL=60
+```
+
+## SMTP / 告警通知
+
+可选，不填时使用默认值。
+
+```bash
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=
+ALERT_ADMIN_EMAILS=[]
+ALERT_CSAT_THRESHOLD=0.7
+ALERT_COMPLAINT_WINDOW_HOURS=24
+ALERT_COMPLAINT_MAX=10
+```
+
+## 仪表盘告警阈值
+
+可选，不填时使用默认值。
+
+```bash
+ALERT_TRANSFER_RATE_THRESHOLD=0.3
+ALERT_CONFIDENCE_THRESHOLD=0.6
+ALERT_LATENCY_MS_THRESHOLD=5000.0
 ```
 
 ## 其他
@@ -150,4 +218,4 @@ KNOWLEDGE_UPLOAD_DIR=uploads/knowledge
 OTEL_EXPORTER_OTLP_ENDPOINT=
 ```
 
-> 更多可选配置（如 SMTP、告警阈值、Graph 路由限制等）请参考 `.env.example`。
+> 更多可选配置请参考 `.env.example`。
