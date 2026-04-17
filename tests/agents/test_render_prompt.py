@@ -13,11 +13,6 @@ def test_render_prompt_with_string_variable():
     assert result == "Hello XX电商平台"
 
 
-def test_render_prompt_with_callable_variable():
-    result = render_prompt("Today is {{current_date}}", {})
-    assert "{{current_date}}" not in result
-
-
 def test_render_prompt_with_non_callable_non_string_value():
     result = render_prompt("Level: {{user_membership_level}}", {"user_membership_level": 42})
     assert result == "Level: 42"

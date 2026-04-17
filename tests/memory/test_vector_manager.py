@@ -91,6 +91,8 @@ async def test_search_similar(qdrant_client, deterministic_embedder):
     assert results[0]["content"] == "previous hello"
     assert results[0]["user_id"] == 1
     assert results[0]["message_role"] == "user"
+    assert "score" in results[0]
+    assert isinstance(results[0]["score"], float)
 
 
 @pytest.mark.asyncio

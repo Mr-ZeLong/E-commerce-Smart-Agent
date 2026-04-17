@@ -125,3 +125,28 @@ async def test_list_experiments_pagination(experiment_service: ExperimentService
         )
     page = await experiment_service.list_experiments(db_session, offset=0, limit=2)
     assert len(page) == 2
+
+
+@pytest.mark.asyncio
+async def test_create_experiment_with_memory_context_config(
+    experiment_service: ExperimentService, db_session
+):
+    memory_config = {"memory_token_budget": 1024, "compaction_threshold": 0.8}
+    exp = await experiment_service.create_experiment(
+        db_session,
+        name="memory_ctx_exp",
+        description="Test memory context config",
+        variants=[
+            {"name": "control", "weight": 1},
+            {"name": "treatment", "weight": 2, "memory_context_config": memory_config},
+        ],
+    )
+    assert exp.id is not None
+    variants = await experiment_service.get_variants(db_session, exp.id)
+    assert len(variants) == 2
+
+    control = next(v for v in variants if v.name == "control")
+    treatment = next(v for v in variants if v.name == "treatment")
+
+    assert control.memory_context_config is None
+    assert treatment.memory_context_config == memory_config

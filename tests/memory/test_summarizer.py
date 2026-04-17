@@ -176,3 +176,21 @@ async def test_run_skips_when_summary_already_exists(summarizer, deterministic_l
 
     record2 = await summarizer.run(state, db_session)
     assert record2 is None
+
+
+@pytest.mark.asyncio
+async def test_run_persists_summary_via_utilization(summarizer, deterministic_llm, db_session):
+    """Regression test: utilization > threshold should trigger summary even with short history."""
+    user = await _create_test_user(db_session)
+    thread_id = f"test-thread-{uuid.uuid4().hex}"
+    state = make_agent_state(
+        question="q",
+        user_id=user.id,
+        thread_id=thread_id,
+        history=[{"role": "user", "content": "hi"}],
+    )
+    deterministic_llm.responses = [("Conversation messages:", "Utilization summary.")]
+
+    record = await summarizer.run(state, db_session, utilization=0.9, threshold=0.75)
+    assert record is not None
+    assert record.summary_text == "Utilization summary."
