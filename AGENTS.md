@@ -13,7 +13,7 @@
 
 1. Read this root `AGENTS.md` for repo-wide rules, commands, and routing.
 2. Read the nearest nested `AGENTS.md` for the directory you are working in.
-3. For architecture details, read [`architecture.md`](architecture.md).
+3. For architecture details, read [`docs/explanation/architecture/`](./docs/explanation/architecture/).
 4. For project overview and screenshots, read [`README.md`](README.md).
 
 ## Context-Aware Loading

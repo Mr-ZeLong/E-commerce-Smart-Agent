@@ -54,3 +54,5 @@ COPY alembic.ini ./
 - [ ] `CORS_ORIGINS` 配置为实际域名（禁止 `*` + `allow_credentials=True`）
 - [ ] PostgreSQL、Redis、Qdrant 可正常连接
 - [ ] `OPENAI_API_KEY` 或 `DASHSCOPE_API_KEY` 已配置且余额充足
+
+> 完整环境变量说明请参考 [环境变量参考](../reference/environment-variables.md)。

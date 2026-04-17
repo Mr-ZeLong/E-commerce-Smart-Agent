@@ -1,31 +1,34 @@
-# E-commerce Smart Agent 文档
+# E-commerce Smart Agent 文档中心
 
-## 目录
+欢迎来到 E-commerce Smart Agent 的文档中心。本文档采用 [Diátaxis](https://diataxis.fr/) 框架组织，分为教程、操作指南、解释说明和参考资料四个象限。
 
-- [开发指南](./development.md) — 本地开发环境搭建、调试、测试
-- [API 文档](./api.md) — REST API 端点说明
-- [部署指南](./deployment.md) — Docker / K8s 部署
-- [架构决策记录](./adr.md) — 关键设计决策
+## 快速导航
 
-## 项目简介
+### 初学者
+- [快速开始](./tutorials/quickstart.md) — 一键启动整个系统
+- [本地开发环境搭建](./tutorials/local-development.md) — 从零开始配置开发环境
 
-E-commerce Smart Agent 是一个面向电商场景的智能客服系统，基于 FastAPI + LangGraph 构建，支持多意图识别、知识库检索、实时 WebSocket 通知、管理员后台等功能。
+### 管理员与运维
+- [部署到生产环境](./how-to-guides/deploy.md)
+- [故障排查](./how-to-guides/troubleshoot.md)
+- [管理员后台操作指南](./how-to-guides/admin-operations.md)
 
-## 快速开始
+### 开发者与架构师
+- [系统架构](./explanation/architecture/) — 整体架构图、数据模型、交互流程
+- [Prompt Engineering](./explanation/prompt-engineering/) — Prompt 现状、最佳实践与改进路线图
+- [Context Engineering](./explanation/context-engineering/) — 上下文管理、预算控制与优化策略
 
-```bash
-# 一键启动（基础设施 + 后端 + 前端构建）
-./start.sh
+### 参考资料
+- [API 文档](./reference/api.md)
+- [架构决策记录](./reference/adr.md)
+- [环境变量参考](./reference/environment-variables.md)
+- [常用命令速查表](./reference/command-cheatsheet.md)
+- [项目文件结构](./reference/project-structure.md)
+- [技术栈详情](./reference/tech-stack-detail.md)
+- [简历写作指南](./reference/resume-guide.md)
 
-# 手动启动后端
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+## 文档约定
 
-# 手动启动前端
-cd frontend && npm run dev
-```
-
-## 技术栈
-
-- **后端**: Python 3.12, FastAPI, SQLModel, LangGraph, Celery
-- **前端**: React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui
-- **基础设施**: PostgreSQL, Redis, Qdrant
+- 每个目录下的 `README.md` 为该章节的索引页
+- 所有技术细节尽量引用 [参考资料](./reference/) 中的共享文档，避免重复
+- 若发现文档错误或链接失效，请提交 PR 修复

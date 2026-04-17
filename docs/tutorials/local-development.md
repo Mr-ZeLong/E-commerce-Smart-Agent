@@ -1,4 +1,4 @@
-# 开发指南
+# 本地开发环境搭建
 
 ## 环境要求
 
@@ -8,9 +8,7 @@
 - Redis 7+
 - Qdrant 1.16+
 
-## 本地开发环境搭建
-
-### 1. 克隆仓库并安装依赖
+## 1. 克隆仓库并安装依赖
 
 ```bash
 # 安装 Python 依赖
@@ -20,7 +18,7 @@ uv sync
 cd frontend && npm install
 ```
 
-### 2. 配置环境变量
+## 2. 配置环境变量
 
 复制 `.env.example` 到 `.env`，并填写必要的密钥：
 
@@ -35,13 +33,15 @@ cp .env.example .env
 - `OPENAI_API_KEY` 或 `DASHSCOPE_API_KEY`
 - `SECRET_KEY`
 
-### 3. 初始化数据库
+> 完整环境变量列表请参考 [环境变量参考](../reference/environment-variables.md)。
+
+## 3. 初始化数据库
 
 ```bash
 uv run alembic upgrade head
 ```
 
-### 4. 启动服务
+## 4. 启动服务
 
 **方式一：一键启动**
 ```bash
@@ -49,6 +49,7 @@ uv run alembic upgrade head
 ```
 
 **方式二：手动启动**
+
 ```bash
 # 终端 1：后端
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -59,6 +60,14 @@ uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=so
 # 终端 3：前端
 cd frontend && npm run dev
 ```
+
+开发环境访问地址：
+- API: http://localhost:8000
+- API 文档: http://localhost:8000/docs
+- C端用户界面: http://localhost:8000/app
+- B端管理后台: http://localhost:8000/admin
+- 用户端（前端 dev server）: http://localhost:5173/
+- 管理后台（前端 dev server）: http://localhost:5173/admin.html
 
 ## 代码规范
 

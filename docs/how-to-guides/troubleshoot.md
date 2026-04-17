@@ -2,16 +2,6 @@
 
 本文档面向运维工程师，涵盖系统监控、告警排查与常见故障处理。
 
-## 目录
-
-- [服务架构](#服务架构)
-- [健康检查](#健康检查)
-- [关键指标](#关键指标)
-- [日志排查](#日志排查)
-- [常见故障](#常见故障)
-
----
-
 ## 服务架构
 
 核心服务及默认端口：
@@ -24,8 +14,6 @@
 | Redis | 6379 | 缓存、Celery Broker、LangGraph Checkpoint |
 | Qdrant | 6333 | 向量数据库 |
 | Celery Worker | - | 异步任务执行 |
-
----
 
 ## 健康检查
 
@@ -46,8 +34,6 @@ uv run python -c "import asyncio; from app.core.database import async_engine; as
 uv run celery -A app.celery_app inspect ping
 ```
 
----
-
 ## 关键指标
 
 | 指标 | 来源 | 告警阈值建议 |
@@ -58,15 +44,11 @@ uv run celery -A app.celery_app inspect ping
 | CSAT | `/admin/analytics/csat` | < 0.7 |
 | 投诉量 | `/admin/analytics/complaint-root-causes` | 单日 > 10 |
 
----
-
 ## 日志排查
 
-- 后端日志级别由 `LOG_LEVEL` 控制（默认 `INFO`）。
-- OpenTelemetry trace 可通过 `OTEL_EXPORTER_OTLP_ENDPOINT` 导出到 Jaeger / Tempo。
-- Celery 任务失败日志包含任务名与重试次数，定位到 `app/tasks/` 对应模块。
-
----
+- 后端日志级别由 `LOG_LEVEL` 控制（默认 `INFO`）
+- OpenTelemetry trace 可通过 `OTEL_EXPORTER_OTLP_ENDPOINT` 导出到 Jaeger / Tempo
+- Celery 任务失败日志包含任务名与重试次数，定位到 `app/tasks/` 对应模块
 
 ## 常见故障
 
@@ -88,8 +70,6 @@ uv run celery -A app.celery_app inspect ping
 - 增加 worker 并发数：`--concurrency=8`
 - 检查是否有阻塞任务（如 LLM 调用超时）
 - 查看 Flower（如部署）监控队列深度
-
----
 
 ## 联系人
 
