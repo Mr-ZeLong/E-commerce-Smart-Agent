@@ -11,7 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useCSATTrend, useComplaintRootCauses, useAgentComparison, useTraces } from '@/hooks/useAnalytics'
+import {
+  useCSATTrend,
+  useComplaintRootCauses,
+  useAgentComparison,
+  useTraces,
+} from '@/hooks/useAnalytics'
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 
 function CSATTrendCard() {
@@ -39,7 +44,15 @@ function CSATTrendCard() {
                 <span className="font-medium">{trend.date}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">{trend.count} 评价</span>
-                  <Badge variant={trend.avg_score >= 4 ? 'default' : trend.avg_score >= 3 ? 'secondary' : 'destructive'}>
+                  <Badge
+                    variant={
+                      trend.avg_score >= 4
+                        ? 'default'
+                        : trend.avg_score >= 3
+                          ? 'secondary'
+                          : 'destructive'
+                    }
+                  >
                     {trend.avg_score.toFixed(2)}
                   </Badge>
                 </div>
@@ -87,10 +100,7 @@ function RootCausesCard() {
                     <span className="text-muted-foreground">{cause.count}</span>
                   </div>
                   <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-blue-500"
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               )
@@ -144,7 +154,9 @@ function AgentComparisonCard() {
                       {agent.avg_confidence !== null ? agent.avg_confidence.toFixed(4) : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {agent.transfer_rate !== null ? `${(agent.transfer_rate * 100).toFixed(2)}%` : '-'}
+                      {agent.transfer_rate !== null
+                        ? `${(agent.transfer_rate * 100).toFixed(2)}%`
+                        : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       {agent.avg_latency_ms !== null ? `${agent.avg_latency_ms.toFixed(0)}ms` : '-'}
@@ -197,9 +209,7 @@ function TracesCard() {
     <Card className="flex flex-col">
       <CardHeader className="shrink-0 pb-2">
         <CardTitle className="text-base">追踪记录</CardTitle>
-        <CardDescription>
-          近 7 天的追踪记录，共 {total} 条
-        </CardDescription>
+        <CardDescription>近 7 天的追踪记录，共 {total} 条</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {isLoading ? (
@@ -227,7 +237,10 @@ function TracesCard() {
                 {traces.map((trace) => (
                   <TableRow key={trace.id}>
                     <TableCell className="text-sm">{formatDate(trace.created_at)}</TableCell>
-                    <TableCell className="text-sm font-mono max-w-[120px] truncate" title={trace.thread_id}>
+                    <TableCell
+                      className="text-sm font-mono max-w-[120px] truncate"
+                      title={trace.thread_id}
+                    >
                       {trace.thread_id.slice(0, 8)}...
                     </TableCell>
                     <TableCell>

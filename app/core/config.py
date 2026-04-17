@@ -282,6 +282,11 @@ class Settings(BaseSettings):
     ALERT_COMPLAINT_WINDOW_HOURS: int = 24
     ALERT_COMPLAINT_MAX: int = 10
 
+    # Dashboard alert thresholds (configurable)
+    ALERT_TRANSFER_RATE_THRESHOLD: float = 0.3
+    ALERT_CONFIDENCE_THRESHOLD: float = 0.6
+    ALERT_LATENCY_MS_THRESHOLD: float = 5000.0
+
     KNOWLEDGE_UPLOAD_DIR: str = "uploads/knowledge"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
 

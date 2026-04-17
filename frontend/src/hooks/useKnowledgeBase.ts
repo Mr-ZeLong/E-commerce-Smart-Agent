@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { KnowledgeDocument, KnowledgeUploadResult, SyncStatus } from '@/types'
 import { apiFetch } from '@/lib/api'
 
-
 export function useKnowledgeBase() {
   const queryClient = useQueryClient()
 

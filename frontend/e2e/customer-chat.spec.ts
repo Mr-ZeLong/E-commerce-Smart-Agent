@@ -20,11 +20,7 @@ test('customer login and send chat message', async ({ page }) => {
   // Mock chat API with SSE stream
   await page.route('**/api/v1/chat', async (route) => {
     const encoder = new TextEncoder()
-    const chunks = [
-      'data: {"token": "您好"}\n\n',
-      'data: {"token": "！"}\n\n',
-      'data: [DONE]\n\n',
-    ]
+    const chunks = ['data: {"token": "您好"}\n\n', 'data: {"token": "！"}\n\n', 'data: [DONE]\n\n']
     const stream = new ReadableStream({
       start(controller) {
         for (const chunk of chunks) {

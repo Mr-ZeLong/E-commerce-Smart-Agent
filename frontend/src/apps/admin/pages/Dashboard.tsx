@@ -4,7 +4,22 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
-import { LogOut, Bell, User, BarChart3, BarChart4, MessageSquare, BookOpen, Bot, FlaskConical, ShieldAlert, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import {
+  LogOut,
+  Bell,
+  User,
+  BarChart3,
+  BarChart4,
+  MessageSquare,
+  BookOpen,
+  Bot,
+  FlaskConical,
+  ShieldAlert,
+  CheckCircle,
+  AlertCircle,
+  Info,
+  Activity,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTasks, useTaskStats } from '@/hooks/useTasks'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -23,6 +38,7 @@ import { ExperimentManager } from '../components/ExperimentManager'
 import { AnalyticsV2 } from '../components/AnalyticsV2'
 import { ComplaintQueue } from '../components/ComplaintQueue'
 import { FeedbackManager } from '../components/FeedbackManager'
+import { MetricsPage } from '../pages/MetricsPage'
 
 export function Dashboard() {
   const { user, logout } = useAuth()
@@ -30,7 +46,8 @@ export function Dashboard() {
   const [filters, setFilters] = useState<TaskFilters>({ riskLevel: 'ALL' })
   const { tasks, isLoading, submitDecision, isSubmitting } = useTasks(filters)
   const { data: stats } = useTaskStats()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, handleWsMessage } = useNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, handleWsMessage } =
+    useNotifications()
   const [showNotifications, setShowNotifications] = useState(false)
   const notificationRef = useRef<HTMLDivElement>(null)
 
@@ -108,7 +125,12 @@ export function Dashboard() {
                 <div className="flex items-center justify-between px-4 py-3 border-b">
                   <span className="font-medium text-sm">通知</span>
                   {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={markAllAsRead}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={markAllAsRead}
+                    >
                       全部已读
                     </Button>
                   )}
@@ -131,7 +153,9 @@ export function Dashboard() {
                             <p className="text-sm font-medium truncate">{n.title}</p>
                             <p className="text-xs text-gray-600 line-clamp-2">{n.message}</p>
                           </div>
-                          {!n.read && <span className="h-2 w-2 bg-blue-500 rounded-full mt-1.5 shrink-0" />}
+                          {!n.read && (
+                            <span className="h-2 w-2 bg-blue-500 rounded-full mt-1.5 shrink-0" />
+                          )}
                         </div>
                       </div>
                     ))
@@ -154,7 +178,7 @@ export function Dashboard() {
 
       <Separator />
 
-        <Tabs defaultValue="tasks" className="flex flex-col flex-1 overflow-hidden">
+      <Tabs defaultValue="tasks" className="flex flex-col flex-1 overflow-hidden">
         <div className="px-6 py-2 bg-white border-b">
           <TabsList>
             <TabsTrigger value="tasks">任务队列</TabsTrigger>
@@ -190,6 +214,10 @@ export function Dashboard() {
             <TabsTrigger value="analytics-v2" className="gap-1">
               <BarChart4 className="h-4 w-4" />
               分析V2
+            </TabsTrigger>
+            <TabsTrigger value="metrics" className="gap-1">
+              <Activity className="h-4 w-4" />
+              监控
             </TabsTrigger>
           </TabsList>
         </div>
@@ -255,6 +283,10 @@ export function Dashboard() {
 
         <TabsContent value="analytics-v2" className="flex-1 overflow-hidden m-0">
           <AnalyticsV2 />
+        </TabsContent>
+
+        <TabsContent value="metrics" className="flex-1 overflow-hidden m-0">
+          <MetricsPage />
         </TabsContent>
       </Tabs>
 

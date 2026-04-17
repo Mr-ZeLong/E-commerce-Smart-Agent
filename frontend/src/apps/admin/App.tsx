@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard'
 import { KnowledgeBase } from './pages/KnowledgeBase'
 import { AgentConfig } from './pages/AgentConfig'
 import { Feedback } from './pages/Feedback'
+import { MetricsPage } from './pages/MetricsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuthStore()
@@ -51,6 +52,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Feedback />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/metrics"
+            element={
+              <PrivateRoute>
+                <MetricsPage />
               </PrivateRoute>
             }
           />

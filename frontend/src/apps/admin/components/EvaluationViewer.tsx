@@ -58,11 +58,7 @@ export function EvaluationViewer() {
 
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => void runEvaluation()}
-            disabled={isRunning}
-            className="gap-2"
-          >
+          <Button onClick={() => void runEvaluation()} disabled={isRunning} className="gap-2">
             {isRunning ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
@@ -78,28 +74,13 @@ export function EvaluationViewer() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLimit(10)}
-            disabled={limit === 10}
-          >
+          <Button variant="outline" size="sm" onClick={() => setLimit(10)} disabled={limit === 10}>
             10
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLimit(20)}
-            disabled={limit === 20}
-          >
+          <Button variant="outline" size="sm" onClick={() => setLimit(20)} disabled={limit === 20}>
             20
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLimit(50)}
-            disabled={limit === 50}
-          >
+          <Button variant="outline" size="sm" onClick={() => setLimit(50)} disabled={limit === 50}>
             50
           </Button>
         </div>

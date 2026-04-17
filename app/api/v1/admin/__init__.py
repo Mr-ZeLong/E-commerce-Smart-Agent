@@ -19,6 +19,7 @@ from app.api.v1.admin.analytics import router as analytics_router
 from app.api.v1.admin.complaints import router as complaints_router
 from app.api.v1.admin.experiments import router as experiments_router
 from app.api.v1.admin.feedback import router as feedback_router
+from app.api.v1.admin.metrics_dashboard import router as metrics_dashboard_router
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
@@ -47,6 +48,7 @@ router.include_router(complaints_router, prefix="/admin/complaints")
 router.include_router(experiments_router, prefix="/admin/experiments")
 router.include_router(feedback_router, prefix="/admin/feedback")
 router.include_router(analytics_router, prefix="/admin/analytics")
+router.include_router(metrics_dashboard_router, prefix="/admin/metrics")
 tracer = trace.get_tracer(__name__)
 
 
@@ -131,7 +133,7 @@ async def get_evaluation_dataset(
     import json
     from pathlib import Path
 
-    path = Path("tests/evaluation/golden_dataset_v1.jsonl")
+    path = Path("data/golden_dataset_v2.jsonl")
     records: list[dict] = []
     if path.exists():
         with path.open("r", encoding="utf-8") as f:
@@ -155,6 +157,7 @@ async def get_evaluation_dataset(
 async def run_evaluation(
     http_request: Request,
     _current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
 ):
     """Trigger offline evaluation against the golden dataset."""
     from app.evaluation.pipeline import EvaluationPipeline
@@ -163,9 +166,44 @@ async def run_evaluation(
         intent_service=http_request.app.state.intent_service,
         llm=http_request.app.state.llm,
         graph=http_request.app.state.app_graph,
+        db_session=session,
     )
-    results = await pipeline.run("tests/evaluation/golden_dataset_v1.jsonl")
+    results = await pipeline.run("data/golden_dataset_v2.jsonl")
     return results
+
+
+@router.post("/admin/continuous-improvement/audit")
+async def trigger_continuous_improvement_audit(
+    _current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    """Trigger a weekly quality audit for continuous improvement."""
+    from app.services.continuous_improvement import ContinuousImprovementService
+
+    service = ContinuousImprovementService(db_session=session)
+    batch = await service.run_audit(days=7, sample_rate=0.05)
+    return {
+        "week_start": batch.week_start,
+        "total_conversations": batch.total_conversations,
+        "sample_size": batch.sample_size,
+        "message": "Weekly audit complete. Review samples and annotate root causes.",
+    }
+
+
+@router.post("/admin/shadow-test/run")
+async def trigger_shadow_test(
+    query: str,
+    _current_admin_id: int = Depends(get_admin_user_id),
+):
+    """Trigger a shadow test for a given query."""
+    from app.tasks.shadow_tasks import run_shadow_test
+
+    result = run_shadow_test.delay(query)
+    return {
+        "task_id": result.id,
+        "query": query,
+        "message": "Shadow test triggered asynchronously.",
+    }
 
 
 @router.get("/admin/metrics/sessions")

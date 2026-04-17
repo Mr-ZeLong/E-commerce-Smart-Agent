@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import type { CSATTrend, ComplaintRootCause, AgentComparison, TraceListResponse } from '@/types'
 import { apiFetch } from '@/lib/api'
 
-
 export function useCSATTrend(days = 30) {
   return useQuery<CSATTrend[]>({
     queryKey: ['admin', 'analytics', 'csat', days],
@@ -46,7 +45,9 @@ export function useTraces(days = 7, offset = 0, limit = 20) {
   return useQuery<TraceListResponse>({
     queryKey: ['admin', 'analytics', 'traces', days, offset, limit],
     queryFn: async () => {
-      const res = await apiFetch(`/admin/analytics/traces?days=${days}&offset=${offset}&limit=${limit}`)
+      const res = await apiFetch(
+        `/admin/analytics/traces?days=${days}&offset=${offset}&limit=${limit}`
+      )
       if (!res.ok) {
         throw new Error('获取追踪数据失败')
       }

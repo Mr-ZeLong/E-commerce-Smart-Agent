@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import type { ConversationList, ConversationMessage } from '@/types'
 import { apiFetch } from '@/lib/api'
 
-
 export interface ConversationFilters {
   user_id?: string
   intent_category?: string

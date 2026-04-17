@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react'
-import { AlertCircle, CheckCircle, FileText, Loader2, RefreshCw, Trash2, Upload, Play } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Upload,
+  Play,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useKnowledgeBase, useSyncStatus } from '@/hooks/useKnowledgeBase'
@@ -138,7 +147,9 @@ export function KnowledgeBaseManager() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => { void deleteDocument(doc.id) }}
+                      onClick={() => {
+                        void deleteDocument(doc.id)
+                      }}
                       disabled={isDeleting}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />

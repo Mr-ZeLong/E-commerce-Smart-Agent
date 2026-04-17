@@ -119,7 +119,9 @@ export function AgentConfigEditor({
 
           <div className="rounded-md border bg-muted/40 p-3">
             <p className="mb-1 text-xs font-medium text-muted-foreground">实时预览</p>
-            <p className="whitespace-pre-wrap text-sm">{renderPromptPreview(systemPrompt) || '（无内容）'}</p>
+            <p className="whitespace-pre-wrap text-sm">
+              {renderPromptPreview(systemPrompt) || '（无内容）'}
+            </p>
           </div>
 
           <div className="grid gap-2">
@@ -156,11 +158,7 @@ export function AgentConfigEditor({
               <Label htmlFor="enabled">启用 Agent</Label>
               <p className="text-xs text-muted-foreground">关闭后该 Agent 将不再接收任何请求</p>
             </div>
-            <Switch
-              id="enabled"
-              checked={enabled}
-              onCheckedChange={setEnabled}
-            />
+            <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
           </div>
         </div>
 

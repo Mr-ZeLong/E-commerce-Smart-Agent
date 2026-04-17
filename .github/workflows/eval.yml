@@ -1,0 +1,161 @@
+name: Evaluation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/agents/**'
+      - 'app/graph/**'
+      - 'app/intent/**'
+      - 'data/golden_dataset*.jsonl'
+      - 'app/evaluation/**'
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: knowledge_base
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis/redis-stack-server:latest
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      qdrant:
+        image: qdrant/qdrant:v1.16.3
+        options: >-
+          --health-cmd "/bin/bash -c 'cat < /dev/null > /dev/tcp/localhost/6333'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6333:6333
+
+    env:
+      PROJECT_NAME: E-commerce Smart Agent
+      API_V1_STR: /api/v1
+      ENABLE_OPENAPI_DOCS: "False"
+      CORS_ORIGINS: "http://localhost:5173"
+      POSTGRES_SERVER: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: knowledge_base
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      QDRANT_URL: http://localhost:6333
+      QDRANT_API_KEY: ""
+      OPENAI_API_KEY: sk-test
+      OPENAI_BASE_URL: http://localhost:8000/v1
+      DASHSCOPE_API_KEY: ""
+      SECRET_KEY: test-secret-key-at-least-32-bytes-long-123
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.5"
+
+      - name: Create test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE test_knowledge_base;"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Ensure baseline exists
+        run: |
+          mkdir -p reports
+          if [ ! -f reports/eval_baseline.json ]; then
+            echo '{"intent_accuracy":0.85,"slot_recall":0.80,"rag_precision":0.75,"answer_correctness":0.80,"token_efficiency":0.70,"tone_consistency":0.75,"containment_rate":0.90,"total_records":160}' > reports/eval_baseline.json
+          fi
+
+      - name: Run evaluation
+        run: |
+          uv run python -m app.evaluation.run \
+            --dataset data/golden_dataset_v2.jsonl \
+            --output-dir reports \
+            --baseline reports/eval_baseline.json
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: reports/eval_*.json
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const reportsDir = 'reports';
+            const files = fs.readdirSync(reportsDir).filter(f => f.startsWith('eval_') && f.endsWith('.json'));
+            if (files.length === 0) {
+              console.log('No evaluation results found');
+              return;
+            }
+            const latest = files.sort().reverse()[0];
+            const results = JSON.parse(fs.readFileSync(path.join(reportsDir, latest), 'utf8'));
+            
+            let body = '## Evaluation Results\n\n';
+            body += '| Metric | Value |\n';
+            body += '|--------|-------|\n';
+            for (const [key, value] of Object.entries(results)) {
+              if (typeof value === 'number') {
+                body += `| ${key} | ${value.toFixed(4)} |\n`;
+              }
+            }
+            
+            if (results.comparison) {
+              body += '\n### Baseline Comparison\n\n';
+              body += `| Status | ${results.comparison.passed ? 'PASS' : 'FAIL'} |\n`;
+              body += `| Threshold | ${(results.comparison.threshold * 100).toFixed(1)}% |\n`;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

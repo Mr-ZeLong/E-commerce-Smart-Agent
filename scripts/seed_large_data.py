@@ -31,20 +31,26 @@ PRODUCT_POOL = [
     {"name": "护膝", "price": 88.0},
     {"name": "全棉运动袜", "price": 15.0},
     {"name": "速干衣", "price": 120.0},
-    {"name": "筋膜枪", "price": 899.0}
+    {"name": "筋膜枪", "price": 899.0},
 ]
 
 ADDRESS_POOL = [
-    "上海市浦东新区张江高科技园区", "北京市朝阳区三里屯街道",
-    "广州市天河区珠江新城", "深圳市南山区科技园",
-    "杭州市西湖区文三路", "成都市武侯区软件园"
+    "上海市浦东新区张江高科技园区",
+    "北京市朝阳区三里屯街道",
+    "广州市天河区珠江新城",
+    "深圳市南山区科技园",
+    "杭州市西湖区文三路",
+    "成都市武侯区软件园",
 ]
 
 STATUS_POOL = [
-    OrderStatus.PENDING, OrderStatus.PAID,
-    OrderStatus.SHIPPED, OrderStatus.DELIVERED,
-    OrderStatus.CANCELLED
+    OrderStatus.PENDING,
+    OrderStatus.PAID,
+    OrderStatus.SHIPPED,
+    OrderStatus.DELIVERED,
+    OrderStatus.CANCELLED,
 ]
+
 
 async def seed_large_data():
     async with async_session_maker() as session:
@@ -73,7 +79,7 @@ async def seed_large_data():
                 username=f"user_{i:03}",
                 email=f"user_{i:03}@example.com",
                 full_name=f"测试用户_{i:03}",
-                password_hash=User.hash_password(f"password{i:03}")
+                password_hash=User.hash_password(f"password{i:03}"),
             )
             users.append(user)
 
@@ -92,11 +98,7 @@ async def seed_large_data():
             processed_items = []
             for item in order_items:
                 qty = random.randint(1, 2)
-                processed_items.append({
-                    "name": item["name"],
-                    "qty": qty,
-                    "price": item["price"]
-                })
+                processed_items.append({"name": item["name"], "qty": qty, "price": item["price"]})
                 total_amount += item["price"] * qty  # ty:ignore[unsupported-operator]
 
             random_days = random.randint(0, 30)
@@ -109,24 +111,27 @@ async def seed_large_data():
                 status=status,
                 total_amount=round(total_amount, 2),
                 items=processed_items,
-                tracking_number=f"SF{uuid.uuid4().hex[:10].upper()}" if status in [OrderStatus.SHIPPED, OrderStatus.DELIVERED] else None,
+                tracking_number=f"SF{uuid.uuid4().hex[:10].upper()}"
+                if status in [OrderStatus.SHIPPED, OrderStatus.DELIVERED]
+                else None,
                 shipping_address=random.choice(ADDRESS_POOL) + f"{random.randint(1, 999)}号",
-                created_at=created_at
+                created_at=created_at,
             )
             orders.append(order)
 
         # 分批写入
         batch_size = 100
         for i in range(0, len(orders), batch_size):
-            session.add_all(orders[i:i+batch_size])
+            session.add_all(orders[i : i + batch_size])
             await session.commit()
-            print(f"   已写入 {i + len(orders[i:i+batch_size])} / {TOTAL_ORDERS} 个订单...")
+            print(f"   已写入 {i + len(orders[i : i + batch_size])} / {TOTAL_ORDERS} 个订单...")
 
         print("\n🎉 大规模数据初始化成功！")
 
+
 if __name__ == "__main__":
     confirm = input("⚠️ 该脚本将清空所有业务表数据，是否继续？(y/n): ")
-    if confirm.lower() == 'y':
+    if confirm.lower() == "y":
         asyncio.run(seed_large_data())
     else:
         print("操作已取消。")

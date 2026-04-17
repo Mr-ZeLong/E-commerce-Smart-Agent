@@ -303,7 +303,7 @@ class SafetyFilter:
                 return result
             if isinstance(result, dict):
                 return SafetyCheckResult.model_validate(result)
-        except (LangChainException, ConnectionError) as e:
+        except (LangChainException, ConnectionError, Exception) as e:
             logger.error(f"Semantic check failed: {e}")
             return SafetyCheckResult(
                 is_safe=True,

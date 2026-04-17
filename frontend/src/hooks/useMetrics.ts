@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import type { SessionMetrics, TransferMetric, ConfidenceMetric, LatencyMetric } from '@/types'
 import { apiFetch } from '@/lib/api'
 
-
 export function useSessionMetrics() {
   return useQuery<SessionMetrics>({
     queryKey: ['admin', 'metrics', 'sessions'],

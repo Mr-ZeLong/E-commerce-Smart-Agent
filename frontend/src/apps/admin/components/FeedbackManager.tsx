@@ -13,7 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useFeedbackList, useExportFeedback, useCSATTrend, useRunQualityScore } from '@/hooks/useFeedback'
+import {
+  useFeedbackList,
+  useExportFeedback,
+  useCSATTrend,
+  useRunQualityScore,
+} from '@/hooks/useFeedback'
 import type { FeedbackFilters } from '@/types'
 import { MessageSquare, Download, Play, ChevronLeft, ChevronRight, Star } from 'lucide-react'
 
@@ -50,7 +55,10 @@ export function FeedbackManager() {
   const { data: csatData, isLoading: isCsatLoading } = useCSATTrend(30)
   const { mutateAsync: runQualityScore, isPending: isRunningQualityScore } = useRunQualityScore()
 
-  const handleFilterChange = (key: keyof FeedbackFilters, value: FeedbackFilters[keyof FeedbackFilters]) => {
+  const handleFilterChange = (
+    key: keyof FeedbackFilters,
+    value: FeedbackFilters[keyof FeedbackFilters]
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -209,7 +217,9 @@ export function FeedbackManager() {
                   {items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.user_id}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{item.thread_id}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {item.thread_id}
+                      </TableCell>
                       <TableCell>
                         <ScoreBadge score={item.score} />
                       </TableCell>
@@ -223,7 +233,10 @@ export function FeedbackManager() {
                   ))}
                   {items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={5}
+                        className="px-4 py-8 text-center text-muted-foreground"
+                      >
                         暂无反馈记录
                       </TableCell>
                     </TableRow>
@@ -293,7 +306,10 @@ export function FeedbackManager() {
                     ))}
                     {(csatData?.trend ?? []).length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                        <TableCell
+                          colSpan={3}
+                          className="px-4 py-8 text-center text-muted-foreground"
+                        >
                           暂无数据
                         </TableCell>
                       </TableRow>

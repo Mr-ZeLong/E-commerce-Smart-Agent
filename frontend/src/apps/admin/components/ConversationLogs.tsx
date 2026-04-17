@@ -53,41 +53,41 @@ export function ConversationLogs() {
 
   if (selectedThread) {
     return (
-      <div className='flex flex-col h-full gap-4'>
-        <div className='flex items-center gap-2'>
-          <Button variant='outline' size='sm' onClick={() => setSelectedThread(null)}>
-            <ChevronLeft className='h-4 w-4 mr-1' />
+      <div className="flex flex-col h-full gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSelectedThread(null)}>
+            <ChevronLeft className="h-4 w-4 mr-1" />
             返回列表
           </Button>
-          <span className='text-sm text-gray-500'>Thread: {selectedThread.thread_id}</span>
+          <span className="text-sm text-gray-500">Thread: {selectedThread.thread_id}</span>
         </div>
 
-        <Card className='flex-1 flex flex-col min-h-0'>
-          <CardHeader className='pb-3'>
-            <CardTitle className='text-base'>消息轨迹</CardTitle>
-            <div className='flex gap-3 text-sm text-gray-500'>
-              <div className='flex items-center gap-1'>
-                <User className='h-4 w-4' />
+        <Card className="flex-1 flex flex-col min-h-0">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">消息轨迹</CardTitle>
+            <div className="flex gap-3 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4" />
                 User ID: {selectedThread.user_id ?? '-'}
               </div>
-              <div className='flex items-center gap-1'>
-                <MessageCircle className='h-4 w-4' />
+              <div className="flex items-center gap-1">
+                <MessageCircle className="h-4 w-4" />
                 消息数: {selectedThread.message_count}
               </div>
             </div>
           </CardHeader>
-          <CardContent className='flex-1 min-h-0 p-0'>
-            <ScrollArea className='h-full px-4 pb-4'>
+          <CardContent className="flex-1 min-h-0 p-0">
+            <ScrollArea className="h-full px-4 pb-4">
               {messagesLoading ? (
-                <div className='space-y-3'>
+                <div className="space-y-3">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className='h-16 w-full' />
+                    <Skeleton key={i} className="h-16 w-full" />
                   ))}
                 </div>
               ) : messages.length === 0 ? (
-                <div className='text-center text-gray-500 py-8'>暂无消息</div>
+                <div className="text-center text-gray-500 py-8">暂无消息</div>
               ) : (
-                <div className='space-y-4 pt-1'>
+                <div className="space-y-4 pt-1">
                   {messages.map((msg) => (
                     <MessageBubble key={msg.id} message={msg} />
                   ))}
@@ -101,28 +101,28 @@ export function ConversationLogs() {
   }
 
   return (
-    <div className='flex flex-col h-full gap-4'>
+    <div className="flex flex-col h-full gap-4">
       <Card>
-        <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>筛选条件</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">筛选条件</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className='flex flex-wrap gap-3'>
-            <div className='flex items-center gap-2'>
-              <span className='text-sm whitespace-nowrap'>User ID</span>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm whitespace-nowrap">User ID</span>
               <Input
-                placeholder='输入用户ID'
+                placeholder="输入用户ID"
                 value={userIdFilter}
                 onChange={(e) => setUserIdFilter(e.target.value)}
-                className='w-32 h-8 text-sm'
+                className="w-32 h-8 text-sm"
               />
             </div>
-            <div className='flex items-center gap-2'>
-              <span className='text-sm whitespace-nowrap'>意图</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm whitespace-nowrap">意图</span>
               <select
                 value={intentFilter}
                 onChange={(e) => setIntentFilter(e.target.value)}
-                className='h-8 text-sm border rounded px-2 bg-white'
+                className="h-8 text-sm border rounded px-2 bg-white"
               >
                 {INTENT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -131,45 +131,45 @@ export function ConversationLogs() {
                 ))}
               </select>
             </div>
-            <div className='flex items-center gap-2'>
-              <Calendar className='h-4 w-4 text-gray-500' />
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-500" />
               <Input
-                type='date'
+                type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className='w-36 h-8 text-sm'
+                className="w-36 h-8 text-sm"
               />
-              <span className='text-sm text-gray-500'>至</span>
+              <span className="text-sm text-gray-500">至</span>
               <Input
-                type='date'
+                type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className='w-36 h-8 text-sm'
+                className="w-36 h-8 text-sm"
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className='flex-1 flex flex-col min-h-0'>
-        <CardHeader className='pb-3'>
-          <CardTitle className='text-base'>
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
             会话列表
-            <Badge variant='secondary' className='ml-2'>
+            <Badge variant="secondary" className="ml-2">
               {total}
             </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className='flex-1 min-h-0 p-0'>
-          <ScrollArea className='h-full px-4 pb-4'>
+        <CardContent className="flex-1 min-h-0 p-0">
+          <ScrollArea className="h-full px-4 pb-4">
             {listLoading ? (
-              <div className='space-y-2'>
+              <div className="space-y-2">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className='h-10 w-full' />
+                  <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
             ) : conversations.length === 0 ? (
-              <div className='text-center text-gray-500 py-8'>暂无会话记录</div>
+              <div className="text-center text-gray-500 py-8">暂无会话记录</div>
             ) : (
               <Table>
                 <TableHeader>
@@ -179,19 +179,19 @@ export function ConversationLogs() {
                     <TableHead>意图</TableHead>
                     <TableHead>消息数</TableHead>
                     <TableHead>最后更新</TableHead>
-                    <TableHead className='text-right'>操作</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {conversations.map((thread) => (
                     <TableRow key={thread.thread_id}>
-                      <TableCell className='font-mono text-xs max-w-[180px] truncate'>
+                      <TableCell className="font-mono text-xs max-w-[180px] truncate">
                         {thread.thread_id}
                       </TableCell>
                       <TableCell>{thread.user_id ?? '-'}</TableCell>
                       <TableCell>
                         {thread.intent_category ? (
-                          <Badge variant='outline' className='text-xs'>
+                          <Badge variant="outline" className="text-xs">
                             {thread.intent_category}
                           </Badge>
                         ) : (
@@ -199,15 +199,11 @@ export function ConversationLogs() {
                         )}
                       </TableCell>
                       <TableCell>{thread.message_count}</TableCell>
-                      <TableCell className='text-sm text-gray-500 whitespace-nowrap'>
+                      <TableCell className="text-sm text-gray-500 whitespace-nowrap">
                         {new Date(thread.last_updated).toLocaleString()}
                       </TableCell>
-                      <TableCell className='text-right'>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => setSelectedThread(thread)}
-                        >
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedThread(thread)}>
                           查看
                         </Button>
                       </TableCell>
@@ -235,19 +231,19 @@ function MessageBubble({ message }: { message: ConversationMessage }) {
           isUser
             ? 'bg-blue-500 text-white'
             : isAgent
-            ? 'bg-gray-100 text-gray-900'
-            : 'bg-amber-50 text-amber-900 border'
+              ? 'bg-gray-100 text-gray-900'
+              : 'bg-amber-50 text-amber-900 border'
         }`}
       >
-        <div className='flex items-center gap-2 mb-1 opacity-80 text-xs'>
-          <Badge variant='outline' className='text-[10px] h-4 px-1'>
+        <div className="flex items-center gap-2 mb-1 opacity-80 text-xs">
+          <Badge variant="outline" className="text-[10px] h-4 px-1">
             {message.sender_type}
           </Badge>
           <span>{new Date(message.created_at).toLocaleString()}</span>
         </div>
-        <div className='whitespace-pre-wrap break-words'>{contentText}</div>
+        <div className="whitespace-pre-wrap break-words">{contentText}</div>
         {message.message_type !== 'text' && (
-          <div className='mt-1 text-xs opacity-70'>type: {message.message_type}</div>
+          <div className="mt-1 text-xs opacity-70">type: {message.message_type}</div>
         )}
       </div>
     </div>

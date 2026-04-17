@@ -59,10 +59,7 @@ function SimpleBar({
         <span className="text-muted-foreground">{displayValue}</span>
       </div>
       <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full ${colorClass}`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -75,9 +72,7 @@ export function Performance() {
   const { data: latency, isLoading: latencyLoading } = useLatencyMetrics()
 
   const transferMax =
-    transfers && transfers.length > 0
-      ? Math.max(...transfers.map((t) => t.transfer_rate))
-      : 0
+    transfers && transfers.length > 0 ? Math.max(...transfers.map((t) => t.transfer_rate)) : 0
 
   const confidenceMax =
     confidence && confidence.length > 0
@@ -95,16 +90,8 @@ export function Performance() {
           value={sessions?.['24h'] ?? 0}
           isLoading={sessionsLoading}
         />
-        <StatCard
-          label="近 7 天会话"
-          value={sessions?.['7d'] ?? 0}
-          isLoading={sessionsLoading}
-        />
-        <StatCard
-          label="近 30 天会话"
-          value={sessions?.['30d'] ?? 0}
-          isLoading={sessionsLoading}
-        />
+        <StatCard label="近 7 天会话" value={sessions?.['7d'] ?? 0} isLoading={sessionsLoading} />
+        <StatCard label="近 30 天会话" value={sessions?.['30d'] ?? 0} isLoading={sessionsLoading} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -159,11 +146,7 @@ export function Performance() {
                     label={c.final_agent}
                     value={c.avg_confidence ?? 0}
                     max={confidenceMax}
-                    displayValue={
-                      c.avg_confidence !== null
-                        ? c.avg_confidence.toFixed(4)
-                        : '-'
-                    }
+                    displayValue={c.avg_confidence !== null ? c.avg_confidence.toFixed(4) : '-'}
                     colorClass="bg-emerald-500"
                   />
                 ))}
@@ -195,9 +178,7 @@ export function Performance() {
                     value={l.p99_latency_ms ?? 0}
                     max={latencyMax}
                     displayValue={
-                      l.p99_latency_ms !== null
-                        ? `${l.p99_latency_ms.toFixed(2)} ms`
-                        : '-'
+                      l.p99_latency_ms !== null ? `${l.p99_latency_ms.toFixed(2)} ms` : '-'
                     }
                     colorClass="bg-amber-500"
                   />

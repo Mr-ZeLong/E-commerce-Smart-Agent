@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { Edit, Loader2, Bot, Route, Settings, Plus, Trash2, History, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Edit,
+  Loader2,
+  Bot,
+  Route,
+  Settings,
+  Plus,
+  Trash2,
+  History,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -22,7 +33,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useAgentConfig, useAgentReports, useAgentVersionMetrics, useAgentVersions } from '@/hooks/useAgentConfig'
+import {
+  useAgentConfig,
+  useAgentReports,
+  useAgentVersionMetrics,
+  useAgentVersions,
+} from '@/hooks/useAgentConfig'
 import type { AgentConfig, RoutingRule, AgentConfigVersion } from '@/types'
 import { AgentConfigEditor } from '../components/AgentConfigEditor'
 
@@ -82,7 +98,9 @@ function computeDiff(current: AgentConfigVersion, previous: AgentConfigVersion |
     diffs.push('system_prompt 变更')
   }
   if (current.confidence_threshold !== previous.confidence_threshold) {
-    diffs.push(`confidence_threshold: ${previous.confidence_threshold} → ${current.confidence_threshold}`)
+    diffs.push(
+      `confidence_threshold: ${previous.confidence_threshold} → ${current.confidence_threshold}`
+    )
   }
   if (current.max_retries !== previous.max_retries) {
     diffs.push(`max_retries: ${previous.max_retries} → ${current.max_retries}`)
@@ -132,12 +150,18 @@ function PromptEffectReportList({ agentName }: { agentName: string }) {
             <div key={report.id} className="rounded border px-3 py-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="font-medium">{report.report_month}</span>
-                <span className="text-xs text-muted-foreground">会话数: {report.total_sessions}</span>
+                <span className="text-xs text-muted-foreground">
+                  会话数: {report.total_sessions}
+                </span>
               </div>
               <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                <div>置信度: {report.avg_confidence !== null ? report.avg_confidence.toFixed(4) : '-'}</div>
+                <div>
+                  置信度: {report.avg_confidence !== null ? report.avg_confidence.toFixed(4) : '-'}
+                </div>
                 <div>接管率: {(report.transfer_rate * 100).toFixed(2)}%</div>
-                <div>延迟: {report.avg_latency_ms !== null ? report.avg_latency_ms.toFixed(2) : '-'} ms</div>
+                <div>
+                  延迟: {report.avg_latency_ms !== null ? report.avg_latency_ms.toFixed(2) : '-'} ms
+                </div>
               </div>
             </div>
           ))}
@@ -172,7 +196,9 @@ export function AgentConfig() {
 
   const [expandedVersionId, setExpandedVersionId] = useState<number | null>(null)
 
-  const { data: versions, isLoading: isLoadingVersions } = useAgentVersions(selectedAgent?.agent_name)
+  const { data: versions, isLoading: isLoadingVersions } = useAgentVersions(
+    selectedAgent?.agent_name
+  )
 
   const handleToggle = async (agent: AgentConfig, enabled: boolean) => {
     await updateAgent({ agentName: agent.agent_name, payload: { enabled } })
@@ -185,7 +211,12 @@ export function AgentConfig() {
 
   const handleSave = async (
     agentName: string,
-    payload: { system_prompt?: string; confidence_threshold?: number; max_retries?: number; enabled?: boolean }
+    payload: {
+      system_prompt?: string
+      confidence_threshold?: number
+      max_retries?: number
+      enabled?: boolean
+    }
   ) => {
     await updateAgent({ agentName, payload })
   }
@@ -405,7 +436,9 @@ export function AgentConfig() {
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{formatDate(version.created_at)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(version.created_at)}
+                            </span>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -423,7 +456,10 @@ export function AgentConfig() {
                         {isExpanded && (
                           <div className="mt-2 space-y-2 border-t pt-2">
                             {selectedAgent && (
-                              <VersionMetrics agentName={selectedAgent.agent_name} versionId={version.id} />
+                              <VersionMetrics
+                                agentName={selectedAgent.agent_name}
+                                versionId={version.id}
+                              />
                             )}
                             <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                               <div>置信度: {version.confidence_threshold}</div>
@@ -509,7 +545,12 @@ export function AgentConfig() {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button type="button" variant="secondary" onClick={() => setRuleDialogOpen(false)} disabled={isSavingRule}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setRuleDialogOpen(false)}
+              disabled={isSavingRule}
+            >
               取消
             </Button>
             <Button type="button" onClick={() => void handleSaveRule()} disabled={isSavingRule}>

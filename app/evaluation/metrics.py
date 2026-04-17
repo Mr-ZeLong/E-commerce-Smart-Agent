@@ -10,7 +10,22 @@ import re
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.evaluation.containment import containment_rate
+from app.evaluation.token_efficiency import token_efficiency
+from app.evaluation.tone_consistency import tone_consistency
+
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "answer_correctness",
+    "batch_rag_precision",
+    "containment_rate",
+    "intent_accuracy",
+    "rag_precision",
+    "slot_recall",
+    "tone_consistency",
+    "token_efficiency",
+]
 
 
 def intent_accuracy(predictions: list[str], references: list[str]) -> float:

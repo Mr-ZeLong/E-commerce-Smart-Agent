@@ -9,15 +9,22 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from sqlalchemy import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.evaluation.containment import containment_rate
 from app.evaluation.metrics import (
     answer_correctness,
     intent_accuracy,
     rag_precision,
     slot_recall,
+    token_efficiency,
 )
+from app.evaluation.tone_consistency import tone_consistency
 from app.intent.service import IntentRecognitionService
+from app.models.observability import GraphExecutionLog
 from app.models.state import make_agent_state
+from app.observability.latency_tracker import compute_node_latency_stats
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +37,12 @@ class EvaluationPipeline:
         intent_service: IntentRecognitionService,
         llm: BaseChatModel,
         graph: Any,
+        db_session: AsyncSession | None = None,
     ):
         self.intent_service = intent_service
         self.llm = llm
         self.graph = graph
+        self.db_session = db_session
 
     async def run(self, golden_dataset_path: str) -> dict[str, Any]:
         """Load the golden dataset and compute evaluation metrics.
@@ -43,7 +52,8 @@ class EvaluationPipeline:
 
         Returns:
              dict with ``intent_accuracy``, ``slot_recall``, ``rag_precision``,
-             ``answer_correctness`` and ``total_records``.
+             ``answer_correctness``, ``token_efficiency``, ``tone_consistency``,
+             ``containment_rate``, ``latency_stats`` and ``total_records``.
         """
         path = Path(golden_dataset_path)
         records: list[dict[str, Any]] = []
@@ -60,6 +70,8 @@ class EvaluationPipeline:
         ref_slots_list: list[dict[str, Any]] = []
         rag_scores: list[float] = []
         correctness_scores: list[float] = []
+        token_efficiencies: list[float] = []
+        conversation_turns: list[dict[str, str]] = []
 
         for record in records:
             query = record["query"]
@@ -110,12 +122,24 @@ class EvaluationPipeline:
                 )
                 correctness_scores.append(score)
 
+            context_tokens = final_state.get("context_tokens") or 0
+            output_tokens = final_state.get("output_tokens") or len(actual_answer)
+            if context_tokens > 0 and output_tokens >= 0:
+                token_efficiencies.append(token_efficiency(context_tokens, output_tokens))
+
+            conversation_turns.append({"role": "user", "content": query})
+            conversation_turns.append({"role": "assistant", "content": actual_answer})
+
             logger.info(
                 "Evaluated query='%s' intent=%s slots=%s",
                 query,
                 actual_intent,
                 actual_slots,
             )
+
+        tone_score = 0.0
+        if conversation_turns:
+            tone_score = await tone_consistency(conversation_turns, self.llm)
 
         results: dict[str, Any] = {
             "intent_accuracy": intent_accuracy(pred_intents, ref_intents),
@@ -124,6 +148,31 @@ class EvaluationPipeline:
             "answer_correctness": (
                 sum(correctness_scores) / len(correctness_scores) if correctness_scores else 0.0
             ),
+            "token_efficiency": (
+                sum(token_efficiencies) / len(token_efficiencies) if token_efficiencies else 0.0
+            ),
+            "tone_consistency": tone_score,
             "total_records": len(records),
         }
+
+        if self.db_session is not None:
+            try:
+                stmt = select(GraphExecutionLog)
+                result = await self.db_session.execute(stmt)
+                logs: list[GraphExecutionLog] = list(result.scalars().all())
+                results["containment_rate"] = containment_rate(logs)
+            except Exception:
+                logger.exception("Failed to query containment rate from database.")
+                results["containment_rate"] = 0.0
+
+            try:
+                latency_stats = await compute_node_latency_stats(self.db_session)
+                results["latency_stats"] = latency_stats
+            except Exception:
+                logger.exception("Failed to compute latency statistics from database.")
+                results["latency_stats"] = {}
+        else:
+            results["containment_rate"] = 0.0
+            results["latency_stats"] = {}
+
         return results

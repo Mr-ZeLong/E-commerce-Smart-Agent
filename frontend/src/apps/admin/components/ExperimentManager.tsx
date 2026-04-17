@@ -69,7 +69,7 @@ function VariantEditor({ variants, onChange }: VariantEditorProps) {
           添加变体
         </Button>
       </div>
-      
+
       {variants.length === 0 ? (
         <div className="text-sm text-muted-foreground">至少需要一个变体</div>
       ) : (
@@ -88,7 +88,7 @@ function VariantEditor({ variants, onChange }: VariantEditorProps) {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor={`variant-name-${index}`}>名称</Label>
@@ -110,7 +110,7 @@ function VariantEditor({ variants, onChange }: VariantEditorProps) {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-1">
                 <Label htmlFor={`variant-prompt-${index}`}>系统提示词 (可选)</Label>
                 <Textarea
@@ -121,7 +121,7 @@ function VariantEditor({ variants, onChange }: VariantEditorProps) {
                   placeholder="留空则使用默认提示词"
                 />
               </div>
-              
+
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor={`variant-model-${index}`}>LLM 模型</Label>
@@ -139,7 +139,13 @@ function VariantEditor({ variants, onChange }: VariantEditorProps) {
                     type="number"
                     min={1}
                     value={variant.retriever_top_k || ''}
-                    onChange={(e) => updateVariant(index, 'retriever_top_k', e.target.value ? parseInt(e.target.value) : null)}
+                    onChange={(e) =>
+                      updateVariant(
+                        index,
+                        'retriever_top_k',
+                        e.target.value ? parseInt(e.target.value) : null
+                      )
+                    }
                     placeholder="例如: 5"
                   />
                 </div>
@@ -148,7 +154,9 @@ function VariantEditor({ variants, onChange }: VariantEditorProps) {
                     <input
                       type="checkbox"
                       checked={variant.reranker_enabled || false}
-                      onChange={(e) => updateVariant(index, 'reranker_enabled', e.target.checked || null)}
+                      onChange={(e) =>
+                        updateVariant(index, 'reranker_enabled', e.target.checked || null)
+                      }
                       className="rounded border-gray-300"
                     />
                     启用重排序
@@ -181,16 +189,14 @@ function ResultsDialog({ experiment, open, onOpenChange }: ResultsDialogProps) {
             {experiment ? `实验 "${experiment.name}" 的变体分配统计` : ''}
           </DialogDescription>
         </DialogHeader>
-        
+
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
             <Loader2 className="h-4 w-4 animate-spin" />
             加载中...
           </div>
         ) : !results || results.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">
-            暂无分配数据
-          </div>
+          <div className="text-sm text-muted-foreground py-8 text-center">暂无分配数据</div>
         ) : (
           <Table>
             <TableHeader>
@@ -211,7 +217,7 @@ function ResultsDialog({ experiment, open, onOpenChange }: ResultsDialogProps) {
             </TableBody>
           </Table>
         )}
-        
+
         <DialogFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             关闭
@@ -239,20 +245,20 @@ export function ExperimentManager() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false)
   const [selectedExperiment, setSelectedExperiment] = useState<Experiment | null>(null)
-  
+
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [variants, setVariants] = useState<ExperimentVariant[]>([{ name: 'control', weight: 1 }])
 
   const handleCreate = async () => {
     if (!name.trim() || variants.length === 0) return
-    
+
     await createExperiment({
       name: name.trim(),
       description: description.trim() || null,
       variants,
     })
-    
+
     setCreateDialogOpen(false)
     setName('')
     setDescription('')
@@ -383,11 +389,9 @@ export function ExperimentManager() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>创建实验</DialogTitle>
-            <DialogDescription>
-              创建新的 A/B 测试实验，定义实验变体和配置
-            </DialogDescription>
+            <DialogDescription>创建新的 A/B 测试实验，定义实验变体和配置</DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
               <Label htmlFor="experiment-name">实验名称</Label>
@@ -398,7 +402,7 @@ export function ExperimentManager() {
                 placeholder="例如: 新提示词测试"
               />
             </div>
-            
+
             <div className="grid gap-2">
               <Label htmlFor="experiment-description">实验描述</Label>
               <Textarea
@@ -409,10 +413,10 @@ export function ExperimentManager() {
                 placeholder="描述实验目的和预期效果"
               />
             </div>
-            
+
             <VariantEditor variants={variants} onChange={setVariants} />
           </div>
-          
+
           <DialogFooter className="gap-2">
             <Button
               type="button"

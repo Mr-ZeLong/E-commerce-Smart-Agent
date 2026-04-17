@@ -35,7 +35,9 @@ const App: FC = () => {
 
   const handleWsMessage = (msg: WSMessage) => {
     if (msg.type === 'status_change') {
-      const payload = msg.payload as { title?: string; message?: string; status?: string } | undefined
+      const payload = msg.payload as
+        | { title?: string; message?: string; status?: string }
+        | undefined
       const title = payload?.title || '状态更新'
       const message = payload?.message || payload?.status || '您的请求状态已更新'
       addToast(title, message)

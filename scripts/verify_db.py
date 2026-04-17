@@ -55,5 +55,6 @@ async def verify_database():
             print("   ------------------------------------------------")
             print("✅ 抽检完毕：数据格式正确且外键关联正常。")
 
+
 if __name__ == "__main__":
     asyncio.run(verify_database())

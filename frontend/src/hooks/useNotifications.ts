@@ -14,21 +14,24 @@ export function useNotifications(onWsMessage?: (message: WSMessage) => void) {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
-  const handleWsMessage = useCallback((message: WSMessage) => {
-    if (message.type === 'notification') {
-      const notif = message as WSNotification
-      const newNotification: Notification = {
-        id: `${Date.now()}_${Math.random()}`,
-        title: notif.title,
-        message: notif.message,
-        type: notif.severity,
-        read: false,
-        created_at: notif.timestamp || new Date().toISOString(),
+  const handleWsMessage = useCallback(
+    (message: WSMessage) => {
+      if (message.type === 'notification') {
+        const notif = message as WSNotification
+        const newNotification: Notification = {
+          id: `${Date.now()}_${Math.random()}`,
+          title: notif.title,
+          message: notif.message,
+          type: notif.severity,
+          read: false,
+          created_at: notif.timestamp || new Date().toISOString(),
+        }
+        setNotifications((prev) => [newNotification, ...prev])
       }
-      setNotifications((prev) => [newNotification, ...prev])
-    }
-    onWsMessage?.(message)
-  }, [onWsMessage])
+      onWsMessage?.(message)
+    },
+    [onWsMessage]
+  )
 
   return {
     notifications,

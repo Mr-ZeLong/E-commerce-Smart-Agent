@@ -20,29 +20,29 @@ Admin dashboard SPA. Vite multi-page entry via `admin.html`, served by FastAPI a
 
 ## Key Files
 
-| Concern | File / Directory | Notes |
-|---------|-------------------|-------|
-| Pages | `frontend/src/apps/admin/pages/Login.tsx` | Admin login |
-| Pages | `frontend/src/apps/admin/pages/Dashboard.tsx` | Main dashboard |
-| Pages | `frontend/src/apps/admin/pages/KnowledgeBase.tsx` | Knowledge base management |
-| Pages | `frontend/src/apps/admin/pages/AgentConfig.tsx` | Agent routing & config |
-| Pages | `frontend/src/apps/admin/pages/Feedback.tsx` | User feedback management |
-| Business components | `frontend/src/apps/admin/components/DecisionPanel.tsx` | Human-in-the-loop task decisions |
-| Business components | `frontend/src/apps/admin/components/TaskList.tsx` | Task queue list |
-| Business components | `frontend/src/apps/admin/components/ConversationLogs.tsx` | Conversation audit logs |
-| Business components | `frontend/src/apps/admin/components/AgentConfigEditor.tsx` | Config editor with hot-reload |
-| Business components | `frontend/src/apps/admin/components/KnowledgeBaseManager.tsx` | KB upload & sync |
-| Business components | `frontend/src/apps/admin/components/ComplaintQueue.tsx` | Complaint queue |
-| Business components | `frontend/src/apps/admin/components/ExperimentManager.tsx` | A/B experiment manager |
-| Business components | `frontend/src/apps/admin/components/AnalyticsV2.tsx` | Analytics dashboard |
-| Business components | `frontend/src/apps/admin/components/FeedbackManager.tsx` | Feedback management |
-| Shared UI | `frontend/src/components/ui/` | shadcn/ui base components (Button, Card, Input, Sheet, etc.) |
-| API layer | `frontend/src/lib/api.ts` | Centralized `fetch` wrapper with interceptors |
-| Server state hooks | `frontend/src/hooks/` | TanStack Query hooks (useAgentConfig, useTasks, useComplaints, useFeedback, etc.) |
-| WebSocket | `frontend/src/hooks/useWebSocket.ts` | WebSocket connection & message listener |
-| Auth state | `frontend/src/stores/auth.ts` | Zustand store for auth |
-| Router | `frontend/src/apps/admin/App.tsx` | React Router configuration |
-| App mount | `frontend/src/apps/admin/main.tsx` | Vite multi-page entry point |
+| Concern             | File / Directory                                              | Notes                                                                             |
+| ------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Pages               | `frontend/src/apps/admin/pages/Login.tsx`                     | Admin login                                                                       |
+| Pages               | `frontend/src/apps/admin/pages/Dashboard.tsx`                 | Main dashboard                                                                    |
+| Pages               | `frontend/src/apps/admin/pages/KnowledgeBase.tsx`             | Knowledge base management                                                         |
+| Pages               | `frontend/src/apps/admin/pages/AgentConfig.tsx`               | Agent routing & config                                                            |
+| Pages               | `frontend/src/apps/admin/pages/Feedback.tsx`                  | User feedback management                                                          |
+| Business components | `frontend/src/apps/admin/components/DecisionPanel.tsx`        | Human-in-the-loop task decisions                                                  |
+| Business components | `frontend/src/apps/admin/components/TaskList.tsx`             | Task queue list                                                                   |
+| Business components | `frontend/src/apps/admin/components/ConversationLogs.tsx`     | Conversation audit logs                                                           |
+| Business components | `frontend/src/apps/admin/components/AgentConfigEditor.tsx`    | Config editor with hot-reload                                                     |
+| Business components | `frontend/src/apps/admin/components/KnowledgeBaseManager.tsx` | KB upload & sync                                                                  |
+| Business components | `frontend/src/apps/admin/components/ComplaintQueue.tsx`       | Complaint queue                                                                   |
+| Business components | `frontend/src/apps/admin/components/ExperimentManager.tsx`    | A/B experiment manager                                                            |
+| Business components | `frontend/src/apps/admin/components/AnalyticsV2.tsx`          | Analytics dashboard                                                               |
+| Business components | `frontend/src/apps/admin/components/FeedbackManager.tsx`      | Feedback management                                                               |
+| Shared UI           | `frontend/src/components/ui/`                                 | shadcn/ui base components (Button, Card, Input, Sheet, etc.)                      |
+| API layer           | `frontend/src/lib/api.ts`                                     | Centralized `fetch` wrapper with interceptors                                     |
+| Server state hooks  | `frontend/src/hooks/`                                         | TanStack Query hooks (useAgentConfig, useTasks, useComplaints, useFeedback, etc.) |
+| WebSocket           | `frontend/src/hooks/useWebSocket.ts`                          | WebSocket connection & message listener                                           |
+| Auth state          | `frontend/src/stores/auth.ts`                                 | Zustand store for auth                                                            |
+| Router              | `frontend/src/apps/admin/App.tsx`                             | React Router configuration                                                        |
+| App mount           | `frontend/src/apps/admin/main.tsx`                            | Vite multi-page entry point                                                       |
 
 ## Commands
 

@@ -19,16 +19,16 @@ Customer-facing chat SPA. Vite multi-page entry via `index.html`, served by Fast
 
 ## Key Files
 
-| Task | File | Notes |
-|------|------|-------|
-| Page routing | `frontend/src/apps/customer/App.tsx` | Single-route chat interface (React Router) |
-| App mount | `frontend/src/apps/customer/main.tsx` | Vite multi-page mount point |
-| Chat logic | `frontend/src/apps/customer/hooks/useChat.ts` | SSE streaming, message state management |
-| Message list | `frontend/src/apps/customer/components/ChatMessageList.tsx` | Message rendering |
-| Chat input | `frontend/src/apps/customer/components/ChatInput.tsx` | User input box |
-| Shared UI | `frontend/src/components/ui/` | shadcn/ui components (Button, Input, ScrollArea, etc.) |
-| API wrapper | `frontend/src/lib/api.ts` | Unified `fetch` with request header factory |
-| Shared types | `frontend/src/types/index.ts` | Message types and common TypeScript types |
+| Task         | File                                                        | Notes                                                  |
+| ------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
+| Page routing | `frontend/src/apps/customer/App.tsx`                        | Single-route chat interface (React Router)             |
+| App mount    | `frontend/src/apps/customer/main.tsx`                       | Vite multi-page mount point                            |
+| Chat logic   | `frontend/src/apps/customer/hooks/useChat.ts`               | SSE streaming, message state management                |
+| Message list | `frontend/src/apps/customer/components/ChatMessageList.tsx` | Message rendering                                      |
+| Chat input   | `frontend/src/apps/customer/components/ChatInput.tsx`       | User input box                                         |
+| Shared UI    | `frontend/src/components/ui/`                               | shadcn/ui components (Button, Input, ScrollArea, etc.) |
+| API wrapper  | `frontend/src/lib/api.ts`                                   | Unified `fetch` with request header factory            |
+| Shared types | `frontend/src/types/index.ts`                               | Message types and common TypeScript types              |
 
 ## Commands
 

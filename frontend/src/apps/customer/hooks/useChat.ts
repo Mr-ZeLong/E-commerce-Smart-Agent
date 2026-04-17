@@ -26,7 +26,13 @@ interface UseChatReturn {
   messages: Message[]
   isLoading: boolean
   sendMessage: (content: string, threadId: string) => Promise<void>
-  submitFeedback: (messageId: string, sentiment: 'up' | 'down', threadId: string, messageIndex: number, comment?: string) => Promise<void>
+  submitFeedback: (
+    messageId: string,
+    sentiment: 'up' | 'down',
+    threadId: string,
+    messageIndex: number,
+    comment?: string
+  ) => Promise<void>
   resetMessages: () => void
 }
 
@@ -144,7 +150,13 @@ export function useChat(): UseChatReturn {
   }, [])
 
   const submitFeedback = useCallback(
-    async (messageId: string, sentiment: 'up' | 'down', threadId: string, messageIndex: number, comment?: string) => {
+    async (
+      messageId: string,
+      sentiment: 'up' | 'down',
+      threadId: string,
+      messageIndex: number,
+      comment?: string
+    ) => {
       try {
         const feedbackData: FeedbackRequest = {
           thread_id: threadId,
@@ -163,9 +175,7 @@ export function useChat(): UseChatReturn {
         }
 
         setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === messageId ? { ...msg, feedbackSentiment: sentiment } : msg
-          )
+          prev.map((msg) => (msg.id === messageId ? { ...msg, feedbackSentiment: sentiment } : msg))
         )
       } catch (error) {
         console.error('Failed to submit feedback:', error)

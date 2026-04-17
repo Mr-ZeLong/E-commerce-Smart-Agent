@@ -1,0 +1,160 @@
+{"query": "三包政策具体包含什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "三包", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "产地是哪里", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "产地", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "那个问题", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "问题", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "售后电话是多少", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "电话", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "退款!!!!!!!", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "退款", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "这个商品通过了哪些认证", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "认证", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "帮我查最近订单和购物车", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "我想确认订单SN20240008的付款状态", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240008"}, "expected_answer_fragment": "付款", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "12345", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "预售商品的规则是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "预售", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "我要退货", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "退货", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "<script>alert('xss')</script>", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "用户: 在吗 客服: 在的 用户: 我要退货 客服: 请问订单号是多少 用户: SN20240037 客服: 请问原因 用户: 质量不好 客服: 可以退货 用户: 怎么退 客服: 请填写退货单 用户: 填好了 客服: 已提交审核 用户: 多久能退 客服: 3-5个工作日", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240037", "refund_reason": "质量不好"}, "expected_answer_fragment": "退货", "expected_audit_level": "medium", "dimension": "long_conversation"}
+{"query": "我的订单SN20240014可以开发票吗", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240014"}, "expected_answer_fragment": "发票", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "运动鞋的尺码偏大还是偏小", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "运动鞋"}, "expected_answer_fragment": "尺码", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "查订单并申请退款", "expected_intent": "ORDER", "expected_slots": {"order_sn": ""}, "expected_answer_fragment": "订单", "expected_audit_level": "medium", "dimension": "multi_intent"}
+{"query": "查一下我的订单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "订单SN20240013的物流单号是什么", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240013"}, "expected_answer_fragment": "物流单号", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "售后申请已经超过七天还能退吗", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "超过七天", "expected_audit_level": "manual", "dimension": "refund_apply"}
+{"query": "帮我查订单SN20240034状态然后申请退货", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240034"}, "expected_answer_fragment": "订单", "expected_audit_level": "medium", "dimension": "multi_intent"}
+{"query": "订单SN20240027维修服务怎么申请", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240027"}, "expected_answer_fragment": "维修", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "价保规则是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "价保", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "我要修改订单并更换支付方式", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "修改", "expected_audit_level": "medium", "dimension": "multi_intent"}
+{"query": "这款笔记本电脑的配置参数", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "笔记本电脑"}, "expected_answer_fragment": "配置", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "帮我看看订单SN20240002到哪了", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240002"}, "expected_answer_fragment": "物流", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "订单SN20240015什么时候能到", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240015"}, "expected_answer_fragment": "送达", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "优惠券的使用规则", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "优惠券规则", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "这个商品有优惠吗可以开发票吗", "expected_intent": "PROMOTION", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "优惠", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "投诉商家的处理流程是怎样的", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "投诉", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "用户: 物流查询 客服: 单号多少 用户: SF20240002 客服: 已到达北京 用户: 什么时候派送 客服: 预计下午 用户: 可以自提吗 客服: 可以 用户: 自提点在哪 客服: 朝阳区网点 用户: 营业时间 客服: 9-18点 用户: 谢谢", "expected_intent": "LOGISTICS", "expected_slots": {"tracking_number": "SF20240002"}, "expected_answer_fragment": "自提", "expected_audit_level": "auto", "dimension": "long_conversation"}
+{"query": "用户: 投诉 客服: 请问什么问题 用户: 商家态度差 客服: 请提供订单号 用户: SN20240038 客服: 已记录 用户: 怎么处理 客服: 我们会核实 用户: 多久有结果 客服: 1-3个工作日 用户: 能赔偿吗 客服: 视情况而定 用户: 好吧", "expected_intent": "COMPLAINT", "expected_slots": {"order_sn": "SN20240038", "complaint_target": "商家", "complaint_reason": "态度差"}, "expected_answer_fragment": "投诉", "expected_audit_level": "manual", "dimension": "long_conversation"}
+{"query": "订单SN@#$%^&*()", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN@#$%^&*()"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "帮我查一下那个", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "查", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "我的订单什么时候发货", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "发货", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "帮我处理一下", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "处理", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "退货仓库拒收了是什么原因", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "拒收", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "我要申请退货订单号是SN20240025", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240025"}, "expected_answer_fragment": "退货", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "跨境购物的退换货流程", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "跨境退换", "expected_audit_level": "medium", "dimension": "policy_inquiry"}
+{"query": "订单SN20240010怎么还没出库", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240010"}, "expected_answer_fragment": "出库", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "我想退货并查询退款到账时间", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "退货", "expected_audit_level": "medium", "dimension": "multi_intent"}
+{"query": "商品SN20240033坏了怎么保修", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240033"}, "expected_answer_fragment": "保修", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "我想撤销售后申请SN20240029", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240029"}, "expected_answer_fragment": "撤销", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "国际订单的关税怎么算", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "关税", "expected_audit_level": "medium", "dimension": "policy_inquiry"}
+{"query": "保温杯的保温时长", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "保温杯"}, "expected_answer_fragment": "保温", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "退货快递员不上门取件怎么办", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "取件", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "平台对假货的赔偿标准是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "赔偿", "expected_audit_level": "medium", "dimension": "policy_inquiry"}
+{"query": "保修期多久", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "保修", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "!!!!!!!!!!!!!!!!!!", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "取消订单后多久退款", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "退款", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "帮我看看订单SN20240012的详细信息", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240012"}, "expected_answer_fragment": "详细", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "有没有更大容量的版本", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "容量", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "运费怎么算", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "运费", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "这个商品多少钱有现货吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "价格", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "订单SN20240020可以修改商品规格吗", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240020"}, "expected_answer_fragment": "规格", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "纠纷处理时效是多久", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "纠纷", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "帮我弄一下", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "弄", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "订单SN20240009的备注内容是什么", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240009"}, "expected_answer_fragment": "备注", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "那个包裹怎么回事", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "包裹", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "SN99999999999999999999", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN99999999999999999999"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "     ", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "申请七天无理由退货", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "七天无理由退货"}, "expected_answer_fragment": "退货", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "发货时效承诺是多久", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "发货时效", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "商品重量是多少", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "重量", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "订单SN20240022的优惠券使用情况", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240022"}, "expected_answer_fragment": "优惠券", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "这个怎么办", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "怎么办", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "电子产品的保修政策", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "保修", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "退款原路返回需要多久", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "原路返回", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "你是个笨蛋", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "订单号SN20240003的商品到了吗", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240003"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "面膜适合敏感肌使用吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "面膜"}, "expected_answer_fragment": "敏感肌", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "DROP TABLE orders;", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "订单SN20240028的退款金额不对", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240028"}, "expected_answer_fragment": "退款金额", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "用户: 购物车问题 客服: 什么问题 用户: 加购失败 客服: 什么商品 用户: 耳机 客服: 库存不足 用户: 什么时候补货 客服: 预计下周 用户: 能预约吗 客服: 可以到货提醒 用户: 怎么设置 客服: 商品页面点击提醒 用户: 好的谢谢", "expected_intent": "CART", "expected_slots": {"product_name": "耳机"}, "expected_answer_fragment": "库存", "expected_audit_level": "medium", "dimension": "long_conversation"}
+{"query": "查询发货时间和运费险", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "发货", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "那个东西", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "那个", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "我想问一下那个政策", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "政策", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "\u0000\u0001\u0002", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "支持七天无理由吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "七天无理由", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "这个商品能退吗", "expected_intent": "AFTER_SALES", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "退", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "帮我处理一下售后", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "售后", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "订单SN20240017的商品缺货怎么办", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240017"}, "expected_answer_fragment": "缺货", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "我想查物流顺便问一下售后政策", "expected_intent": "LOGISTICS", "expected_slots": {}, "expected_answer_fragment": "物流", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "帮我查一下我在你们平台买的上一单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "商品的保质期多久", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "保质期", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "订单SN20240026的售后进度如何", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240026"}, "expected_answer_fragment": "售后", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "商品有问题我要投诉并申请售后", "expected_intent": "COMPLAINT", "expected_slots": {"complaint_reason": "商品有问题"}, "expected_answer_fragment": "投诉", "expected_audit_level": "manual", "dimension": "multi_intent"}
+{"query": "我要修改地址并催单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "地址", "expected_audit_level": "medium", "dimension": "multi_intent"}
+{"query": "我要申请仅退款不退货", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "仅退款"}, "expected_answer_fragment": "退款", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "查询订单SN20240016的退款进度", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240016"}, "expected_answer_fragment": "退款", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "这个东西有问题", "expected_intent": "OTHER", "expected_slots": {"product_name": "这个东西"}, "expected_answer_fragment": "问题", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "这个多少钱", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个"}, "expected_answer_fragment": "价格", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "那个活动还有吗", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "活动", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "用户: 这个商品怎么样 客服: 请问是哪款 用户: iPhone 16 Pro 客服: 好评率98% 用户: 有优惠吗 客服: 目前满减活动 用户: 能分期吗 客服: 支持12期免息 用户: 赠品有什么 客服: 送充电器 用户: 保修多久 客服: 一年", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "iPhone 16 Pro"}, "expected_answer_fragment": "优惠", "expected_audit_level": "auto", "dimension": "long_conversation"}
+{"query": "这个商品不太对", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "不太对", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "查一下优惠券和账户余额", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "优惠券", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "洗衣液的香味类型", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "洗衣液"}, "expected_answer_fragment": "香味", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "那个订单有问题", "expected_intent": "ORDER", "expected_slots": {"order_sn": ""}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "我上次买的那个", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "上次", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "蓝牙耳机的续航时间", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "蓝牙耳机"}, "expected_answer_fragment": "续航", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "订单SN20240024为什么被拦截了", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240024"}, "expected_answer_fragment": "拦截", "expected_audit_level": "manual", "dimension": "order_query"}
+{"query": "产品的成分表是什么", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "产品"}, "expected_answer_fragment": "成分", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "我的账户好像有问题", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "账户", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "\n\n\n\n\n", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "有没有套装组合", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这个商品"}, "expected_answer_fragment": "套装", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "查询所有待发货订单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "待发货", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "食品类商品的售后政策", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "食品售后", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "订单SN20240030少发了配件", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240030"}, "expected_answer_fragment": "少发", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "商家入驻需要什么资质", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "入驻", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "这款手机有红色吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "这款手机"}, "expected_answer_fragment": "颜色", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "这个怎么搞", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "怎么搞", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "退款什么时候到账", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "退款", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "用户: 支付问题 客服: 什么问题 用户: 支付失败 客服: 什么支付方式 用户: 微信 客服: 显示什么错误 用户: 余额不足 客服: 请充值或换卡 用户: 换支付宝可以吗 客服: 可以 用户: 怎么改 客服: 订单页面修改 用户: 好的", "expected_intent": "PAYMENT", "expected_slots": {"payment_method": "微信"}, "expected_answer_fragment": "支付", "expected_audit_level": "medium", "dimension": "long_conversation"}
+{"query": "订单SN20240007可以合并发货吗", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240007"}, "expected_answer_fragment": "合并", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "订单SN20240035的物流和售后进度", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240035"}, "expected_answer_fragment": "物流", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "查询订单SN20240011的历史记录", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240011"}, "expected_answer_fragment": "历史", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "七天无理由退货的条件", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "七天无理由", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "隐私政策里我的数据会共享给谁", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "隐私政策", "expected_audit_level": "medium", "dimension": "policy_inquiry"}
+{"query": "iPhone 16 Pro Max有现货吗", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "iPhone 16 Pro Max"}, "expected_answer_fragment": "现货", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "我想取消订单SN20240004", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240004"}, "expected_answer_fragment": "取消", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "帮我看看这个", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "看看", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "商品到货发现有破损我要退款", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "商品破损"}, "expected_answer_fragment": "退款", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "账户注销后数据保留多久", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "数据保留", "expected_audit_level": "medium", "dimension": "policy_inquiry"}
+{"query": "商品质保期多久", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "质保", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "我要开发票并查询订单详情", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "发票", "expected_audit_level": "medium", "dimension": "multi_intent"}
+{"query": "这个商品质量问题怎么售后", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "质量问题"}, "expected_answer_fragment": "售后", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "我的订单被拆分了请问怎么回事", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "拆分", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "售后单号SN20240031的状态", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240031"}, "expected_answer_fragment": "售后单", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "测试测试测试", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "用户: 查一下账户 客服: 请登录 用户: 已登录 客服: 余额100元 用户: 积分多少 客服: 500分 用户: 优惠券呢 客服: 3张可用 用户: 会过期吗 客服: 有一张明天过期 用户: 帮我看看是哪张 客服: 满100减10", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "优惠券", "expected_audit_level": "auto", "dimension": "long_conversation"}
+{"query": "商品尺寸是多少厘米", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "商品"}, "expected_answer_fragment": "尺寸", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "我要退货我要退货我要退货", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "退货", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "退货物流单号填错了怎么改", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "物流单号", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "asdfghjkl", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "充电功率多少瓦", "expected_intent": "PRODUCT", "expected_slots": {"product_name": "充电器"}, "expected_answer_fragment": "功率", "expected_audit_level": "auto", "dimension": "product_query"}
+{"query": "用户: 你好 客服: 您好有什么可以帮您 用户: 我想查订单 客服: 请提供订单号 用户: SN20240036 客服: 订单正在配送中 用户: 预计什么时候到 客服: 预计明天送达 用户: 可以改地址吗 客服: 可以帮您修改 用户: 改成北京市朝阳区 客服: 已记录 用户: 谢谢 客服: 不客气", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240036"}, "expected_answer_fragment": "地址", "expected_audit_level": "medium", "dimension": "long_conversation"}
+{"query": "我的售后申请被拒绝了原因是什么", "expected_intent": "AFTER_SALES", "expected_slots": {}, "expected_answer_fragment": "拒绝", "expected_audit_level": "manual", "dimension": "refund_apply"}
+{"query": "订单SN20240001状态", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240001"}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "平台禁止销售的商品有哪些", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "禁售", "expected_audit_level": "medium", "dimension": "policy_inquiry"}
+{"query": "我的那个东西到了吗", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "到了", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "运费险怎么理赔", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "运费险", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "那个情况", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "情况", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "用户: 咨询一下 客服: 请说 用户: 退换货政策 客服: 支持七天无理由 用户: 运费谁出 客服: 质量问题商家承担 用户: 怎么判断质量问题 客服: 需提供照片 用户: 照片发哪里 客服: 售后系统 用户: 好的 客服: 还有其他问题吗", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "退换货政策", "expected_audit_level": "auto", "dimension": "long_conversation"}
+{"query": "订单SN20240032的换货进度", "expected_intent": "AFTER_SALES", "expected_slots": {"order_sn": "SN20240032"}, "expected_answer_fragment": "换货", "expected_audit_level": "auto", "dimension": "refund_apply"}
+{"query": "用户: 活动咨询 客服: 请说 用户: 双11活动 客服: 满300减50 用户: 预售什么时候开始 客服: 10月20日 用户: 定金多少 客服: 50元 用户: 能退吗 客服: 付尾款后可退 用户: 尾款什么时候付 客服: 11月1日 用户: 知道了", "expected_intent": "PROMOTION", "expected_slots": {}, "expected_answer_fragment": "双11", "expected_audit_level": "auto", "dimension": "long_conversation"}
+{"query": "帮我查一下积分和会员等级", "expected_intent": "ACCOUNT", "expected_slots": {}, "expected_answer_fragment": "积分", "expected_audit_level": "auto", "dimension": "multi_intent"}
+{"query": "平台支持price match吗", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "price match", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "你们的退换货政策是什么", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "退换货政策", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "订单SN20240019为什么显示已关闭", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240019"}, "expected_answer_fragment": "关闭", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "查询最近的一笔订单", "expected_intent": "ORDER", "expected_slots": {}, "expected_answer_fragment": "订单", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "订单SN20240006为什么还没发货", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240006"}, "expected_answer_fragment": "发货", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "帮我解决一下", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "解决", "expected_audit_level": "auto", "dimension": "ambiguous_intent"}
+{"query": "帮我催一下订单SN20240018", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240018"}, "expected_answer_fragment": "催单", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "SELECT * FROM users", "expected_intent": "OTHER", "expected_slots": {}, "expected_answer_fragment": "", "expected_audit_level": "auto", "dimension": "abnormal_input"}
+{"query": "我的订单SN20240021总金额是多少", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240021"}, "expected_answer_fragment": "金额", "expected_audit_level": "auto", "dimension": "order_query"}
+{"query": "我想换货买大了", "expected_intent": "AFTER_SALES", "expected_slots": {"refund_reason": "尺码不合适"}, "expected_answer_fragment": "换货", "expected_audit_level": "medium", "dimension": "refund_apply"}
+{"query": "会员积分有效期是多久", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "积分", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "满减活动和折扣券能叠加吗", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "叠加", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "会员等级权益有哪些", "expected_intent": "POLICY", "expected_slots": {}, "expected_answer_fragment": "会员权益", "expected_audit_level": "auto", "dimension": "policy_inquiry"}
+{"query": "修改订单SN20240005的收货地址", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240005"}, "expected_answer_fragment": "地址", "expected_audit_level": "medium", "dimension": "order_query"}
+{"query": "查询订单SN20240023的售后服务", "expected_intent": "ORDER", "expected_slots": {"order_sn": "SN20240023"}, "expected_answer_fragment": "售后", "expected_audit_level": "auto", "dimension": "order_query"}

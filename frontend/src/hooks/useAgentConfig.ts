@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { AgentConfig, AgentsConfigResponse, AgentConfigPayload, AgentConfigAuditLog, AgentConfigVersion, AgentConfigVersionMetrics, PromptEffectReport, RoutingRule } from '@/types'
+import type {
+  AgentConfig,
+  AgentsConfigResponse,
+  AgentConfigPayload,
+  AgentConfigAuditLog,
+  AgentConfigVersion,
+  AgentConfigVersionMetrics,
+  PromptEffectReport,
+  RoutingRule,
+} from '@/types'
 import { apiFetch } from '@/lib/api'
 
 export function useAgentAuditLog(agentName: string | undefined) {
@@ -26,7 +35,10 @@ export function useAgentVersions(agentName: string | undefined) {
   })
 }
 
-export function useAgentVersionMetrics(agentName: string | undefined, versionId: number | undefined) {
+export function useAgentVersionMetrics(
+  agentName: string | undefined,
+  versionId: number | undefined
+) {
   return useQuery<AgentConfigVersionMetrics>({
     queryKey: ['admin', 'agents', 'config', agentName, 'versions', versionId, 'metrics'],
     queryFn: async () => {
@@ -65,7 +77,13 @@ export function useAgentConfig() {
   const updateRoutingRuleMutation = useMutation<
     RoutingRule,
     Error,
-    { id?: number; intent_category: string; target_agent: string; priority: number; condition_json?: Record<string, unknown> },
+    {
+      id?: number
+      intent_category: string
+      target_agent: string
+      priority: number
+      condition_json?: Record<string, unknown>
+    },
     { previousData: AgentsConfigResponse | undefined }
   >({
     mutationFn: async (payload) => {
@@ -87,7 +105,11 @@ export function useAgentConfig() {
     },
   })
 
-  const deleteRoutingRuleMutation = useMutation<{ success: boolean; message: string }, Error, number>({
+  const deleteRoutingRuleMutation = useMutation<
+    { success: boolean; message: string },
+    Error,
+    number
+  >({
     mutationFn: async (id) => {
       const res = await apiFetch(`/admin/agents/routing-rules/${id}`, {
         method: 'DELETE',
@@ -122,7 +144,11 @@ export function useAgentConfig() {
     },
     onMutate: async ({ agentName, payload }) => {
       await queryClient.cancelQueries({ queryKey: ['admin', 'agents', 'config'] })
-      const previousData = queryClient.getQueryData<AgentsConfigResponse>(['admin', 'agents', 'config'])
+      const previousData = queryClient.getQueryData<AgentsConfigResponse>([
+        'admin',
+        'agents',
+        'config',
+      ])
       queryClient.setQueryData<AgentsConfigResponse>(['admin', 'agents', 'config'], (old) => {
         if (!old) return old
         return {
@@ -160,11 +186,18 @@ export function useAgentConfig() {
     },
   })
 
-  const rollbackToVersionMutation = useMutation<AgentConfig, Error, { agentName: string; versionId: number }>({
+  const rollbackToVersionMutation = useMutation<
+    AgentConfig,
+    Error,
+    { agentName: string; versionId: number }
+  >({
     mutationFn: async ({ agentName, versionId }) => {
-      const res = await apiFetch(`/admin/agents/config/${agentName}/versions/${versionId}/rollback`, {
-        method: 'POST',
-      })
+      const res = await apiFetch(
+        `/admin/agents/config/${agentName}/versions/${versionId}/rollback`,
+        {
+          method: 'POST',
+        }
+      )
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
         throw new Error(err.detail || '回滚失败')
@@ -173,7 +206,9 @@ export function useAgentConfig() {
     },
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'agents', 'config'] })
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'agents', 'config', variables.agentName, 'versions'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['admin', 'agents', 'config', variables.agentName, 'versions'],
+      })
     },
   })
 
@@ -194,7 +229,9 @@ export function useAgentConfig() {
       return res.json() as Promise<{ task_id: string; agent_name: string; report_month: string }>
     },
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'agents', 'config', variables.agentName, 'reports'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['admin', 'agents', 'config', variables.agentName, 'reports'],
+      })
     },
   })
 

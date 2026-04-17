@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ComplaintTicket, ComplaintFilters, ComplaintListResponse } from '@/types'
 import { apiFetch } from '@/lib/api'
 
-
 export function useComplaints(filters: ComplaintFilters = {}) {
   const queryClient = useQueryClient()
 
@@ -10,16 +9,17 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     queryKey: ['admin', 'complaints', filters],
     queryFn: async () => {
       const params = new URLSearchParams()
-      
+
       if (filters.status) params.append('status', filters.status)
       if (filters.urgency) params.append('urgency', filters.urgency)
-      if (filters.assigned_to !== undefined) params.append('assigned_to', String(filters.assigned_to))
+      if (filters.assigned_to !== undefined)
+        params.append('assigned_to', String(filters.assigned_to))
       if (filters.offset !== undefined) params.append('offset', String(filters.offset))
       if (filters.limit !== undefined) params.append('limit', String(filters.limit))
-      
+
       const queryString = params.toString()
       const res = await apiFetch(`/admin/complaints${queryString ? `?${queryString}` : ''}`)
-      
+
       if (!res.ok) throw new Error('获取投诉列表失败')
       return res.json() as Promise<ComplaintListResponse>
     },
@@ -36,7 +36,7 @@ export function useComplaints(filters: ComplaintFilters = {}) {
         method: 'PATCH',
         body: JSON.stringify({ assigned_to }),
       })
-      
+
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
         throw new Error(err.detail || '分配失败')
@@ -45,8 +45,12 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     },
     onMutate: async ({ id, assigned_to }) => {
       await queryClient.cancelQueries({ queryKey: ['admin', 'complaints', filters] })
-      const previousData = queryClient.getQueryData<ComplaintListResponse>(['admin', 'complaints', filters])
-      
+      const previousData = queryClient.getQueryData<ComplaintListResponse>([
+        'admin',
+        'complaints',
+        filters,
+      ])
+
       queryClient.setQueryData<ComplaintListResponse>(['admin', 'complaints', filters], (old) => {
         if (!old) return old
         return {
@@ -56,7 +60,7 @@ export function useComplaints(filters: ComplaintFilters = {}) {
           ),
         }
       })
-      
+
       return { previousData }
     },
     onError: (_err, _variables, context) => {
@@ -80,7 +84,7 @@ export function useComplaints(filters: ComplaintFilters = {}) {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       })
-      
+
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
         throw new Error(err.detail || '状态更新失败')
@@ -89,18 +93,20 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     },
     onMutate: async ({ id, status }) => {
       await queryClient.cancelQueries({ queryKey: ['admin', 'complaints', filters] })
-      const previousData = queryClient.getQueryData<ComplaintListResponse>(['admin', 'complaints', filters])
-      
+      const previousData = queryClient.getQueryData<ComplaintListResponse>([
+        'admin',
+        'complaints',
+        filters,
+      ])
+
       queryClient.setQueryData<ComplaintListResponse>(['admin', 'complaints', filters], (old) => {
         if (!old) return old
         return {
           ...old,
-          tickets: old.tickets.map((ticket) =>
-            ticket.id === id ? { ...ticket, status } : ticket
-          ),
+          tickets: old.tickets.map((ticket) => (ticket.id === id ? { ...ticket, status } : ticket)),
         }
       })
-      
+
       return { previousData }
     },
     onError: (_err, _variables, context) => {
@@ -124,7 +130,7 @@ export function useComplaints(filters: ComplaintFilters = {}) {
         method: 'PATCH',
         body: JSON.stringify({ resolution_notes }),
       })
-      
+
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { detail?: string }
         throw new Error(err.detail || '解决失败')
@@ -133,8 +139,12 @@ export function useComplaints(filters: ComplaintFilters = {}) {
     },
     onMutate: async ({ id }) => {
       await queryClient.cancelQueries({ queryKey: ['admin', 'complaints', filters] })
-      const previousData = queryClient.getQueryData<ComplaintListResponse>(['admin', 'complaints', filters])
-      
+      const previousData = queryClient.getQueryData<ComplaintListResponse>([
+        'admin',
+        'complaints',
+        filters,
+      ])
+
       queryClient.setQueryData<ComplaintListResponse>(['admin', 'complaints', filters], (old) => {
         if (!old) return old
         return {
@@ -144,7 +154,7 @@ export function useComplaints(filters: ComplaintFilters = {}) {
           ),
         }
       })
-      
+
       return { previousData }
     },
     onError: (_err, _variables, context) => {

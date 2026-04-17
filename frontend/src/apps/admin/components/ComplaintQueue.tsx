@@ -47,7 +47,10 @@ function UrgencyBadge({ urgency }: { urgency: ComplaintTicket['urgency'] }) {
 }
 
 function StatusBadge({ status }: { status: ComplaintTicket['status'] }) {
-  const variantMap: Record<ComplaintTicket['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  const variantMap: Record<
+    ComplaintTicket['status'],
+    'default' | 'secondary' | 'outline' | 'destructive'
+  > = {
     open: 'default',
     in_progress: 'secondary',
     resolved: 'outline',
@@ -95,7 +98,10 @@ export function ComplaintQueue() {
     isResolving,
   } = useComplaints(filters)
 
-  const handleFilterChange = (key: keyof ComplaintFilters, value: ComplaintFilters[keyof ComplaintFilters]) => {
+  const handleFilterChange = (
+    key: keyof ComplaintFilters,
+    value: ComplaintFilters[keyof ComplaintFilters]
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -162,9 +168,7 @@ export function ComplaintQueue() {
           <h2 className="text-lg font-semibold">投诉管理</h2>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            共 {total} 条投诉
-          </span>
+          <span className="text-sm text-muted-foreground">共 {total} 条投诉</span>
         </div>
       </div>
 
@@ -307,11 +311,7 @@ export function ComplaintQueue() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(ticket)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleViewDetail(ticket)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button
@@ -388,9 +388,7 @@ export function ComplaintQueue() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>投诉详情 #{selectedTicket?.id}</DialogTitle>
-            <DialogDescription>
-              查看投诉的详细信息
-            </DialogDescription>
+            <DialogDescription>查看投诉的详细信息</DialogDescription>
           </DialogHeader>
           {selectedTicket && (
             <div className="grid gap-4 py-4">
@@ -443,7 +441,9 @@ export function ComplaintQueue() {
               {selectedTicket.expected_resolution && (
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">期望解决方案</label>
-                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedTicket.expected_resolution}</p>
+                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">
+                    {selectedTicket.expected_resolution}
+                  </p>
                 </div>
               )}
             </div>
@@ -460,9 +460,7 @@ export function ComplaintQueue() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>分配投诉 #{selectedTicket?.id}</DialogTitle>
-            <DialogDescription>
-              将投诉分配给管理员
-            </DialogDescription>
+            <DialogDescription>将投诉分配给管理员</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -500,9 +498,7 @@ export function ComplaintQueue() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>解决投诉 #{selectedTicket?.id}</DialogTitle>
-            <DialogDescription>
-              输入解决方案并关闭投诉
-            </DialogDescription>
+            <DialogDescription>输入解决方案并关闭投诉</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">

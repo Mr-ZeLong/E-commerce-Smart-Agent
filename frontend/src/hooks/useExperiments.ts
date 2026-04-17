@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Experiment, ExperimentCreatePayload, ExperimentResult } from '@/types'
 import { apiFetch } from '@/lib/api'
 
-
 export function useExperiments(status?: string) {
   const queryClient = useQueryClient()
 
