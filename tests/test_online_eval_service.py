@@ -152,7 +152,9 @@ async def test_compute_quality_scores_with_no_comment(
 
 
 @pytest.mark.asyncio
-async def test_compute_quality_scores_with_llm(online_eval_service: OnlineEvalService, db_session):
+async def test_compute_quality_scores_with_mock_llm(
+    online_eval_service: OnlineEvalService, db_session
+):
     user = await _create_test_user(db_session, "qs_user")
     assert user.id is not None
 
@@ -168,3 +170,26 @@ async def test_compute_quality_scores_with_llm(online_eval_service: OnlineEvalSe
     score_types = {s.score_type for s in scores}
     assert score_types == {"helpfulness", "accuracy", "empathy"}
     mock_llm.ainvoke.assert_awaited_once()
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_compute_quality_scores_with_real_llm(
+    real_llm, online_eval_service: OnlineEvalService, db_session
+):
+    user = await _create_test_user(db_session, "qs_real_user")
+    assert user.id is not None
+
+    await _create_feedback(
+        db_session, user.id, score=1, comment="客服回复很及时，帮我解决了退款问题，态度也很好"
+    )
+
+    with patch("app.services.online_eval.create_openai_llm", return_value=real_llm):
+        scores = await online_eval_service.compute_quality_scores(db_session, sample_size=10)
+
+    assert len(scores) == 3
+    score_types = {s.score_type for s in scores}
+    assert score_types == {"helpfulness", "accuracy", "empathy"}
+    for score in scores:
+        assert isinstance(score.score_type, str)
+        assert score.score_type in {"helpfulness", "accuracy", "empathy"}

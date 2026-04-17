@@ -88,3 +88,13 @@ def test_create_messages_no_system_prompt():
     messages = agent_no_prompt._create_messages("hello")
     assert len(messages) == 1
     assert messages[0].content == f"今天是 {datetime.date.today().isoformat()}。\n\nhello"
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_call_llm_with_real_llm(real_llm):
+    agent = DummyAgent(name="test_real", llm=real_llm, system_prompt="You are a helpful assistant.")
+    messages = agent._create_messages("Say 'hello' and nothing else.")
+    response = await agent._call_llm(messages)
+    assert isinstance(response, str)
+    assert len(response) > 0

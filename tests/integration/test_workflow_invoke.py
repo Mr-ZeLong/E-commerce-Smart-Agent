@@ -307,6 +307,89 @@ async def test_workflow_payment_query(deterministic_llm, redis_checkpointer):
     assert "已到账" in result.get("answer", "")
 
 
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_workflow_real_llm_synthesis(real_llm, redis_checkpointer):
+    """Integration test with real LLM for the synthesis node.
+
+    Uses deterministic agents for routing and expert agents, but exercises
+    the synthesis node with a real LLM to verify end-to-end response generation.
+    """
+    checkpointer = redis_checkpointer
+
+    initial_state = make_agent_state(
+        question="查订单顺便问下退货政策",
+        thread_id="1__test_real_llm",
+        intent_result={"primary_intent": "ORDER"},
+        slots={"pending_intents": [{"primary_intent": "POLICY"}]},
+    )
+
+    mock_router = DeterministicAgent(
+        process_result={
+            "response": "",
+            "updated_state": {"next_agent": "order_agent"},
+        }
+    )
+
+    mock_order = DeterministicAgent(
+        name="order_agent",
+        process_result={
+            "response": "订单已发货",
+            "updated_state": {"order_data": {"status": "SHIPPED"}},
+        },
+    )
+
+    mock_policy = DeterministicAgent(
+        name="policy_agent",
+        process_result={
+            "response": "7天无理由退货",
+            "updated_state": {"retrieval_result": None},
+        },
+    )
+
+    mock_eval = DeterministicEvaluator(
+        evaluate_result={
+            "confidence_score": 0.9,
+            "confidence_signals": {},
+            "needs_human_transfer": False,
+            "transfer_reason": None,
+            "audit_level": "none",
+        }
+    )
+
+    supervisor = DeterministicSupervisor(
+        process_result={
+            "response": "",
+            "updated_state": {
+                "next_agent": "order_agent",
+                "execution_mode": "parallel",
+                "pending_agent_results": ["order_agent", "policy_agent"],
+            },
+        }
+    )
+
+    workflow = create_workflow(
+        router_agent=mock_router,
+        policy_agent=mock_policy,
+        order_agent=mock_order,
+        logistics_agent=DeterministicAgent(),
+        account_agent=DeterministicAgent(),
+        payment_agent=DeterministicAgent(),
+        evaluator=mock_eval,
+        supervisor_agent=supervisor,
+        llm=real_llm,
+    )
+    app_graph = workflow.compile(checkpointer=checkpointer)
+    result = await app_graph.ainvoke(
+        cast(Any, initial_state),
+        config={"configurable": {"thread_id": initial_state["thread_id"]}},
+    )
+
+    assert result.get("answer")
+    assert isinstance(result["answer"], str)
+    assert len(result["answer"]) > 0
+
+
 @pytest.mark.asyncio
 async def test_workflow_parallel_multi_intent(deterministic_llm, redis_checkpointer):
     checkpointer = redis_checkpointer

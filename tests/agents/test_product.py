@@ -77,3 +77,34 @@ async def test_product_agent_direct_answer(deterministic_llm):
     state = make_agent_state(question="这款手机屏幕多大")
     result = await agent.process(state)
     assert result["response"] == "智能手机 的屏幕为 6.7英寸。"
+
+
+@pytest.fixture
+def real_product_agent(real_llm):
+    registry = DeterministicToolRegistry(
+        responses={
+            "product": {
+                "output": {
+                    "status": "success",
+                    "products": [
+                        {
+                            "name": "纯棉T恤",
+                            "price": 99.0,
+                            "in_stock": True,
+                            "description": "舒适透气的纯棉T恤",
+                        }
+                    ],
+                }
+            }
+        }
+    )
+    return ProductAgent(tool_registry=registry, llm=real_llm)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_product_agent_listing(real_product_agent):
+    state = make_agent_state(question="推荐几款T恤")
+    result = await real_product_agent.process(state)
+    assert isinstance(result["response"], str)
+    assert len(result["response"]) > 0

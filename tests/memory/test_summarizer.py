@@ -194,3 +194,22 @@ async def test_run_persists_summary_via_utilization(summarizer, deterministic_ll
     record = await summarizer.run(state, db_session, utilization=0.9, threshold=0.75)
     assert record is not None
     assert record.summary_text == "Utilization summary."
+
+
+@pytest.fixture
+def real_summarizer(real_llm):
+    return SessionSummarizer(llm=real_llm)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_summarize_thread(real_summarizer):
+    messages = [
+        {"role": "user", "content": "How long does shipping take?"},
+        {"role": "assistant", "content": "Shipping takes 3-5 business days."},
+        {"role": "user", "content": "Can I get expedited shipping?"},
+        {"role": "assistant", "content": "Yes, we offer expedited shipping for an additional fee."},
+    ]
+    summary = await real_summarizer.summarize_thread(messages)
+    assert isinstance(summary, str)
+    assert len(summary) > 0

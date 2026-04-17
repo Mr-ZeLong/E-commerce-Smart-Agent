@@ -145,3 +145,17 @@ class TestCalculateEmotionSignal:
         assert result.metadata is not None
         assert result.metadata["emotion_type"] == "positive"
         assert result.score > 0.8
+
+
+class TestCalculateLLMSignalRealLLM:
+    @pytest.mark.requires_llm
+    @pytest.mark.asyncio
+    async def test_real_llm_calculate_llm_signal(self, real_llm):
+        result = await calculate_llm_signal(
+            query="退换货政策是什么？",
+            context=["退换货政策: 7天无理由退货"],
+            generated_answer="我们支持7天无理由退货。",
+            llm=real_llm,
+        )
+        assert 0.0 <= result.score <= 1.0
+        assert result.metadata is not None

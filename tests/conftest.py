@@ -19,6 +19,24 @@ from app.websocket.manager import ConnectionManager
 from tests._llm import DeterministicChatModel
 
 
+@pytest.fixture(scope="session")
+def real_llm():
+    """Provide a real LLM instance for tests that require actual model inference.
+
+    Skips the test if no valid API key is configured. Uses a lower-cost model
+    for testing to control costs while still exercising real LLM behavior.
+    """
+    key = settings.OPENAI_API_KEY
+    dashscope_key = settings.DASHSCOPE_API_KEY
+    if key in ("", "sk-test", "dummy") and dashscope_key in ("", "sk-test", "dummy"):
+        pytest.skip("OPENAI_API_KEY or DASHSCOPE_API_KEY not set or is a dummy value")
+
+    from app.core.llm_factory import create_llm
+
+    test_model = os.environ.get("TEST_LLM_MODEL", "qwen-turbo")
+    return create_llm(test_model, temperature=0.0, timeout=30.0)
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True, loop_scope="session")
 async def db_setup():
     async with async_engine.begin() as conn:
@@ -126,6 +144,7 @@ def deterministic_llm():
 
 def pytest_runtest_setup(item):
     if any(mark.name == "requires_llm" for mark in item.iter_markers()):
-        key = os.environ.get("OPENAI_API_KEY", "")
-        if key in ("", "sk-test", "dummy"):
-            pytest.skip("OPENAI_API_KEY not set or is a dummy value")
+        key = settings.OPENAI_API_KEY
+        dashscope_key = settings.DASHSCOPE_API_KEY
+        if key in ("", "sk-test", "dummy") and dashscope_key in ("", "sk-test", "dummy"):
+            pytest.skip("OPENAI_API_KEY or DASHSCOPE_API_KEY not set or is a dummy value")

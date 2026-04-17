@@ -6,6 +6,7 @@ from app.graph.nodes import (
     build_order_node,
     build_policy_node,
     build_router_node,
+    build_synthesis_node,
     decider_node,
 )
 from app.models.state import make_agent_state
@@ -318,3 +319,33 @@ def test_decider_node_direct_response_from_router():
     assert result["audit_level"] == "auto"
     assert result["confidence_score"] == 1.0
     assert result["answer"] == "您好！有什么可以帮您？"
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_synthesis_node_with_real_llm(real_llm):
+    node = build_synthesis_node(real_llm)
+    state = make_agent_state(
+        question="查订单顺便问下退货政策",
+        sub_answers=[
+            {
+                "agent": "order_agent",
+                "response": "您的订单 SN20240001 已发货，预计明天送达。",
+                "iteration": 0,
+            },
+            {
+                "agent": "policy_agent",
+                "response": "我们支持 7 天无理由退货，请在收到商品后 7 天内申请。",
+                "iteration": 0,
+            },
+        ],
+        iteration_count=0,
+    )
+    result = await node(state)
+
+    assert isinstance(result, Command)
+    assert result.goto == "evaluator_node"
+    assert result.update is not None
+    assert result.update["answer"]
+    assert isinstance(result.update["answer"], str)
+    assert len(result.update["answer"]) > 0

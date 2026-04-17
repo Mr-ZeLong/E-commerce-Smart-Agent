@@ -169,3 +169,11 @@ async def test_batch_rag_precision_respects_max_concurrency():
     results = await batch_rag_precision(questions, chunks_list, mock_llm, max_concurrency=2)
     assert len(results) == 3
     assert mock_llm.ainvoke.call_count == 3
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_rag_precision(real_llm):
+    chunks = ["退换货政策: 7天无理由退货", "发货时效: 1-3天", "其他信息"]
+    result = await rag_precision("退换货政策", chunks, llm_judge=True, llm=real_llm)
+    assert 0.0 <= result <= 1.0

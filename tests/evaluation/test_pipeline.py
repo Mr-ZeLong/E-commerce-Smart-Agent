@@ -194,3 +194,17 @@ async def test_pipeline_run_graph_failure_graceful(tmp_path, deterministic_llm, 
     assert results["total_records"] == 1
 
     await _cleanup_intent_keys(redis_client)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_answer_correctness(real_llm):
+    score = await answer_correctness("运费怎么算？", "满100元免运费", "满100元免运费", real_llm)
+    assert 0.0 <= score <= 1.0
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_answer_correctness_low(real_llm):
+    score = await answer_correctness("运费怎么算？", "满100元免运费", "满50元免运费", real_llm)
+    assert 0.0 <= score <= 1.0

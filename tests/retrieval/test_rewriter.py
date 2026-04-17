@@ -90,3 +90,22 @@ async def test_rewrite_fallback_on_failure(deterministic_llm, redis_client):
 
     result = await rewriter.rewrite(query)
     assert result == query
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_rewrite(real_llm):
+    rewriter = QueryRewriter(llm=real_llm)
+    result = await rewriter.rewrite("怎么退货")
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_rewrite_with_history(real_llm):
+    rewriter = QueryRewriter(llm=real_llm)
+    history = [{"role": "user", "content": "之前买了个手机"}]
+    result = await rewriter.rewrite("怎么退", conversation_history=history)
+    assert isinstance(result, str)
+    assert len(result) > 0

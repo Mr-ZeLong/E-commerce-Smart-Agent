@@ -135,3 +135,34 @@ async def test_extract_facts_skips_password_pii(extractor):
         answer="ok",
     )
     assert facts == []
+
+
+@pytest.fixture
+def real_extractor(real_llm):
+    return FactExtractor(llm=real_llm)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_extract_facts(real_extractor):
+    facts = await real_extractor.extract_facts(
+        user_id=1,
+        thread_id="t1",
+        history=[],
+        question="I prefer fast shipping",
+        answer="We offer expedited shipping options",
+    )
+    assert isinstance(facts, list)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_extract_facts_chinese(real_extractor):
+    facts = await real_extractor.extract_facts(
+        user_id=1,
+        thread_id="t1",
+        history=[],
+        question="我喜欢红色的商品",
+        answer="我们有红色、蓝色和绿色可选",
+    )
+    assert isinstance(facts, list)

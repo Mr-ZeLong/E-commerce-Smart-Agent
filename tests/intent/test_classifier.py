@@ -415,3 +415,50 @@ async def test_non_dashscope_uses_object_tool_choice(classifier, monkeypatch):
     classifier.llm = _FakeLLM()
     await classifier._classify_with_function_calling("测试")
     assert bound_tools_calls == [{"type": "function", "function": {"name": "classify_intent"}}]
+
+
+@pytest.fixture
+def real_classifier(real_llm):
+    return IntentClassifier(llm=real_llm)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_classify_order_query(real_classifier):
+    result = await real_classifier.classify("帮我查下订单SN20240001的状态")
+    assert isinstance(result.primary_intent, IntentCategory)
+    assert result.confidence >= 0.0
+    assert result.confidence <= 1.0
+    assert result.raw_query == "帮我查下订单SN20240001的状态"
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_classify_after_sales(real_classifier):
+    result = await real_classifier.classify("我想申请退货")
+    assert isinstance(result.primary_intent, IntentCategory)
+    assert result.confidence >= 0.0
+    assert result.confidence <= 1.0
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_classify_policy_consult(real_classifier):
+    result = await real_classifier.classify("运费怎么算？")
+    assert isinstance(result.primary_intent, IntentCategory)
+    assert result.confidence >= 0.0
+    assert result.confidence <= 1.0
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_classify_with_context(real_classifier):
+    context = {
+        "session_id": "sess_123",
+        "history": "用户之前查询过订单",
+        "user_info": {"vip": True},
+    }
+    result = await real_classifier.classify("那个订单到哪了", context=context)
+    assert isinstance(result.primary_intent, IntentCategory)
+    assert result.confidence >= 0.0
+    assert result.confidence <= 1.0

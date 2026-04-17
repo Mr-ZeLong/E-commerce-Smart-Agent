@@ -112,3 +112,32 @@ async def test_process_self_rag_refusal_when_no_relevant_docs():
     state = make_agent_state(question="运费政策", user_id=1)
     result = await agent.process(state)
     assert "抱歉" in result["response"] or "暂未查询" in result["response"]
+
+
+@pytest.fixture
+def real_policy_agent(real_llm):
+    retriever = DeterministicRetriever(
+        results=[
+            _Result("退换货政策: 7天无理由退货", "policy.md", 0.9),
+            _Result("运费政策: 满100元免运费", "shipping.md", 0.85),
+        ]
+    )
+    return PolicyAgent(retriever=retriever, llm=real_llm)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_policy_agent(real_policy_agent):
+    state = make_agent_state(question="怎么退货？", user_id=1)
+    result = await real_policy_agent.process(state)
+    assert isinstance(result["response"], str)
+    assert len(result["response"]) > 0
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_policy_agent_shipping(real_policy_agent):
+    state = make_agent_state(question="运费怎么算？", user_id=1)
+    result = await real_policy_agent.process(state)
+    assert isinstance(result["response"], str)
+    assert len(result["response"]) > 0

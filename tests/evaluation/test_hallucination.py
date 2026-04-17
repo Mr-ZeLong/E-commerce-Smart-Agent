@@ -96,3 +96,15 @@ async def test_evaluate_hallucination_rate_with_llm_judge():
     assert result["hallucination_rate"] == 0.0
     assert result["meets_target"] is True
     assert result["method"] == "llm_judge"
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_hallucination_score(real_llm):
+    score = await llm_hallucination_score(
+        "运费怎么算？",
+        "满100元免运费。",
+        ["运费政策: 满100元免运费"],
+        real_llm,
+    )
+    assert 0.0 <= score <= 1.0

@@ -525,3 +525,28 @@ class TestAreIndependent:
 
     def test_unknown_pair_defaults_to_dependent(self):
         assert are_independent("MYSTERY", "POLICY") is False
+
+
+class TestRealLLM:
+    @pytest.fixture
+    def real_multi_intent_processor(self, real_llm):
+        from app.intent.classifier import IntentClassifier
+
+        classifier = IntentClassifier(llm=real_llm)
+        return MultiIntentProcessor(classifier=classifier)
+
+    @pytest.mark.requires_llm
+    @pytest.mark.asyncio
+    async def test_real_llm_process_single_intent(self, real_multi_intent_processor):
+        result = await real_multi_intent_processor.process("查询订单")
+        assert result.is_multi_intent is False
+        assert len(result.sub_intents) == 1
+        assert isinstance(result.sub_intents[0].primary_intent, IntentCategory)
+
+    @pytest.mark.requires_llm
+    @pytest.mark.asyncio
+    async def test_real_llm_process_multi_intent(self, real_multi_intent_processor):
+        result = await real_multi_intent_processor.process("查订单顺便申请退款")
+        assert result.is_multi_intent is True
+        assert len(result.sub_intents) >= 1
+        assert isinstance(result.sub_intents[0].primary_intent, IntentCategory)

@@ -481,3 +481,33 @@ class TestEdgeCases:
         assert state.current_intent is not None
         assert state.current_intent.primary_intent == IntentCategory.POLICY
         assert result.secondary_intent == IntentAction.QUERY
+
+
+class TestRealLLM:
+    @pytest.fixture
+    def real_service(self, real_llm, redis_client):
+        return IntentRecognitionService(llm=real_llm, redis_client=redis_client)
+
+    @pytest.mark.requires_llm
+    @pytest.mark.asyncio
+    async def test_real_llm_recognize_order(self, real_service):
+        result = await real_service.recognize("帮我查下订单SN20240001", "test_session_1")
+        assert isinstance(result.primary_intent, IntentCategory)
+        assert result.confidence >= 0.0
+        assert result.confidence <= 1.0
+
+    @pytest.mark.requires_llm
+    @pytest.mark.asyncio
+    async def test_real_llm_recognize_after_sales(self, real_service):
+        result = await real_service.recognize("我想退货", "test_session_2")
+        assert isinstance(result.primary_intent, IntentCategory)
+        assert result.confidence >= 0.0
+        assert result.confidence <= 1.0
+
+    @pytest.mark.requires_llm
+    @pytest.mark.asyncio
+    async def test_real_llm_recognize_policy(self, real_service):
+        result = await real_service.recognize("运费怎么算？", "test_session_3")
+        assert isinstance(result.primary_intent, IntentCategory)
+        assert result.confidence >= 0.0
+        assert result.confidence <= 1.0

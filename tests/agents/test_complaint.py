@@ -94,3 +94,27 @@ async def test_complaint_agent_parse_fallback(agent):
         result = await agent.process(state)
 
     assert result["response"] == "不是有效JSON"
+
+
+@pytest.fixture
+def real_complaint_agent(real_llm):
+    return ComplaintAgent(llm=real_llm)
+
+
+@pytest.mark.requires_llm
+@pytest.mark.asyncio
+async def test_real_llm_complaint_agent(real_complaint_agent):
+    with (
+        patch(
+            "app.agents.config_loader.get_effective_system_prompt", new=AsyncMock(return_value=None)
+        ),
+        patch.object(
+            real_complaint_agent._tool,
+            "create_ticket",
+            new=AsyncMock(return_value={"ticket_id": 42}),
+        ),
+    ):
+        state = make_agent_state(question="我要投诉商品有瑕疵")
+        result = await real_complaint_agent.process(state)
+        assert isinstance(result["response"], str)
+        assert len(result["response"]) > 0

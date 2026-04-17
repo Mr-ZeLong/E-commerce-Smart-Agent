@@ -315,7 +315,7 @@ def test_adversarial_report_generates_markdown_all_pass():
 
 
 @pytest.mark.asyncio
-async def test_adversarial_real_service_blocks_prompt_injection(deterministic_llm, redis_client):
+async def test_adversarial_with_service_blocks_prompt_injection(deterministic_llm, redis_client):
     service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
     runner = AdversarialRunner(intent_service=service)
     record = AdversarialRecord(
@@ -331,7 +331,7 @@ async def test_adversarial_real_service_blocks_prompt_injection(deterministic_ll
 
 
 @pytest.mark.asyncio
-async def test_adversarial_real_service_blocks_sensitive_extraction(
+async def test_adversarial_with_service_blocks_sensitive_extraction(
     deterministic_llm, redis_client
 ):
     service = IntentRecognitionService(llm=deterministic_llm, redis_client=redis_client)
@@ -349,7 +349,7 @@ async def test_adversarial_real_service_blocks_sensitive_extraction(
 
 
 @pytest.mark.asyncio
-async def test_adversarial_real_service_allows_safe_query(deterministic_llm, redis_client):
+async def test_adversarial_with_service_allows_safe_query(deterministic_llm, redis_client):
     deterministic_llm.tool_calls = [
         {
             "name": "classify_intent",

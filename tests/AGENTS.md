@@ -68,8 +68,9 @@ General Python rules are defined in the root `AGENTS.md`. Test-specific conventi
 - **Bug-fix TDD**: Every bug fix must start with a failing reproduction test. Confirm the test fails before applying the fix.
 - **Async tests**: All async tests must be decorated with `@pytest.mark.asyncio`.
 - **State factory**: Use `make_agent_state()` from `app/models/state.py` to construct agent state; avoid assembling state objects inline across multiple tests.
-- **LLM mocking**: Use helpers in `tests/_llm.py` to construct mock responses. Never call real LLMs in unit tests.
-- **External service isolation**: Unit tests must not call real LLM, database, Redis, Qdrant, or SMS gateways. Integration tests may access the test DB in controlled environments.
+- **LLM mocking**: Use helpers in `tests/_llm.py` to construct mock responses. Prefer real LLM tests for components that directly invoke LLMs; use mocks for error handling, edge cases, batch operations, and components that do not directly call LLMs.
+- **External service isolation**: Unit tests should not call database, Redis, Qdrant, or SMS gateways directly. Integration tests may access the test DB in controlled environments.
+- **Real LLM tests**: Mark tests that require a real LLM with `@pytest.mark.requires_llm`. These tests skip automatically when `OPENAI_API_KEY` or `DASHSCOPE_API_KEY` is not configured. Use the `real_llm` fixture from `tests/conftest.py` for real LLM instances.
 - **Coverage gate**: CI enforces `pytest --cov=app --cov-fail-under=75`. Do not lower the threshold; add tests for uncovered code instead.
 
 ## Conventions
