@@ -1,46 +1,67 @@
-# app/agents KNOWLEDGE BASE
+# AGENTS.md - Expert Agents
 
-> Guidance for the expert Agent fleet. Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules and commands.
+> **IMPORTANT**: Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules.
 
-## OVERVIEW
-专家 Agent 舰队，统一基于 `BaseAgent` ABC 构建，覆盖订单、政策、商品、购物车、物流、账户、支付等域。
+## Maintenance Contract
+
+- This file is a living document for the expert agent fleet.
+- Update this file in the same PR when adding new agents, changing conventions, or modifying key file mappings.
+
+## Read Order
+
+1. Read the root [`AGENTS.md`](../../AGENTS.md) for repo-wide rules, commands, and routing.
+2. Read this file for agent-specific guidance.
+
+## Overview
+
+Expert agent fleet based on `BaseAgent` ABC covering orders, policies, products, cart, logistics, account, and payments. Each agent exposes a unified `async process(state) -> AgentProcessResult` entry point and delegates I/O to dedicated tool layers.
 
 ## Key Files
 
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| 基类定义 | `@app/agents/base.py` | `BaseAgent` ABC，`process()` → `AgentProcessResult` |
-| 商品问答 | `@app/agents/product.py` + `@app/tools/product_tool.py` | Qdrant `product_catalog` 语义检索 |
-| 购物车 | `@app/agents/cart.py` + `@app/tools/cart_tool.py` | Redis 持久化，24h TTL |
-| 投诉处理 | `@app/agents/complaint.py` + `@app/tools/complaint_tool.py` | LLM 自动分类 + 工单创建 |
-| 调度器 | `@app/agents/supervisor.py` | 串行/并行调度逻辑 |
-| 意图路由 | `@app/agents/router.py` | `IntentRouterAgent` |
-| 配置热重载 | `@app/agents/config_loader.py` | Redis 缓存路由规则与系统提示词（60s TTL） |
+| Role | File | Notes |
+|------|------|-------|
+| Base class | `app/agents/base.py` | `BaseAgent` ABC; `process()` → `AgentProcessResult` |
+| Product QA | `app/agents/product.py` + `app/tools/product_tool.py` | Qdrant `product_catalog` semantic retrieval |
+| Cart | `app/agents/cart.py` + `app/tools/cart_tool.py` | Redis persistence, 24h TTL |
+| Complaint | `app/agents/complaint.py` + `app/tools/complaint_tool.py` | LLM auto-classification + ticket creation |
+| Supervisor | `app/agents/supervisor.py` | Serial/parallel dispatch logic |
+| Intent router | `app/agents/router.py` | `IntentRouterAgent` |
+| Config hot-reload | `app/agents/config_loader.py` | Redis-cached routing rules and system prompts (60s TTL) |
+| Evaluator | `app/agents/evaluator.py` | Agent response quality evaluation |
 
 ## Commands
 
 ```bash
-# 运行本模块相关测试
+# Run agent module tests
 uv run pytest tests/agents/
 ```
 
+## Code Style
+
+General Python rules are defined in the root `AGENTS.md`. Agent-specific conventions:
+
+- **Type hints**: Mandatory on all `BaseAgent` subclass methods and `AgentProcessResult` fields.
+- **Docstrings**: Google-style docstrings for all public agent classes and `process()` methods.
+- **No sync I/O**: Agents must not perform synchronous blocking calls; all tool/service access is `async`.
+- **Config isolation**: Agent-specific prompt templates and routing rules live in `config_loader.py`; never hardcode prompts inside `process()`.
+
 ## Testing Patterns
 
-- 使用 `@app/models/state.py` 中的 `make_agent_state()` 构造 Agent 状态。
-- 对 LLM 和 Tool 调用进行 mock，验证 `AgentProcessResult` 的结构。
-- 每个 Agent 的测试应覆盖正常流程和异常边界（如槽位缺失、权限校验失败）。
-- 新增 Agent 时，必须在 `tests/agents/` 下补充对应的单元测试。
+- Use `make_agent_state()` from `app/models/state.py` to construct agent state.
+- Mock LLM calls and tool invocations; verify `AgentProcessResult` structure.
+- Cover normal flows and edge cases (missing slots, permission checks).
+- New agent → new test file under `tests/agents/`.
 
-## CONVENTIONS
+## Conventions
 
-- **统一入口**：所有 Agent 子类必须实现 `async process(self, state) -> AgentProcessResult`。
-- **热重载**：每个 Agent 在 `process()` 内调用 `await self._load_config()` 读取最新配置。
-- **记忆注入优先级**：summaries → facts/profile → preferences → vector messages。
-- **用户隔离**：所有涉及订单/退款/购物车的查询必须按 `user_id` 过滤。
-- **返回值契约**：`AgentProcessResult` 必须包含 `response`（字符串），可选携带 `updated_state` 更新状态。
+- **Unified entry**: All `BaseAgent` subclasses must implement `async process(self, state) -> AgentProcessResult`.
+- **Hot-reload**: Each agent calls `await self._load_config()` inside `process()` to pick up config changes without restart.
+- **Memory injection priority**: summaries → facts/profile → preferences → vector messages.
+- **User isolation**: All order/refund/cart queries must filter by `user_id`. Never return cross-user data.
+- **Return contract**: `AgentProcessResult` must include `response` (string); optionally carry `updated_state`.
 
-## ANTI-PATTERNS
+## Anti-Patterns
 
-- `@app/agents/supervisor.py` 直接导入 `@app/graph/parallel.py`，与图调度层存在跨层耦合。
-- 避免在 Agent 内直接操作数据库；优先通过 Service 层或 Tool 层访问外部资源。
-- 新增 Agent 后未同步更新本文件和测试目录。
+- **Cross-layer coupling**: `supervisor.py` must not import from `app/graph/parallel.py`.
+- **Direct DB access in agents**: Agents should not bypass the tool/service layer to access the database directly.
+- **Stale AGENTS.md**: Adding a new agent without updating this file and the corresponding test suite.
