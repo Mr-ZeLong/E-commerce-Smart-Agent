@@ -1,51 +1,78 @@
-# app/memory KNOWLEDGE BASE
+# AGENTS.md - Memory System
 
-> Guidance for the memory system. Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules and commands.
+> **IMPORTANT**: Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules.
 
-## OVERVIEW
-记忆系统，包含结构化记忆（PostgreSQL）、向量对话记忆（Qdrant）以及记忆抽取 Pipeline。
+## Maintenance Contract
+
+- `AGENTS.md` is a living document. Update this file when adding or modifying memory system guidance.
+- Keep module-specific content here; do not duplicate root-level rules.
+
+## Read Order
+
+1. Read the root [`AGENTS.md`](../../AGENTS.md) for repo-wide rules, commands, and routing.
+2. Read this file for memory-system-specific guidance.
+3. For architecture details, read [`docs/explanation/architecture/`](../../docs/explanation/architecture/).
+
+## Overview
+
+The memory system provides persistent, multi-tier memory for the agent:
+
+- **Structured memory** (PostgreSQL): User profiles, preferences, interaction summaries, and extracted facts with confidence scores.
+- **Vector conversation memory** (Qdrant): Semantic retrieval of past conversation turns for context injection.
+- **Fact extraction pipeline**: Async Celery tasks extract structured facts from conversation turns using LLMs, with PII filtering and confidence gating.
+- **Session summarization**: Dual-write summaries to both PostgreSQL and Qdrant for long-term retention.
 
 ## Key Files
 
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| 结构化记忆 CRUD | `@app/memory/structured_manager.py` | `UserProfile` / `UserPreference` / `InteractionSummary` / `UserFact` |
-| 向量对话记忆 | `@app/memory/vector_manager.py` | Qdrant `conversation_memory` 集合，语义检索历史消息 |
-| 事实抽取 | `@app/memory/extractor.py` | `FactExtractor`（`qwen-turbo` + Prompt-based JSON 输出解析） |
-| 会话摘要 | `@app/memory/summarizer.py` | `SessionSummarizer`，摘要双写 PostgreSQL + Qdrant |
-| 异步任务 | `@app/tasks/memory_tasks.py` | Celery 记忆抽取与同步任务 |
-| 数据模型 | `@app/models/memory.py` | 记忆相关 SQLModel 定义 |
+| Task | File | Description |
+|------|------|-------------|
+| Structured memory CRUD | `app/memory/structured_manager.py` | `UserProfile`, `UserPreference`, `InteractionSummary`, `UserFact` |
+| Vector conversation memory | `app/memory/vector_manager.py` | Qdrant `conversation_memory` collection; semantic search of chat history |
+| Fact extraction | `app/memory/extractor.py` | `FactExtractor` using LLM + JSON parsing; confidence filtering at 0.7 |
+| Session summarization | `app/memory/summarizer.py` | `SessionSummarizer`; dual-writes summary to PostgreSQL and Qdrant |
+| Memory compaction | `app/memory/compactor.py` | Compacts oversized memory context before prompt injection |
+| Data models | `app/models/memory.py` | SQLModel definitions for all memory entities |
+| Async tasks | `app/tasks/memory_tasks.py` | Celery tasks for async fact extraction and memory sync |
 
 ## Commands
 
 ```bash
-# 运行记忆系统相关测试
+# Run memory system tests
 uv run pytest tests/memory/
 ```
 
+## Code Style
+
+General Python rules are defined in the root `AGENTS.md`. Memory-specific conventions:
+
+- **Type hints**: All CRUD methods in `structured_manager.py` and vector operations in `vector_manager.py` must have complete type annotations.
+- **Async-only I/O**: All database and Qdrant operations must be `async`. No synchronous calls in memory managers.
+- **PII filtering**: Use compiled regex patterns in `extractor.py`; do not recompile patterns on every call.
+- **User isolation**: Every public CRUD method must accept and enforce `user_id` filtering at the manager layer.
+
 ## Testing Patterns
 
-- 结构化记忆单元测试中 mock PostgreSQL 会话，验证 CRUD 和 `user_id` 隔离。
-- 向量记忆单元测试中 mock Qdrant 客户端，验证写入、检索和删除逻辑。
-- `FactExtractor` 测试使用 stubbed LLM 响应，覆盖 Prompt JSON 输出解析和置信度过滤。
-- PII 过滤测试应覆盖信用卡号（`\\b\\d{13,19}\\b`）和密码（`password[:\\s]*\\S+`）的命中与跳过行为。
-- Celery 任务测试在 `@tests/memory/test_memory_tasks.py` 中验证 `extract_and_save_facts` 的异步执行流程。
+- **Structured memory**: Mock `AsyncSession` to verify CRUD operations and `user_id` isolation.
+- **Vector memory**: Mock Qdrant client to verify write, retrieval, and delete logic.
+- **Fact extractor**: Use stubbed LLM responses; cover JSON prompt parsing and confidence threshold filtering.
+- **PII filtering**: Test regex guards for credit card numbers (`\b\d{13,19}\b`) and passwords (`password[:\s]*\S+`); verify extraction is skipped when PII is detected.
+- **Celery tasks**: Verify `extract_and_save_facts` executes asynchronously without blocking SSE responses.
+
+## Conventions
+
+- **Confidence filter**: Facts with `confidence < 0.7` are discarded immediately after extraction.
+- **PII guards**: `extractor.py` regex-filters credit card numbers and password patterns before calling LLM; if PII is detected, extraction is skipped for that turn.
+- **Async Celery trigger**: `decider_node` triggers `extract_and_save_facts` via Celery after the turn ends; LLM calls do not block the SSE response.
+- **User ID isolation**: All structured memory queries must filter by `user_id`. Never return cross-user data.
+- **Dual-write summaries**: `SessionSummarizer` writes summaries to both PostgreSQL (`InteractionSummary`) and Qdrant (vector form).
+
+## Anti-Patterns
+
+- **Oversized `memory_context` in prompts**: Use `compactor.py` to trim context before injection. Never stuff unbounded history into prompts.
+- **Synchronous LLM calls in extraction**: Always trigger fact extraction through Celery tasks. Synchronous LLM calls block the response stream.
+- **Unfiltered bulk queries**: Never return unfiltered bulk query results from `structured_manager.py`; always enforce `user_id` filtering.
 
 ## Related Files
 
-- `@app/graph/nodes.py` — `memory_node` 负责在图执行前后注入/存储记忆。
-- `@app/tasks/memory_tasks.py` — `extract_and_save_facts` 在 `decider_node` 后异步触发。
-
-## CONVENTIONS
-
-- **置信度过滤**：`FactExtractor` 提取的事实 `confidence < 0.7` 直接丢弃。
-- **PII 保护**：`@app/memory/extractor.py` 使用正则过滤信用卡号（`\\b\\d{13,19}\\b`）和密码（`password[:\\s]*\\S+`），命中时跳过事实抽取。
-- **异步触发**：`decider_node` 回合结束后通过 Celery 任务 `extract_and_save_facts` 异步抽取，不阻塞 SSE。
-- **查询隔离**：所有结构化记忆查询必须按 `user_id` 过滤，禁止越权访问。
-- **摘要双写**：`SessionSummarizer` 将摘要同时写入 PostgreSQL（`InteractionSummary`）和 Qdrant（向量形式）。
-
-## ANTI-PATTERNS
-
-- 避免在 Prompt 中一次性塞入过长的 `memory_context`，应控制总长度防止污染对话。
-- 避免在记忆抽取任务中同步调用外部 LLM；始终通过 Celery 异步执行。
-- 不要在 `structured_manager.py` 中返回未按 `user_id` 过滤的批量查询结果。
+- `app/graph/nodes.py`: `memory_node` injects and persists memory around graph execution.
+- `app/tasks/memory_tasks.py`: `extract_and_save_facts` is triggered asynchronously after `decider_node` completes.
