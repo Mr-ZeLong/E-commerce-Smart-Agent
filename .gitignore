@@ -1,5 +1,8 @@
 # .gitignore
 
+# Reference docs (resume guide)
+docs/reference/resume-guide.md
+
 # Environment variables
 .env
 .env.local
