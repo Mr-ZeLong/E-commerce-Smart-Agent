@@ -33,6 +33,8 @@ class GraphExecutionLog(SQLModel, table=True):
         ),
     )
     total_latency_ms: int | None = None
+    context_tokens: int | None = None
+    context_utilization: float | None = None
 
 
 class GraphNodeLog(SQLModel, table=True):

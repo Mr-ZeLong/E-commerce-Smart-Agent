@@ -24,6 +24,33 @@ from app.models.state import AgentState
 logger = logging.getLogger(__name__)
 
 
+_COMMON_ALLOWED_KEYS = [
+    "question",
+    "user_id",
+    "thread_id",
+    "history",
+    "memory_context",
+    "memory_context_config",
+    "intent_result",
+    "slots",
+    "iteration_count",
+    "experiment_variant_id",
+    "context_tokens",
+    "context_utilization",
+]
+
+_AGENT_ALLOWED_KEYS: dict[str, list[str]] = {
+    "policy_agent": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
+    "order_agent": [*_COMMON_ALLOWED_KEYS, "order_data", "retrieval_result"],
+    "logistics": [*_COMMON_ALLOWED_KEYS, "order_data", "retrieval_result"],
+    "account": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
+    "payment": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
+    "product": [*_COMMON_ALLOWED_KEYS, "product_data", "retrieval_result"],
+    "cart": [*_COMMON_ALLOWED_KEYS, "cart_data", "retrieval_result"],
+    "complaint": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
+}
+
+
 def create_workflow(
     router_agent,
     policy_agent,
@@ -63,89 +90,101 @@ def create_workflow(
     if supervisor_agent is not None:
         workflow.add_node(
             "policy_agent",
-            build_agent_subgraph(policy_agent),
+            build_agent_subgraph(
+                policy_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("policy_agent")
+            ),
             metadata={"tags": ["policy_agent", "user_visible"]},
         )
         workflow.add_node(
             "order_agent",
-            build_agent_subgraph(order_agent),
+            build_agent_subgraph(order_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("order_agent")),
             metadata={"tags": ["order_agent", "user_visible"]},
         )
         workflow.add_node(
             "logistics",
-            build_agent_subgraph(logistics_agent),
+            build_agent_subgraph(
+                logistics_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("logistics")
+            ),
             metadata={"tags": ["logistics", "user_visible"]},
         )
         workflow.add_node(
             "account",
-            build_agent_subgraph(account_agent),
+            build_agent_subgraph(account_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("account")),
             metadata={"tags": ["account", "user_visible"]},
         )
         workflow.add_node(
             "payment",
-            build_agent_subgraph(payment_agent),
+            build_agent_subgraph(payment_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("payment")),
             metadata={"tags": ["payment", "user_visible"]},
         )
         if product_agent is not None:
             workflow.add_node(
                 "product",
-                build_agent_subgraph(product_agent),
+                build_agent_subgraph(
+                    product_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("product")
+                ),
                 metadata={"tags": ["product", "user_visible"]},
             )
         if cart_agent is not None:
             workflow.add_node(
                 "cart",
-                build_agent_subgraph(cart_agent),
+                build_agent_subgraph(cart_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("cart")),
                 metadata={"tags": ["cart", "user_visible"]},
             )
         if complaint_agent is not None:
             workflow.add_node(
                 "complaint",
-                build_agent_subgraph(complaint_agent),
+                build_agent_subgraph(
+                    complaint_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("complaint")
+                ),
                 metadata={"tags": ["complaint", "user_visible"]},
             )
     else:
         workflow.add_node(
             "policy_agent",
-            build_policy_node(policy_agent),  # type: ignore
+            build_policy_node(policy_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("policy_agent")),  # type: ignore
             metadata={"tags": ["policy_agent", "user_visible"]},
         )
         workflow.add_node(
             "order_agent",
-            build_order_node(order_agent),  # type: ignore
+            build_order_node(order_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("order_agent")),  # type: ignore
             metadata={"tags": ["order_agent", "user_visible"]},
         )
         workflow.add_node(
             "logistics",
-            build_logistics_node(logistics_agent),  # type: ignore
+            build_logistics_node(
+                logistics_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("logistics")
+            ),  # type: ignore
             metadata={"tags": ["logistics", "user_visible"]},
         )
         workflow.add_node(
             "account",
-            build_account_node(account_agent),  # type: ignore
+            build_account_node(account_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("account")),  # type: ignore
             metadata={"tags": ["account", "user_visible"]},
         )
         workflow.add_node(
             "payment",
-            build_payment_node(payment_agent),  # type: ignore
+            build_payment_node(payment_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("payment")),  # type: ignore
             metadata={"tags": ["payment", "user_visible"]},
         )
         if product_agent is not None:
             workflow.add_node(
                 "product",
-                build_product_node(product_agent),  # type: ignore
+                build_product_node(product_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("product")),  # type: ignore
                 metadata={"tags": ["product", "user_visible"]},
             )
         if cart_agent is not None:
             workflow.add_node(
                 "cart",
-                build_cart_node(cart_agent),  # type: ignore
+                build_cart_node(cart_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("cart")),  # type: ignore
                 metadata={"tags": ["cart", "user_visible"]},
             )
         if complaint_agent is not None:
             workflow.add_node(
                 "complaint",
-                build_complaint_node(complaint_agent),  # type: ignore
+                build_complaint_node(
+                    complaint_agent, allowed_keys=_AGENT_ALLOWED_KEYS.get("complaint")
+                ),  # type: ignore
                 metadata={"tags": ["complaint", "user_visible"]},
             )
 

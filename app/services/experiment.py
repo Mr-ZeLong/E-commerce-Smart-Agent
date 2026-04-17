@@ -39,6 +39,7 @@ class ExperimentService:
                 retriever_top_k=v.get("retriever_top_k"),
                 reranker_enabled=v.get("reranker_enabled"),
                 extra_config=v.get("extra_config"),
+                memory_context_config=v.get("memory_context_config"),
             )
             db.add(variant)
         await db.commit()

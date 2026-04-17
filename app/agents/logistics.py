@@ -24,7 +24,9 @@ class LogisticsAgent(BaseAgent):
             self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("logistics", state)
         output = tool_result.output
-        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
+        memory_prefix = self._format_memory_prefix(
+            state.get("memory_context"), state.get("memory_context_config")
+        )
 
         if output.get("status") == "未找到订单":
             response_text = "抱歉，未找到相关订单的物流信息。请确认订单号是否正确。"

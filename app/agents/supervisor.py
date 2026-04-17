@@ -24,6 +24,15 @@ _INTENT_TO_AGENT: dict[str, str] = {
 
 
 class SupervisorAgent(BaseAgent):
+    """Supervisor agent responsible for routing and execution-mode planning.
+
+    The Supervisor operates on the **full** ``AgentState`` because it needs
+    visibility of all intent results, completed agents, and pending work to
+    make routing decisions. Context isolation for individual expert agents is
+    enforced at the **subgraph boundary** (see ``app/graph/subgraphs.py``),
+    not inside this class.
+    """
+
     def __init__(self, llm: BaseChatModel):
         super().__init__(name="supervisor", llm=llm, system_prompt=None)
 

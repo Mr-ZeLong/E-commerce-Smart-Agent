@@ -3,6 +3,21 @@ import operator
 from typing import Annotated, Any, NotRequired, TypedDict
 
 
+def history_reducer(left: list[dict], right: list[dict]) -> list[dict]:
+    """Reducer for AgentState.history that supports compaction.
+
+    When the right side contains a compaction marker (``compacted: True``),
+    it replaces the left side entirely instead of being concatenated.
+    """
+    if any(msg.get("compacted") for msg in right):
+        return right
+    return left + right
+
+
+def _last_value(left: str | None, right: str | None) -> str | None:
+    return right
+
+
 class AgentProcessResult(TypedDict):
     """Agent.process() 的统一返回类型"""
 
@@ -17,12 +32,12 @@ class AgentState(TypedDict):
     user_id: int
     thread_id: str
 
-    current_agent: str | None
+    current_agent: Annotated[str | None, _last_value]
     next_agent: str | None
     iteration_count: int
     retry_requested: bool
 
-    history: Annotated[list[dict], operator.add]
+    history: Annotated[list[dict], history_reducer]
 
     retrieval_result: dict[str, Any] | None
 
@@ -62,6 +77,10 @@ class AgentState(TypedDict):
     cart_data: dict[str, Any] | None
     memory_context: dict[str, Any] | None
     experiment_variant_id: int | None
+    memory_context_config: NotRequired[dict[str, Any] | None]
+
+    context_tokens: NotRequired[int | None]
+    context_utilization: NotRequired[float | None]
 
 
 def make_agent_state(
@@ -103,6 +122,9 @@ def make_agent_state(
     cart_data: dict[str, Any] | None = None,
     memory_context: dict[str, Any] | None = None,
     experiment_variant_id: int | None = None,
+    memory_context_config: dict[str, Any] | None = None,
+    context_tokens: int | None = None,
+    context_utilization: float | None = None,
 ) -> AgentState:
     return {
         "question": question,
@@ -142,4 +164,7 @@ def make_agent_state(
         "cart_data": cart_data,
         "memory_context": memory_context,
         "experiment_variant_id": experiment_variant_id,
+        "memory_context_config": memory_context_config,
+        "context_tokens": context_tokens,
+        "context_utilization": context_utilization,
     }

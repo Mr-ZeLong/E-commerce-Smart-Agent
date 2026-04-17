@@ -3,6 +3,7 @@ import json
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
+from app.context.masking import mask_context_parts
 from app.models.state import AgentProcessResult, AgentState
 from app.tools.registry import ToolRegistry
 
@@ -55,11 +56,14 @@ class ProductAgent(BaseAgent):
                             part += f", 参数: {json.dumps(p['attributes'], ensure_ascii=False)}"
                         context_parts.append(part)
 
+                    context_parts = mask_context_parts(context_parts)
+
                     messages = self._create_messages(
                         question,
                         context={"context": context_parts},
                         memory_context=state.get("memory_context"),
                         user_context=self._build_user_context(state.get("memory_context")),
+                        memory_context_config=state.get("memory_context_config"),
                     )
                     try:
                         response = await self._call_llm(messages, tags=["user_visible"])

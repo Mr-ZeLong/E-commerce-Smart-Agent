@@ -148,7 +148,11 @@ class VectorMemoryManager:
             with_payload=True,
         )
 
-        return [point.payload for point in response.points if point.payload is not None]
+        return [
+            {**point.payload, "score": point.score}
+            for point in response.points
+            if point.payload is not None
+        ]
 
     async def prune_old_messages(self, retention_days: int) -> None:
         exists = await self.client.collection_exists(self.COLLECTION_NAME)

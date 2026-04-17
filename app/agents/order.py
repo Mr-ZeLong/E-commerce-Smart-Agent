@@ -33,7 +33,9 @@ class OrderAgent(BaseAgent):
         question = state.get("question", "")
         user_id = state.get("user_id")
         intent_result = state.get("intent_result") or {}
-        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
+        memory_prefix = self._format_memory_prefix(
+            state.get("memory_context"), state.get("memory_context_config")
+        )
 
         if user_id is None:
             return {

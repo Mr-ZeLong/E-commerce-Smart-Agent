@@ -58,6 +58,7 @@ class PolicyAgent(BaseAgent):
             context={"context": chunks},
             memory_context=state.get("memory_context"),
             user_context=self._build_user_context(state.get("memory_context")),
+            memory_context_config=state.get("memory_context_config"),
         )
 
         response = await self._call_llm(messages, tags=["user_visible"])

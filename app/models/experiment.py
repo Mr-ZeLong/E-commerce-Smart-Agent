@@ -74,6 +74,11 @@ class ExperimentVariant(SQLModel, table=True):
         sa_column=Column(JSON, nullable=True),
         description="额外配置",
     )
+    memory_context_config: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="记忆上下文配置",
+    )
 
     created_at: datetime = Field(
         default_factory=utc_now,

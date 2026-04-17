@@ -30,7 +30,9 @@ class PaymentAgent(BaseAgent):
         invoice_status = data.get("invoice_status", "未查询到发票信息")
         refund_records = data.get("refund_records", [])
         message = data.get("message", "")
-        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
+        memory_prefix = self._format_memory_prefix(
+            state.get("memory_context"), state.get("memory_context_config")
+        )
 
         if message == "未查询到相关支付/退款记录" or not refund_records:
             response = (

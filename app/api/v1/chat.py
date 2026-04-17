@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -82,9 +83,16 @@ async def chat(
             }
 
             variant_id: int | None = None
+            memory_context_config: dict[str, Any] | None = None
             async with async_session_maker() as db:
                 assigner = ExperimentAssigner()
                 variant_id = await assigner.assign(str(current_user_id), "agent_prompt", db=db)
+                if variant_id is not None:
+                    from app.models.experiment import ExperimentVariant
+
+                    variant = await db.get(ExperimentVariant, variant_id)
+                    if variant is not None:
+                        memory_context_config = variant.memory_context_config
 
             initial_state = make_agent_state(
                 question=chat_request.question,
@@ -92,6 +100,7 @@ async def chat(
                 thread_id=thread_id,
                 history=[{"role": "user", "content": chat_request.question}],
                 experiment_variant_id=variant_id,
+                memory_context_config=memory_context_config,
             )
 
             vector_manager = getattr(http_request.app.state, "vector_manager", None)
@@ -222,6 +231,10 @@ async def chat(
                                 final_state["audit_level"] = output["audit_level"]
                             if "current_agent" in output:
                                 final_state["current_agent"] = output["current_agent"]
+                            if "context_tokens" in output:
+                                final_state["context_tokens"] = output["context_tokens"]
+                            if "context_utilization" in output:
+                                final_state["context_utilization"] = output["context_utilization"]
 
                 # v4.1: 在 [DONE] 之前发送元数据消息（如果存在）
                 if final_state and final_state.get("confidence_score") is not None:
@@ -267,6 +280,8 @@ async def chat(
                         needs_human_transfer=bool(final_state.get("needs_human_transfer", False)),
                         total_latency_ms=total_latency_ms,
                         agent_config_version_id=version_id,
+                        context_tokens=final_state.get("context_tokens"),
+                        context_utilization=final_state.get("context_utilization"),
                     )
                     for node_name, latency_ms in node_latencies.items():
                         await log_graph_node(

@@ -263,6 +263,10 @@ class Settings(BaseSettings):
     FUNCTION_CALLING_THRESHOLD: float = 0.7
 
     MEMORY_RETENTION_DAYS: int = 90
+    MEMORY_CONTEXT_TOKEN_BUDGET: int = 2048
+    COMPACTION_THRESHOLD: float = 0.75
+    OBSERVATION_MASKING_MAX_CHARS: int = 500
+    VECTOR_MEMORY_SCORE_THRESHOLD: float = 0.5
     AGENT_CONFIG_CACHE_TTL: int = 60
 
     # Email 配置（用于告警和通知）

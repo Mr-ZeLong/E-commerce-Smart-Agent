@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.llm_factory import create_llm
 from app.memory.structured_manager import StructuredMemoryManager
 from app.models.memory import InteractionSummary
@@ -21,14 +22,31 @@ class SessionSummarizer:
         self.llm = llm or create_llm()
         self.memory_manager = StructuredMemoryManager()
 
-    def should_summarize(self, state: AgentState) -> bool:
+    def should_summarize(
+        self,
+        state: AgentState,
+        utilization: float | None = None,
+        threshold: float | None = None,
+    ) -> bool:
         """Return True if the conversation should be summarized.
 
-        Summarize threads that either exceed 20 messages or naturally end
+        Summarize threads that either exceed 20 messages, exceed the
+        configured compaction token-utilization threshold, or naturally end
         (no human transfer, not awaiting clarification, and at least one exchange).
+
+        Args:
+            state: The current agent state.
+            utilization: Optional token utilization ratio (0.0-1.0). If provided
+                and exceeds the threshold, summarization is triggered.
+            threshold: Optional threshold to override ``settings.COMPACTION_THRESHOLD``.
         """
         history = state.get("history", [])
         if len(history) > 20:
+            return True
+        effective_threshold = (
+            threshold if threshold is not None else getattr(settings, "COMPACTION_THRESHOLD", 0.75)
+        )
+        if utilization is not None and utilization > effective_threshold:
             return True
         needs_human = state.get("needs_human_transfer")
         awaiting = state.get("awaiting_clarification")
@@ -57,9 +75,11 @@ class SessionSummarizer:
         state: AgentState,
         session: AsyncSession,
         vector_manager=None,
+        utilization: float | None = None,
+        threshold: float | None = None,
     ) -> InteractionSummary | None:
         """Summarize and persist if conditions are met."""
-        if not self.should_summarize(state):
+        if not self.should_summarize(state, utilization=utilization, threshold=threshold):
             return None
 
         history = state.get("history", [])

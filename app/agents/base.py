@@ -8,15 +8,40 @@ from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.core.config import settings
+from app.core.llm_factory import maybe_add_cache_control
 from app.models.state import AgentProcessResult, AgentState
 
 logger = logging.getLogger(__name__)
 
 _VARIABLE_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
+
+def _estimate_tokens(text: str) -> int:
+    """Estimate token count using a simple heuristic."""
+    try:
+        import tiktoken
+
+        encoder = tiktoken.get_encoding("cl100k_base")
+        return len(encoder.encode(text))
+    except Exception:
+        return len(text) // 4
+
+
+def _truncate_parts_by_budget(parts: list[str], budget: int) -> list[str]:
+    """Drop parts from the end until the estimated token count is within budget.
+
+    The last part is always preserved (typically the user question).
+    """
+    if not parts:
+        return parts
+    while len(parts) > 1 and _estimate_tokens("\n".join(parts)) > budget:
+        parts.pop(-2)
+    return parts
+
+
 DEFAULT_PROMPT_VARIABLES = {
     "company_name": "XX电商平台",
-    "current_date": lambda: datetime.date.today().isoformat(),
     "user_membership_level": "普通会员",
 }
 
@@ -112,10 +137,13 @@ class BaseAgent(ABC):
         user_message: str,
         context: dict[str, Any] | None = None,
         memory_context: dict[str, Any] | None = None,
+        memory_context_config: dict[str, Any] | None = None,
     ) -> str:
         """Build the user prompt, wrapping context and memory if provided."""
         if context or memory_context:
-            return self._build_contextual_message(user_message, context or {}, memory_context)
+            return self._build_contextual_message(
+                user_message, context or {}, memory_context, memory_context_config
+            )
         return user_message
 
     def _create_messages(
@@ -125,6 +153,7 @@ class BaseAgent(ABC):
         memory_context: dict[str, Any] | None = None,
         user_context: dict[str, Any] | None = None,
         system_prompt_override: str | None = None,
+        memory_context_config: dict[str, Any] | None = None,
     ) -> list:
         messages = []
         system_prompt = (
@@ -136,11 +165,18 @@ class BaseAgent(ABC):
             if system_prompt_override is not None:
                 system_prompt = render_prompt(system_prompt, user_context or {})
             messages.append(SystemMessage(content=system_prompt))
-        user_prompt = self._build_user_prompt(user_message, context, memory_context)
-        messages.append(HumanMessage(content=user_prompt))
-        return messages
+        user_prompt = self._build_user_prompt(
+            user_message, context, memory_context, memory_context_config
+        )
+        date_prefix = f"今天是 {datetime.date.today().isoformat()}。\n\n"
+        messages.append(HumanMessage(content=date_prefix + user_prompt))
+        return maybe_add_cache_control(messages)
 
-    def _format_memory_prefix(self, memory_context: dict[str, Any] | None) -> str:
+    def _format_memory_prefix(
+        self,
+        memory_context: dict[str, Any] | None,
+        memory_context_config: dict[str, Any] | None = None,
+    ) -> str:
         if not memory_context:
             return ""
         parts = []
@@ -179,6 +215,15 @@ class BaseAgent(ABC):
                 display_role = "Assistant" if role.lower() == "assistant" else "User"
                 parts.append(f"{display_role}: {content}")
             parts.append("")
+        if memory_context_config is not None:
+            budget_override = memory_context_config.get("memory_token_budget")
+            if budget_override is not None:
+                budget = budget_override
+            else:
+                budget = settings.MEMORY_CONTEXT_TOKEN_BUDGET
+        else:
+            budget = settings.MEMORY_CONTEXT_TOKEN_BUDGET
+        parts = _truncate_parts_by_budget(parts, budget)
         return "\n".join(parts)
 
     def _build_contextual_message(
@@ -186,6 +231,7 @@ class BaseAgent(ABC):
         question: str,
         context: dict[str, Any],
         memory_context: dict[str, Any] | None = None,
+        memory_context_config: dict[str, Any] | None = None,
     ) -> str:
         parts = []
         if context.get("context"):
@@ -236,4 +282,13 @@ class BaseAgent(ABC):
                     parts.append(f"{display_role}: {content}")
                 parts.append("")
         parts.append(f"[用户问题]:\n{question}")
+        if memory_context_config is not None:
+            budget_override = memory_context_config.get("memory_token_budget")
+            if budget_override is not None:
+                budget = budget_override
+            else:
+                budget = settings.MEMORY_CONTEXT_TOKEN_BUDGET
+        else:
+            budget = settings.MEMORY_CONTEXT_TOKEN_BUDGET
+        parts = _truncate_parts_by_budget(parts, budget)
         return "\n".join(parts)

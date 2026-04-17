@@ -64,16 +64,18 @@ class ComplaintAgent(BaseAgent):
         system_prompt = (
             self._dynamic_system_prompt or self.system_prompt or _COMPLAINT_SYSTEM_PROMPT
         )
+        user_prompt = question
         if self._few_shot_examples:
             top_examples = select_top_k_examples(question, self._few_shot_examples, k=3)
             if top_examples:
-                system_prompt += format_complaint_examples_for_prompt(top_examples)
+                user_prompt = format_complaint_examples_for_prompt(top_examples) + "\n" + question
 
         messages = self._create_messages(
-            question,
+            user_prompt,
             memory_context=state.get("memory_context"),
             user_context=self._build_user_context(state.get("memory_context")),
             system_prompt_override=system_prompt,
+            memory_context_config=state.get("memory_context_config"),
         )
         raw_response = await self._call_llm(messages, tags=["user_visible"])
 

@@ -31,7 +31,9 @@ class AccountAgent(BaseAgent):
             self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("account", state)
         output = tool_result.output
-        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
+        memory_prefix = self._format_memory_prefix(
+            state.get("memory_context"), state.get("memory_context_config")
+        )
 
         if output.get("error"):
             return {

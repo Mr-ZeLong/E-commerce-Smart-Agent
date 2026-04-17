@@ -10,6 +10,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
+from app.core.llm_factory import maybe_add_cache_control
 from app.intent.config import validate_tertiary_intent
 from app.intent.few_shot_loader import (
     format_intent_examples_for_prompt,
@@ -197,18 +198,18 @@ class IntentClassifier:
         )
 
     def _create_messages(self, query: str, context: dict[str, Any] | None = None) -> list:
-        messages: list = [HumanMessage(content=query)]
-        prompt = self.SYSTEM_PROMPT
+        user_content = query
         if self._few_shot_examples:
             top_examples = select_top_k_examples(query, self._few_shot_examples, k=3)
             if top_examples:
-                prompt += format_intent_examples_for_prompt(top_examples)
+                user_content = format_intent_examples_for_prompt(top_examples) + "\n" + query
+        messages: list = [HumanMessage(content=user_content)]
         if context:
             context_str = "\n".join(f"{k}: {v}" for k, v in context.items())
-            messages.insert(0, SystemMessage(content=prompt + "\n" + context_str))
+            messages.insert(0, SystemMessage(content=self.SYSTEM_PROMPT + "\n" + context_str))
         else:
-            messages.insert(0, SystemMessage(content=prompt))
-        return messages
+            messages.insert(0, SystemMessage(content=self.SYSTEM_PROMPT))
+        return maybe_add_cache_control(messages)
 
     def _parse_result(self, data: dict[str, Any], query: str) -> IntentResult:
         primary = data.get("primary_intent", "OTHER")

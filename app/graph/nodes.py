@@ -10,6 +10,7 @@ from langgraph.types import Command
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.account import AccountAgent
+from app.agents.base import BaseAgent
 from app.agents.cart import CartAgent
 from app.agents.complaint import ComplaintAgent
 from app.agents.evaluator import ConfidenceEvaluator
@@ -20,9 +21,11 @@ from app.agents.policy import PolicyAgent
 from app.agents.product import ProductAgent
 from app.agents.router import IntentRouterAgent
 from app.agents.supervisor import SupervisorAgent
+from app.context.token_budget import MemoryTokenBudget
 from app.core.config import settings
 from app.core.database import async_session_maker, sync_session_maker
 from app.graph.parallel import build_parallel_sends
+from app.memory.compactor import ContextCompactor
 from app.memory.structured_manager import StructuredMemoryManager
 from app.memory.summarizer import SessionSummarizer
 from app.memory.vector_manager import VectorMemoryManager
@@ -164,7 +167,7 @@ def build_memory_node(
                     logger.exception("Failed to fetch user preferences for memory context")
 
                 try:
-                    facts = await structured_manager.get_user_facts(mem_session, user_id, limit=3)
+                    facts = await structured_manager.get_user_facts(mem_session, user_id, limit=50)
                     if facts:
                         memory_context["structured_facts"] = [
                             {
@@ -179,7 +182,7 @@ def build_memory_node(
 
                 try:
                     summaries = await structured_manager.get_recent_summaries(
-                        mem_session, user_id, limit=2
+                        mem_session, user_id, limit=50
                     )
                     if summaries:
                         memory_context["interaction_summaries"] = [
@@ -196,14 +199,21 @@ def build_memory_node(
             try:
                 if last_user_message:
                     summary_results = await vector_manager.search_similar(
-                        user_id, query_text=last_user_message, top_k=2, message_role="summary"
+                        user_id, query_text=last_user_message, top_k=10, message_role="summary"
                     )
                     message_results = await vector_manager.search_similar(
-                        user_id, query_text=last_user_message, top_k=5
+                        user_id, query_text=last_user_message, top_k=10
                     )
+                    # Filter by relevance score threshold before deduplication
+                    threshold = settings.VECTOR_MEMORY_SCORE_THRESHOLD
+                    filtered = [
+                        p
+                        for p in summary_results + message_results
+                        if p.get("score", 0) >= threshold
+                    ]
                     seen_contents: set[str] = set()
                     combined: list[dict] = []
-                    for payload in summary_results + message_results:
+                    for payload in filtered:
                         content = str(payload.get("content", ""))
                         if content and content not in seen_contents:
                             seen_contents.add(content)
@@ -214,10 +224,14 @@ def build_memory_node(
                                 "role": payload.get("message_role", "user"),
                                 "content": payload.get("content", ""),
                             }
-                            for payload in combined[:5]
+                            for payload in combined[:10]
                         ]
             except Exception:
                 logger.exception("Failed to fetch vector memory for memory context")
+
+        budgeter = MemoryTokenBudget()
+        memory_context_config = state.get("memory_context_config")
+        memory_context = budgeter.allocate(memory_context, config=memory_context_config)
 
         if not use_supervisor:
             next_agent = state.get("next_agent")
@@ -289,7 +303,7 @@ def build_synthesis_node(
 
         if len(sub_answers) == 1:
             answer = sub_answers[0]["response"]
-            merged: dict[str, Any] = {}
+            merged: dict[str, Any] = {"current_agent": sub_answers[0]["agent"]}
             if sub_answers[0].get("updated_state"):
                 merged.update(sub_answers[0]["updated_state"])
             return Command(goto="evaluator_node", update={"answer": answer, **merged})
@@ -319,6 +333,7 @@ def build_synthesis_node(
             update={
                 "answer": synthesized,
                 "synthesized_answer": synthesized,
+                "current_agent": sub_answers[0]["agent"],
                 **merged_state,
             },
         )
@@ -329,101 +344,94 @@ def build_synthesis_node(
 def _agent_updates(
     agent_name: str, result: AgentProcessResult, state: AgentState
 ) -> dict[str, Any]:
+    from app.context.masking import mask_observation
+
     updates: dict[str, Any] = {
         "answer": result.get("response", ""),
         "sub_answers": [
             {
                 "agent": agent_name,
                 "response": result.get("response", ""),
-                "updated_state": result.get("updated_state") or {},
+                "updated_state": mask_observation(result.get("updated_state") or {}),
                 "iteration": state.get("iteration_count", 0),
             }
         ],
     }
     if result.get("updated_state"):
-        updates.update(result["updated_state"])
+        updates.update(mask_observation(result["updated_state"]))
     updates["current_agent"] = agent_name
     return updates
 
 
+def _build_agent_node(
+    agent: BaseAgent,
+    agent_name: str,
+    allowed_keys: list[str] | None = None,
+) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
+    async def _node(state: AgentState) -> Command[Literal["evaluator_node"]]:
+        from app.graph.subgraphs import _filter_state
+
+        filtered = _filter_state(state, allowed_keys) if allowed_keys else state
+        result = await agent.process(filtered)
+        return Command(goto="evaluator_node", update=_agent_updates(agent_name, result, state))
+
+    return _node
+
+
 def build_policy_node(
     agent: PolicyAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def policy_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("policy_agent", result, state))
-
-    return policy_node
+    return _build_agent_node(agent, "policy_agent", allowed_keys)
 
 
 def build_order_node(
     agent: OrderAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def order_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("order_agent", result, state))
-
-    return order_node
+    return _build_agent_node(agent, "order_agent", allowed_keys)
 
 
 def build_logistics_node(
     agent: LogisticsAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def logistics_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("logistics", result, state))
-
-    return logistics_node
+    return _build_agent_node(agent, "logistics", allowed_keys)
 
 
 def build_account_node(
     agent: AccountAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def account_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("account", result, state))
-
-    return account_node
+    return _build_agent_node(agent, "account", allowed_keys)
 
 
 def build_payment_node(
     agent: PaymentAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def payment_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("payment", result, state))
-
-    return payment_node
+    return _build_agent_node(agent, "payment", allowed_keys)
 
 
 def build_product_node(
     agent: ProductAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def product_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("product", result, state))
-
-    return product_node
+    return _build_agent_node(agent, "product", allowed_keys)
 
 
 def build_cart_node(
     agent: CartAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def cart_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("cart", result, state))
-
-    return cart_node
+    return _build_agent_node(agent, "cart", allowed_keys)
 
 
 def build_complaint_node(
     agent: ComplaintAgent,
+    allowed_keys: list[str] | None = None,
 ) -> Callable[[AgentState], Awaitable[Command[Literal["evaluator_node"]]]]:
-    async def complaint_node(state: AgentState) -> Command[Literal["evaluator_node"]]:
-        result = await agent.process(state)
-        return Command(goto="evaluator_node", update=_agent_updates("complaint", result, state))
-
-    return complaint_node
+    return _build_agent_node(agent, "complaint", allowed_keys)
 
 
 def build_evaluator_node(
@@ -523,10 +531,30 @@ def build_decider_node(
         needs_human = result.get("needs_human_transfer", False)
         awaiting_clarification = state.get("awaiting_clarification")
 
+        memory_context = state.get("memory_context") or {}
+        history_text = json.dumps(history)
+        memory_text = json.dumps(memory_context, ensure_ascii=False, default=str)
+        context_tokens = (len(history_text) + len(memory_text)) // 4
+        budget = getattr(settings, "MEMORY_CONTEXT_TOKEN_BUDGET", None)
+        context_utilization = min(1.0, context_tokens / budget) if budget else 0.0
+        result["context_tokens"] = context_tokens
+        result["context_utilization"] = context_utilization
+
         summarizer = SessionSummarizer()
+        memory_context_config = state.get("memory_context_config") or {}
+        threshold_override = memory_context_config.get("compaction_threshold")
+        compaction_threshold = (
+            threshold_override
+            if threshold_override is not None
+            else getattr(settings, "COMPACTION_THRESHOLD", 0.75)
+        )
         force_summary = len(history) > 20
-        should_summarize = force_summary or (
-            not needs_human and not awaiting_clarification and summarizer.should_summarize(state)
+        should_summarize_flag = force_summary or (
+            not needs_human
+            and not awaiting_clarification
+            and summarizer.should_summarize(
+                state, utilization=context_utilization, threshold=compaction_threshold
+            )
         )
 
         if not needs_human and not awaiting_clarification:
@@ -552,16 +580,38 @@ def build_decider_node(
                 except Exception:
                     logger.exception("Failed to enqueue fact extraction")
 
-        if should_summarize:
+        if should_summarize_flag:
             try:
                 async with async_session_maker() as session:
-                    await summarizer.run(state, session, vector_manager=vector_manager)
+                    if context_utilization > compaction_threshold:
+                        compactor = ContextCompactor()
+                        compacted_history = compactor.compact(history)
+                        result["history"] = compacted_history
+                    await summarizer.run(
+                        state,
+                        session,
+                        vector_manager=vector_manager,
+                        utilization=context_utilization,
+                        threshold=compaction_threshold,
+                    )
             except Exception:
                 logger.exception("Failed to run session summarizer")
 
         answer = result.get("answer", "") or state.get("answer", "")
         if answer:
-            result["history"] = [{"role": "assistant", "content": answer}]
+            if "history" in result:
+                result["history"].append({"role": "assistant", "content": answer})
+            else:
+                result["history"] = [{"role": "assistant", "content": answer}]
+
+        # Recompute context metrics after compaction and assistant append so
+        # telemetry reflects the actual state that enters the checkpointer.
+        final_history = result.get("history", history)
+        final_history_text = json.dumps(final_history)
+        final_context_tokens = (len(final_history_text) + len(memory_text)) // 4
+        final_context_utilization = min(1.0, final_context_tokens / budget) if budget else 0.0
+        result["context_tokens"] = final_context_tokens
+        result["context_utilization"] = final_context_utilization
 
         return result
 

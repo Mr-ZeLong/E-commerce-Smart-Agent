@@ -25,7 +25,9 @@ class CartAgent(BaseAgent):
             self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("cart", state)
         output = tool_result.output
-        memory_prefix = self._format_memory_prefix(state.get("memory_context"))
+        memory_prefix = self._format_memory_prefix(
+            state.get("memory_context"), state.get("memory_context_config")
+        )
 
         action = output.get("action")
         status = output.get("status")
