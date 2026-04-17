@@ -1,69 +1,90 @@
-# tests KNOWLEDGE BASE
+# AGENTS.md - Tests
 
-> Guidance for the backend test suite. Read the root [`AGENTS.md`](../AGENTS.md) first for repo-wide rules and commands.
+> **IMPORTANT**: Read the root [`AGENTS.md`](../AGENTS.md) first for repo-wide rules, commands, and routing.
 
-## OVERVIEW
-后端测试套件，采用扁平化目录结构（不严格镜像 `app/`），基于 pytest + pytest-asyncio。
+## Maintenance Contract
+
+- `AGENTS.md` is a living document.
+- Update this file in the same PR when test conventions, fixtures, or patterns materially change.
+- Keep this file focused on test-specific guidance; do not duplicate root-level rules.
+
+## Read Order
+
+1. Read the root [`AGENTS.md`](../AGENTS.md) for repo-wide rules, commands, and routing.
+2. Read this file for test-specific conventions and patterns.
+3. For fixture details, read [`tests/conftest.py`](conftest.py) and [`tests/_llm.py`](_llm.py).
+
+## Overview
+
+Backend test suite using pytest + pytest-asyncio with a flat directory structure (not strictly mirroring `app/` subpackages).
 
 ## Key Files
 
-| 任务 | 文件/目录 | 说明 |
-|------|-----------|------|
-| 全局 fixtures | `@tests/conftest.py` | `client`、`db_session`、`redis_client` |
-| 测试库配置 | `@tests/_db_config.py` | 自动在 DB 名前加 `test_` 前缀 |
-| Agent Mock | `@tests/_agents.py` | Agent mock 工厂和测试辅助函数 |
-| LLM Mock | `@tests/_llm.py` | LLM 调用 mock 与响应辅助 |
-| API 测试 | `@tests/test_auth_api.py`、`@tests/test_chat_api.py`、`@tests/test_admin_api.py` 等 | 路由层验证 |
-| Service 测试 | `@tests/test_order_service.py`、`@tests/test_refund_service.py` 等 | 业务逻辑验证 |
-| 模块单元测试 | `@tests/agents/`、`@tests/graph/`、`@tests/intent/`、`@tests/tools/`、`@tests/retrieval/` | Agent/图/意图/RAG 测试 |
-| 集成测试 | `@tests/integration/test_workflow_invoke.py` | LangGraph 集成（含并行多意图场景） |
+| Task | File/Directory | Description |
+|------|---------------|-------------|
+| Global fixtures | `tests/conftest.py` | `client`, `db_session`, `redis_client` |
+| Test DB config | `tests/_db_config.py` | Auto-prefixes DB names with `test_` |
+| Agent mock | `tests/_agents.py` | Agent mock factory and test helpers |
+| LLM mock | `tests/_llm.py` | LLM call mocks and response helpers |
+| API tests | `tests/test_auth_api.py`, `tests/test_chat_api.py`, `tests/test_admin_api.py` | Route-layer validation |
+| Service tests | `tests/test_order_service.py`, `tests/test_refund_service.py` | Business logic validation |
+| Module unit tests | `tests/agents/`, `tests/graph/`, `tests/intent/`, `tests/tools/`, `tests/retrieval/` | Agent/graph/intent/RAG tests |
+| Integration tests | `tests/integration/test_workflow_invoke.py` | LangGraph integration (including parallel multi-intent scenarios) |
 
 ## Commands
 
 ```bash
-# 全部后端测试
+# All backend tests
 uv run pytest
 
-# 带覆盖率检查
+# With coverage gate (CI requirement: --cov-fail-under=75)
 uv run pytest --cov=app --cov-fail-under=75
 
-# 按模块运行
+# By module
 uv run pytest tests/agents/
 uv run pytest tests/graph/
 uv run pytest tests/intent/
 uv run pytest tests/memory/
 uv run pytest tests/evaluation/
 
-# 前端单元测试
+# Frontend unit tests
 cd frontend && npm run test
 
-# 前端 E2E 测试
+# Frontend E2E tests
 cd frontend && npm run test:e2e
 ```
 
+## Code Style
+
+General Python rules are defined in the root `AGENTS.md`. Test-specific conventions:
+
+- **Descriptive naming**: Use `test_<module>_<scenario>_<expected_outcome>` for all test functions.
+- **Fixture reuse**: Prefer session-scoped fixtures from `tests/conftest.py` over recreating setup per test.
+- **Minimal mocks**: Use helper functions in `_llm.py` and `_agents.py` to construct mocks; avoid hardcoding large JSON blobs in tests.
+- **No `time.sleep`**: Never use `time.sleep` to wait for async results. Use `asyncio.wait_for` or proper mocking instead.
+
 ## Testing Patterns
 
-- **状态工厂**：使用 `@app/models/state.py` 中的 `make_agent_state()` 构造 Agent 状态，避免在各测试中重复拼接地组装状态对象。
-- **异步测试**：每个 async 测试必须加 `@pytest.mark.asyncio`。
-- **Session-scoped DB**：`db_setup` fixture 负责建表/删表；`@tests/_db_config.py` 自动处理 test DB 命名。
-- **LLM Mock**：优先使用 `@tests/_llm.py` 提供的辅助函数构造 mock 响应，避免在测试中硬编码大量 JSON。
-- **Bug-fix TDD**：修复 bug 时，先写失败的复现测试，确认失败后再修复。
-- **外部服务隔离**：单元测试中禁止调用真实 LLM、数据库、Redis、Qdrant；集成测试可在受控环境下访问 test DB。
-- **覆盖率门限**：CI 要求 `--cov=app --cov-fail-under=75`。本地运行也应保持该门限，发现未覆盖代码应补充测试而非调低阈值。
+- **Bug-fix TDD**: Every bug fix must start with a failing reproduction test. Confirm the test fails before applying the fix.
+- **Async tests**: All async tests must be decorated with `@pytest.mark.asyncio`.
+- **State factory**: Use `make_agent_state()` from `app/models/state.py` to construct agent state; avoid assembling state objects inline across multiple tests.
+- **LLM mocking**: Use helpers in `tests/_llm.py` to construct mock responses. Never call real LLMs in unit tests.
+- **External service isolation**: Unit tests must not call real LLM, database, Redis, Qdrant, or SMS gateways. Integration tests may access the test DB in controlled environments.
+- **Coverage gate**: CI enforces `pytest --cov=app --cov-fail-under=75`. Do not lower the threshold; add tests for uncovered code instead.
 
-## CONVENTIONS
+## Conventions
 
-- **扁平结构**：测试目录不强制一一对应 `app/` 子包路径。
-- **测试命名**：使用 `test_<module>_<scenario>_<expected_outcome>` 描述性命名。
-- **fixtures 复用**：优先使用 `@tests/conftest.py` 中的 session-scoped fixtures，避免重复初始化数据库连接。
+- **Flat structure**: Tests do not strictly mirror `app/` subpackage paths.
+- **Naming**: Descriptive test names that convey scenario and expected outcome.
+- **Fixture reuse**: Use session-scoped fixtures from `tests/conftest.py` to avoid repeated DB connection overhead.
+
+## Anti-Patterns
+
+- **Monolithic test files**: Large test files with many test methods should be split by concern (e.g., split by feature or test type rather than accumulating in a single file).
+- **Repeated mock state blocks**: Extract repeated mock state construction into fixtures or helper functions in `_agents.py`.
+- **`time.sleep` in tests**: Never use `time.sleep` for async results; use proper async waiting or mocking.
+- **Skipping coverage**: Do not skip coverage checks locally; when uncovered code is found, add tests rather than lowering thresholds.
 
 ## Related Files
 
-- `@frontend/` — 前端测试独立运行（Vitest + Playwright），不纳入后端 pytest 覆盖率统计。
-
-## ANTI-PATTERNS
-
-- `@tests/intent/test_safety.py`（538 行）测试方法过多，建议按 concern 拆分。
-- `@tests/intent/test_service.py`（483 行）包含大量重复 mock state 块，应提取到 fixtures 中。
-- 不要在测试中使用 `time.sleep` 等待异步结果；优先使用 `asyncio.wait_for` 或正确 mocking。
-- 不要在本地跳过覆盖率检查；发现未覆盖代码应补充测试而非调低阈值。
+- `frontend/` — Frontend tests run independently (Vitest + Playwright) and are not included in backend pytest coverage statistics.
