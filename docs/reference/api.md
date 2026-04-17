@@ -79,10 +79,27 @@ Authorization: Bearer <token>
 |------|------|------|
 | GET | `/api/v1/admin/evaluation/dataset` | 评估数据集 |
 | POST | `/api/v1/admin/evaluation/run` | 运行离线评估 |
+| POST | `/api/v1/admin/continuous-improvement/audit` | 触发持续改进审计 |
+| POST | `/api/v1/admin/shadow-test/run` | 触发 Shadow 测试 |
 | GET | `/api/v1/admin/metrics/sessions` | 会话统计 |
 | GET | `/api/v1/admin/metrics/transfers` | 转接率 |
 | GET | `/api/v1/admin/metrics/confidence` | 置信度指标 |
 | GET | `/api/v1/admin/metrics/latency` | P99 延迟 |
+| GET | `/api/v1/admin/metrics/dashboard/summary` | 指标看板汇总 |
+| GET | `/api/v1/admin/metrics/dashboard/intent-accuracy` | 意图准确率趋势 |
+| GET | `/api/v1/admin/metrics/dashboard/transfer-reasons` | 转接原因分析 |
+| GET | `/api/v1/admin/metrics/dashboard/token-usage` | Token 使用趋势 |
+| GET | `/api/v1/admin/metrics/dashboard/latency-trend` | 延迟趋势 |
+| GET | `/api/v1/admin/metrics/dashboard/rag-precision` | RAG 精确率 |
+| GET | `/api/v1/admin/metrics/dashboard/hallucination-rate` | 幻觉率 |
+| GET | `/api/v1/admin/metrics/dashboard/alerts` | 活跃告警 |
+
+### 会话日志
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/admin/conversations` | 会话列表 |
+| GET | `/api/v1/admin/conversations/{thread_id}` | 会话消息详情 |
 
 ### 知识库
 

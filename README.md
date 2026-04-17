@@ -30,6 +30,7 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 - [系统架构](./docs/explanation/architecture/)
 - [Prompt Engineering 指南](./docs/explanation/prompt-engineering/)
 - [Context Engineering 指南](./docs/explanation/context-engineering/)
+- [Harness Engineering 指南](./docs/explanation/harness-engineering/)
 - [环境变量参考](./docs/reference/environment-variables.md)
 - [常用命令速查表](./docs/reference/command-cheatsheet.md)
 

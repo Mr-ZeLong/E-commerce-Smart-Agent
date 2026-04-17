@@ -24,15 +24,14 @@ E-commerce-Smart-Agent/
 │   ├── 📁 agents/                  # Agent 实现层
 │   ├── 📁 tools/                   # Agent Tool 层
 │   ├── 📁 confidence/              # 置信度信号模块
-│   ├── 📁 evaluation/              # 离线评估
+│   ├── 📁 context/                 # 上下文优化（Token 预算、观察掩码）
 │   ├── 📁 utils/                   # 通用工具函数
 │   ├── 📁 intent/                  # 意图识别模块
 │   ├── 📁 retrieval/               # RAG 检索层
 │   ├── 📁 services/                # 业务服务层
 │   ├── 📁 schemas/                 # 共享 Schema
 │   ├── 📁 tasks/                   # Celery 异步任务
-│   ├── 📁 websocket/               # WebSocket 服务
-│   └── 📁 evaluation/              # 离线评估
+│   └── 📁 websocket/               # WebSocket 服务
 │
 ├── 📁 frontend/                    # React + TypeScript 前端
 │   ├── 📄 package.json             # npm 依赖配置
@@ -56,6 +55,8 @@ E-commerce-Smart-Agent/
 │   ├── 📄 seed_product_catalog.py  # 商品目录种子数据
 │   ├── 📄 etl_qdrant.py            # 知识库 ETL
 │   ├── 📄 run_evaluation.py        # 离线评估脚本
+│   ├── 📄 adversarial_run.py       # 对抗测试脚本
+│   ├── 📄 generate_golden_v2.py    # 生成 Golden Dataset v2
 │   └── 📄 verify_db.py             # 数据库验证脚本
 │
 ├── 📁 migrations/                  # Alembic 数据库迁移

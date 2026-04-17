@@ -12,19 +12,23 @@ flowchart TB
 
         subgraph Routers["🔀 路由模块"]
             AUTH["/api/v1/login\u003cbr/\u003e登录认证"]
+            REGISTER["/api/v1/register\u003cbr/\u003e用户注册"]
+            ME["/api/v1/me\u003cbr/\u003e当前用户"]
             CHAT["/api/v1/chat\u003cbr/\u003e聊天接口 (SSE)"]
-            WS["/api/v1/ws\u003cbr/\u003eWebSocket"]
-            ADMIN["/api/v1/admin\u003cbr/\u003e管理员 API"]
-            KB_ADMIN["/admin/knowledge\u003cbr/\u003e知识库管理"]
+            WS["/api/v1/ws/{thread_id}\u003cbr/\u003eWebSocket (用户)"]
+            WS_ADMIN["/api/v1/ws/admin/{admin_id}\u003cbr/\u003eWebSocket (管理员)"]
+            ADMIN["/api/v1/admin/*\u003cbr/\u003e管理员 API"]
+            KB_ADMIN["/api/v1/admin/knowledge\u003cbr/\u003e知识库管理"]
             AGENT_CFG["/api/v1/admin/agents\u003cbr/\u003eAgent 配置中心"]
-            COMPLAINT_ADMIN["/admin/complaints\u003cbr/\u003e投诉工单"]
-            FEEDBACK_ADMIN["/admin/feedback\u003cbr/\u003e反馈评估"]
-            EXPERIMENTS_ADMIN["/admin/experiments\u003cbr/\u003eA/B 实验"]
-            ANALYTICS_ADMIN["/admin/analytics\u003cbr/\u003e高级分析"]
-            EVAL_ADMIN["/admin/evaluation\u003cbr/\u003e离线评估"]
-            METRICS_ADMIN["/admin/metrics\u003cbr/\u003e指标监控"]
-            CONV_ADMIN["/admin/conversations\u003cbr/\u003e会话日志"]
-            STATUS["/api/v1/status\u003cbr/\u003e状态查询"]
+            COMPLAINT_ADMIN["/api/v1/admin/complaints\u003cbr/\u003e投诉工单"]
+            FEEDBACK_ADMIN["/api/v1/admin/feedback\u003cbr/\u003e反馈评估"]
+            EXPERIMENTS_ADMIN["/api/v1/admin/experiments\u003cbr/\u003eA/B 实验"]
+            ANALYTICS_ADMIN["/api/v1/admin/analytics\u003cbr/\u003e高级分析"]
+            EVAL_ADMIN["/api/v1/admin/evaluation/*\u003cbr/\u003e离线评估"]
+            METRICS_ADMIN["/api/v1/admin/metrics\u003cbr/\u003e指标监控"]
+            CONV_ADMIN["/api/v1/admin/conversations\u003cbr/\u003e会话日志"]
+            STATUS["/api/v1/status/{thread_id}\u003cbr/\u003e状态查询"]
+            FEEDBACK["/api/v1/feedback\u003cbr/\u003e用户反馈"]
         end
     end
 
@@ -33,6 +37,8 @@ flowchart TB
         DB["Database\u003cbr/\u003eSQLModel + AsyncPG"]
         SEC["Security\u003cbr/\u003eJWT Auth"]
         UTILS["Utils\u003cbr/\u003e通用工具函数"]
+        CONTEXT["Context\u003cbr/\u003eToken Budget / Observation Masking"]
+        CONFIDENCE["Confidence\u003cbr/\u003e置信度信号计算"]
     end
 
     subgraph AgentLayer["🤖 Agent 层 (LangGraph)"]
@@ -75,8 +81,13 @@ flowchart TB
 
     subgraph TaskLayer["⏳ 任务层 (Celery)"]
         CELERY["Celery Worker\u003cbr/\u003e异步任务队列"]
-        TASKS["Refund Tasks\u003cbr/\u003e- 发送短信\u003cbr/\u003e- 处理退款\u003cbr/\u003e- 通知管理员"]
+        REFUND_TASKS["Refund Tasks\u003cbr/\u003e- 发送短信\u003cbr/\u003e- 处理退款\u003cbr/\u003e- 通知管理员"]
         KB_TASKS["Knowledge Tasks\u003cbr/\u003e- 知识库 ETL 同步"]
+        MEM_TASKS["Memory Tasks\u003cbr/\u003e- 事实抽取\u003cbr/\u003e- 记忆同步"]
+        EVAL_TASKS["Evaluation Tasks\u003cbr/\u003e- 离线评估\u003cbr/\u003e- Prompt 效果报告"]
+        SHADOW_TASKS["Shadow Tasks\u003cbr/\u003e- 影子测试"]
+        CI_TASKS["Continuous Improvement\u003cbr/\u003e- 质量审计\u003cbr/\u003e- 告警"]
+        NOTIFY_TASKS["Notification Tasks\u003cbr/\u003e- 邮件通知\u003cbr/\u003e- WebSocket 广播"]
     end
 
     subgraph WebSocketLayer["🔌 WebSocket 层"]
@@ -114,6 +125,9 @@ flowchart TB
             TBL_EXPERIMENTS[(experiments\u003cbr/\u003eA/B 实验)]
             TBL_EXPERIMENT_VAR[(experiment_variants\u003cbr/\u003e实验变体)]
             TBL_EXPERIMENT_ASSIGN[(experiment_assignments\u003cbr/\u003e实验分配)]
+            TBL_GRAPH_LOG[(graph_execution_logs\u003cbr/\u003e图执行日志)]
+            TBL_GRAPH_NODE[(graph_node_logs\u003cbr/\u003e节点日志)]
+            TBL_QUALITY[(quality_scores\u003cbr/\u003e质量评分)]
         end
 
         subgraph Qdrant["🔷 Qdrant"]
@@ -195,11 +209,11 @@ flowchart TB
 
 ## 架构说明
 
-E-commerce Smart Agent v4.1 采用六层架构：
+E-commerce Smart Agent v4.1 采用多层架构：
 
 1. **前端层**：React 19 + Vite 构建 C 端聊天界面与 B 端管理后台
 2. **API 层**：FastAPI 提供 RESTful API、SSE 流式响应、WebSocket 连接
-3. **核心层**：Pydantic 配置管理、SQLModel 数据库连接、JWT 安全认证
+3. **核心层**：Pydantic 配置管理、SQLModel 数据库连接、JWT 安全认证、Token 预算与观察掩码、置信度信号计算
 4. **Agent 层**：LangGraph 工作流编排，包含 Supervisor 调度、并行执行、记忆注入、置信度评估
 5. **服务层**：Refund Service 处理退货规则与风控逻辑
 6. **任务层**：Celery 异步队列处理退款、短信、知识库同步、记忆抽取

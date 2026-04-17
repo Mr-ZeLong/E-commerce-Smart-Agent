@@ -295,3 +295,43 @@
 | condition_json | json | 条件 JSON |
 | created_at | datetime | 创建时间 |
 | updated_at | datetime | 更新时间 |
+
+## agent_config_versions
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int PK | 版本主键 |
+| agent_name | string | Agent 名称 |
+| changed_by | int FK | 管理员用户 ID |
+| system_prompt | text | 系统提示词快照 |
+| confidence_threshold | float | 置信度阈值 |
+| max_retries | int | 最大重试次数 |
+| enabled | boolean | 是否启用 |
+| created_at | datetime | 创建时间 |
+
+## prompt_effect_reports
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int PK | 报告主键 |
+| report_month | string | 报告月份 (YYYY-MM) |
+| agent_name | string | Agent 名称 |
+| version_id | int FK | 关联版本 ID |
+| total_sessions | int | 总会话数 |
+| avg_confidence | float | 平均置信度 |
+| transfer_rate | float | 转接率 |
+| avg_latency_ms | float | 平均延迟(ms) |
+| key_changes | text | 关键变更摘要 |
+| recommendation | text | 优化建议 |
+| created_at | datetime | 创建时间 |
+
+## multi_intent_decision_logs
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int PK | 日志主键 |
+| query | text | 用户原始查询 |
+| intent_a | string | 意图 A |
+| intent_b | string | 意图 B |
+| rule_based_result | boolean | 硬编码规则判定结果 |
+| llm_result | boolean | LLM 判定结果 |
+| llm_reason | text | LLM 判定理由 |
+| human_label | boolean | 人工标注结果 |
+| created_at | datetime | 创建时间 |

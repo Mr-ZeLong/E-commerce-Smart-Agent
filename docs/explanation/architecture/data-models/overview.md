@@ -21,6 +21,8 @@ erDiagram
     experiments ||--o{ experiment_assignments : "分配"
     experiment_variants ||--o{ experiment_assignments : "拥有"
     users ||--o{ experiment_assignments : "参与"
+    agent_configs ||--o{ agent_config_versions : "版本快照"
+    agent_config_versions ||--o{ prompt_effect_reports : "效果报告"
 
     users {
         int id PK
@@ -193,6 +195,32 @@ erDiagram
         string intent_category
         string target_agent
         int priority
+    }
+
+    agent_config_versions {
+        int id PK
+        string agent_name
+        int changed_by FK
+        text system_prompt
+        float confidence_threshold
+    }
+
+    prompt_effect_reports {
+        int id PK
+        string report_month
+        string agent_name
+        int version_id FK
+        int total_sessions
+        float avg_confidence
+    }
+
+    multi_intent_decision_logs {
+        int id PK
+        text query
+        string intent_a
+        string intent_b
+        boolean llm_result
+        boolean human_label
     }
 
     knowledge_chunks[Qdrant Collection] {

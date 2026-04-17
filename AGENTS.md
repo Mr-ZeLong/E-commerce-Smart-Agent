@@ -32,9 +32,9 @@ For any other area, this root file applies.
 
 ## Repo Map
 
-- `app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation.
+- `app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation, memory, intent, retrieval, confidence, context, api, models, schemas, utils, websocket, tasks, core.
 - `frontend/`: React 19 + TypeScript frontend (Vite, Tailwind CSS, shadcn/ui).
-- `tests/`: Backend test suite (pytest + pytest-asyncio), organized by module (`tests/intent/`, `tests/graph/`, `tests/memory/`, `tests/evaluation/`, etc.).
+- `tests/`: Backend test suite (pytest + pytest-asyncio), organized by module (`tests/intent/`, `tests/graph/`, `tests/memory/`, `tests/evaluation/`, `tests/context/`, `tests/observability/`, `tests/tasks/`, `tests/admin/`, `tests/services/`, etc.).
 - `scripts/`: Seed data, ETL, and utility scripts.
 - `migrations/`: Alembic database migrations.
 - `data/`: Static seed data (policies, products).

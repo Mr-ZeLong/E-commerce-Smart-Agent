@@ -24,6 +24,11 @@ Expert agent fleet based on `BaseAgent` ABC covering orders, policies, products,
 | Product QA | `app/agents/product.py` + `app/tools/product_tool.py` | Qdrant `product_catalog` semantic retrieval |
 | Cart | `app/agents/cart.py` + `app/tools/cart_tool.py` | Redis persistence, 24h TTL |
 | Complaint | `app/agents/complaint.py` + `app/tools/complaint_tool.py` | LLM auto-classification + ticket creation |
+| Order | `app/agents/order.py` | Order query and management |
+| Payment | `app/agents/payment.py` + `app/tools/payment_tool.py` | Payment query and refund processing |
+| Logistics | `app/agents/logistics.py` + `app/tools/logistics_tool.py` | Shipping and logistics tracking |
+| Account | `app/agents/account.py` + `app/tools/account_tool.py` | User account management |
+| Policy | `app/agents/policy.py` | Policy Q&A via RAG retrieval |
 | Supervisor | `app/agents/supervisor.py` | Serial/parallel dispatch logic |
 | Intent router | `app/agents/router.py` | `IntentRouterAgent` |
 | Config hot-reload | `app/agents/config_loader.py` | Redis-cached routing rules and system prompts (60s TTL) |
