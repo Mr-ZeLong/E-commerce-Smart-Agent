@@ -17,6 +17,7 @@
 - [系统架构](./explanation/architecture/) — 整体架构图、数据模型、交互流程
 - [Prompt Engineering](./explanation/prompt-engineering/) — Prompt 现状、最佳实践与改进路线图
 - [Context Engineering](./explanation/context-engineering/) — 上下文管理、预算控制与优化策略
+- [Harness Engineering](./explanation/harness-engineering/) — Agent 评估框架工程、数据集、回归测试与监控体系
 
 ### 参考资料
 - [API 文档](./reference/api.md)
