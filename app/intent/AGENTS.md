@@ -1,49 +1,71 @@
-# app/intent KNOWLEDGE BASE
+# AGENTS.md - Intent Recognition
 
-> Guidance for intent recognition pipeline. Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules and commands.
+> **IMPORTANT**: Read the root [`AGENTS.md`](../../AGENTS.md) first for repo-wide rules, commands, and conventions.
 
-## OVERVIEW
-意图识别 Pipeline 与多意图处理模块，决定用户输入如何被路由以及是否允许并行执行。
+## Maintenance Contract
+
+- Update this file when adding new intent components, changing pipeline order, or introducing new testing patterns.
+- Keep this file focused on module-specific guidance. Do not duplicate root-level rules.
+
+## Read Order
+
+1. Read the root [`AGENTS.md`](../../AGENTS.md) for repo-wide rules.
+2. Read this file for intent-recognition-specific guidance.
+
+## Overview
+
+Intent recognition pipeline that classifies user messages into intents, determines whether multiple intents can execute in parallel, validates slots, detects topic drift, and enforces safety checks before any LLM invocation.
 
 ## Key Files
 
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| 主 Pipeline | `@app/intent/service.py` | `IntentRecognitionService`，Redis 会话缓存 |
-| 意图分类 | `@app/intent/classifier.py` | 意图分类器实现 |
-| 多意图/独立性 | `@app/intent/multi_intent.py` | `are_independent()` 控制 LangGraph 并行调度 |
-| 澄清引擎 | `@app/intent/clarification.py` | 槽位缺失时的澄清交互 |
-| 槽位验证 | `@app/intent/slot_validator.py` | 槽位值校验 |
-| 话题切换 | `@app/intent/topic_switch.py` | 检测话题漂移 |
-| 安全过滤 | `@app/intent/safety.py` | 输入安全审查 |
+| Task | File | Description |
+|------|------|-------------|
+| Main pipeline | `@app/intent/service.py` | `IntentRecognitionService` with Redis session cache |
+| Intent classifier | `@app/intent/classifier.py` | LLM-based intent classifier |
+| Multi-intent / independence | `@app/intent/multi_intent.py` | `are_independent()` drives LangGraph parallel dispatch |
+| Clarification engine | `@app/intent/clarification.py` | Clarification prompts when slots are missing |
+| Slot validator | `@app/intent/slot_validator.py` | Slot value validation |
+| Topic switch detector | `@app/intent/topic_switch.py` | Topic drift detection |
+| Safety filter | `@app/intent/safety.py` | Input safety review before LLM calls |
+| State models | `@app/intent/models.py` | Intent/slot state models |
+| Config | `@app/intent/config.py` | Intent module configuration |
+| Few-shot loader | `@app/intent/few_shot_loader.py` | Few-shot example loading |
 
 ## Commands
 
 ```bash
-# 运行意图模块相关测试
+# Run intent module tests
 uv run pytest tests/intent/
 ```
 
+## Code Style
+
+General Python rules are defined in the root `AGENTS.md`. Intent-specific conventions:
+
+- **Type hints**: All pipeline methods and classifier outputs must be fully typed.
+- **Immutability**: Never mutate global state in classifiers; write all outputs to the passed `state` object.
+- **LLM guardrails**: All LLM-based intent classifiers must include structured output schemas and validation.
+- **Performance**: Cache high-frequency safety rules; avoid runtime regex compilation inside hot loops.
+
 ## Testing Patterns
 
-- 意图分类器测试使用 mock LLM 响应，覆盖单意图、多意图和未知意图场景。
-- `@tests/intent/test_multi_intent.py` 验证 `are_independent()` 的独立性判定矩阵。
-- 澄清引擎测试覆盖槽位缺失、追问生成和澄清结束条件。
-- 安全过滤测试应按 concern（敏感词、注入攻击、隐私信息）拆分为独立测试文件或 describe 块。
+- **Classifier tests**: Mock LLM responses to cover single-intent, multi-intent, and unknown-intent scenarios.
+- **Multi-intent tests**: `tests/intent/test_multi_intent.py` validates the independence judgment matrix via `are_independent()`.
+- **Clarification tests**: Cover missing slots, clarification prompt generation, and termination conditions.
+- **Safety tests**: Partition by concern (sensitive keywords, injection attacks, PII leakage) into separate test files or `describe` blocks.
+
+## Conventions
+
+- **Pipeline order (`recognize()`)**: `SafetyFilter` → `Redis cache` → `Classifier / MultiIntent` → `TopicSwitchDetector` → `SlotValidator`. `ClarificationEngine` is invoked separately via `clarify()` when slots are missing.
+- **Parallel dispatch**: `are_independent()` returning `True` causes `@app/graph/parallel.py` to construct `Send` nodes for parallel execution.
+- **State model writes**: Intent and slot results are explicitly written to `AgentState.intent_result` / `AgentState.slots`.
+- **Safety first**: `safety.py` executes before any LLM call to intercept violations.
+
+## Anti-Patterns
+
+- **Rule bloat in safety**: Do not accumulate large rule sets in `safety.py` that degrade performance; hoist high-frequency rules or cache results.
+- **Global state mutation in classifier**: Never mutate global or module-level state in `classifier.py`; all outputs must be written to the passed `state` object.
 
 ## Related Files
 
-- `@app/graph/parallel.py` — 消费 `are_independent()` 的结果构造 `Send` 实现多意图并行执行。
-
-## CONVENTIONS
-
-- **Pipeline 顺序**：SafetyFilter → Redis cache → Classifier / MultiIntent → TopicSwitchDetector → SlotValidator → ClarificationEngine。
-- **并行判定**：`are_independent()` 返回 `True` 时，`@app/graph/parallel.py` 会构造多个 `Send` 实现多意图并行执行。
-- **状态模型**：意图与槽位结果显式写入 `AgentState.intent_result` / `AgentState.slots`。
-- **安全优先**：`safety.py` 在任何 LLM 调用之前执行，拦截违规输入。
-
-## ANTI-PATTERNS
-
-- `@app/graph/parallel.py` 直接导入 `@app/intent/multi_intent.py`，意图层与图编排层耦合。
-- 避免在 `@app/intent/safety.py` 中堆积大量规则导致性能下降；高频规则应前置或缓存。
-- 不要在 `classifier.py` 中直接修改全局状态，所有输出应写入传入的 `state` 对象。
+- `@app/graph/parallel.py` — consumes `are_independent()` to construct `Send` for multi-intent parallel execution.
