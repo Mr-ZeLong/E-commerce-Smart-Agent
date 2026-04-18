@@ -61,6 +61,7 @@ async def _init_evaluation_dependencies() -> tuple[Any, Any, Any]:
     from app.core.config import settings
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
+    from app.core.tracing import build_llm_config
     from app.graph.workflow import compile_app_graph
     from app.intent.service import IntentRecognitionService
     from app.memory.structured_manager import StructuredMemoryManager
@@ -81,8 +82,17 @@ async def _init_evaluation_dependencies() -> tuple[Any, Any, Any]:
     checkpointer = AsyncRedisSaver(redis_client=redis_client)
     await checkpointer.setup()
 
-    llm = create_openai_llm()
-    eval_llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
+    llm = create_openai_llm(
+        default_config=build_llm_config(
+            agent_name="evaluation_runner", tags=["evaluation", "internal"]
+        )
+    )
+    eval_llm = create_openai_llm(
+        model=settings.CONFIDENCE.EVALUATION_MODEL,
+        default_config=build_llm_config(
+            agent_name="evaluation_runner_eval", tags=["evaluation", "internal", "confidence_eval"]
+        ),
+    )
     intent_service = IntentRecognitionService(llm=llm, redis_client=redis_client)
     structured_manager = StructuredMemoryManager()
     router_agent = IntentRouterAgent(

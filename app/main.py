@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _setup_logging()
+    _setup_langsmith_tracing()
     logger.info(" Starting E-commerce Smart Agent v4.1...")
 
     setup_otel_tracing()
@@ -167,6 +168,33 @@ async def lifespan(app: FastAPI):
         if vector_manager is not None:
             await vector_manager.aclose()
         await async_engine.dispose()
+
+
+def _setup_langsmith_tracing() -> None:
+    """Configure LangSmith tracing based on application settings.
+
+    If LANGSMITH_API_KEY is configured, automatically set the environment
+    variables required for LangChain/LangSmith automatic tracing. This ensures
+    all LLM calls (via LangChain) are traced without requiring code changes
+    at each call site.
+    """
+    if not settings.LANGSMITH_API_KEY:
+        return
+
+    # Set required environment variables for LangChain automatic tracing
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGSMITH_API_KEY)
+    os.environ.setdefault("LANGCHAIN_PROJECT", settings.LANGSMITH_PROJECT)
+
+    # Log tracing status (avoid logging the full API key)
+    masked_key = (
+        f"{settings.LANGSMITH_API_KEY[:8]}..." if len(settings.LANGSMITH_API_KEY) > 8 else "***"
+    )
+    logger.info(
+        "LangSmith tracing enabled (project=%s, api_key=%s)",
+        settings.LANGSMITH_PROJECT,
+        masked_key,
+    )
 
 
 def _setup_logging() -> None:

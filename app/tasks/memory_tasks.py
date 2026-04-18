@@ -15,6 +15,7 @@ from app.core.database import sync_session_maker
 from app.memory.extractor import FactExtractor
 from app.memory.vector_manager import VectorMemoryManager
 from app.models.memory import UserFact
+from app.tasks.tracing_setup import setup_celery_langsmith_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,8 @@ def extract_and_save_facts(
     session=None,
     extractor=None,
 ) -> dict[str, Any]:
+    setup_celery_langsmith_tracing()
+
     history = json.loads(history_json)
 
     if extractor is None:

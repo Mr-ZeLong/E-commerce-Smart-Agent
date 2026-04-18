@@ -29,12 +29,14 @@ async def _init_graphs():
     from app.core.config import settings
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
+    from app.core.tracing import build_llm_config
     from app.graph.workflow import compile_app_graph
     from app.intent.service import IntentRecognitionService
     from app.memory.structured_manager import StructuredMemoryManager
     from app.memory.vector_manager import VectorMemoryManager
     from app.retrieval import create_retriever
     from app.services.order_service import OrderService
+    from app.tasks.tracing_setup import setup_celery_langsmith_tracing
     from app.tools import (
         AccountTool,
         CartTool,
@@ -45,13 +47,24 @@ async def _init_graphs():
     )
     from app.tools.registry import ToolRegistry
 
+    setup_celery_langsmith_tracing()
+
     redis_client = create_redis_client()
     checkpointer = AsyncRedisSaver(redis_client=redis_client)
     await checkpointer.setup()
 
-    prod_llm = create_openai_llm()
+    prod_llm = create_openai_llm(
+        default_config=build_llm_config(
+            agent_name="shadow_production", tags=["shadow_test", "internal"]
+        )
+    )
     shadow_model = getattr(settings, "SHADOW_MODEL", "gpt-4o-mini")
-    shadow_llm = create_openai_llm(model=shadow_model)
+    shadow_llm = create_openai_llm(
+        model=shadow_model,
+        default_config=build_llm_config(
+            agent_name="shadow_experiment", tags=["shadow_test", "internal"]
+        ),
+    )
 
     prod_intent_service = IntentRecognitionService(llm=prod_llm, redis_client=redis_client)
     shadow_intent_service = IntentRecognitionService(llm=shadow_llm, redis_client=redis_client)

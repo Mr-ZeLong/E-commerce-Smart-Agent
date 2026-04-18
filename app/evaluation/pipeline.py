@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from sqlalchemy import select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.tracing import build_llm_config
 from app.evaluation.containment import containment_rate
 from app.evaluation.metrics import (
     answer_correctness,
@@ -99,9 +100,13 @@ class EvaluationPipeline:
                 user_id=1,
                 thread_id=session_id,
             )
-            config = {"configurable": {"thread_id": session_id}}
+            config = build_llm_config(
+                agent_name="evaluation_pipeline",
+                tags=["evaluation", "internal"],
+            )
+            config = {**config, "configurable": {"thread_id": session_id}}
             try:
-                final_state = await self.graph.ainvoke(initial_state, config)
+                final_state = await self.graph.ainvoke(initial_state, config=config)
             except Exception:
                 logger.exception("Graph invocation failed for query: %s", query)
                 final_state = {}
@@ -158,8 +163,8 @@ class EvaluationPipeline:
         if self.db_session is not None:
             try:
                 stmt = select(GraphExecutionLog)
-                result = await self.db_session.execute(stmt)
-                logs: list[GraphExecutionLog] = list(result.scalars().all())
+                result = await self.db_session.exec(stmt)
+                logs: list[GraphExecutionLog] = list(result.all())
                 results["containment_rate"] = containment_rate(logs)
             except Exception:
                 logger.exception("Failed to query containment rate from database.")

@@ -13,6 +13,8 @@ from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
+from app.core.tracing import build_llm_config
+
 logger = logging.getLogger(__name__)
 
 # 类型约束
@@ -298,7 +300,13 @@ class SafetyFilter:
 - reason: str (判断原因)"""
 
             structured_llm = self.llm.with_structured_output(SafetyCheckResult, method="json_mode")
-            result = await structured_llm.ainvoke([{"role": "user", "content": prompt}])
+            config = build_llm_config(
+                agent_name="safety_filter",
+                tags=["safety", "internal"],
+            )
+            result = await structured_llm.ainvoke(
+                [{"role": "user", "content": prompt}], config=config
+            )
             if isinstance(result, SafetyCheckResult):
                 return result
             if isinstance(result, dict):

@@ -24,6 +24,7 @@ from app.agents.supervisor import SupervisorAgent
 from app.context.token_budget import MemoryTokenBudget
 from app.core.config import settings
 from app.core.database import async_session_maker, sync_session_maker
+from app.core.tracing import build_llm_config
 from app.graph.parallel import build_parallel_sends
 from app.memory.compactor import ContextCompactor
 from app.memory.structured_manager import StructuredMemoryManager
@@ -322,7 +323,15 @@ def build_synthesis_node(
         )
         messages = [HumanMessage(content=prompt)]
         try:
-            response = await llm.ainvoke(messages)
+            config = build_llm_config(
+                agent_name="synthesis_node",
+                tags=["user_visible"],
+                extra_metadata={
+                    "thread_id": state.get("thread_id"),
+                    "user_id": state.get("user_id"),
+                },
+            )
+            response = await llm.ainvoke(messages, config=config)
             synthesized = str(response.content)
         except Exception as exc:
             logger.error("Synthesis LLM call failed: %s", exc)

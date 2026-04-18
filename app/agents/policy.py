@@ -61,7 +61,8 @@ class PolicyAgent(BaseAgent):
             memory_context_config=state.get("memory_context_config"),
         )
 
-        response = await self._call_llm(messages, tags=["user_visible"])
+        metadata = self._extract_tracing_metadata(state)
+        response = await self._call_llm(messages, tags=["user_visible"], metadata=metadata)
 
         return {
             "response": response,
@@ -113,9 +114,15 @@ class PolicyAgent(BaseAgent):
                 ("human", "问题：{question}\n\n文档：{document}"),
             ]
         )
+        from app.core.tracing import build_llm_config
+
         grader = grade_prompt | self.llm.with_structured_output(GradeDocuments)
+        config = build_llm_config(
+            agent_name="policy_agent_grader", tags=["internal", "rag_grading"]
+        )
         tasks = [
-            grader.ainvoke({"question": question, "document": doc.content}) for doc in documents
+            grader.ainvoke({"question": question, "document": doc.content}, config=config)
+            for doc in documents
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         grades: list[GradeDocuments] = []

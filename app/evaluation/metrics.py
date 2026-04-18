@@ -10,6 +10,7 @@ import re
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.core.tracing import build_llm_config
 from app.evaluation.containment import containment_rate
 from app.evaluation.token_efficiency import token_efficiency
 from app.evaluation.tone_consistency import tone_consistency
@@ -117,7 +118,10 @@ async def _rag_precision_llm(
     top_chunks = chunks[:3]
     messages = _build_rag_precision_messages(question, top_chunks)
     try:
-        response = await llm.ainvoke(messages)
+        config = build_llm_config(
+            agent_name="rag_precision_evaluator", tags=["evaluation", "internal"]
+        )
+        response = await llm.ainvoke(messages, config=config)
         content = response.content
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)
@@ -204,7 +208,10 @@ async def answer_correctness(
         HumanMessage(content=prompt),
     ]
     try:
-        response = await llm.ainvoke(messages)
+        config = build_llm_config(
+            agent_name="answer_correctness_evaluator", tags=["evaluation", "internal"]
+        )
+        response = await llm.ainvoke(messages, config=config)
         content = response.content
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)

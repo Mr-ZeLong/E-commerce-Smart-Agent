@@ -141,6 +141,7 @@ class Settings(BaseSettings):
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "ecommerce-smart-agent"
     LANGSMITH_OTEL_ENABLED: bool = False
+    LANGSMITH_CELERY_TRACING: bool = True
 
     # Retriever
     RETRIEVER_DENSE_TOPK: int = 15

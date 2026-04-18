@@ -77,7 +77,8 @@ class ComplaintAgent(BaseAgent):
             system_prompt_override=system_prompt,
             memory_context_config=state.get("memory_context_config"),
         )
-        raw_response = await self._call_llm(messages, tags=["user_visible"])
+        metadata = self._extract_tracing_metadata(state)
+        raw_response = await self._call_llm(messages, tags=["user_visible"], metadata=metadata)
 
         classification = self._parse_classification(raw_response)
 

@@ -382,7 +382,7 @@ async def test_dashscope_uses_auto_tool_choice(classifier, monkeypatch):
     bound_tools_calls = []
 
     class _FakeLLM:
-        async def ainvoke(self, messages):
+        async def ainvoke(self, messages, config=None):
             return type("Resp", (), {"tool_calls": []})()
 
         def bind_tools(self, tools, tool_choice):
@@ -405,7 +405,7 @@ async def test_non_dashscope_uses_object_tool_choice(classifier, monkeypatch):
     bound_tools_calls = []
 
     class _FakeLLM:
-        async def ainvoke(self, messages):
+        async def ainvoke(self, messages, config=None):
             return type("Resp", (), {"tool_calls": []})()
 
         def bind_tools(self, tools, tool_choice):

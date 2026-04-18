@@ -15,6 +15,7 @@ async def log_graph_execution(
     agent_config_version_id: int | None = None,
     context_tokens: int | None = None,
     context_utilization: float | None = None,
+    langsmith_run_url: str | None = None,
 ) -> int:
     log = GraphExecutionLog(
         thread_id=thread_id,
@@ -27,6 +28,7 @@ async def log_graph_execution(
         agent_config_version_id=agent_config_version_id,
         context_tokens=context_tokens,
         context_utilization=context_utilization,
+        langsmith_run_url=langsmith_run_url,
     )
     session.add(log)
     await session.commit()

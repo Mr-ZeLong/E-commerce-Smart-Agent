@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.tracing import build_llm_config
 from app.intent.models import IntentCategory
 from app.intent.service import IntentRecognitionService
 
@@ -152,7 +153,12 @@ class AdversarialRunner:
             from app.core.llm_factory import create_openai_llm
             from app.intent.safety import SafetyConfig, SafetyFilter
 
-            llm = create_openai_llm()
+            llm = create_openai_llm(
+                default_config=build_llm_config(
+                    agent_name="adversarial_safety_checker",
+                    tags=["evaluation", "safety", "internal"],
+                )
+            )
             config = SafetyConfig()
             safety_filter = SafetyFilter(llm=llm, config=config)
             result = await safety_filter.check(query)

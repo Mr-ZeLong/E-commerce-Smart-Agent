@@ -9,6 +9,8 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.core.tracing import build_llm_config
+
 logger = logging.getLogger(__name__)
 
 _CITATION_PATTERN = re.compile(r"\[来源:\s*[^\]]+\]")
@@ -60,7 +62,10 @@ async def llm_hallucination_score(
         HumanMessage(content=prompt),
     ]
     try:
-        response = await llm.ainvoke(messages)
+        config = build_llm_config(
+            agent_name="hallucination_evaluator", tags=["evaluation", "internal"]
+        )
+        response = await llm.ainvoke(messages, config=config)
         content = response.content
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)

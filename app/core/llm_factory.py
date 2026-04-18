@@ -1,5 +1,8 @@
+from typing import cast
+
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
@@ -12,6 +15,7 @@ def create_openai_llm(
     temperature: float = 0,
     timeout: float | None = None,
     max_retries: int | None = None,
+    default_config: RunnableConfig | None = None,
     **kwargs,
 ) -> BaseChatModel:
     """Create a ChatOpenAI instance with project defaults."""
@@ -28,7 +32,13 @@ def create_openai_llm(
         llm_kwargs["max_retries"] = max_retries
     if "anthropic" in settings.OPENAI_BASE_URL.lower():
         llm_kwargs["extra_headers"] = {"anthropic-beta": "prompt-caching-2024-07-31"}
-    return ChatOpenAI(**llm_kwargs)
+
+    llm = ChatOpenAI(**llm_kwargs)
+
+    if default_config:
+        llm = cast(BaseChatModel, llm.with_config(default_config))
+
+    return llm
 
 
 create_llm = create_openai_llm

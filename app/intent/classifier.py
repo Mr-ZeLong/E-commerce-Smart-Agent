@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
 from app.core.llm_factory import maybe_add_cache_control
+from app.core.tracing import build_llm_config
 from app.intent.config import validate_tertiary_intent
 from app.intent.few_shot_loader import (
     format_intent_examples_for_prompt,
@@ -166,7 +167,11 @@ class IntentClassifier:
             [self.INTENT_FUNCTION_SCHEMA],
             tool_choice=tool_choice,  # type: ignore
         )
-        response = await llm_with_tools.ainvoke(messages)
+        config = build_llm_config(
+            agent_name="intent_classifier",
+            tags=["intent", "internal"],
+        )
+        response = await llm_with_tools.ainvoke(messages, config=config)
         tool_calls = response.tool_calls or []
         if not tool_calls:
             return None

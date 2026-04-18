@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.tracing import build_llm_config
 from app.core.utils import clamp_score
 
 NEGATIVE_WORDS = frozenset(settings.NEGATIVE_WORDS)
@@ -155,10 +156,11 @@ async def calculate_llm_signal(
 只返回数字："""
 
     try:
-        raw = await structured_llm.ainvoke(
-            [HumanMessage(content=prompt)],
-            config={"tags": ["confidence_eval", "internal"]},
+        config = build_llm_config(
+            agent_name="confidence_evaluator",
+            tags=["confidence_eval", "internal"],
         )
+        raw = await structured_llm.ainvoke([HumanMessage(content=prompt)], config=config)
         if not isinstance(raw, LLMConfidenceScore):
             raise TypeError(f"Unexpected LLM response type: {type(raw).__name__}")
         score = clamp_score(raw.score)

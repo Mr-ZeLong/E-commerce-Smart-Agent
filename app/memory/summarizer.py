@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.llm_factory import create_llm
+from app.core.tracing import build_llm_config
 from app.memory.structured_manager import StructuredMemoryManager
 from app.models.memory import InteractionSummary
 from app.models.state import AgentState
@@ -65,7 +66,11 @@ class SessionSummarizer:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ]
-        response = await self.llm.ainvoke(llm_messages)
+        config = build_llm_config(
+            agent_name="session_summarizer",
+            tags=["internal", "memory_summarization"],
+        )
+        response = await self.llm.ainvoke(llm_messages, config=config)
         summary = str(response.content).strip()
         logger.info("Generated conversation summary (length=%d)", len(summary))
         return summary

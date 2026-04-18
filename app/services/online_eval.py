@@ -7,6 +7,7 @@ from sqlmodel import desc, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.llm_factory import create_openai_llm
+from app.core.tracing import build_llm_config
 from app.models.evaluation import MessageFeedback, QualityScore, ScoreTypeEnum, SentimentEnum
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,12 @@ class OnlineEvalService:
         if not feedbacks:
             return []
 
-        llm = create_openai_llm()
+        llm = create_openai_llm(
+            default_config=build_llm_config(
+                agent_name="online_quality_evaluator",
+                tags=["evaluation", "internal"],
+            )
+        )
         scores: list[QualityScore] = []
         today = date.today()
         for fb in feedbacks:
@@ -128,7 +134,11 @@ class OnlineEvalService:
                 + (fb.comment or "")
             )
             try:
-                response = await llm.ainvoke([{"role": "user", "content": prompt}])
+                config = build_llm_config(
+                    agent_name="online_quality_evaluator",
+                    tags=["evaluation", "internal"],
+                )
+                response = await llm.ainvoke([{"role": "user", "content": prompt}], config=config)
                 content = str(response.content)
                 import json
 

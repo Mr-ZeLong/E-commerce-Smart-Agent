@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tracers.context import tracing_v2_enabled
 from langgraph.types import Command
 from opentelemetry import trace
 from pydantic import BaseModel
@@ -15,8 +16,10 @@ from sqlmodel import desc, select
 
 from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
+from app.core.config import settings
 from app.core.database import async_session_maker
 from app.core.security import get_current_user_id
+from app.core.tracing import build_llm_config
 from app.core.utils import build_thread_id, utc_now
 from app.models.memory import AgentConfigVersion
 from app.models.state import make_agent_state
@@ -72,15 +75,14 @@ async def chat(
                 )
                 intent_category = intent_result.primary_intent.value if intent_result else None
 
-            config: RunnableConfig = {
-                "configurable": {"thread_id": thread_id},
-                "metadata": {
-                    "thread_id": thread_id,
-                    "user_id": current_user_id,
-                    "intent_result": intent_category,
-                    "trace_id": otel_trace_id,
-                },
-            }
+            config: RunnableConfig = build_llm_config(
+                user_id=current_user_id,
+                thread_id=thread_id,
+                intent=intent_category,
+                extra_metadata={"trace_id": otel_trace_id},
+                tags=["chat_endpoint", "user_visible"],
+            )
+            config["configurable"] = {"thread_id": thread_id}
 
             variant_id: int | None = None
             memory_context_config: dict[str, Any] | None = None
@@ -127,114 +129,131 @@ async def chat(
             node_start_times: dict[str, float] = {}
             node_latencies: dict[str, int] = {}
 
+            # LangSmith tracing: wrap the graph execution to capture trace URL
+            langsmith_run_url: str | None = None
+
             try:
-                async for event in app_graph.astream_events(initial_state, config, version="v2"):
-                    kind = event["event"]
+                with tracing_v2_enabled(project_name=settings.LANGSMITH_PROJECT) as cb:
+                    async for event in app_graph.astream_events(
+                        initial_state, config, version="v2"
+                    ):
+                        kind = event["event"]
 
-                    # Track node start times for latency logging
-                    if kind == "on_chain_start":
-                        metadata = event.get("metadata", {})
-                        langgraph_node = metadata.get("langgraph_node", "")
-                        if langgraph_node:
-                            node_start_times[event.get("run_id", "")] = time.time()
+                        # Track node start times for latency logging
+                        if kind == "on_chain_start":
+                            metadata = event.get("metadata", {})
+                            langgraph_node = metadata.get("langgraph_node", "")
+                            if langgraph_node:
+                                node_start_times[event.get("run_id", "")] = time.time()
 
-                    # 处理 LLM 流式输出 - 只处理用户可见的 Agent 输出
-                    if kind == "on_chat_model_stream":
-                        # 过滤内部调用（置信度评估、意图识别等）
-                        metadata = event.get("metadata", {})
-                        langgraph_node = metadata.get("langgraph_node", "")
-                        tags = metadata.get("tags", [])
+                        # 处理 LLM 流式输出 - 只处理用户可见的 Agent 输出
+                        if kind == "on_chat_model_stream":
+                            # 过滤内部调用（置信度评估、意图识别等）
+                            metadata = event.get("metadata", {})
+                            langgraph_node = metadata.get("langgraph_node", "")
+                            tags = metadata.get("tags", [])
 
-                        # 只转发标记为 user_visible 的输出
-                        # 过滤掉 router 和内部置信度评估的调用
-                        is_internal = (
-                            langgraph_node == "router_node"
-                            or "confidence_eval" in tags
-                            or "internal" in tags
-                        )
-
-                        if is_internal:
-                            continue
-
-                        # 只处理用户可见的 LLM 输出
-                        if "user_visible" not in tags:
-                            continue
-
-                        data = event.get("data")
-                        if data and isinstance(data, dict):
-                            chunk = data.get("chunk")
-                            if chunk:
-                                content = chunk.content
-                                if content:
-                                    payload = json.dumps({"token": content}, ensure_ascii=False)
-                                    yield f"data: {payload}\n\n"
-
-                    # v4.1: 捕获 on_chain_end 事件获取最终状态
-                    elif kind == "on_chain_end":
-                        raw_output = event.get("data", {}).get("output", {})
-                        metadata = event.get("metadata", {})
-                        langgraph_node = metadata.get("langgraph_node", "")
-
-                        # Track node latency
-                        run_id = event.get("run_id", "")
-                        if run_id in node_start_times and langgraph_node:
-                            latency_ms = int((time.time() - node_start_times[run_id]) * 1000)
-                            node_latencies[langgraph_node] = (
-                                node_latencies.get(langgraph_node, 0) + latency_ms
+                            # 只转发标记为 user_visible 的输出
+                            # 过滤掉 router 和内部置信度评估的调用
+                            is_internal = (
+                                langgraph_node == "router_node"
+                                or "confidence_eval" in tags
+                                or "internal" in tags
                             )
-                            del node_start_times[run_id]
 
-                        # LangGraph 1.1+ returns Command objects for nodes that use Command;
-                        # unwrap the update dict so answer/confidence fields are accessible.
-                        if isinstance(raw_output, Command):
-                            output = raw_output.update
-                        elif isinstance(raw_output, dict):
-                            output = raw_output
-                        else:
-                            output = {}
+                            if is_internal:
+                                continue
 
-                        if output:
-                            # 从 router/policy/order/logistics/account/payment 节点获取 answer 发送给用户
-                            # (对于 OrderAgent 等非 LLM 节点，answer 直接来自 state)
-                            if (
-                                langgraph_node
-                                in (
-                                    "router_node",
-                                    "policy_agent",
-                                    "order_agent",
-                                    "logistics",
-                                    "account",
-                                    "payment",
-                                    "product",
-                                    "cart",
-                                    "synthesis_node",
+                            # 只处理用户可见的 LLM 输出
+                            if "user_visible" not in tags:
+                                continue
+
+                            data = event.get("data")
+                            if data and isinstance(data, dict):
+                                chunk = data.get("chunk")
+                                if chunk:
+                                    content = chunk.content
+                                    if content:
+                                        payload = json.dumps({"token": content}, ensure_ascii=False)
+                                        yield f"data: {payload}\n\n"
+
+                        # v4.1: 捕获 on_chain_end 事件获取最终状态
+                        elif kind == "on_chain_end":
+                            raw_output = event.get("data", {}).get("output", {})
+                            metadata = event.get("metadata", {})
+                            langgraph_node = metadata.get("langgraph_node", "")
+
+                            # Track node latency
+                            run_id = event.get("run_id", "")
+                            if run_id in node_start_times and langgraph_node:
+                                latency_ms = int((time.time() - node_start_times[run_id]) * 1000)
+                                node_latencies[langgraph_node] = (
+                                    node_latencies.get(langgraph_node, 0) + latency_ms
                                 )
-                                and "answer" in output
-                            ):
-                                answer = output["answer"]
-                                if answer and answer not in sent_answers:
-                                    sent_answers.add(answer)
-                                    final_answer = answer
-                                    payload = json.dumps({"token": answer}, ensure_ascii=False)
-                                    yield f"data: {payload}\n\n"
+                                del node_start_times[run_id]
 
-                            # 收集置信度相关信息
-                            if "confidence_score" in output:
-                                final_state["confidence_score"] = output["confidence_score"]
-                            if "confidence_signals" in output:
-                                final_state["confidence_signals"] = output["confidence_signals"]
-                            if "needs_human_transfer" in output:
-                                final_state["needs_human_transfer"] = output["needs_human_transfer"]
-                            if "transfer_reason" in output:
-                                final_state["transfer_reason"] = output["transfer_reason"]
-                            if "audit_level" in output:
-                                final_state["audit_level"] = output["audit_level"]
-                            if "current_agent" in output:
-                                final_state["current_agent"] = output["current_agent"]
-                            if "context_tokens" in output:
-                                final_state["context_tokens"] = output["context_tokens"]
-                            if "context_utilization" in output:
-                                final_state["context_utilization"] = output["context_utilization"]
+                            # LangGraph 1.1+ returns Command objects for nodes that use Command;
+                            # unwrap the update dict so answer/confidence fields are accessible.
+                            if isinstance(raw_output, Command):
+                                output = raw_output.update
+                            elif isinstance(raw_output, dict):
+                                output = raw_output
+                            else:
+                                output = {}
+
+                            if output:
+                                # 从 router/policy/order/logistics/account/payment 节点获取 answer 发送给用户
+                                # (对于 OrderAgent 等非 LLM 节点，answer 直接来自 state)
+                                if (
+                                    langgraph_node
+                                    in (
+                                        "router_node",
+                                        "policy_agent",
+                                        "order_agent",
+                                        "logistics",
+                                        "account",
+                                        "payment",
+                                        "product",
+                                        "cart",
+                                        "synthesis_node",
+                                    )
+                                    and "answer" in output
+                                ):
+                                    answer = output["answer"]
+                                    if answer and answer not in sent_answers:
+                                        sent_answers.add(answer)
+                                        final_answer = answer
+                                        payload = json.dumps({"token": answer}, ensure_ascii=False)
+                                        yield f"data: {payload}\n\n"
+
+                                # 收集置信度相关信息
+                                if "confidence_score" in output:
+                                    final_state["confidence_score"] = output["confidence_score"]
+                                if "confidence_signals" in output:
+                                    final_state["confidence_signals"] = output["confidence_signals"]
+                                if "needs_human_transfer" in output:
+                                    final_state["needs_human_transfer"] = output[
+                                        "needs_human_transfer"
+                                    ]
+                                if "transfer_reason" in output:
+                                    final_state["transfer_reason"] = output["transfer_reason"]
+                                if "audit_level" in output:
+                                    final_state["audit_level"] = output["audit_level"]
+                                if "current_agent" in output:
+                                    final_state["current_agent"] = output["current_agent"]
+                                if "context_tokens" in output:
+                                    final_state["context_tokens"] = output["context_tokens"]
+                                if "context_utilization" in output:
+                                    final_state["context_utilization"] = output[
+                                        "context_utilization"
+                                    ]
+
+                    # Capture LangSmith trace URL after graph execution completes
+                    if cb is not None:
+                        try:
+                            langsmith_run_url = cb.get_run_url()
+                        except Exception:
+                            logger.debug("Failed to get LangSmith run URL", exc_info=True)
 
                 # v4.1: 在 [DONE] 之前发送元数据消息（如果存在）
                 if final_state and final_state.get("confidence_score") is not None:
@@ -282,6 +301,7 @@ async def chat(
                         agent_config_version_id=version_id,
                         context_tokens=final_state.get("context_tokens"),
                         context_utilization=final_state.get("context_utilization"),
+                        langsmith_run_url=langsmith_run_url,
                     )
                     for node_name, latency_ms in node_latencies.items():
                         await log_graph_node(

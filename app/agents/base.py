@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
 from app.core.llm_factory import maybe_add_cache_control
+from app.core.tracing import build_llm_config
 from app.models.state import AgentProcessResult, AgentState
 
 logger = logging.getLogger(__name__)
@@ -104,15 +105,38 @@ class BaseAgent(ABC):
     @abstractmethod
     async def process(self, state: AgentState) -> AgentProcessResult: ...
 
+    def _extract_tracing_metadata(self, state: AgentState) -> dict[str, Any]:
+        """Extract tracing metadata from AgentState."""
+        metadata: dict[str, Any] = {}
+        if user_id := state.get("user_id"):
+            metadata["user_id"] = user_id
+        if thread_id := state.get("thread_id"):
+            metadata["thread_id"] = thread_id
+        if intent_result := state.get("intent_result"):
+            if isinstance(intent_result, dict):
+                metadata["intent"] = intent_result.get("primary_intent")
+            else:
+                metadata["intent"] = getattr(intent_result, "primary_intent", None)
+        return metadata
+
     async def _call_llm(
-        self, messages: list, temperature: float | None = None, tags: list[str] | None = None
+        self,
+        messages: list,
+        temperature: float | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         try:
             llm = self.llm.bind(temperature=temperature) if temperature is not None else self.llm
-            response = await llm.ainvoke(messages, config={"tags": tags} if tags else {})
+            config = build_llm_config(
+                agent_name=self.name,
+                tags=tags,
+                extra_metadata=metadata,
+            )
+            response = await llm.ainvoke(messages, config=config)
             return str(response.content)
         except (LangChainException, ConnectionError) as e:
-            logger.error(f"[{self.name}] LLM 调用失败: {e}")
+            logger.error(f"[{self.name}] LLM call failed: {e}")
             raise
 
     def _build_user_context(self, memory_context: dict[str, Any] | None) -> dict[str, Any]:

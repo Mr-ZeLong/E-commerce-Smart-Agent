@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.tracing import build_llm_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,16 +72,21 @@ class ShadowOrchestrator:
             Tuple of (production_result, shadow_result).
         """
         sid = session_id or f"shadow-{uuid.uuid4().hex[:8]}"
-        config = {"configurable": {"thread_id": sid}}
+        config = build_llm_config(
+            agent_name="shadow_test",
+            tags=["shadow", "evaluation", "internal"],
+            extra_metadata={"session_id": sid},
+        )
+        config = {**config, "configurable": {"thread_id": sid}}
 
         import time
 
         prod_start = time.time()
-        prod_result = await production_graph.ainvoke({"question": query}, config)
+        prod_result = await production_graph.ainvoke({"question": query}, config=config)
         prod_latency = int((time.time() - prod_start) * 1000)
 
         shadow_start = time.time()
-        shadow_result = await shadow_graph.ainvoke({"question": query}, config)
+        shadow_result = await shadow_graph.ainvoke({"question": query}, config=config)
         shadow_latency = int((time.time() - shadow_start) * 1000)
 
         return (

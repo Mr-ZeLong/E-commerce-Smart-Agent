@@ -66,7 +66,10 @@ class ProductAgent(BaseAgent):
                         memory_context_config=state.get("memory_context_config"),
                     )
                     try:
-                        response = await self._call_llm(messages, tags=["user_visible"])
+                        metadata = self._extract_tracing_metadata(state)
+                        response = await self._call_llm(
+                            messages, tags=["user_visible"], metadata=metadata
+                        )
                         response_text = response
                     except Exception:
                         response_text = self._format_product_list(products)

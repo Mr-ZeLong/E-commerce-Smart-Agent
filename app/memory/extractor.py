@@ -6,6 +6,7 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.core.llm_factory import create_llm
+from app.core.tracing import build_llm_config
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,12 @@ class FactExtractor:
 
         raw_content = ""
         try:
-            response = await self.llm.ainvoke(messages)
+            config = build_llm_config(
+                agent_name="fact_extractor",
+                tags=["internal", "memory_extraction"],
+                extra_metadata={"user_id": user_id, "thread_id": thread_id},
+            )
+            response = await self.llm.ainvoke(messages, config=config)
             raw_content = str(response.content) if hasattr(response, "content") else str(response)
             facts = json.loads(raw_content)
         except Exception:

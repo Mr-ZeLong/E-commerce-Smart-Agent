@@ -8,6 +8,7 @@ from typing import Any, Protocol
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
+from app.core.tracing import build_llm_config
 from app.intent.models import IntentResult
 
 
@@ -198,7 +199,11 @@ class MultiIntentProcessor:
             if self.llm is None:
                 raise RuntimeError("LLM not available")
             checker = prompt | self.llm.with_structured_output(IndependenceCheck)
-            result = await checker.ainvoke({})
+            config = build_llm_config(
+                agent_name="multi_intent_checker",
+                tags=["intent", "internal"],
+            )
+            result = await checker.ainvoke({}, config=config)
             if isinstance(result, IndependenceCheck):
                 return result
             if isinstance(result, dict):

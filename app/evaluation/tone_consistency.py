@@ -7,6 +7,8 @@ import logging
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.core.tracing import build_llm_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,7 +65,8 @@ async def tone_consistency(
     ]
 
     try:
-        response = await llm.ainvoke(messages)
+        config = build_llm_config(agent_name="tone_evaluator", tags=["evaluation", "internal"])
+        response = await llm.ainvoke(messages, config=config)
         content = response.content
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)

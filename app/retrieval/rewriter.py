@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.core.tracing import build_llm_config
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,13 @@ class QueryRewriter:
         prompt = self._build_rewrite_prompt(query, conversation_history, memory_context)
 
         try:
-            response = await self._structured_llm.ainvoke([SystemMessage(content=prompt)])
+            config = build_llm_config(
+                agent_name="query_rewriter",
+                tags=["retrieval", "rewrite"],
+            )
+            response = await self._structured_llm.ainvoke(
+                [SystemMessage(content=prompt)], config=config
+            )
             if isinstance(response, _RewrittenQuery):
                 rewritten = response.query.strip()
             elif isinstance(response, dict):
@@ -191,7 +198,13 @@ class QueryRewriter:
         prompt = MULTI_QUERY_PROMPT.format(question=contextualized_query, n=n)
 
         try:
-            response = await self._multi_query_llm.ainvoke([HumanMessage(content=prompt)])
+            config = build_llm_config(
+                agent_name="query_rewriter",
+                tags=["retrieval", "multi_query"],
+            )
+            response = await self._multi_query_llm.ainvoke(
+                [HumanMessage(content=prompt)], config=config
+            )
             if isinstance(response, _MultiQueryResult):
                 variants = [v.strip() for v in response.queries if v.strip()]
             elif isinstance(response, dict):
