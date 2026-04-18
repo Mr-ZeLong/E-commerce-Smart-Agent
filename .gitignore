@@ -117,3 +117,12 @@ scripts/dev_*.py
 
 # Sisyphus plans
 .sisyphus/
+
+# OpenCode plans
+.opencode/
+
+# Cache tags
+CACHEDIR.TAG
+
+# Local model caches
+models--*/
