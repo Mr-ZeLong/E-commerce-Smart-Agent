@@ -60,12 +60,14 @@ async def test_function_calling_no_tool_calls(classifier, deterministic_llm):
 
 
 @pytest.mark.asyncio
-async def test_function_calling_exception_propagates(classifier, deterministic_llm):
-    """测试Function Calling异常直接抛出"""
+async def test_function_calling_exception_graceful_fallback(classifier, deterministic_llm):
+    """测试Function Calling异常时降级到规则匹配"""
     deterministic_llm.exception = ValueError("Function calling failed")
 
-    with pytest.raises(ValueError, match="Function calling failed"):
-        await classifier.classify("运费怎么算")
+    result = await classifier.classify("运费怎么算")
+
+    assert result.primary_intent == IntentCategory.POLICY
+    assert result.secondary_intent == IntentAction.CONSULT
 
 
 # ========== Layer 2: Rule Matching Tests ==========
@@ -389,7 +391,7 @@ async def test_dashscope_uses_auto_tool_choice(classifier, monkeypatch):
             bound_tools_calls.append(tool_choice)
             return self
 
-    classifier.llm = _FakeLLM()
+    classifier._fast_llm = _FakeLLM()
     await classifier._classify_with_function_calling("测试")
     assert bound_tools_calls == ["auto"]
 
@@ -412,7 +414,7 @@ async def test_non_dashscope_uses_object_tool_choice(classifier, monkeypatch):
             bound_tools_calls.append(tool_choice)
             return self
 
-    classifier.llm = _FakeLLM()
+    classifier._fast_llm = _FakeLLM()
     await classifier._classify_with_function_calling("测试")
     assert bound_tools_calls == [{"type": "function", "function": {"name": "classify_intent"}}]
 

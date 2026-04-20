@@ -154,9 +154,9 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
         session.commit()
 
         try:
-            outcome = asyncio.run(_do_sync(document_id, doc.storage_path, doc.filename))
+            _run_etl_script(os.path.dirname(doc.storage_path), recreate=False)
             doc.sync_status = "done"
-            doc.sync_message = f"Synced {outcome['chunks']} chunks"
+            doc.sync_message = "Synced successfully"
             doc.last_synced_at = utc_now()
             doc.updated_at = utc_now()
             session.add(doc)
@@ -164,7 +164,6 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
             return {
                 "status": "success",
                 "document_id": document_id,
-                "chunks": outcome.get("chunks", 0),
             }
         except Exception as exc:
             logger.exception(f"Failed to sync knowledge document {document_id}")

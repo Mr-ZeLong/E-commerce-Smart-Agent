@@ -41,7 +41,7 @@ General Python rules are defined in the root `AGENTS.md`. Graph-specific convent
 - **Type hints**: All node builder functions and graph compilation methods must have complete type annotations.
 - **Node purity**: Node functions should be deterministic and free of side effects; all state changes are returned via `update`.
 - **Command returns**: Always use `Command(goto=..., update=...)` instead of mutating input state in place.
-- **File length**: Keep node files under 400 lines; split by responsibility (routing, memory, synthesis, etc.).
+- **File length**: Keep node files under 400 lines; split by responsibility (routing, memory, synthesis, etc.). Note: `nodes.py` is currently 627 lines and should be refactored.
 
 ## Testing Patterns
 

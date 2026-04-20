@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -10,7 +11,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.config import settings
-from app.core.llm_factory import maybe_add_cache_control
+from app.core.llm_factory import create_openai_llm, maybe_add_cache_control
 from app.core.tracing import build_llm_config
 from app.intent.config import validate_tertiary_intent
 from app.intent.few_shot_loader import (
@@ -100,9 +101,23 @@ class IntentClassifier:
             r"有.*(货|库存)",
         ],
         ("PRODUCT", "COMPARE"): [r"(对比|比较|哪个好|区别)", r"和.*(比|区别)"],
-        ("CART", "QUERY"): [r"购物车.*(看|查|有什么)", r"我的购物车"],
+        ("CART", "QUERY"): [r"购物车.*(看|查|有什么|内容)", r"我的购物车", r"查看购物车"],
         ("CART", "ADD"): [r"(加|放|添加).*(购物车|车里)", r"购物车.*(加|添)"],
         ("CART", "REMOVE"): [r"(删|移除|清空).*(购物车|车里)"],
+        ("ACCOUNT", "QUERY"): [
+            r"账户.*(余额|信息|等级|会员)",
+            r"我的余额",
+            r"优惠券",
+            r"会员.*(等级|信息)",
+            r"积分",
+            r"个人信息",
+        ],
+        ("PAYMENT", "QUERY"): [
+            r"支付.*(问题|失败|方式)",
+            r"付款.*(问题|失败)",
+            r"退款.*(进度|状态)",
+            r"钱包",
+        ],
         ("LOGISTICS", "QUERY"): [
             r"(物流|快递|包裹).*(哪|状态|进度)",
             r"到哪.*(了|了没)",
@@ -113,6 +128,7 @@ class IntentClassifier:
 
     def __init__(self, llm: BaseChatModel):
         self.llm = llm
+        self._fast_llm = llm if llm is not None else create_openai_llm(timeout=15.0, max_retries=1)
         self._compiled_rules = {
             key: [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
             for key, patterns in self.RULE_PATTERNS.items()
@@ -122,11 +138,15 @@ class IntentClassifier:
     async def classify(
         self, query: str, context: dict[str, Any] | None = None, min_confidence: float = 0.5
     ) -> IntentResult:
-        result = await self._classify_with_function_calling(query, context)
-        if result is not None and result.confidence >= self.FUNCTION_CALLING_THRESHOLD:
+        result = self._classify_with_rules(query)
+        if result.confidence >= self.FUNCTION_CALLING_THRESHOLD:
             return self._finalize_result(result, query, min_confidence)
 
-        return self._finalize_result(self._classify_with_rules(query), query, min_confidence)
+        llm_result = await self._classify_with_function_calling(query, context)
+        if llm_result is not None and llm_result.confidence >= self.FUNCTION_CALLING_THRESHOLD:
+            return self._finalize_result(llm_result, query, min_confidence)
+
+        return self._finalize_result(result, query, min_confidence)
 
     def _finalize_result(
         self, result: IntentResult, query: str, min_confidence: float
@@ -163,7 +183,7 @@ class IntentClassifier:
         tool_choice: Any = {"type": "function", "function": {"name": "classify_intent"}}
         if "dashscope" in settings.OPENAI_BASE_URL.lower() or settings.LLM_MODEL.startswith("qwen"):
             tool_choice = "auto"
-        llm_with_tools = self.llm.bind_tools(
+        llm_with_tools = self._fast_llm.bind_tools(
             [self.INTENT_FUNCTION_SCHEMA],
             tool_choice=tool_choice,  # type: ignore
         )
@@ -171,7 +191,17 @@ class IntentClassifier:
             agent_name="intent_classifier",
             tags=["intent", "internal"],
         )
-        response = await llm_with_tools.ainvoke(messages, config=config)
+        try:
+            response = await asyncio.wait_for(
+                llm_with_tools.ainvoke(messages, config=config),
+                timeout=5.0,
+            )
+        except TimeoutError:
+            logger.warning("Intent classification LLM call timed out after 5s")
+            return None
+        except Exception as exc:
+            logger.warning("Intent classification LLM call failed: %s", exc)
+            return None
         tool_calls = response.tool_calls or []
         if not tool_calls:
             return None
@@ -188,11 +218,14 @@ class IntentClassifier:
         for (primary, secondary), patterns in self._compiled_rules.items():
             for pattern in patterns:
                 if pattern.search(query_lower):
+                    slots: dict[str, Any] = {"matched_pattern": pattern.pattern}
+                    if primary == "CART" and secondary in ("ADD", "REMOVE", "MODIFY", "QUERY"):
+                        slots["action"] = secondary
                     return IntentResult(
                         primary_intent=IntentCategory[primary],
                         secondary_intent=IntentAction[secondary],
                         confidence=self.RULE_MATCH_CONFIDENCE,
-                        slots={"matched_pattern": pattern.pattern},
+                        slots=slots,
                         raw_query=query,
                     )
         return IntentResult(

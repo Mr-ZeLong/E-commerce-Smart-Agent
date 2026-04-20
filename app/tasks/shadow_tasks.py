@@ -187,4 +187,9 @@ async def _run_shadow_test(query: str, thread_id: str | None = None) -> dict:
 
 @celery_app.task(bind=True, name="shadow.run_shadow_test")
 def run_shadow_test(_self, query: str) -> dict:
-    return asyncio.run(_run_shadow_test(query))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_run_shadow_test(query))
+    finally:
+        loop.close()

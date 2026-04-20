@@ -33,13 +33,9 @@ class OrderAgent(BaseAgent):
         question = state.get("question", "")
         user_id = state.get("user_id")
         intent_result = state.get("intent_result") or {}
-        memory_prefix = self._format_memory_prefix(
-            state.get("memory_context"), state.get("memory_context_config")
-        )
-
         if user_id is None:
             return {
-                "response": memory_prefix + "抱歉，无法识别用户身份，请重新登录。",
+                "response": "抱歉，无法识别用户身份，请重新登录。",
                 "updated_state": {"order_data": None},
             }
 
@@ -49,13 +45,9 @@ class OrderAgent(BaseAgent):
         ):
             thread_id = state.get("thread_id", "")
             result = await self._handle_refund(question, user_id, thread_id)
-            if memory_prefix:
-                result["response"] = memory_prefix + result.get("response", "")
             return result
         else:
             result = await self._handle_order_query(question, user_id)
-            if memory_prefix:
-                result["response"] = memory_prefix + result.get("response", "")
             return result
 
     async def _handle_order_query(self, question: str, user_id: int) -> AgentProcessResult:

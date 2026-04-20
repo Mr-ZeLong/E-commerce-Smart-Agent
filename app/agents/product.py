@@ -1,9 +1,6 @@
-import json
-
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
-from app.context.masking import mask_context_parts
 from app.models.state import AgentProcessResult, AgentState
 from app.tools.registry import ToolRegistry
 
@@ -39,42 +36,7 @@ class ProductAgent(BaseAgent):
             if not products:
                 response_text = "抱歉，未找到匹配的商品。"
             else:
-                question = state.get("question", "")
-                use_llm = self._should_use_llm(question)
-
-                if use_llm:
-                    context_parts = []
-                    for p in products:
-                        part = (
-                            f"商品: {p.get('name', '未知商品')}, "
-                            f"价格: ¥{p.get('price', 'N/A')}, "
-                            f"库存: {'有货' if p.get('in_stock') else '缺货'}"
-                        )
-                        if p.get("description"):
-                            part += f", 描述: {p['description']}"
-                        if p.get("attributes"):
-                            part += f", 参数: {json.dumps(p['attributes'], ensure_ascii=False)}"
-                        context_parts.append(part)
-
-                    context_parts = mask_context_parts(context_parts)
-
-                    messages = self._create_messages(
-                        question,
-                        context={"context": context_parts},
-                        memory_context=state.get("memory_context"),
-                        user_context=self._build_user_context(state.get("memory_context")),
-                        memory_context_config=state.get("memory_context_config"),
-                    )
-                    try:
-                        metadata = self._extract_tracing_metadata(state)
-                        response = await self._call_llm(
-                            messages, tags=["user_visible"], metadata=metadata
-                        )
-                        response_text = response
-                    except Exception:
-                        response_text = self._format_product_list(products)
-                else:
-                    response_text = self._format_product_list(products)
+                response_text = self._format_product_list(products)
 
         return {
             "response": response_text,

@@ -9,7 +9,11 @@ correlation_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 
 class CorrelationIdFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        record.correlation_id = correlation_id.get() or "-"
+        try:
+            cid = correlation_id.get()
+        except LookupError:
+            cid = None
+        record.correlation_id = cid if cid is not None else "-"
         return True
 
 

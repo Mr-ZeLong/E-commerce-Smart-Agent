@@ -25,9 +25,6 @@ class CartAgent(BaseAgent):
             self._dynamic_system_prompt = override
         tool_result = await self.tool_registry.execute("cart", state)
         output = tool_result.output
-        memory_prefix = self._format_memory_prefix(
-            state.get("memory_context"), state.get("memory_context_config")
-        )
 
         action = output.get("action")
         status = output.get("status")
@@ -61,9 +58,6 @@ class CartAgent(BaseAgent):
             )
         else:
             response_text = "购物车操作已完成。"
-
-        if memory_prefix:
-            response_text = memory_prefix + response_text
 
         return {
             "response": response_text,

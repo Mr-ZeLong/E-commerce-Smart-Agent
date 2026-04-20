@@ -16,9 +16,7 @@ def _make_rewriter_structured(
 
 @pytest.mark.asyncio
 async def test_rewrite_returns_rewritten_query(deterministic_llm):
-    deterministic_llm.structured = _make_rewriter_structured(
-        rewrite_query="改写后的查询", multi_queries=[]
-    )
+    deterministic_llm.responses = [(["原始查询"], "改写后的查询")]
     rewriter = QueryRewriter(llm=deterministic_llm)
     result = await rewriter.rewrite("原始查询")
     assert result == "改写后的查询"
@@ -26,9 +24,7 @@ async def test_rewrite_returns_rewritten_query(deterministic_llm):
 
 @pytest.mark.asyncio
 async def test_rewrite_with_history(deterministic_llm):
-    deterministic_llm.structured = _make_rewriter_structured(
-        rewrite_query="改写后的查询", multi_queries=[]
-    )
+    deterministic_llm.responses = [(["怎么退"], "改写后的查询")]
     rewriter = QueryRewriter(llm=deterministic_llm)
     history = [{"role": "user", "content": "之前买了个手机"}]
     result = await rewriter.rewrite("怎么退", conversation_history=history)
@@ -37,16 +33,14 @@ async def test_rewrite_with_history(deterministic_llm):
 
 @pytest.mark.asyncio
 async def test_rewrite_cache_hit(deterministic_llm, redis_client):
-    deterministic_llm.structured = _make_rewriter_structured(
-        rewrite_query="改写后的查询", multi_queries=[]
-    )
+    deterministic_llm.responses = [(["cache_hit_test_query_unique_12345"], "改写后的查询")]
     rewriter = QueryRewriter(llm=deterministic_llm, redis_client=redis_client)
     query = "cache_hit_test_query_unique_12345"
 
     result1 = await rewriter.rewrite(query)
     assert result1 == "改写后的查询"
 
-    deterministic_llm.structured = _make_rewriter_structured(multi_queries=[])
+    deterministic_llm.responses = []
     result2 = await rewriter.rewrite(query)
     assert result2 == "改写后的查询"
 
@@ -69,9 +63,7 @@ async def test_rewrite_multi_query(deterministic_llm):
 
 @pytest.mark.asyncio
 async def test_rewrite_cache_miss(deterministic_llm, redis_client):
-    deterministic_llm.structured = _make_rewriter_structured(
-        rewrite_query="改写后的查询", multi_queries=[]
-    )
+    deterministic_llm.responses = [(["cache_miss_test_query_unique_67890"], "改写后的查询")]
     rewriter = QueryRewriter(llm=deterministic_llm, redis_client=redis_client)
     query = "cache_miss_test_query_unique_67890"
 
@@ -84,7 +76,7 @@ async def test_rewrite_cache_miss(deterministic_llm, redis_client):
 
 @pytest.mark.asyncio
 async def test_rewrite_fallback_on_failure(deterministic_llm, redis_client):
-    deterministic_llm.structured = _make_rewriter_structured(rewrite_query="", multi_queries=[])
+    deterministic_llm.responses = []
     rewriter = QueryRewriter(llm=deterministic_llm, redis_client=redis_client)
     query = "fallback_test_query_unique"
 

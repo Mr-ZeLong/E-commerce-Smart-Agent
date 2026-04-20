@@ -24,7 +24,7 @@ async def test_evaluator_with_retrieval_high_rag(evaluator):
     )
 
     assert result["confidence_signals"]["rag"]["score"] > 0.9
-    assert result["confidence_signals"]["llm"]["score"] == 0.85
+    assert result["confidence_signals"]["llm"]["score"] == pytest.approx(1.0)
     assert result["needs_human_transfer"] is False
     assert result["audit_level"] == "none"
 
@@ -42,8 +42,8 @@ async def test_evaluator_without_retrieval_uses_llm():
     )
 
     assert result["confidence_signals"]["rag"]["score"] == 0.0
-    assert result["confidence_signals"]["llm"]["score"] == 0.6
-    assert result["confidence_signals"]["emotion"]["score"] == 0.7
+    assert result["confidence_signals"]["llm"]["score"] == pytest.approx(0.7)
+    assert result["confidence_signals"]["emotion"]["score"] == pytest.approx(0.7)
     assert result["audit_level"] == "manual"
 
 

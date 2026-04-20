@@ -209,7 +209,7 @@ async def _calculate_confidence_signals(
 
     results: dict[str, SignalResult] = {}
 
-    if retrieval_result:
+    if retrieval_result and "similarities" in retrieval_result and "chunks" in retrieval_result:
         rag_coro = calculate_rag_signal(
             similarities=retrieval_result["similarities"],
             chunks=retrieval_result["chunks"],
@@ -229,30 +229,17 @@ async def _calculate_confidence_signals(
         )
         results["rag"] = SignalResult(score=0.0, reason="无检索结果")
 
-    should_skip_llm = (
-        settings.CONFIDENCE.SKIP_LLM_ON_CLEAR_RAG
-        and generated_answer is None
-        and (
-            results["rag"].score >= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_HIGH
-            or results["rag"].score <= settings.CONFIDENCE.CLEAR_RAG_THRESHOLD_LOW
-        )
-    )
-
-    if should_skip_llm:
+    if retrieval_result:
         results["llm"] = SignalResult(
             score=results["rag"].score,
-            reason=f"RAG信号明确({results['rag'].score:.2f})，跳过LLM",
-            metadata={"skipped": True},
-        )
-    elif generated_answer and llm is not None:
-        context = retrieval_result["chunks"] if retrieval_result else []
-        results["llm"] = await calculate_llm_signal(
-            query=query,
-            context=context,
-            generated_answer=generated_answer,
-            llm=llm,
+            reason=f"基于RAG信号({results['rag'].score:.2f})，跳过LLM自评估",
+            metadata={"skipped": True, "reason": "performance_optimization"},
         )
     else:
-        results["llm"] = SignalResult(score=0.5, reason="等待生成结果")
+        results["llm"] = SignalResult(
+            score=results["emotion"].score,
+            reason=f"无检索结果，基于情感信号({results['emotion'].score:.2f})",
+            metadata={"skipped": True, "reason": "no_retrieval"},
+        )
 
     return results

@@ -199,3 +199,59 @@ async def list_traces(
         offset=offset,
         limit=limit,
     )
+
+
+@router.get("/dashboard")
+async def get_dashboard(
+    _: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    now = datetime.now(UTC)
+    since_24h = now - timedelta(hours=24)
+    since_7d = now - timedelta(days=7)
+
+    total_24h_result = await session.exec(
+        select(func.count()).where(GraphExecutionLog.created_at >= since_24h)
+    )
+    total_24h = total_24h_result.one() or 0
+
+    total_7d_result = await session.exec(
+        select(func.count()).where(GraphExecutionLog.created_at >= since_7d)
+    )
+    total_7d = total_7d_result.one() or 0
+
+    transfer_count_result = await session.exec(
+        select(func.count()).where(
+            GraphExecutionLog.created_at >= since_24h,
+            GraphExecutionLog.needs_human_transfer.is_(True),  # type: ignore
+        )
+    )
+    transfer_count = transfer_count_result.one() or 0
+    transfer_rate = transfer_count / total_24h if total_24h > 0 else 0.0
+
+    avg_conf_result = await session.exec(
+        select(func.avg(GraphExecutionLog.confidence_score)).where(
+            GraphExecutionLog.created_at >= since_24h,
+            GraphExecutionLog.confidence_score.is_not(None),  # type: ignore
+        )
+    )
+    avg_conf = avg_conf_result.one()
+
+    avg_latency_result = await session.exec(
+        select(func.avg(GraphExecutionLog.total_latency_ms)).where(
+            GraphExecutionLog.created_at >= since_24h,
+            GraphExecutionLog.total_latency_ms.is_not(None),  # type: ignore
+        )
+    )
+    avg_latency = avg_latency_result.one()
+
+    return {
+        "summary": {
+            "total_sessions_24h": total_24h,
+            "total_sessions_7d": total_7d,
+            "avg_confidence_24h": round(float(avg_conf), 4) if avg_conf is not None else None,
+            "transfer_rate_24h": round(transfer_rate, 4),
+            "avg_latency_ms_24h": round(float(avg_latency), 2) if avg_latency is not None else None,
+        },
+        "message": "Dashboard data retrieved successfully",
+    }

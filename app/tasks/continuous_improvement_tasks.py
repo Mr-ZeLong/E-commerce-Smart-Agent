@@ -47,4 +47,9 @@ async def _run_weekly_audit() -> dict:
 
 @celery_app.task(bind=True, name="continuous_improvement.run_weekly_audit")
 def run_weekly_audit(_self) -> dict:
-    return asyncio.run(_run_weekly_audit())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_run_weekly_audit())
+    finally:
+        loop.close()

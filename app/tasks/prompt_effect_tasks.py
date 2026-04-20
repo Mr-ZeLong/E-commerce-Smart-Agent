@@ -99,4 +99,9 @@ async def _generate_monthly_report(
 def generate_monthly_report(
     _self, agent_name: str | None = None, report_month: str | None = None
 ) -> dict:
-    return asyncio.run(_generate_monthly_report(agent_name, report_month))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_generate_monthly_report(agent_name, report_month))
+    finally:
+        loop.close()

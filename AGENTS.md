@@ -24,6 +24,20 @@ Use the right `AGENTS.md` for the area you're working in:
 - **LangGraph workflow** (`app/graph/**`) → [`app/graph/AGENTS.md`](app/graph/AGENTS.md)
 - **Intent recognition** (`app/intent/**`) → [`app/intent/AGENTS.md`](app/intent/AGENTS.md)
 - **Memory system** (`app/memory/**`) → [`app/memory/AGENTS.md`](app/memory/AGENTS.md)
+- **Tools** (`app/tools/**`) → [`app/tools/AGENTS.md`](app/tools/AGENTS.md)
+- **Retrieval** (`app/retrieval/**`) → [`app/retrieval/AGENTS.md`](app/retrieval/AGENTS.md)
+- **Evaluation** (`app/evaluation/**`) → [`app/evaluation/AGENTS.md`](app/evaluation/AGENTS.md)
+- **Observability** (`app/observability/**`) → [`app/observability/AGENTS.md`](app/observability/AGENTS.md)
+- **Tasks** (`app/tasks/**`) → [`app/tasks/AGENTS.md`](app/tasks/AGENTS.md)
+- **API layer** (`app/api/**`) → [`app/api/AGENTS.md`](app/api/AGENTS.md)
+- **Schemas** (`app/schemas/**`) → [`app/schemas/AGENTS.md`](app/schemas/AGENTS.md)
+- **Models** (`app/models/**`) → [`app/models/AGENTS.md`](app/models/AGENTS.md)
+- **Services** (`app/services/**`) → [`app/services/AGENTS.md`](app/services/AGENTS.md)
+- **Core** (`app/core/**`) → [`app/core/AGENTS.md`](app/core/AGENTS.md)
+- **Confidence** (`app/confidence/**`) → [`app/confidence/AGENTS.md`](app/confidence/AGENTS.md)
+- **Context** (`app/context/**`) → [`app/context/AGENTS.md`](app/context/AGENTS.md)
+- **WebSocket** (`app/websocket/**`) → [`app/websocket/AGENTS.md`](app/websocket/AGENTS.md)
+- **Utils** (`app/utils/**`) → [`app/utils/AGENTS.md`](app/utils/AGENTS.md)
 - **Tests** (`tests/**`) → [`tests/AGENTS.md`](tests/AGENTS.md)
 - **Admin frontend** (`frontend/src/apps/admin/**`) → [`frontend/src/apps/admin/AGENTS.md`](frontend/src/apps/admin/AGENTS.md)
 - **Customer frontend** (`frontend/src/apps/customer/**`) → [`frontend/src/apps/customer/AGENTS.md`](frontend/src/apps/customer/AGENTS.md)
@@ -33,8 +47,29 @@ For any other area, this root file applies.
 ## Repo Map
 
 - `app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation, memory, intent, retrieval, confidence, context, api, models, schemas, utils, websocket, tasks, core.
+  - `app/agents/`: Expert agent fleet (order, product, cart, payment, logistics, account, policy, complaint, supervisor, router, evaluator).
+  - `app/graph/`: LangGraph workflow compiler and runtime node layer.
+  - `app/intent/`: Intent recognition pipeline (classifier, multi-intent, safety, clarification, slot validation, topic switch).
+  - `app/memory/`: Multi-tier memory system (structured PostgreSQL, vector Qdrant, fact extraction, summarization, compaction).
+  - `app/tools/`: Tool layer for agents (product, cart, logistics, payment, account, complaint tools + registry).
+  - `app/tasks/`: Celery async tasks (memory, notifications, knowledge, refund, evaluation, continuous improvement, prompt effects, shadow testing).
+  - `app/retrieval/`: Hybrid RAG retrieval (dense + sparse embeddings, reranker, query rewriter, Qdrant client).
+  - `app/evaluation/`: Offline evaluation framework (pipeline, adversarial, shadow, metrics, hallucination, containment).
+  - `app/observability/`: OpenTelemetry tracing, execution logging, latency tracking.
+  - `app/confidence/`: Confidence signal calculation for response quality.
+  - `app/context/`: Context engineering (observation masking, token budget management).
+  - `app/websocket/`: WebSocket connection manager for real-time chat.
+  - `app/schemas/`: Pydantic request/response schemas.
+  - `app/api/`: FastAPI routers (chat, auth, admin, websocket, status).
+  - `app/models/`: SQLModel/Pydantic data models (user, order, refund, memory, evaluation, experiment, etc.).
+  - `app/services/`: Business logic services (auth, order, refund, admin, status, experiment, continuous improvement).
+  - `app/core/`: Core configuration, security, database, Redis, LLM factory, tracing, logging (cross-cutting infrastructure).
+  - `app/core/utils.py`: Core cross-cutting utilities (`utc_now`, `build_thread_id`, `clamp_score`).
+- `app/utils/`: Shared domain utility functions (order utilities, helpers).
 - `frontend/`: React 19 + TypeScript frontend (Vite, Tailwind CSS, shadcn/ui).
-- `tests/`: Backend test suite (pytest + pytest-asyncio), organized by module (`tests/intent/`, `tests/graph/`, `tests/memory/`, `tests/evaluation/`, `tests/context/`, `tests/observability/`, `tests/tasks/`, `tests/admin/`, `tests/services/`, etc.).
+  - `frontend/src/apps/admin/`: B端管理后台 (dashboard, knowledge base, agent config, feedback, analytics).
+  - `frontend/src/apps/customer/`: C端用户聊天界面 (SSE streaming chat).
+- `tests/`: Backend test suite (pytest + pytest-asyncio), organized by module.
 - `scripts/`: Seed data, ETL, and utility scripts.
 - `migrations/`: Alembic database migrations.
 - `data/`: Static seed data (policies, products).

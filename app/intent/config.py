@@ -141,8 +141,8 @@ SLOT_PRIORITY_CONFIG: dict[str, dict[str, dict[str, list[str]]]] = {
     },
     "PRODUCT": {
         "QUERY": {
-            "P0": ["product_name"],
-            "P1": ["product_id", "specification"],
+            "P0": [],
+            "P1": ["product_name", "product_id", "specification"],
             "P2": ["price_range"],
         },
         "COMPARE": {
@@ -158,20 +158,20 @@ SLOT_PRIORITY_CONFIG: dict[str, dict[str, dict[str, list[str]]]] = {
             "P2": [],
         },
         "ADD": {
-            "P0": ["product_name"],
-            "P1": ["quantity", "specification"],
+            "P0": [],
+            "P1": ["product_name", "quantity", "specification"],
             "P2": [],
         },
         "REMOVE": {
-            "P0": ["product_name"],
-            "P1": [],
+            "P0": [],
+            "P1": ["product_name"],
             "P2": [],
         },
     },
     "POLICY": {
         "CONSULT": {
-            "P0": ["policy_topic"],
-            "P1": ["specific_item"],
+            "P0": [],
+            "P1": ["policy_topic", "specific_item"],
             "P2": [],
         },
     },

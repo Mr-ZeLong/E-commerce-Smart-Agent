@@ -18,9 +18,11 @@ POLICY_SYSTEM_PROMPT = """你是专业的电商政策咨询专家。
 3. 回答简洁明了，引用具体政策条款
 4. 语气专业、客气
 5. 在回答中标注引用来源，格式为 [来源: X]
+6. 必须直接输出自然语言回答，不要输出JSON格式
+7. 不要输出思考过程或分析步骤
 """
 
-_RELEVANCE_THRESHOLD = 0.5
+_RELEVANCE_THRESHOLD = 0.3
 
 
 class GradeDocuments(BaseModel):
@@ -81,23 +83,23 @@ class PolicyAgent(BaseAgent):
             conversation_history=state.get("history"),
             memory_context=state.get("memory_context"),
         )
-        filtered = [r for r in results if r.score >= _RELEVANCE_THRESHOLD]
+        filtered = [r for r in results if r.score > _RELEVANCE_THRESHOLD]
         if not filtered:
             logger.warning("[PolicyAgent] 所有检索结果相关性均低于 %.2f", _RELEVANCE_THRESHOLD)
             return [], [], []
 
-        graded = await self._grade_documents(question, filtered)
-        relevant = [
-            r for r, g in zip(filtered, graded, strict=True) if g.binary_score.lower() == "yes"
+        grades = await self._grade_documents(question, filtered)
+        graded_filtered = [
+            doc for doc, grade in zip(filtered, grades, strict=True) if grade.binary_score == "yes"
         ]
-        if not relevant:
-            logger.warning("[PolicyAgent] Self-RAG grader 判定无相关文档")
+        if not graded_filtered:
+            logger.warning("[PolicyAgent] 所有文档被评分器标记为不相关")
             return [], [], []
 
-        chunks = [r.content for r in relevant]
-        similarities = [r.score for r in relevant]
-        sources = [r.source for r in relevant]
-        logger.info("[PolicyAgent] 检索到 %s 条有效结果", len(relevant))
+        chunks = [r.content for r in graded_filtered]
+        similarities = [r.score for r in graded_filtered]
+        sources = [r.source for r in graded_filtered]
+        logger.info("[PolicyAgent] 检索到 %s 条有效结果", len(graded_filtered))
         return chunks, similarities, sources
 
     async def _grade_documents(

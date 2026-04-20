@@ -27,12 +27,25 @@ Backend test suite using pytest + pytest-asyncio with a flat directory structure
 | Agent mock | `tests/_agents.py` | Agent mock factory and test helpers |
 | LLM mock | `tests/_llm.py` | LLM call mocks and response helpers |
 | API tests | `tests/test_auth_api.py`, `tests/test_chat_api.py`, `tests/test_admin_api.py` | Route-layer validation |
-| Service tests | `tests/test_order_service.py`, `tests/test_refund_service.py` | Business logic validation |
-| Module unit tests | `tests/agents/`, `tests/graph/`, `tests/intent/`, `tests/memory/`, `tests/tools/`, `tests/retrieval/`, `tests/evaluation/`, `tests/context/`, `tests/observability/` | Agent/graph/intent/memory/RAG/evaluation/context/observability tests |
+| Service tests | `tests/test_order_service.py`, `tests/test_refund_service.py`, `tests/test_auth_service.py`, `tests/test_status_service.py`, `tests/test_admin_service.py` | Business logic validation |
+| Module unit tests | `tests/agents/`, `tests/graph/`, `tests/intent/`, `tests/memory/`, `tests/tools/`, `tests/retrieval/`, `tests/evaluation/`, `tests/context/`, `tests/observability/`, `tests/core/`, `tests/models/` | Agent/graph/intent/memory/RAG/evaluation/context/observability/core/model tests |
 | Service tests | `tests/services/test_continuous_improvement.py` | Business service validation |
-| Admin API tests | `tests/admin/` | Admin endpoints validation |
+| Admin API tests | `tests/admin/`, `tests/test_admin_api.py`, `tests/test_knowledge_admin.py`, `tests/api/admin/test_metrics_dashboard.py` | Admin endpoints validation |
 | Task tests | `tests/tasks/` | Celery task tests |
 | Integration tests | `tests/integration/test_workflow_invoke.py` | LangGraph integration (including parallel multi-intent scenarios) |
+| Security tests | `tests/test_main_security.py`, `tests/test_security.py`, `tests/test_auth_rate_limit.py` | Security and rate limiting validation |
+| WebSocket tests | `tests/test_websocket.py`, `tests/test_websocket_manager.py` | WebSocket connection tests |
+| Confidence tests | `tests/test_confidence_signals.py` | Confidence signal validation |
+| User tests | `tests/test_users.py` | User model and endpoint tests |
+| Experiment tests | `tests/test_experiment_assigner.py`, `tests/test_experiment_service.py` | Experiment system tests |
+| Evaluation tests | `tests/test_evaluation_tasks.py`, `tests/test_online_eval_service.py` | Evaluation system tests |
+| Knowledge tests | `tests/test_knowledge_tasks.py` | Knowledge base task tests |
+| Notification tests | `tests/test_notifications_tasks.py` | Notification task tests |
+| Refund task tests | `tests/test_refund_tasks.py` | Refund workflow task tests |
+| Prompt effect tests | `tests/test_prompt_effect_tasks.py` | Prompt effect tracking tests |
+| Observability API tests | `tests/test_observability_api.py` | Observability endpoint tests |
+| Reranker mock | `tests/_reranker.py` | Reranker mock helpers |
+| Utility tests | `tests/test_chat_utils.py`, `tests/test_logging.py`, `tests/test_email.py` | Utility function tests |
 
 ## Commands
 

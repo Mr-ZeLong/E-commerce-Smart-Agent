@@ -18,6 +18,7 @@ from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
 from app.core.config import settings
 from app.core.database import async_session_maker
+from app.core.limiter import limiter
 from app.core.security import get_current_user_id
 from app.core.tracing import build_llm_config
 from app.core.utils import build_thread_id, utc_now
@@ -33,9 +34,10 @@ tracer = trace.get_tracer(__name__)
 
 
 @router.post("/chat")
+@limiter.limit("60/minute")
 async def chat(
+    request: Request,
     chat_request: ChatRequest,
-    http_request: Request,
     current_user_id: int = Depends(get_current_user_id),
 ):
     """
@@ -46,7 +48,7 @@ async def chat(
 
     v4.1 更新：流式响应结束时发送置信度元数据
     """
-    app_graph = http_request.app.state.app_graph
+    app_graph = request.app.state.app_graph
     if app_graph is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -65,7 +67,7 @@ async def chat(
             otel_trace_id = format(span_context.trace_id, "032x") if span_context.is_valid else None
 
             # Intent result for LangSmith metadata and observability
-            intent_service = getattr(http_request.app.state, "intent_service", None)
+            intent_service = getattr(request.app.state, "intent_service", None)
             intent_category = None
             if intent_service is not None:
                 intent_result = await intent_service.recognize(
@@ -105,7 +107,7 @@ async def chat(
                 memory_context_config=memory_context_config,
             )
 
-            vector_manager = getattr(http_request.app.state, "vector_manager", None)
+            vector_manager = getattr(request.app.state, "vector_manager", None)
             if vector_manager is not None:
                 try:
                     await vector_manager.upsert_message(
@@ -151,7 +153,7 @@ async def chat(
                             # 过滤内部调用（置信度评估、意图识别等）
                             metadata = event.get("metadata", {})
                             langgraph_node = metadata.get("langgraph_node", "")
-                            tags = metadata.get("tags", [])
+                            tags = metadata.get("tags", []) or event.get("tags", [])
 
                             # 只转发标记为 user_visible 的输出
                             # 过滤掉 router 和内部置信度评估的调用
@@ -220,6 +222,8 @@ async def chat(
                                     and "answer" in output
                                 ):
                                     answer = output["answer"]
+                                    if isinstance(answer, dict):
+                                        answer = json.dumps(answer, ensure_ascii=False)
                                     if answer and answer not in sent_answers:
                                         sent_answers.add(answer)
                                         final_answer = answer

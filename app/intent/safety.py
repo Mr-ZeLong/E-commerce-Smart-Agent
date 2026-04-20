@@ -202,8 +202,7 @@ class SafetyFilter:
         if not code_result.is_safe:
             return code_result
 
-        # 4. LLM语义安全检测（可选，高耗时）
-        if len(query) > 50:
+        if len(query) >= 10:
             semantic_result = await self._check_semantic(query)
             if not semantic_result.is_safe:
                 return semantic_result

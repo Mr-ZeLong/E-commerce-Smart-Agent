@@ -33,54 +33,54 @@ class AgentState(TypedDict):
     thread_id: str
 
     current_agent: Annotated[str | None, _last_value]
-    next_agent: str | None
-    iteration_count: int
-    retry_requested: bool
+    next_agent: Annotated[str | None, _last_value]
+    iteration_count: Annotated[int, _last_value]
+    retry_requested: Annotated[bool, _last_value]
 
     history: Annotated[list[dict], history_reducer]
 
-    retrieval_result: dict[str, Any] | None
+    retrieval_result: Annotated[dict[str, Any] | None, _last_value]
 
-    order_data: dict | None
+    order_data: Annotated[dict | None, _last_value]
 
-    audit_level: str | None
-    audit_log_id: int | None
-    audit_reason: str | None
+    audit_level: Annotated[str | None, _last_value]
+    audit_log_id: Annotated[int | None, _last_value]
+    audit_reason: Annotated[str | None, _last_value]
 
-    confidence_score: float | None
-    confidence_signals: dict | None
+    confidence_score: Annotated[float | None, _last_value]
+    confidence_signals: Annotated[dict | None, _last_value]
 
-    needs_human_transfer: bool
-    transfer_reason: str | None
+    needs_human_transfer: Annotated[bool, _last_value]
+    transfer_reason: Annotated[str | None, _last_value]
 
     messages: Annotated[list[dict[str, Any]], operator.add]
-    answer: str
+    answer: Annotated[str, _last_value]
 
-    refund_flow_active: bool | None
-    refund_order_sn: str | None
-    refund_step: str | None
+    refund_flow_active: Annotated[bool | None, _last_value]
+    refund_order_sn: Annotated[str | None, _last_value]
+    refund_step: Annotated[str | None, _last_value]
 
     # Intent & clarification fields produced by the graph
-    intent_result: dict[str, Any] | None
-    slots: dict[str, Any] | None
-    awaiting_clarification: bool | None
-    clarification_state: dict[str, Any] | None
-    refund_data: dict[str, Any] | None
+    intent_result: Annotated[dict[str, Any] | None, _last_value]
+    slots: Annotated[dict[str, Any] | None, _last_value]
+    awaiting_clarification: Annotated[bool | None, _last_value]
+    clarification_state: Annotated[dict[str, Any] | None, _last_value]
+    refund_data: Annotated[dict[str, Any] | None, _last_value]
 
-    execution_mode: str | None
+    execution_mode: Annotated[str | None, _last_value]
     sub_answers: Annotated[list[dict[str, Any]], operator.add]
-    supervisor_reasoning: str | None
-    synthesized_answer: str | None
-    pending_agent_results: list[str] | None
-    completed_agents: list[str] | None
-    product_data: dict[str, Any] | None
-    cart_data: dict[str, Any] | None
-    memory_context: dict[str, Any] | None
-    experiment_variant_id: int | None
-    memory_context_config: NotRequired[dict[str, Any] | None]
+    supervisor_reasoning: Annotated[str | None, _last_value]
+    synthesized_answer: Annotated[str | None, _last_value]
+    pending_agent_results: Annotated[list[str] | None, _last_value]
+    completed_agents: Annotated[list[str] | None, _last_value]
+    product_data: Annotated[dict[str, Any] | None, _last_value]
+    cart_data: Annotated[dict[str, Any] | None, _last_value]
+    memory_context: Annotated[dict[str, Any] | None, _last_value]
+    experiment_variant_id: Annotated[int | None, _last_value]
+    memory_context_config: Annotated[dict[str, Any] | None, _last_value]
 
-    context_tokens: NotRequired[int | None]
-    context_utilization: NotRequired[float | None]
+    context_tokens: Annotated[int | None, _last_value]
+    context_utilization: Annotated[float | None, _last_value]
 
 
 def make_agent_state(

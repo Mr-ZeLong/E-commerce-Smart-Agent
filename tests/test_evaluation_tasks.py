@@ -22,7 +22,14 @@ async def test_run_few_shot_evaluation():
 
         result = await _run_few_shot_evaluation()
 
-        mock_create_llm.assert_called_once_with(mock_create_llm.call_args[0][0], temperature=0.0)
+        mock_create_llm.assert_called_once_with(
+            mock_create_llm.call_args[0][0],
+            temperature=0.0,
+            default_config={
+                "metadata": {"agent_name": "few_shot_evaluator"},
+                "tags": ["evaluation", "internal"],
+            },
+        )
         mock_compare.assert_called_once_with(mock_llm)
         assert result["improvement"] == 0.05
         assert result["meets_target"] is True

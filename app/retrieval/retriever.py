@@ -76,12 +76,7 @@ class HybridRetriever:
                     )
             return final
 
-        rewritten = await self.rewriter.rewrite(
-            query,
-            conversation_history=conversation_history,
-            memory_context=memory_context,
-        )
-        return await self._retrieve_single(rewritten)
+        return await self._retrieve_single(query)
 
     async def _retrieve_single(self, query: str) -> list[RetrievedChunk]:
         dense_vec = await self.dense_embedder.aembed_query(query)

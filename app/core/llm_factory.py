@@ -24,10 +24,9 @@ def create_openai_llm(
         "api_key": SecretStr(settings.OPENAI_API_KEY),
         "model": model or settings.LLM_MODEL,
         "temperature": temperature,
+        "timeout": timeout if timeout is not None else 30.0,
         **kwargs,
     }
-    if timeout is not None:
-        llm_kwargs["timeout"] = timeout
     if max_retries is not None:
         llm_kwargs["max_retries"] = max_retries
     if "anthropic" in settings.OPENAI_BASE_URL.lower():

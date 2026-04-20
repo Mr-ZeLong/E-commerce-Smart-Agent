@@ -120,7 +120,7 @@ class TestRunShadowTest:
         assert "report" in result
 
     def test_run_shadow_test_celery_task(self):
-        with patch("app.tasks.shadow_tasks.asyncio.run") as mock_run:
+        with patch("app.tasks.shadow_tasks._run_shadow_test") as mock_run:
             mock_run.return_value = {"sampled": True, "query": "test"}
             result = run_shadow_test.run("test query")
             assert result["sampled"] is True

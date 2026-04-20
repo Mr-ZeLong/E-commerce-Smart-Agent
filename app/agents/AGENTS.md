@@ -30,9 +30,10 @@ Expert agent fleet based on `BaseAgent` ABC covering orders, policies, products,
 | Account | `app/agents/account.py` + `app/tools/account_tool.py` | User account management |
 | Policy | `app/agents/policy.py` | Policy Q&A via RAG retrieval |
 | Supervisor | `app/agents/supervisor.py` | Serial/parallel dispatch logic |
-| Intent router | `app/agents/router.py` | `IntentRouterAgent` |
+| Intent router | `app/agents/router.py` | `IntentRouterAgent`; handles greeting personalization, retry logic, disabled agent fallback, and iteration limits |
 | Config hot-reload | `app/agents/config_loader.py` | Redis-cached routing rules and system prompts (60s TTL) |
-| Evaluator | `app/agents/evaluator.py` | Agent response quality evaluation |
+| Experiment prompts | `app/agents/base.py` | `BaseAgent._resolve_experiment_prompt()` resolves experiment variant prompts from database |
+| Evaluator | `app/agents/evaluator.py` | Agent response quality evaluation using `calculate_confidence_signals` from `app/confidence/signals.py` |
 
 ## Commands
 
@@ -67,6 +68,6 @@ General Python rules are defined in the root `AGENTS.md`. Agent-specific convent
 
 ## Anti-Patterns
 
-- **Cross-layer coupling**: `supervisor.py` must not import from `app/graph/parallel.py`.
+- **Cross-layer coupling**: `supervisor.py` should minimize direct imports from `app/graph/parallel.py`; prefer dependency injection for dispatch planning.
 - **Direct DB access in agents**: Agents should not bypass the tool/service layer to access the database directly.
 - **Stale AGENTS.md**: Adding a new agent without updating this file and the corresponding test suite.

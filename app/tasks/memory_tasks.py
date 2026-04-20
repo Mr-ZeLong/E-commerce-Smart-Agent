@@ -83,7 +83,12 @@ def extract_and_save_facts(
         extractor = FactExtractor()
 
     try:
-        facts = asyncio.run(extractor.extract_facts(user_id, thread_id, history, answer, question))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        facts = loop.run_until_complete(
+            extractor.extract_facts(user_id, thread_id, history, answer, question)
+        )
+        loop.close()
     except Exception as exc:
         logger.exception("Fact extraction failed for user_id=%s thread_id=%s", user_id, thread_id)
         try:
@@ -101,10 +106,12 @@ def extract_and_save_facts(
 def prune_vector_memory() -> dict[str, Any]:
     manager = VectorMemoryManager()
     try:
-        asyncio.run(manager.prune_old_messages(settings.MEMORY_RETENTION_DAYS))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(manager.prune_old_messages(settings.MEMORY_RETENTION_DAYS))
+        loop.run_until_complete(manager.aclose())
+        loop.close()
         return {"status": "success", "pruned": True}
     except Exception:
         logger.exception("Vector memory pruning failed")
         return {"status": "failed", "message": "向量记忆清理失败"}
-    finally:
-        asyncio.run(manager.aclose())
