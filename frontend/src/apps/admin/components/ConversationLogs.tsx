@@ -200,7 +200,7 @@ export function ConversationLogs() {
                       </TableCell>
                       <TableCell>{thread.message_count}</TableCell>
                       <TableCell className="text-sm text-gray-500 whitespace-nowrap">
-                        {new Date(thread.last_updated).toLocaleString()}
+                        {thread.last_updated ? new Date(thread.last_updated).toLocaleString() : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => setSelectedThread(thread)}>
@@ -239,7 +239,7 @@ function MessageBubble({ message }: { message: ConversationMessage }) {
           <Badge variant="outline" className="text-[10px] h-4 px-1">
             {message.sender_type}
           </Badge>
-          <span>{new Date(message.created_at).toLocaleString()}</span>
+          <span>{message.created_at ? new Date(message.created_at).toLocaleString() : '-'}</span>
         </div>
         <div className="whitespace-pre-wrap break-words">{contentText}</div>
         {message.message_type !== 'text' && (

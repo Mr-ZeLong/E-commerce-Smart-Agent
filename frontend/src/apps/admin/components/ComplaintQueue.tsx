@@ -24,7 +24,8 @@ import { useComplaints } from '@/hooks/useComplaints'
 import type { ComplaintTicket, ComplaintFilters } from '@/types'
 import { ShieldAlert, User, Clock, ChevronLeft, ChevronRight, Eye, UserPlus } from 'lucide-react'
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('zh-CN')
 }
 

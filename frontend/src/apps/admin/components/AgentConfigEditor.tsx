@@ -54,7 +54,7 @@ export function AgentConfigEditor({
   useEffect(() => {
     if (agent) {
       setSystemPrompt(agent.system_prompt)
-      setConfidence(agent.confidence_threshold)
+      setConfidence(agent.confidence_threshold ?? 0.8)
       setMaxRetries(agent.max_retries)
       setEnabled(agent.enabled)
     }

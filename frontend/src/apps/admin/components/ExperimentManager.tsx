@@ -25,7 +25,8 @@ import {
 import { useExperiments, useExperimentResults } from '@/hooks/useExperiments'
 import type { Experiment, ExperimentVariant } from '@/types'
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('zh-CN')
 }
 

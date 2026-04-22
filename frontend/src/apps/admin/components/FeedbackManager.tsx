@@ -22,11 +22,21 @@ import {
 import type { FeedbackFilters } from '@/types'
 import { MessageSquare, Download, Play, ChevronLeft, ChevronRight, Star } from 'lucide-react'
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('zh-CN')
 }
 
-function ScoreBadge({ score }: { score: number }) {
+function ScoreBadge({ score }: { score: number | null | undefined }) {
+  if (score == null) {
+    return (
+      <Badge variant="outline" className="flex items-center gap-1 w-fit">
+        <Star className="h-3 w-3" />
+        -
+      </Badge>
+    )
+  }
+
   let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'default'
   if (score >= 4) variant = 'default'
   else if (score === 3) variant = 'secondary'
@@ -299,7 +309,7 @@ export function FeedbackManager() {
                       <TableRow key={point.date}>
                         <TableCell className="text-xs">{point.date}</TableCell>
                         <TableCell className="text-right text-sm font-medium">
-                          {point.avg_score.toFixed(2)}
+                          {point.avg_score != null ? point.avg_score.toFixed(2) : '-'}
                         </TableCell>
                         <TableCell className="text-right text-xs">{point.count}</TableCell>
                       </TableRow>

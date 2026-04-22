@@ -72,7 +72,7 @@ export function Performance() {
   const { data: latency, isLoading: latencyLoading } = useLatencyMetrics()
 
   const transferMax =
-    transfers && transfers.length > 0 ? Math.max(...transfers.map((t) => t.transfer_rate)) : 0
+    transfers && transfers.length > 0 ? Math.max(...transfers.map((t) => t.transfer_rate ?? 0)) : 0
 
   const confidenceMax =
     confidence && confidence.length > 0
@@ -115,7 +115,7 @@ export function Performance() {
                     label={t.final_agent}
                     value={t.transfer_rate}
                     max={transferMax}
-                    displayValue={`${(t.transfer_rate * 100).toFixed(2)}% (${t.transfers}/${t.total})`}
+                    displayValue={`${t.transfer_rate != null ? (t.transfer_rate * 100).toFixed(2) : '-'}% (${t.transfers ?? '-'}/${t.total ?? '-'})`}
                     colorClass="bg-blue-500"
                   />
                 ))}
@@ -146,7 +146,7 @@ export function Performance() {
                     label={c.final_agent}
                     value={c.avg_confidence ?? 0}
                     max={confidenceMax}
-                    displayValue={c.avg_confidence !== null ? c.avg_confidence.toFixed(4) : '-'}
+                    displayValue={c.avg_confidence != null ? c.avg_confidence.toFixed(4) : '-'}
                     colorClass="bg-emerald-500"
                   />
                 ))}
@@ -178,7 +178,7 @@ export function Performance() {
                     value={l.p99_latency_ms ?? 0}
                     max={latencyMax}
                     displayValue={
-                      l.p99_latency_ms !== null ? `${l.p99_latency_ms.toFixed(2)} ms` : '-'
+                      l.p99_latency_ms != null ? `${l.p99_latency_ms.toFixed(2)} ms` : '-'
                     }
                     colorClass="bg-amber-500"
                   />

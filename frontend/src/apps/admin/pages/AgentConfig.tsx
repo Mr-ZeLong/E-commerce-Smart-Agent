@@ -54,7 +54,7 @@ function VersionMetrics({ agentName, versionId }: { agentName: string; versionId
     <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
       <div className="rounded border bg-muted/30 p-2">
         <div className="text-muted-foreground">总会话</div>
-        <div className="font-medium">{metrics.total_sessions}</div>
+        <div className="font-medium">{metrics.total_sessions ?? '-'}</div>
       </div>
       <div className="rounded border bg-muted/30 p-2">
         <div className="text-muted-foreground">平均置信度</div>
@@ -64,7 +64,9 @@ function VersionMetrics({ agentName, versionId }: { agentName: string; versionId
       </div>
       <div className="rounded border bg-muted/30 p-2">
         <div className="text-muted-foreground">接管率</div>
-        <div className="font-medium">{(metrics.transfer_rate * 100).toFixed(2)}%</div>
+        <div className="font-medium">
+          {metrics.transfer_rate != null ? `${(metrics.transfer_rate * 100).toFixed(2)}%` : '-'}
+        </div>
       </div>
       <div className="rounded border bg-muted/30 p-2">
         <div className="text-muted-foreground">平均延迟(ms)</div>
@@ -76,7 +78,8 @@ function VersionMetrics({ agentName, versionId }: { agentName: string; versionId
   )
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('zh-CN')
 }
 
@@ -158,7 +161,9 @@ function PromptEffectReportList({ agentName }: { agentName: string }) {
                 <div>
                   置信度: {report.avg_confidence !== null ? report.avg_confidence.toFixed(4) : '-'}
                 </div>
-                <div>接管率: {(report.transfer_rate * 100).toFixed(2)}%</div>
+                <div>
+                  接管率: {report.transfer_rate != null ? `${(report.transfer_rate * 100).toFixed(2)}%` : '-'}
+                </div>
                 <div>
                   延迟: {report.avg_latency_ms !== null ? report.avg_latency_ms.toFixed(2) : '-'} ms
                 </div>
@@ -317,7 +322,11 @@ export function AgentConfig() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell>{agent.confidence_threshold.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {agent.confidence_threshold != null
+                          ? agent.confidence_threshold.toFixed(2)
+                          : '-'}
+                      </TableCell>
                       <TableCell>{agent.max_retries}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(agent.updated_at)}

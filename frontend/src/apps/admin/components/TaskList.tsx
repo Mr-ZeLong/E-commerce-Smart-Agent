@@ -81,7 +81,7 @@ export function TaskList({
                 <div className="text-sm text-gray-700 mt-1 line-clamp-2">{task.trigger_reason}</div>
                 <div className="text-sm text-gray-600 mt-1">用户: {task.user_id}</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {new Date(task.created_at).toLocaleString()}
+                  {task.created_at ? new Date(task.created_at).toLocaleString() : '-'}
                 </div>
               </div>
             ))

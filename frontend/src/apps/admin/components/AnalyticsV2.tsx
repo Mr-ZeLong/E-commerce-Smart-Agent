@@ -53,7 +53,7 @@ function CSATTrendCard() {
                           : 'destructive'
                     }
                   >
-                    {trend.avg_score.toFixed(2)}
+                      {trend.avg_score != null ? trend.avg_score.toFixed(2) : '-'}
                   </Badge>
                 </div>
               </div>
@@ -151,18 +151,18 @@ function AgentComparisonCard() {
                     <TableCell className="font-medium">{agent.final_agent}</TableCell>
                     <TableCell className="text-right">{agent.total_sessions}</TableCell>
                     <TableCell className="text-right">
-                      {agent.avg_confidence !== null ? agent.avg_confidence.toFixed(4) : '-'}
+                      {agent.avg_confidence != null ? agent.avg_confidence.toFixed(4) : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {agent.transfer_rate !== null
+                      {agent.transfer_rate != null
                         ? `${(agent.transfer_rate * 100).toFixed(2)}%`
                         : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {agent.avg_latency_ms !== null ? `${agent.avg_latency_ms.toFixed(0)}ms` : '-'}
+                      {agent.avg_latency_ms != null ? `${agent.avg_latency_ms.toFixed(0)}ms` : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {agent.complaint_count !== null ? agent.complaint_count : '-'}
+                      {agent.complaint_count != null ? agent.complaint_count : '-'}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -247,10 +247,10 @@ function TracesCard() {
                       <Badge variant="outline">{trace.final_agent || '-'}</Badge>
                     </TableCell>
                     <TableCell className="text-right text-sm">
-                      {trace.confidence_score !== null ? trace.confidence_score.toFixed(4) : '-'}
+                      {trace.confidence_score != null ? trace.confidence_score.toFixed(4) : '-'}
                     </TableCell>
                     <TableCell className="text-right text-sm">
-                      {trace.total_latency_ms !== null ? `${trace.total_latency_ms}ms` : '-'}
+                      {trace.total_latency_ms != null ? `${trace.total_latency_ms}ms` : '-'}
                     </TableCell>
                     <TableCell>
                       {trace.langsmith_run_url ? (

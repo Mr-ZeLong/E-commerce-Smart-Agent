@@ -178,11 +178,11 @@ function IntentAccuracyCard({ trends, isLoading, error }: {
                   <div className="h-2 w-24 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full bg-green-500"
-                      style={{ width: `${trend.accuracy * 100}%` }}
+                      style={{ width: `${(trend.accuracy ?? 0) * 100}%` }}
                     />
                   </div>
                   <span className="text-xs w-12 text-right">
-                    {(trend.accuracy * 100).toFixed(1)}%
+                    {trend.accuracy != null ? `${(trend.accuracy * 100).toFixed(1)}%` : '-'}
                   </span>
                 </div>
               </div>
@@ -270,10 +270,10 @@ function TokenUsageCard({ usage, isLoading, error }: {
                 <span className="font-medium">{item.date.slice(0, 10)}</span>
                 <div className="flex items-center gap-4">
                   <span className="text-muted-foreground">
-                    {item.input_tokens.toLocaleString()} input
+                    {item.input_tokens?.toLocaleString() ?? '-'} input
                   </span>
                   <span className="text-muted-foreground">
-                    {item.total_tokens.toLocaleString()} total
+                    {item.total_tokens?.toLocaleString() ?? '-'} total
                   </span>
                 </div>
               </div>
@@ -354,7 +354,7 @@ function RAGPrecisionCard({ items, isLoading, error }: {
               <div key={index} className="flex items-center justify-between text-sm">
                 <span className="font-medium">{item.date.slice(0, 10)}</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-muted-foreground">avg: {item.avg_score.toFixed(2)}</span>
+                  <span className="text-muted-foreground">avg: {item.avg_score != null ? item.avg_score.toFixed(2) : '-'}</span>
                   <span className="text-muted-foreground">{item.count} queries</span>
                 </div>
               </div>
@@ -395,7 +395,7 @@ function HallucinationRateCard({ items, isLoading, error }: {
                 <span className="font-medium">{item.date.slice(0, 10)}</span>
                 <div className="flex items-center gap-4">
                   <span className="text-muted-foreground">
-                    {(item.hallucination_rate * 100).toFixed(1)}%
+                    {item.hallucination_rate != null ? `${(item.hallucination_rate * 100).toFixed(1)}%` : '-'}
                   </span>
                   <span className="text-muted-foreground">{item.sampled_count} sampled</span>
                 </div>
@@ -463,8 +463,8 @@ export function MetricsPage() {
           <>
             <SummaryCard
               title="24h 会话数"
-              value={summary.total_sessions_24h.toLocaleString()}
-              description={`7天: ${summary.total_sessions_7d.toLocaleString()}`}
+              value={summary.total_sessions_24h?.toLocaleString() ?? '-'}
+              description={`7天: ${summary.total_sessions_7d?.toLocaleString() ?? '-'}`}
               icon={Activity}
             />
             <SummaryCard
@@ -480,10 +480,16 @@ export function MetricsPage() {
             />
             <SummaryCard
               title="转接率"
-              value={`${(summary.transfer_rate_24h * 100).toFixed(1)}%`}
+              value={
+                summary.transfer_rate_24h != null
+                  ? `${(summary.transfer_rate_24h * 100).toFixed(1)}%`
+                  : '-'
+              }
               description="近24小时"
               icon={TrendingDown}
-              trend={summary.transfer_rate_24h > 0.3 ? 'down' : 'up'}
+              trend={
+                summary.transfer_rate_24h != null && summary.transfer_rate_24h > 0.3 ? 'down' : 'up'
+              }
             />
             <SummaryCard
               title="平均延迟"
@@ -495,7 +501,11 @@ export function MetricsPage() {
             />
             <SummaryCard
               title="Containment"
-              value={`${(summary.containment_rate_24h * 100).toFixed(1)}%`}
+              value={
+                summary.containment_rate_24h != null
+                  ? `${(summary.containment_rate_24h * 100).toFixed(1)}%`
+                  : '-'
+              }
               description="未转接比例"
               icon={Shield}
             />
