@@ -152,6 +152,14 @@ async def lifespan(app: FastAPI):
             vector_manager=vector_manager,
         )
         logger.info(" Infrastructure is ready.")
+
+        try:
+            logger.info("Warming up LLM...")
+            await llm.ainvoke([{"role": "user", "content": "Hello"}])
+            logger.info("LLM warm-up complete.")
+        except Exception:
+            logger.warning("LLM warm-up failed, will warm up on first request")
+
         yield
     finally:
         logger.info("Shutting down...")
@@ -197,8 +205,15 @@ def _setup_langsmith_tracing() -> None:
     )
 
 
+class SafeFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        if not hasattr(record, "correlation_id"):
+            record.correlation_id = "-"
+        return super().format(record)
+
+
 def _setup_logging() -> None:
-    formatter = logging.Formatter(
+    formatter = SafeFormatter(
         "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
     )
     handler = logging.StreamHandler()

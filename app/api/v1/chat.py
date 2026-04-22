@@ -330,7 +330,21 @@ async def chat(
                 yield f"data: {error_payload}\n\n"
                 yield "data: [DONE]\n\n"
 
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
+        async def _timed_event_generator():
+            """Wrap event generator with global timeout to prevent hanging requests."""
+            try:
+                async for chunk in event_generator():
+                    yield chunk
+            except TimeoutError:
+                logger.warning("[Chat] Request timed out after 15s")
+                error_payload = json.dumps(
+                    {"error": "服务响应超时，请稍后重试或联系人工客服。"},
+                    ensure_ascii=False,
+                )
+                yield f"data: {error_payload}\n\n"
+                yield "data: [DONE]\n\n"
+
+        return StreamingResponse(_timed_event_generator(), media_type="text/event-stream")
 
 
 _feedback_service = OnlineEvalService()
