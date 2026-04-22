@@ -28,7 +28,7 @@ class IntentClassifier:
     """意图分类器"""
 
     supports_multi_intent: bool = True
-    RULE_MATCH_CONFIDENCE = 0.5
+    RULE_MATCH_CONFIDENCE = 0.8
     DEFAULT_FALLBACK_CONFIDENCE = 0.3
     FUNCTION_CALLING_THRESHOLD = settings.FUNCTION_CALLING_THRESHOLD
 
@@ -105,12 +105,14 @@ class IntentClassifier:
         ("CART", "ADD"): [r"(加|放|添加).*(购物车|车里)", r"购物车.*(加|添)"],
         ("CART", "REMOVE"): [r"(删|移除|清空).*(购物车|车里)"],
         ("ACCOUNT", "QUERY"): [
-            r"账户.*(余额|信息|等级|会员)",
+            r"账户.*(余额|信息|等级|会员|情况)",
+            r"我的账户",
             r"我的余额",
             r"优惠券",
             r"会员.*(等级|信息)",
             r"积分",
             r"个人信息",
+            r"用户.*信息",
         ],
         ("PAYMENT", "QUERY"): [
             r"支付.*(问题|失败|方式)",
@@ -122,6 +124,14 @@ class IntentClassifier:
             r"(物流|快递|包裹).*(哪|状态|进度)",
             r"到哪.*(了|了没)",
             r"什么时候.*(到|送达)",
+        ],
+        ("COMPLAINT", "QUERY"): [
+            r"(投诉|举报|维权|申诉)",
+            r"(商品|产品|东西|质量).*(问题|差|坏|不行|破损|瑕疵|缺陷|假货|骗子|欺诈)",
+            r"(服务|客服|态度).*(差|恶劣|不好)",
+            r"(虚假|夸大|欺骗).*(宣传|广告|描述)",
+            r"(发货|物流|快递).*(慢|延迟|虚假)",
+            r"要求.*(赔偿|补偿|道歉|处理|解决|给个说法)",
         ],
         ("OTHER", "CONSULT"): [r"^(你好|您好|hi|hello|在吗|有人吗)", r"谢谢|再见|拜拜"],
     }
