@@ -195,8 +195,10 @@ function TracesCard() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-'
     const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return '-'
     return date.toLocaleString('zh-CN', {
       month: '2-digit',
       day: '2-digit',
