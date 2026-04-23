@@ -13,9 +13,11 @@ from app.core.cache import CacheManager
 
 def _make_async_iter(items):
     """Return an async generator that yields *items*."""
+
     async def _scan_iter(*args, **kwargs):
         for item in items:
             yield item
+
     return _scan_iter
 
 

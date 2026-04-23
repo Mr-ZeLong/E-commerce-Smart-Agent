@@ -7,7 +7,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
@@ -165,9 +164,7 @@ async def resolve_review_ticket(
 ) -> dict[str, Any]:
     service = ReviewQueueService(session)
     try:
-        ticket = await service.resolve_ticket(
-            ticket_id, req.action, req.notes, req.accuracy
-        )
+        ticket = await service.resolve_ticket(ticket_id, req.action, req.notes, req.accuracy)
         await service.update_reviewer_metrics(ticket.assigned_to or 0)
         return _ticket_to_dict(ticket)
     except ValueError as e:
@@ -215,10 +212,9 @@ async def get_reviewer_metrics(
     await service.update_reviewer_metrics(reviewer_id, period_days=period_days)
 
     from sqlalchemy import select
-    from app.models.review import ReviewerMetrics
 
     stmt = (
-        select(ReviewerMetrics)  # type: ignore
+        select(ReviewerMetrics)
         .where(ReviewerMetrics.reviewer_id == reviewer_id)  # type: ignore
         .order_by(ReviewerMetrics.period_start.desc())  # type: ignore
     )

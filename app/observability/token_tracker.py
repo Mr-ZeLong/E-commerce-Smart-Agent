@@ -73,7 +73,7 @@ class TokenTracker:
         recent = await self.session.exec(
             select(func.count(TokenUsageLog.id))  # type: ignore
             .where(TokenUsageLog.user_id == log.user_id)
-            .where(TokenUsageLog.created_at >= utc_now() - timedelta(hours=1))  # type: ignore
+            .where(TokenUsageLog.created_at >= utc_now() - timedelta(hours=1))
         )
         recent_count = recent.one() or 0
         if recent_count >= 10:
@@ -81,7 +81,7 @@ class TokenTracker:
                 select(OptimizationSuggestion)
                 .where(OptimizationSuggestion.user_id == log.user_id)
                 .where(OptimizationSuggestion.suggestion_type == "frequent_queries")
-                .where(OptimizationSuggestion.created_at >= utc_now() - timedelta(days=1))  # type: ignore
+                .where(OptimizationSuggestion.created_at >= utc_now() - timedelta(days=1))
             )
             if existing.one_or_none() is None:
                 suggestion = OptimizationSuggestion(
@@ -102,60 +102,60 @@ class TokenTracker:
 
         result = await self.session.exec(
             select(
-                func.sum(TokenUsageLog.input_tokens).label("total_input"),  # type: ignore
-                func.sum(TokenUsageLog.output_tokens).label("total_output"),  # type: ignore
-                func.sum(TokenUsageLog.total_tokens).label("total"),  # type: ignore
+                func.sum(TokenUsageLog.input_tokens).label("total_input"),
+                func.sum(TokenUsageLog.output_tokens).label("total_output"),
+                func.sum(TokenUsageLog.total_tokens).label("total"),
                 func.count(TokenUsageLog.id).label("query_count"),  # type: ignore
             )
             .where(TokenUsageLog.user_id == user_id)
-            .where(TokenUsageLog.created_at >= start)  # type: ignore
-            .where(TokenUsageLog.created_at < end)  # type: ignore
+            .where(TokenUsageLog.created_at >= start)
+            .where(TokenUsageLog.created_at < end)
         )
         row = result.one()
         return {
             "user_id": user_id,
             "date": start.isoformat(),
-            "input_tokens": row.total_input or 0,
-            "output_tokens": row.total_output or 0,
-            "total_tokens": row.total or 0,
-            "query_count": row.query_count or 0,
+            "input_tokens": row.total_input or 0,  # type: ignore
+            "output_tokens": row.total_output or 0,  # type: ignore
+            "total_tokens": row.total or 0,  # type: ignore
+            "query_count": row.query_count or 0,  # type: ignore
         }
 
     async def get_user_period_aggregate(self, user_id: int, days: int = 7) -> dict[str, Any]:
         since = utc_now() - timedelta(days=days)
         result = await self.session.exec(
             select(
-                func.sum(TokenUsageLog.input_tokens).label("total_input"),  # type: ignore
-                func.sum(TokenUsageLog.output_tokens).label("total_output"),  # type: ignore
-                func.sum(TokenUsageLog.total_tokens).label("total"),  # type: ignore
+                func.sum(TokenUsageLog.input_tokens).label("total_input"),
+                func.sum(TokenUsageLog.output_tokens).label("total_output"),
+                func.sum(TokenUsageLog.total_tokens).label("total"),
                 func.count(TokenUsageLog.id).label("query_count"),  # type: ignore
             )
             .where(TokenUsageLog.user_id == user_id)
-            .where(TokenUsageLog.created_at >= since)  # type: ignore
+            .where(TokenUsageLog.created_at >= since)
         )
         row = result.one()
         return {
             "user_id": user_id,
             "period_days": days,
-            "input_tokens": row.total_input or 0,
-            "output_tokens": row.total_output or 0,
-            "total_tokens": row.total or 0,
-            "query_count": row.query_count or 0,
+            "input_tokens": row.total_input or 0,  # type: ignore
+            "output_tokens": row.total_output or 0,  # type: ignore
+            "total_tokens": row.total or 0,  # type: ignore
+            "query_count": row.query_count or 0,  # type: ignore
         }
 
     async def get_agent_aggregate(self, days: int = 7) -> list[dict[str, Any]]:
         since = utc_now() - timedelta(days=days)
         result = await self.session.exec(
-            select(
+            select(  # type: ignore
                 TokenUsageLog.agent_type,
-                func.sum(TokenUsageLog.input_tokens).label("total_input"),  # type: ignore
-                func.sum(TokenUsageLog.output_tokens).label("total_output"),  # type: ignore
-                func.sum(TokenUsageLog.total_tokens).label("total"),  # type: ignore
+                func.sum(TokenUsageLog.input_tokens).label("total_input"),
+                func.sum(TokenUsageLog.output_tokens).label("total_output"),
+                func.sum(TokenUsageLog.total_tokens).label("total"),
                 func.count(TokenUsageLog.id).label("query_count"),  # type: ignore
             )
-            .where(TokenUsageLog.created_at >= since)  # type: ignore
+            .where(TokenUsageLog.created_at >= since)
             .group_by(TokenUsageLog.agent_type)
-            .order_by(func.sum(TokenUsageLog.total_tokens).desc())  # type: ignore
+            .order_by(func.sum(TokenUsageLog.total_tokens).desc())
         )
         return [
             {
@@ -173,7 +173,7 @@ class TokenTracker:
     ) -> list[dict[str, Any]]:
         result = await self.session.exec(
             select(TokenUsageLog)
-            .where(TokenUsageLog.total_tokens >= threshold)  # type: ignore
+            .where(TokenUsageLog.total_tokens >= threshold)
             .order_by(TokenUsageLog.created_at.desc())  # type: ignore
             .limit(limit)
         )
@@ -196,13 +196,13 @@ class TokenTracker:
     async def get_overall_usage(self, days: int = 7) -> dict[str, Any]:
         since = utc_now() - timedelta(days=days)
         result = await self.session.exec(
-            select(
-                func.sum(TokenUsageLog.input_tokens).label("total_input"),  # type: ignore
-                func.sum(TokenUsageLog.output_tokens).label("total_output"),  # type: ignore
-                func.sum(TokenUsageLog.total_tokens).label("total"),  # type: ignore
+            select(  # type: ignore
+                func.sum(TokenUsageLog.input_tokens).label("total_input"),
+                func.sum(TokenUsageLog.output_tokens).label("total_output"),
+                func.sum(TokenUsageLog.total_tokens).label("total"),
                 func.count(TokenUsageLog.id).label("query_count"),  # type: ignore
-                func.count(func.distinct(TokenUsageLog.user_id)).label("unique_users"),  # type: ignore
-            ).where(TokenUsageLog.created_at >= since)  # type: ignore
+                func.count(func.distinct(TokenUsageLog.user_id)).label("unique_users"),
+            ).where(TokenUsageLog.created_at >= since)
         )
         row = result.one()
         return {

@@ -111,9 +111,7 @@ class TestChatEndpointOptimizations:
                         found_async_filter = True
                         break
 
-        assert found_async_filter, (
-            "chat endpoint should use await pii_filter.afilter_text()"
-        )
+        assert found_async_filter, "chat endpoint should use await pii_filter.afilter_text()"
 
     def test_chat_reuses_shared_redis_client(self):
         """chat() should read redis_client from request.app.state."""
@@ -122,6 +120,6 @@ class TestChatEndpointOptimizations:
         from app.api.v1 import chat as chat_module
 
         source = inspect.getsource(chat_module.chat)
-        assert "request.app.state.redis_client" in source or "getattr(request.app.state" in source, (
-            "chat endpoint should reuse the shared Redis client from app state"
-        )
+        assert (
+            "request.app.state.redis_client" in source or "getattr(request.app.state" in source
+        ), "chat endpoint should reuse the shared Redis client from app state"

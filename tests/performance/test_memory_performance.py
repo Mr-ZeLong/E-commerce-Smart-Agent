@@ -37,9 +37,7 @@ async def vector_manager_with_cache(redis_client):
     mock_embedder = AsyncMock()
     mock_embedder.aembed_documents.return_value = [[0.1] * 1024]
 
-    manager = VectorMemoryManager(
-        client=mock_client, embedder=mock_embedder, cache_manager=cache
-    )
+    manager = VectorMemoryManager(client=mock_client, embedder=mock_embedder, cache_manager=cache)
     return manager, cache, mock_client
 
 

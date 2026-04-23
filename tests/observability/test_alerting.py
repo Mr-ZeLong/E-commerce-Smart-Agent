@@ -113,17 +113,13 @@ class TestCreateDefaultAlertManager:
         ):
             from app.observability.alerting import _send_alert_email_batch
 
-            await _send_alert_email_batch(
-                [Alert(name="a", severity=AlertSeverity.P0, message="m")]
-            )
+            await _send_alert_email_batch([Alert(name="a", severity=AlertSeverity.P0, message="m")])
             mock_send.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_email_handler_sends_when_admin_emails_configured(self):
         with (
-            patch(
-                "app.observability.alerting.settings.ALERT_ADMIN_EMAILS", ["admin@test.com"]
-            ),
+            patch("app.observability.alerting.settings.ALERT_ADMIN_EMAILS", ["admin@test.com"]),
             patch("app.observability.alerting.send_email", new_callable=AsyncMock) as mock_send,
         ):
             from app.observability.alerting import _send_alert_email_batch

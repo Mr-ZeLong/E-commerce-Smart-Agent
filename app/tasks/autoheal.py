@@ -9,13 +9,13 @@ from __future__ import annotations
 import logging
 from typing import Any, cast
 
+import redis as sync_redis
+from celery.app.control import Control
+
 from app.celery_app import celery_app
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
-
-from celery.app.control import Control
 
 
 @celery_app.task(bind=True, name="autoheal.check_celery_workers")
@@ -47,9 +47,6 @@ def check_celery_workers(_self) -> dict:
                     logger.exception("Failed to shutdown worker %s: %s", worker_name, exc)
 
     return {"restarted_workers": restarted}
-
-
-import redis as sync_redis
 
 
 @celery_app.task(bind=True, name="autoheal.clear_redis_cache")
@@ -88,7 +85,7 @@ def clear_redis_cache(_self, memory_threshold_mb: float = 512.0) -> dict:
                 client.delete(*keys)
                 removed += len(keys)
 
-        info_after: dict = client.info("memory")  # type: ignore[assignment]
+        info_after = cast(dict[str, Any], client.info("memory"))
         used_after_mb = info_after.get("used_memory", 0) / (1024 * 1024)
 
         return {

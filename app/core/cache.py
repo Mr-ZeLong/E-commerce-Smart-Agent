@@ -145,7 +145,9 @@ class CacheManager:
     async def set_intent(self, query: str, result: dict[str, Any]) -> None:
         """Cache an intent result for *query*."""
         key = f"intent:{self._hash_key(query)}"
-        await self._redis_set(key, json.dumps(result, ensure_ascii=False), settings.CACHE_TTL_INTENT)
+        await self._redis_set(
+            key, json.dumps(result, ensure_ascii=False), settings.CACHE_TTL_INTENT
+        )
 
     async def invalidate_intent(self, query: str) -> None:
         """Remove a specific intent cache entry."""
@@ -172,7 +174,9 @@ class CacheManager:
     async def set_profile(self, user_id: int, profile: dict[str, Any]) -> None:
         """Cache a user profile for *user_id*."""
         key = f"profile:{user_id}"
-        await self._redis_set(key, json.dumps(profile, ensure_ascii=False), settings.CACHE_TTL_PROFILE)
+        await self._redis_set(
+            key, json.dumps(profile, ensure_ascii=False), settings.CACHE_TTL_PROFILE
+        )
 
     async def invalidate_profile(self, user_id: int) -> None:
         """Remove a specific profile cache entry."""
@@ -220,7 +224,9 @@ class CacheManager:
     # User facts cache
     # ------------------------------------------------------------------ #
 
-    async def get_facts(self, user_id: int, fact_types: list[str] | None = None, limit: int = 3) -> list[dict[str, Any]] | None:
+    async def get_facts(
+        self, user_id: int, fact_types: list[str] | None = None, limit: int = 3
+    ) -> list[dict[str, Any]] | None:
         """Fetch cached user facts for *user_id*."""
         type_hash = self._hash_key(",".join(sorted(fact_types))) if fact_types else "all"
         key = f"facts:{user_id}:{type_hash}:{limit}"
@@ -235,12 +241,18 @@ class CacheManager:
         return None
 
     async def set_facts(
-        self, user_id: int, facts: list[dict[str, Any]], fact_types: list[str] | None = None, limit: int = 3
+        self,
+        user_id: int,
+        facts: list[dict[str, Any]],
+        fact_types: list[str] | None = None,
+        limit: int = 3,
     ) -> None:
         """Cache user facts for *user_id*."""
         type_hash = self._hash_key(",".join(sorted(fact_types))) if fact_types else "all"
         key = f"facts:{user_id}:{type_hash}:{limit}"
-        await self._redis_set(key, json.dumps(facts, ensure_ascii=False), settings.CACHE_TTL_PROFILE)
+        await self._redis_set(
+            key, json.dumps(facts, ensure_ascii=False), settings.CACHE_TTL_PROFILE
+        )
 
     async def invalidate_facts(self, user_id: int) -> None:
         """Remove all facts cache entries for *user_id*."""
@@ -266,7 +278,9 @@ class CacheManager:
     async def set_preferences(self, user_id: int, preferences: list[dict[str, Any]]) -> None:
         """Cache user preferences for *user_id*."""
         key = f"preferences:{user_id}"
-        await self._redis_set(key, json.dumps(preferences, ensure_ascii=False), settings.CACHE_TTL_PROFILE)
+        await self._redis_set(
+            key, json.dumps(preferences, ensure_ascii=False), settings.CACHE_TTL_PROFILE
+        )
 
     async def invalidate_preferences(self, user_id: int) -> None:
         """Remove preferences cache entry for *user_id*."""
@@ -290,10 +304,14 @@ class CacheManager:
         self._record_miss("summaries")
         return None
 
-    async def set_summaries(self, user_id: int, summaries: list[dict[str, Any]], limit: int = 2) -> None:
+    async def set_summaries(
+        self, user_id: int, summaries: list[dict[str, Any]], limit: int = 2
+    ) -> None:
         """Cache interaction summaries for *user_id*."""
         key = f"summaries:{user_id}:{limit}"
-        await self._redis_set(key, json.dumps(summaries, ensure_ascii=False), settings.CACHE_TTL_PROFILE)
+        await self._redis_set(
+            key, json.dumps(summaries, ensure_ascii=False), settings.CACHE_TTL_PROFILE
+        )
 
     async def invalidate_summaries(self, user_id: int) -> None:
         """Remove all summaries cache entries for *user_id*."""

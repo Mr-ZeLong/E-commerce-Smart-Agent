@@ -81,7 +81,9 @@ def clear_expired_redis_keys(_self, memory_threshold_mb: float = 512.0) -> dict[
             }
 
         logger.warning(
-            "Redis memory %.1fMB > threshold %.1fMB; clearing cache keys", used_mb, memory_threshold_mb
+            "Redis memory %.1fMB > threshold %.1fMB; clearing cache keys",
+            used_mb,
+            memory_threshold_mb,
         )
 
         patterns = ["cache:*", "rate_limit:*", "temp:*"]
@@ -120,7 +122,9 @@ def check_db_pool_health(_self, max_overflow_threshold: int = 20) -> dict[str, A
 
     try:
         with sync_engine.connect() as conn:
-            result = conn.execute(text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"))
+            result = conn.execute(
+                text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()")
+            )
             active_connections = result.scalar() or 0
 
         pool_size = settings.DB_POOL_SIZE

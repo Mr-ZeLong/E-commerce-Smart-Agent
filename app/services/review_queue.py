@@ -34,8 +34,8 @@ class ReviewQueueService:
             select(ReviewTicket)
             .where(ReviewTicket.conversation_id == conversation_id)
             .where(
-                ReviewTicket.status.in_([ReviewStatus.PENDING.value, ReviewStatus.ASSIGNED.value])
-            )  # type: ignore
+                ReviewTicket.status.in_([ReviewStatus.PENDING.value, ReviewStatus.ASSIGNED.value])  # type: ignore
+            )
         )
         if existing.one_or_none() is not None:
             logger.info("Review ticket already exists for conversation %s", conversation_id)
@@ -114,15 +114,15 @@ class ReviewQueueService:
             count_stmt = count_stmt.where(ReviewTicket.status == status)
             stmt = stmt.where(ReviewTicket.status == status)
         if min_risk is not None:
-            count_stmt = count_stmt.where(ReviewTicket.risk_score >= min_risk)  # type: ignore
-            stmt = stmt.where(ReviewTicket.risk_score >= min_risk)  # type: ignore
+            count_stmt = count_stmt.where(ReviewTicket.risk_score >= min_risk)
+            stmt = stmt.where(ReviewTicket.risk_score >= min_risk)
         if assigned_to is not None:
             count_stmt = count_stmt.where(ReviewTicket.assigned_to == assigned_to)
             stmt = stmt.where(ReviewTicket.assigned_to == assigned_to)
         if sla_at_risk is True:
             deadline = utc_now() + timedelta(hours=1)
-            count_stmt = count_stmt.where(ReviewTicket.sla_deadline <= deadline)  # type: ignore
-            stmt = stmt.where(ReviewTicket.sla_deadline <= deadline)  # type: ignore
+            count_stmt = count_stmt.where(ReviewTicket.sla_deadline <= deadline)
+            stmt = stmt.where(ReviewTicket.sla_deadline <= deadline)
 
         total_result = await self.session.exec(count_stmt)
         total = total_result.one()
@@ -138,13 +138,13 @@ class ReviewQueueService:
     async def get_sla_metrics(self) -> dict[str, Any]:
         now = utc_now()
         total_resolved_result = await self.session.exec(
-            select(func.count()).where(ReviewTicket.status == ReviewStatus.RESOLVED.value)  # type: ignore
+            select(func.count()).where(ReviewTicket.status == ReviewStatus.RESOLVED.value)
         )
         total_resolved = total_resolved_result.one() or 0
 
         sla_met_result = await self.session.exec(
             select(func.count()).where(
-                ReviewTicket.status == ReviewStatus.RESOLVED.value,  # type: ignore
+                ReviewTicket.status == ReviewStatus.RESOLVED.value,
                 ReviewTicket.resolved_at <= ReviewTicket.sla_deadline,  # type: ignore
             )
         )
@@ -160,7 +160,7 @@ class ReviewQueueService:
         at_risk_result = await self.session.exec(
             select(func.count()).where(
                 ReviewTicket.status.in_([ReviewStatus.PENDING.value, ReviewStatus.ASSIGNED.value]),  # type: ignore
-                ReviewTicket.sla_deadline <= now + timedelta(hours=1),  # type: ignore
+                ReviewTicket.sla_deadline <= now + timedelta(hours=1),
             )
         )
         at_risk = at_risk_result.one() or 0
@@ -170,7 +170,7 @@ class ReviewQueueService:
                 func.avg(
                     func.extract("epoch", ReviewTicket.resolved_at - ReviewTicket.created_at) / 60  # type: ignore
                 )
-            ).where(ReviewTicket.status == ReviewStatus.RESOLVED.value)  # type: ignore
+            ).where(ReviewTicket.status == ReviewStatus.RESOLVED.value)
         )
         avg_handling = avg_handling_result.one()
 
@@ -217,14 +217,14 @@ class ReviewQueueService:
 
         result = await self.session.exec(
             select(
-                func.count().label("total"),  # type: ignore
+                func.count().label("total"),
                 func.avg(
                     func.extract("epoch", ReviewTicket.resolved_at - ReviewTicket.created_at) / 60  # type: ignore
                 ).label("avg_time"),
-                func.avg(ReviewTicket.reviewer_accuracy).label("avg_accuracy"),  # type: ignore
+                func.avg(ReviewTicket.reviewer_accuracy).label("avg_accuracy"),
             )
             .where(ReviewTicket.assigned_to == reviewer_id)
-            .where(ReviewTicket.status == ReviewStatus.RESOLVED.value)  # type: ignore
+            .where(ReviewTicket.status == ReviewStatus.RESOLVED.value)
             .where(ReviewTicket.resolved_at >= start)  # type: ignore
         )
         row = result.one()
@@ -232,13 +232,13 @@ class ReviewQueueService:
         sla_result = await self.session.exec(
             select(func.count()).where(
                 ReviewTicket.assigned_to == reviewer_id,
-                ReviewTicket.status == ReviewStatus.RESOLVED.value,  # type: ignore
+                ReviewTicket.status == ReviewStatus.RESOLVED.value,
                 ReviewTicket.resolved_at <= ReviewTicket.sla_deadline,  # type: ignore
                 ReviewTicket.resolved_at >= start,  # type: ignore
             )
         )
         sla_met = sla_result.one() or 0
-        total = row.total or 0
+        total = row.total or 0  # type: ignore
         sla_rate = sla_met / total if total > 0 else 1.0
 
         existing = await self.session.exec(
@@ -255,8 +255,8 @@ class ReviewQueueService:
             )
 
         metric.total_tickets = total
-        metric.avg_handling_time_minutes = round(float(row.avg_time), 2) if row.avg_time else None
-        metric.accuracy_score = round(float(row.avg_accuracy), 4) if row.avg_accuracy else None
+        metric.avg_handling_time_minutes = round(float(row.avg_time), 2) if row.avg_time else None  # type: ignore
+        metric.accuracy_score = round(float(row.avg_accuracy), 4) if row.avg_accuracy else None  # type: ignore
         metric.sla_compliance_rate = round(sla_rate, 4)
 
         self.session.add(metric)

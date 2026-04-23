@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from unittest.mock import MagicMock
 
 from app.agents.base import BaseAgent, _estimate_tokens
 from app.graph.subgraphs import _estimate_state_tokens, _filter_state, get_agent_tools
