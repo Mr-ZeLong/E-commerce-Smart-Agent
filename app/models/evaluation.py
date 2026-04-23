@@ -1,17 +1,17 @@
-"""在线评估与质量评分模型"""
+"""Online evaluation and quality scoring models."""
 
 from datetime import date, datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, text
+from sqlalchemy import JSON, Column, DateTime, Float, text
 from sqlmodel import Field, SQLModel
 
 from app.core.utils import utc_now
 
 
 class SentimentEnum(str, Enum):
-    """反馈情感"""
+    """Feedback sentiment."""
 
     UP = "up"
     DOWN = "down"
@@ -19,7 +19,7 @@ class SentimentEnum(str, Enum):
 
 
 class ScoreTypeEnum(str, Enum):
-    """质量评分类型"""
+    """Quality score type."""
 
     HELPFULNESS = "helpfulness"
     ACCURACY = "accuracy"
@@ -28,17 +28,24 @@ class ScoreTypeEnum(str, Enum):
 
 
 class MessageFeedback(SQLModel, table=True):
-    """消息反馈表（显式反馈）"""
+    """Message feedback table (explicit feedback)."""
 
     __tablename__ = "message_feedbacks"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
-    thread_id: str = Field(index=True, max_length=128, description="会话线程 ID")
-    message_index: int = Field(description="消息在会话中的索引")
+    user_id: int = Field(foreign_key="users.id", index=True, description="User ID")
+    thread_id: str = Field(index=True, max_length=128, description="Conversation thread ID")
+    message_index: int = Field(description="Message index in conversation")
 
-    score: int = Field(description="评分：1=up, -1=down", ge=-1, le=1)
-    comment: str | None = Field(default=None, description="自由文本评论")
+    score: int = Field(description="Score: 1=up, -1=down", ge=-1, le=1)
+    comment: str | None = Field(default=None, description="Free text comment")
+    category: str | None = Field(default=None, max_length=32, description="Feedback category")
+    agent_type: str | None = Field(
+        default=None, max_length=32, description="Agent type that generated the response"
+    )
+    confidence_score: float | None = Field(
+        default=None, description="Confidence score at the time of response"
+    )
 
     created_at: datetime = Field(
         default_factory=utc_now,
@@ -49,49 +56,48 @@ class MessageFeedback(SQLModel, table=True):
 
 
 class QualityScore(SQLModel, table=True):
-    """每日质量评分表（聚合显式+隐式信号）"""
+    """Daily quality score table (aggregated explicit + implicit signals)."""
 
     __tablename__ = "quality_scores"
 
     id: int | None = Field(default=None, primary_key=True)
-    score_date: date = Field(index=True, description="评分日期")
+    score_date: date = Field(index=True, description="Score date")
     score_type: str = Field(
-        default=ScoreTypeEnum.OVERALL.value, max_length=32, description="评分类型"
+        default=ScoreTypeEnum.OVERALL.value, max_length=32, description="Score type"
     )
 
-    # 整体指标
-    total_sessions: int = Field(default=0, description="总会话数")
-    human_transfer_rate: float | None = Field(default=None, description="人工转接率")
-    avg_confidence: float | None = Field(default=None, description="平均置信度")
-    avg_turns: float | None = Field(default=None, description="平均对话轮数")
-    implicit_satisfaction_rate: float | None = Field(default=None, description="隐式满意率")
+    total_sessions: int = Field(default=0, description="Total sessions")
+    human_transfer_rate: float | None = Field(default=None, description="Human transfer rate")
+    avg_confidence: float | None = Field(default=None, description="Average confidence")
+    avg_turns: float | None = Field(default=None, description="Average conversation turns")
+    implicit_satisfaction_rate: float | None = Field(
+        default=None, description="Implicit satisfaction rate"
+    )
 
-    # 显式反馈
-    explicit_upvotes: int = Field(default=0, description="点赞数")
-    explicit_downvotes: int = Field(default=0, description="点踩数")
+    explicit_upvotes: int = Field(default=0, description="Upvote count")
+    explicit_downvotes: int = Field(default=0, description="Downvote count")
 
-    # 隐式负向信号
-    immediate_transfer_count: int = Field(default=0, description="立即转人工数")
-    contradictory_followup_count: int = Field(default=0, description="矛盾追问数")
-    low_confidence_retry_count: int = Field(default=0, description="低置信重试数")
+    immediate_transfer_count: int = Field(default=0, description="Immediate human transfer count")
+    contradictory_followup_count: int = Field(
+        default=0, description="Contradictory follow-up count"
+    )
+    low_confidence_retry_count: int = Field(default=0, description="Low confidence retry count")
 
-    # 按意图细分（JSON: intent -> metrics）
     intent_breakdown: dict[str, Any] | None = Field(
         default=None,
         sa_column=Column(JSON, nullable=True),
-        description="意图细分数据",
+        description="Intent breakdown data",
     )
 
-    # Top 3 劣化意图及样本 trace IDs
     top_degraded_intents: list[str] | None = Field(
         default=None,
         sa_column=Column(JSON, nullable=True),
-        description="Top 3 劣化意图",
+        description="Top 3 degraded intents",
     )
     sample_trace_ids: list[str] | None = Field(
         default=None,
         sa_column=Column(JSON, nullable=True),
-        description="样本 trace IDs",
+        description="Sample trace IDs",
     )
 
     created_at: datetime = Field(
@@ -108,5 +114,63 @@ class QualityScore(SQLModel, table=True):
             nullable=False,
             server_default=text("CURRENT_TIMESTAMP"),
             onupdate=text("CURRENT_TIMESTAMP"),
+        ),
+    )
+
+
+class ShadowTestResult(SQLModel, table=True):
+    """Shadow testing comparison result stored in database."""
+
+    __tablename__ = "shadow_test_results"
+
+    id: int | None = Field(default=None, primary_key=True)
+    thread_id: str = Field(index=True, max_length=128, description="Conversation thread ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="User ID")
+    query: str | None = Field(default=None, max_length=512, description="User query")
+    production_intent: str | None = Field(default=None, max_length=32)
+    shadow_intent: str | None = Field(default=None, max_length=32)
+    intent_match: bool = Field(default=False)
+    production_answer: str | None = Field(default=None)
+    shadow_answer: str | None = Field(default=None)
+    jaccard_similarity: float = Field(default=0.0, sa_column=Column(Float, nullable=False))
+    semantic_similarity: float | None = None
+    llm_quality_score: float | None = None
+    production_latency_ms: int | None = None
+    shadow_latency_ms: int | None = None
+    latency_delta_ms: int | None = None
+    latency_regression: bool = Field(default=False)
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        ),
+    )
+
+
+class AdversarialTestRun(SQLModel, table=True):
+    """Adversarial test suite execution record."""
+
+    __tablename__ = "adversarial_test_runs"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_date: date = Field(index=True, default_factory=date.today)
+    total_cases: int = Field(default=0)
+    passed_cases: int = Field(default=0)
+    failed_cases: int = Field(default=0)
+    pass_rate: float = Field(default=0.0)
+    category_breakdown: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+    )
+    severity_breakdown: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+    )
+    report_markdown: str | None = Field(default=None)
+    triggered_by: str = Field(default="scheduled", max_length=32)
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
         ),
     )

@@ -25,6 +25,9 @@ async def list_feedback(
     sentiment: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
+    agent_type: str | None = Query(None),
+    category: str | None = Query(None),
+    search: str | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     _current_admin_id: int = Depends(get_admin_user_id),
@@ -35,6 +38,9 @@ async def list_feedback(
         sentiment=sentiment,
         date_from=date_from,
         date_to=date_to,
+        agent_type=agent_type,
+        category=category,
+        search=search,
         offset=offset,
         limit=limit,
     )
@@ -47,6 +53,9 @@ async def list_feedback(
                 "message_index": f.message_index,
                 "score": f.score,
                 "comment": f.comment,
+                "category": f.category,
+                "agent_type": f.agent_type,
+                "confidence_score": f.confidence_score,
                 "created_at": f.created_at.isoformat() if f.created_at else None,
             }
             for f in items
@@ -62,6 +71,9 @@ async def export_feedback(
     sentiment: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
+    agent_type: str | None = Query(None),
+    category: str | None = Query(None),
+    search: str | None = Query(None),
     _current_admin_id: int = Depends(get_admin_user_id),
     session: AsyncSession = Depends(get_session),
 ):
@@ -70,13 +82,27 @@ async def export_feedback(
         sentiment=sentiment,
         date_from=date_from,
         date_to=date_to,
+        agent_type=agent_type,
+        category=category,
+        search=search,
         offset=0,
         limit=10000,
     )
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(
-        ["id", "user_id", "thread_id", "message_index", "score", "comment", "created_at"]
+        [
+            "id",
+            "user_id",
+            "thread_id",
+            "message_index",
+            "score",
+            "comment",
+            "category",
+            "agent_type",
+            "confidence_score",
+            "created_at",
+        ]
     )
     for f in items:
         writer.writerow(
@@ -87,6 +113,9 @@ async def export_feedback(
                 f.message_index,
                 f.score,
                 f.comment,
+                f.category,
+                f.agent_type,
+                f.confidence_score,
                 f.created_at.isoformat() if f.created_at else "",
             ]
         )
@@ -104,6 +133,17 @@ async def get_csat_trend(
 ):
     trend = await service.get_csat_trend(db=session, days=days)
     return {"days": days, "trend": trend}
+
+
+@router.get("/stats")
+async def get_feedback_stats(
+    days: int = Query(30, ge=1, le=365),
+    agent_type: str | None = Query(None),
+    _current_admin_id: int = Depends(get_admin_user_id),
+    session: AsyncSession = Depends(get_session),
+):
+    stats = await service.get_feedback_stats(db=session, days=days, agent_type=agent_type)
+    return {"days": days, **stats}
 
 
 @router.post("/quality-score/run")

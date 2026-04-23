@@ -1,5 +1,7 @@
 """Tests for agent subgraph context isolation."""
 
+from unittest.mock import patch
+
 import pytest
 
 from app.agents.base import BaseAgent
@@ -96,3 +98,56 @@ def test_filter_state_retains_only_allowed_keys():
     )
     filtered = _filter_state(state, ["question", "user_id"])
     assert set(filtered.keys()) == {"question", "user_id"}
+
+
+def test_estimate_state_tokens_returns_non_negative():
+    from app.graph.subgraphs import _estimate_state_tokens
+
+    state = make_agent_state(question="hello", user_id=1)
+    assert _estimate_state_tokens(state) >= 0
+
+
+def test_estimate_state_tokens_increases_with_content():
+    from app.graph.subgraphs import _estimate_state_tokens
+
+    small = make_agent_state(question="hi", user_id=1)
+    large = make_agent_state(question="hi" * 100, user_id=1)
+    assert _estimate_state_tokens(large) > _estimate_state_tokens(small)
+
+
+def test_get_agent_tools_returns_scoped_tools():
+    from app.graph.subgraphs import get_agent_tools
+
+    order_tools = get_agent_tools("order_agent")
+    assert len(order_tools) > 0
+    assert all("name" in t and "description" in t for t in order_tools)
+    names = [t["name"] for t in order_tools]
+    assert "get_order" in names
+
+
+def test_get_agent_tools_returns_empty_for_unknown_agent():
+    from app.graph.subgraphs import get_agent_tools
+
+    assert get_agent_tools("unknown_agent") == []
+
+
+@pytest.mark.asyncio
+async def test_subgraph_records_context_tokens():
+
+    agent = RecordingAgent()
+    allowed_keys = ["question", "user_id"]
+    subgraph = build_agent_subgraph(agent, allowed_keys=allowed_keys)
+
+    full_state = make_agent_state(
+        question="hello",
+        user_id=1,
+        thread_id="t1",
+        order_data={"status": "shipped"},
+    )
+
+    with patch("app.graph.subgraphs.record_agent_context_tokens") as mock_record:
+        await subgraph.ainvoke(full_state)
+        mock_record.assert_called_once()
+        call_kwargs = mock_record.call_args.kwargs
+        assert call_kwargs["agent_name"] == agent.name
+        assert call_kwargs["tokens"] >= 0

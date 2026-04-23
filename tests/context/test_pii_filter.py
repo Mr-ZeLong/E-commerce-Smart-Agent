@@ -333,9 +333,7 @@ class TestGDPRComplianceManager:
         assert not mgr.is_retention_expired("not-a-timestamp")
 
     def test_default_retention_from_settings(self, monkeypatch):
-        monkeypatch.setattr(
-            "app.core.config.settings.MEMORY_RETENTION_DAYS", 30
-        )
+        monkeypatch.setattr("app.core.config.settings.MEMORY_RETENTION_DAYS", 30)
         mgr = GDPRComplianceManager()
         assert mgr.retention_days == 30
 

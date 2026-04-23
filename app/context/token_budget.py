@@ -122,6 +122,48 @@ class MemoryTokenBudget(TokenBudget):
 
         return result
 
+    def calculate_history_budget(self, config: dict[str, Any] | None = None) -> int:
+        """Return the token budget reserved for conversation history.
+
+        Args:
+            config: Optional override configuration. Supports
+                ``history_token_budget`` to override the global setting.
+
+        Returns:
+            Token budget for history messages.
+        """
+        budget = settings.HISTORY_CONTEXT_TOKEN_BUDGET
+        if config is not None:
+            budget_override = config.get("history_token_budget")
+            if budget_override is not None:
+                budget = budget_override
+        return budget
+
+    def allocate_history(self, history: list[dict], budget: int) -> list[dict]:
+        """Return a pruned history list that fits within the token budget.
+
+        Iterates from most recent backwards, retaining alternating
+        user/assistant message pairs until the budget is exhausted.
+
+        Args:
+            history: List of message dicts with ``role`` and ``content`` keys.
+            budget: Maximum token budget for the returned history.
+
+        Returns:
+            A new list containing history messages within budget.
+        """
+        if not history:
+            return []
+        result: list[dict] = []
+        for msg in reversed(history):
+            candidate = [msg] + result
+            serialized = json.dumps(candidate, ensure_ascii=False, default=str)
+            if self.estimate_tokens(serialized) <= budget:
+                result = candidate
+            else:
+                break
+        return result
+
     def calculate_fetch_limits(self, budget: int) -> dict[str, int]:
         """Calculate fetch limits for memory retrieval based on token budget.
 

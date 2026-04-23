@@ -1,3 +1,4 @@
+from app.services.alert_service import AlertService
 from app.services.refund_service import (
     RefundApplicationService,
     RefundEligibilityChecker,
@@ -7,6 +8,7 @@ from app.services.refund_service import (
 )
 
 __all__ = [
+    "AlertService",
     "RefundApplicationService",
     "RefundEligibilityChecker",
     "RefundRiskService",

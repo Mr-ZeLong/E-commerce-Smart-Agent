@@ -50,7 +50,9 @@ class RetrievalAdequacy(BaseModel):
 class CitationVerification(BaseModel):
     has_citations: bool = Field(description="Whether the answer contains required citations")
     citation_count: int = Field(description="Number of citation markers found")
-    missing_sources: list[str] = Field(default_factory=list, description="Sources that should have been cited")
+    missing_sources: list[str] = Field(
+        default_factory=list, description="Sources that should have been cited"
+    )
 
 
 class SelfReflectionResult(BaseModel):
@@ -183,9 +185,7 @@ class PolicyAgent(BaseAgent):
             },
         }
 
-    async def _retrieve_knowledge(
-        self, state: AgentState
-    ) -> dict[str, Any]:
+    async def _retrieve_knowledge(self, state: AgentState) -> dict[str, Any]:
         question = state.get("question", "")
         results = await self.retriever.retrieve(
             question,
@@ -233,9 +233,8 @@ class PolicyAgent(BaseAgent):
         similarities = [r.score for r in graded_filtered]
         sources = [r.source for r in graded_filtered]
 
-        fallback_triggered = (
-            adequacy.adequacy == "no"
-            or (adequacy.adequacy == "partial" and adequacy.confidence < _ADEQUACY_CONFIDENCE_THRESHOLD)
+        fallback_triggered = adequacy.adequacy == "no" or (
+            adequacy.adequacy == "partial" and adequacy.confidence < _ADEQUACY_CONFIDENCE_THRESHOLD
         )
 
         self_rag = SelfRAGResult(
@@ -258,7 +257,11 @@ class PolicyAgent(BaseAgent):
                 "self_rag": self_rag,
             }
 
-        logger.info("[PolicyAgent] 检索到 %s 条有效结果 (adequacy=%s)", len(graded_filtered), adequacy.adequacy)
+        logger.info(
+            "[PolicyAgent] 检索到 %s 条有效结果 (adequacy=%s)",
+            len(graded_filtered),
+            adequacy.adequacy,
+        )
         return {
             "chunks": chunks,
             "similarities": similarities,
@@ -309,9 +312,7 @@ class PolicyAgent(BaseAgent):
         if not documents:
             return RetrievalAdequacy(adequacy="no", confidence=0.0, reason="No documents retrieved")
 
-        docs_text = "\n\n".join(
-            f"[{i + 1}] {doc.content[:500]}" for i, doc in enumerate(documents)
-        )
+        docs_text = "\n\n".join(f"[{i + 1}] {doc.content[:500]}" for i, doc in enumerate(documents))
         prompt = (
             f"用户问题：{question}\n\n"
             f"检索到的参考信息：\n{docs_text}\n\n"
@@ -341,7 +342,9 @@ class PolicyAgent(BaseAgent):
             if isinstance(result, RetrievalAdequacy):
                 return result
             logger.warning("[PolicyAgent] Unexpected adequacy type: %s", type(result))
-            return RetrievalAdequacy(adequacy="yes", confidence=0.5, reason="Fallback due to unexpected type")
+            return RetrievalAdequacy(
+                adequacy="yes", confidence=0.5, reason="Fallback due to unexpected type"
+            )
         except Exception as e:
             logger.warning("[PolicyAgent] Retrieval adequacy assessment failed: %s", e)
             return RetrievalAdequacy(

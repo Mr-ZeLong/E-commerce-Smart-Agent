@@ -51,7 +51,9 @@ async def _truncate_leaky_tables():
 
     async with async_engine.begin() as conn:
         await conn.execute(
-            text("TRUNCATE TABLE message_feedbacks, quality_scores RESTART IDENTITY CASCADE")
+            text(
+                "TRUNCATE TABLE message_feedbacks, quality_scores, review_tickets, token_usage_logs, optimization_suggestions RESTART IDENTITY CASCADE"
+            )
         )
     yield
 

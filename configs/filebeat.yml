@@ -1,0 +1,89 @@
+# Filebeat configuration for E-commerce Smart Agent structured logs
+# This configuration reads JSON log files and forwards them to Grafana Loki
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/ecommerce-agent/*.json.log
+    - /var/log/ecommerce-agent/app.log
+  json.keys_under_root: true
+  json.add_error_key: true
+  json.message_key: message
+  tags: ["ecommerce-agent", "backend"]
+  fields:
+    service: ecommerce-smart-agent
+    environment: production
+  fields_under_root: true
+  multiline.pattern: '^\{'
+  multiline.negate: true
+  multiline.match: after
+
+# Optional: also read uvicorn access logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/ecommerce-agent/access.log
+  tags: ["ecommerce-agent", "access"]
+  fields:
+    service: ecommerce-smart-agent
+    log_type: access
+  fields_under_root: true
+
+# Processors to enrich log events
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - drop_fields:
+      fields: ["agent", "ecs", "input", "log.file", "log.offset"]
+      ignore_missing: true
+  - timestamp:
+      field: timestamp
+      layouts:
+        - '2006-01-02T15:04:05.999999Z'
+        - '2006-01-02T15:04:05.999999+00:00'
+      test:
+        - '2024-01-15T09:30:00.123456+00:00'
+
+# Output to Grafana Loki
+output.loki:
+  enabled: true
+  host: "http://loki:3100"
+  # Basic auth if Loki is protected
+  # username: "loki"
+  # password: "secret"
+
+  # Tenant ID for multi-tenant Loki deployments
+  # tenant_id: "ecommerce-agent"
+
+  # Batch settings
+  batch_wait: 1s
+  batch_size: 102400
+  timeout: 10s
+  min_backoff: 500ms
+  max_backoff: 5m
+
+  # Labels extracted from log fields
+  labels:
+    job: "ecommerce-agent"
+    level: "{{ .level }}"
+    logger: "{{ .logger }}"
+    correlation_id: "{{ .correlation_id }}"
+    trace_id: "{{ .trace_id }}"
+
+# Logging configuration for Filebeat itself
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# Queue settings for reliability
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s

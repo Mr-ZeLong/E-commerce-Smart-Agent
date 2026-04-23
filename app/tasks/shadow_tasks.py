@@ -14,8 +14,6 @@ async def _init_graphs():
 
     Shadow graph uses a different LLM model to enable meaningful comparison.
     """
-    from langgraph.checkpoint.redis import AsyncRedisSaver
-
     from app.agents.account import AccountAgent
     from app.agents.cart import CartAgent
     from app.agents.complaint import ComplaintAgent
@@ -31,6 +29,7 @@ async def _init_graphs():
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
     from app.core.tracing import build_llm_config
+    from app.graph.checkpointer import OptimizedRedisCheckpoint
     from app.graph.workflow import compile_app_graph
     from app.intent.service import IntentRecognitionService
     from app.memory.structured_manager import StructuredMemoryManager
@@ -51,7 +50,7 @@ async def _init_graphs():
     setup_celery_langsmith_tracing()
 
     redis_client = create_redis_client()
-    checkpointer = AsyncRedisSaver(redis_client=redis_client)
+    checkpointer = OptimizedRedisCheckpoint(redis_client=redis_client)
     await checkpointer.setup()
 
     prod_llm = create_openai_llm(
@@ -176,7 +175,7 @@ async def _run_shadow_test(query: str, thread_id: str | None = None) -> dict:
                 "latency_regression": report.latency_regression,
             },
         }
-    except (RuntimeError, OSError) as e:
+    except Exception as e:
         logger.exception("Shadow test failed for query: %s", query)
         return {
             "sampled": True,
@@ -187,5 +186,7 @@ async def _run_shadow_test(query: str, thread_id: str | None = None) -> dict:
 
 
 @celery_app.task(bind=True, name="shadow.run_shadow_test")
-def run_shadow_test(_self, query: str) -> dict:
+def run_shadow_test(_self, query: str | None = None) -> dict:
+    if query is None:
+        query = "test query"
     return async_to_sync(_run_shadow_test)(query)

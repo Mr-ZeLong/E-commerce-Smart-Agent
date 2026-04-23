@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -143,80 +144,103 @@ def build_memory_node(
             fetch_limits = budgeter.calculate_fetch_limits(token_budget)
 
             async with _memory_session(session) as mem_session:
+                # Parallelize structured memory queries to reduce latency.
+                # All four queries are independent and can run concurrently.
+                profile_task = structured_manager.get_user_profile(mem_session, user_id)
+                preferences_task = structured_manager.get_user_preferences(mem_session, user_id)
+                facts_task = structured_manager.get_user_facts(
+                    mem_session, user_id, limit=fetch_limits["facts_limit"]
+                )
+                summaries_task = structured_manager.get_recent_summaries(
+                    mem_session, user_id, limit=fetch_limits["summaries_limit"]
+                )
+
                 try:
-                    profile = await structured_manager.get_user_profile(mem_session, user_id)
-                    if profile:
-                        memory_context["user_profile"] = {
-                            "user_id": profile.user_id,
-                            "membership_level": profile.membership_level,
-                            "preferred_language": profile.preferred_language,
-                            "timezone": profile.timezone,
-                            "total_orders": profile.total_orders,
-                            "lifetime_value": profile.lifetime_value,
-                        }
+                    profile, preferences, facts, summaries = await asyncio.gather(
+                        profile_task,
+                        preferences_task,
+                        facts_task,
+                        summaries_task,
+                        return_exceptions=True,
+                    )
                 except SQLAlchemyError:
+                    logger.exception("Failed to fetch structured memory in parallel")
+                    profile = preferences = facts = summaries = None
+
+                if isinstance(profile, Exception):
                     logger.exception("Failed to fetch user profile for memory context")
-
-                try:
-                    preferences = await structured_manager.get_user_preferences(
-                        mem_session, user_id
-                    )
-                    if preferences:
-                        memory_context["preferences"] = [
-                            {
-                                "preference_key": p.preference_key,
-                                "preference_value": p.preference_value,
-                            }
-                            for p in preferences
-                        ]
-                except SQLAlchemyError:
+                    profile = None
+                if isinstance(preferences, Exception):
                     logger.exception("Failed to fetch user preferences for memory context")
-
-                try:
-                    facts = await structured_manager.get_user_facts(
-                        mem_session, user_id, limit=fetch_limits["facts_limit"]
-                    )
-                    if facts:
-                        memory_context["structured_facts"] = [
-                            {
-                                "fact_type": f.fact_type,
-                                "content": f.content,
-                                "confidence": f.confidence,
-                            }
-                            for f in facts
-                        ]
-                except SQLAlchemyError:
+                    preferences = None
+                if isinstance(facts, Exception):
                     logger.exception("Failed to fetch user facts for memory context")
-
-                try:
-                    summaries = await structured_manager.get_recent_summaries(
-                        mem_session, user_id, limit=fetch_limits["summaries_limit"]
-                    )
-                    if summaries:
-                        memory_context["interaction_summaries"] = [
-                            {
-                                "summary_text": s.summary_text,
-                                "resolved_intent": s.resolved_intent,
-                                "created_at": s.created_at.isoformat() if s.created_at else None,
-                            }
-                            for s in summaries
-                        ]
-                except SQLAlchemyError:
+                    facts = None
+                if isinstance(summaries, Exception):
                     logger.exception("Failed to fetch interaction summaries for memory context")
+                    summaries = None
+
+                if profile:
+                    memory_context["user_profile"] = {
+                        "user_id": profile.user_id,
+                        "membership_level": profile.membership_level,
+                        "preferred_language": profile.preferred_language,
+                        "timezone": profile.timezone,
+                        "total_orders": profile.total_orders,
+                        "lifetime_value": profile.lifetime_value,
+                    }
+                if preferences:
+                    memory_context["preferences"] = [
+                        {
+                            "preference_key": p.preference_key,
+                            "preference_value": p.preference_value,
+                        }
+                        for p in preferences
+                    ]
+                if facts:
+                    memory_context["structured_facts"] = [
+                        {
+                            "fact_type": f.fact_type,
+                            "content": f.content,
+                            "confidence": f.confidence,
+                        }
+                        for f in facts
+                    ]
+                if summaries:
+                    memory_context["interaction_summaries"] = [
+                        {
+                            "summary_text": s.summary_text,
+                            "resolved_intent": s.resolved_intent,
+                            "created_at": s.created_at.isoformat() if s.created_at else None,
+                        }
+                        for s in summaries
+                    ]
 
             try:
                 if last_user_message:
-                    summary_results = await vector_manager.search_similar(
-                        user_id,
-                        query_text=last_user_message,
-                        top_k=fetch_limits["vector_top_k"],
-                        message_role="summary",
+                    # Parallelize vector searches to reduce Qdrant round-trip latency.
+                    summary_results, message_results = await asyncio.gather(
+                        vector_manager.search_similar(
+                            user_id,
+                            query_text=last_user_message,
+                            top_k=fetch_limits["vector_top_k"],
+                            message_role="summary",
+                        ),
+                        vector_manager.search_similar(
+                            user_id,
+                            query_text=last_user_message,
+                            top_k=fetch_limits["vector_top_k"],
+                        ),
+                        return_exceptions=True,
                     )
-                    message_results = await vector_manager.search_similar(
-                        user_id,
-                        query_text=last_user_message,
-                        top_k=fetch_limits["vector_top_k"],
-                    )
+
+                    if isinstance(summary_results, Exception):
+                        logger.exception("Failed to fetch summary vector memory")
+                        summary_results = []
+                    if isinstance(message_results, Exception):
+                        logger.exception("Failed to fetch message vector memory")
+                        message_results = []
+
                     # Filter by relevance score threshold before deduplication
                     threshold = settings.VECTOR_MEMORY_SCORE_THRESHOLD
                     filtered = [
@@ -264,16 +288,19 @@ def build_supervisor_node(
         updated = dict(result.get("updated_state") or {})
 
         intent_result = state.get("intent_result") or {}
-        await _alog_supervisor_decision(
-            thread_id=state.get("thread_id", ""),
-            primary_intent=intent_result.get("primary_intent"),
-            pending_intents=[
-                p.get("primary_intent", "")
-                for p in (state.get("slots") or {}).get("pending_intents", [])
-            ],
-            selected_agents=updated.get("pending_agent_results", []),
-            execution_mode=updated.get("execution_mode", ""),
-            reasoning=updated.get("supervisor_reasoning", ""),
+        # Fire-and-forget supervisor decision logging to avoid blocking routing.
+        asyncio.create_task(
+            _alog_supervisor_decision(
+                thread_id=state.get("thread_id", ""),
+                primary_intent=intent_result.get("primary_intent"),
+                pending_intents=[
+                    p.get("primary_intent", "")
+                    for p in (state.get("slots") or {}).get("pending_intents", [])
+                ],
+                selected_agents=updated.get("pending_agent_results", []),
+                execution_mode=updated.get("execution_mode", ""),
+                reasoning=updated.get("supervisor_reasoning", ""),
+            )
         )
 
         if result.get("response"):

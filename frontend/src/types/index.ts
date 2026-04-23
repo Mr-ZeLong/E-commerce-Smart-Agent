@@ -81,6 +81,16 @@ export interface Message {
   isStreaming?: boolean
   feedbackSentiment?: 'up' | 'down' | null
   messageIndex?: number
+  metadata?: MessageMetadata
+}
+
+export interface MessageMetadata {
+  confidence_score?: number
+  confidence_signals?: Record<string, unknown>
+  needs_human_transfer?: boolean
+  transfer_reason?: string
+  audit_level?: string
+  current_agent?: string
 }
 
 export interface ConversationThread {
@@ -309,6 +319,9 @@ export interface FeedbackItem {
   message_index: number
   score: number
   comment: string | null
+  category: string | null
+  agent_type: string | null
+  confidence_score: number | null
   created_at: string
 }
 
@@ -316,8 +329,21 @@ export interface FeedbackFilters {
   sentiment?: string
   date_from?: string
   date_to?: string
+  agent_type?: string
+  category?: string
+  search?: string
   offset?: number
   limit?: number
+}
+
+export interface FeedbackStats {
+  total: number
+  category_breakdown: Record<string, number>
+  confidence_correlation: {
+    avg_confidence_up: number | null
+    avg_confidence_down: number | null
+  }
+  agent_breakdown: Record<string, number>
 }
 
 export interface FeedbackListResponse {

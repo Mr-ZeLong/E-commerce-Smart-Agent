@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.agents.base import BaseAgent
 from app.models.state import AgentState
@@ -88,6 +89,81 @@ def test_create_messages_no_system_prompt():
     messages = agent_no_prompt._create_messages("hello")
     assert len(messages) == 1
     assert messages[0].content == f"今天是 {datetime.date.today().isoformat()}。\n\nhello"
+
+
+def test_build_history_messages_within_budget(agent):
+    history = [
+        {"role": "user", "content": "first question"},
+        {"role": "assistant", "content": "first answer"},
+        {"role": "user", "content": "second question"},
+        {"role": "assistant", "content": "second answer"},
+    ]
+    result = agent._build_history_messages(history, budget=1000)
+    assert len(result) == 4
+    assert isinstance(result[0], HumanMessage)
+    assert isinstance(result[1], AIMessage)
+    assert result[0].content == "first question"
+    assert result[1].content == "first answer"
+
+
+def test_build_history_messages_truncates_when_over_budget(agent):
+    long_content = "x" * 5000
+    history = [
+        {"role": "user", "content": "old"},
+        {"role": "assistant", "content": "old"},
+        {"role": "user", "content": long_content},
+        {"role": "assistant", "content": "recent"},
+    ]
+    result = agent._build_history_messages(history, budget=100)
+    assert len(result) < 4
+    if result:
+        assert result[-1].content == "recent"
+
+
+def test_build_history_messages_empty_history(agent):
+    assert agent._build_history_messages([], budget=100) == []
+
+
+def test_build_history_messages_zero_budget(agent):
+    history = [{"role": "user", "content": "hi"}]
+    assert agent._build_history_messages(history, budget=0) == []
+
+
+def test_create_messages_includes_history(agent):
+    history = [
+        {"role": "user", "content": "previous question"},
+        {"role": "assistant", "content": "previous answer"},
+    ]
+    messages = agent._create_messages("new question", history=history)
+    assert len(messages) > 2
+    assert isinstance(messages[0], SystemMessage)
+    assert messages[1].content == "previous question"
+    assert messages[2].content == "previous answer"
+    assert isinstance(messages[-1], HumanMessage)
+    assert "new question" in messages[-1].content
+
+
+def test_create_messages_without_history(agent):
+    messages = agent._create_messages("hello")
+    assert len(messages) == 2
+    assert isinstance(messages[0], SystemMessage)
+    assert isinstance(messages[1], HumanMessage)
+
+
+def test_create_messages_respects_history_budget_override(agent):
+    long_history = [
+        {"role": "user", "content": "x" * 5000},
+        {"role": "assistant", "content": "y" * 5000},
+    ]
+    config = {"history_token_budget": 50}
+    messages = agent._create_messages("hello", history=long_history, memory_context_config=config)
+    history_messages = [
+        m
+        for m in messages
+        if not isinstance(m, SystemMessage)
+        and not (isinstance(m, HumanMessage) and "今天是" in m.content)
+    ]
+    assert len(history_messages) < len(long_history)
 
 
 @pytest.mark.requires_llm

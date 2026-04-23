@@ -45,8 +45,6 @@ async def _init_evaluation_dependencies() -> tuple[Any, Any, Any]:
     Returns:
         Tuple of (intent_service, llm, graph).
     """
-    from langgraph.checkpoint.redis import AsyncRedisSaver
-
     from app.agents.account import AccountAgent
     from app.agents.cart import CartAgent
     from app.agents.complaint import ComplaintAgent
@@ -62,6 +60,7 @@ async def _init_evaluation_dependencies() -> tuple[Any, Any, Any]:
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
     from app.core.tracing import build_llm_config
+    from app.graph.checkpointer import OptimizedRedisCheckpoint
     from app.graph.workflow import compile_app_graph
     from app.intent.service import IntentRecognitionService
     from app.memory.structured_manager import StructuredMemoryManager
@@ -79,7 +78,7 @@ async def _init_evaluation_dependencies() -> tuple[Any, Any, Any]:
     from app.tools.registry import ToolRegistry
 
     redis_client = create_redis_client()
-    checkpointer = AsyncRedisSaver(redis_client=redis_client)
+    checkpointer = OptimizedRedisCheckpoint(redis_client=redis_client)
     await checkpointer.setup()
 
     llm = create_openai_llm(

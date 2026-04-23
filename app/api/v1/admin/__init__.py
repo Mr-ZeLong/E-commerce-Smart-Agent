@@ -15,11 +15,15 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.v1.admin.agent_config import router as agent_config_router
+from app.api.v1.admin.alerts import router as alerts_router
 from app.api.v1.admin.analytics import router as analytics_router
 from app.api.v1.admin.complaints import router as complaints_router
+from app.api.v1.admin.evaluation_dashboard import router as evaluation_dashboard_router
 from app.api.v1.admin.experiments import router as experiments_router
 from app.api.v1.admin.feedback import router as feedback_router
 from app.api.v1.admin.metrics_dashboard import router as metrics_dashboard_router
+from app.api.v1.admin.review_queue import router as review_queue_router
+from app.api.v1.admin.token_usage import router as token_usage_router
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
@@ -44,11 +48,15 @@ from app.tasks.knowledge_tasks import sync_knowledge_document
 
 router = APIRouter()
 router.include_router(agent_config_router, prefix="/admin/agents")
+router.include_router(alerts_router, prefix="/admin/alerts")
 router.include_router(complaints_router, prefix="/admin/complaints")
 router.include_router(experiments_router, prefix="/admin/experiments")
 router.include_router(feedback_router, prefix="/admin/feedback")
 router.include_router(analytics_router, prefix="/admin/analytics")
 router.include_router(metrics_dashboard_router, prefix="/admin/metrics")
+router.include_router(evaluation_dashboard_router, prefix="/admin/evaluation")
+router.include_router(token_usage_router, prefix="/admin/token-usage")
+router.include_router(review_queue_router, prefix="/admin/review-queue")
 tracer = trace.get_tracer(__name__)
 
 

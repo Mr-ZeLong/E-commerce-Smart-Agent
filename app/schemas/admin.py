@@ -97,3 +97,92 @@ class SyncStatusResponse(BaseModel):
     task_id: str
     status: str
     result: dict | None
+
+
+class AlertRuleResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    metric: str
+    operator: str
+    threshold: float
+    duration_seconds: int
+    severity: str
+    status: str
+    channels: list[dict]
+    suppress_interval_seconds: int
+    auto_resolve: bool
+    created_at: str
+    updated_at: str
+
+
+class AlertEventResponse(BaseModel):
+    id: int
+    rule_id: int | None
+    name: str
+    severity: str
+    status: str
+    message: str
+    metric_value: float | None
+    threshold: float | None
+    metadata_json: dict | None
+    fired_at: str
+    acknowledged_at: str | None
+    acknowledged_by: int | None
+    resolved_at: str | None
+    resolved_by: int | None
+    resolution_reason: str | None
+
+
+class AlertNotificationResponse(BaseModel):
+    id: int
+    alert_event_id: int
+    channel: str
+    destination: str
+    sent_at: str
+    success: bool
+    response_status: int | None
+    response_body: str | None
+
+
+class AlertRuleCreateRequest(BaseModel):
+    name: str
+    description: str | None = None
+    metric: str
+    operator: str
+    threshold: float
+    duration_seconds: int = 60
+    severity: str
+    channels: list[dict] | None = None
+    suppress_interval_seconds: int = 300
+    auto_resolve: bool = True
+
+
+class AlertRuleUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    metric: str | None = None
+    operator: str | None = None
+    threshold: float | None = None
+    duration_seconds: int | None = None
+    severity: str | None = None
+    status: str | None = None
+    channels: list[dict] | None = None
+    suppress_interval_seconds: int | None = None
+    auto_resolve: bool | None = None
+
+
+class AlertEventListResponse(BaseModel):
+    events: list[AlertEventResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class AlertAcknowledgeRequest(BaseModel):
+    user_id: int
+
+
+class AlertResolveRequest(BaseModel):
+    user_id: int | None = None
+    reason: str | None = None

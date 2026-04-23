@@ -43,14 +43,65 @@ _COMMON_ALLOWED_KEYS = [
 ]
 
 _AGENT_ALLOWED_KEYS: dict[str, list[str]] = {
-    "policy_agent": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
-    "order_agent": [*_COMMON_ALLOWED_KEYS, "order_data", "retrieval_result"],
-    "logistics": [*_COMMON_ALLOWED_KEYS, "order_data", "retrieval_result"],
-    "account": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
-    "payment": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
+    "policy_agent": [*_COMMON_ALLOWED_KEYS, "retrieval_result", "answer"],
+    "order_agent": [
+        *_COMMON_ALLOWED_KEYS,
+        "order_data",
+        "retrieval_result",
+        "refund_data",
+        "refund_flow_active",
+        "refund_order_sn",
+        "refund_step",
+        "audit_level",
+        "audit_log_id",
+        "audit_reason",
+    ],
+    "logistics": [
+        *_COMMON_ALLOWED_KEYS,
+        "order_data",
+        "retrieval_result",
+        "audit_level",
+        "audit_log_id",
+        "audit_reason",
+    ],
+    "account": [
+        *_COMMON_ALLOWED_KEYS,
+        "retrieval_result",
+        "audit_level",
+        "audit_log_id",
+        "audit_reason",
+    ],
+    "payment": [
+        *_COMMON_ALLOWED_KEYS,
+        "retrieval_result",
+        "refund_data",
+        "refund_flow_active",
+        "refund_order_sn",
+        "refund_step",
+        "audit_level",
+        "audit_log_id",
+        "audit_reason",
+    ],
     "product": [*_COMMON_ALLOWED_KEYS, "product_data", "retrieval_result"],
     "cart": [*_COMMON_ALLOWED_KEYS, "cart_data", "retrieval_result"],
-    "complaint": [*_COMMON_ALLOWED_KEYS, "retrieval_result"],
+    "complaint": [
+        *_COMMON_ALLOWED_KEYS,
+        "retrieval_result",
+        "audit_level",
+        "audit_log_id",
+        "audit_reason",
+    ],
+}
+
+_AGENT_TOOL_SCOPES: dict[str, list[str]] = {
+    "policy_agent": ["retrieve_knowledge"],
+    "order_agent": ["get_order", "submit_refund", "check_refund_eligibility"],
+    "logistics": ["track_shipment", "get_shipping_status"],
+    "account": ["get_user_profile", "update_user_profile"],
+    "payment": ["get_payment_status", "process_refund", "verify_payment"],
+    "product": ["search_products", "get_product_details"],
+    "cart": ["view_cart", "add_to_cart", "remove_from_cart", "update_cart_item"],
+    "complaint": ["create_ticket", "escalate_ticket", "get_ticket_status"],
 }
 
 
@@ -245,6 +296,18 @@ def create_workflow(
     workflow.add_edge("decider_node", END)
 
     return workflow
+
+
+def get_agent_tool_scope(agent_name: str) -> list[str]:
+    """Return the list of tool names relevant to ``agent_name``.
+
+    Args:
+        agent_name: Name of the expert agent.
+
+    Returns:
+        List of tool name strings scoped to that agent.
+    """
+    return _AGENT_TOOL_SCOPES.get(agent_name, [])
 
 
 async def compile_app_graph(

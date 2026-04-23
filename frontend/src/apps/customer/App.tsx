@@ -69,8 +69,14 @@ const App: FC = () => {
     setInput('')
   }
 
-  const handleFeedback = (messageId: string, sentiment: 'up' | 'down', messageIndex: number) => {
-    void submitFeedback(messageId, sentiment, threadId.current, messageIndex)
+  const handleFeedback = (
+    messageId: string,
+    sentiment: 'up' | 'down',
+    messageIndex: number,
+    category?: string,
+    comment?: string
+  ) => {
+    void submitFeedback(messageId, sentiment, threadId.current, messageIndex, category, comment)
   }
 
   if (!isAuthenticated) {

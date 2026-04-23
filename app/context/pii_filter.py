@@ -52,9 +52,7 @@ _PASSWORD_RE = re.compile(r"password[\s]*[:=][\s]*\S+", re.IGNORECASE)
 
 _SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 
-_BANK_ACCOUNT_RE = re.compile(
-    r"\b\d{8,20}\b(?![\dXx])"
-)
+_BANK_ACCOUNT_RE = re.compile(r"\b\d{8,20}\b(?![\dXx])")
 
 _WEIGHTS_ID = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
 _CHECKSUM_ID = "10X98765432"
@@ -157,9 +155,7 @@ class PIIFilter:
             has_pii=bool(detections),
         )
 
-    def filter_dict(
-        self, data: dict[str, Any], keys: list[str] | None = None
-    ) -> dict[str, Any]:
+    def filter_dict(self, data: dict[str, Any], keys: list[str] | None = None) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for k, v in data.items():
             if keys is not None and k not in keys:
@@ -311,7 +307,9 @@ class PIIFilter:
             nonlocal count
             raw = match.group(0)
             # Skip sequences that look like Chinese IDs (18 digits with date pattern)
-            if re.match(r"\d{6}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]?", raw):
+            if re.match(
+                r"\d{6}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]?", raw
+            ):
                 return raw
             if has_finance_context or len(raw) >= 16:
                 count += 1
@@ -419,8 +417,7 @@ class GDPRComplianceManager:
             point_ids: list[Any] = [
                 str(point.id)
                 for point in batch
-                if point.payload is not None
-                and point.payload.get("user_id") == user_id
+                if point.payload is not None and point.payload.get("user_id") == user_id
             ]
             if point_ids:
                 await vector_manager.client.delete(
@@ -432,9 +429,7 @@ class GDPRComplianceManager:
                 break
         return total_deleted
 
-    async def _delete_user_structured_memory(
-        self, db_session: Any, user_id: int
-    ) -> int:
+    async def _delete_user_structured_memory(self, db_session: Any, user_id: int) -> int:
         from sqlalchemy import text
 
         tables = [
@@ -464,7 +459,5 @@ def filter_dict(data: dict[str, Any], keys: list[str] | None = None) -> dict[str
     return pii_filter.filter_dict(data, keys)
 
 
-async def afilter_dict(
-    data: dict[str, Any], keys: list[str] | None = None
-) -> dict[str, Any]:
+async def afilter_dict(data: dict[str, Any], keys: list[str] | None = None) -> dict[str, Any]:
     return await pii_filter.afilter_dict(data, keys)

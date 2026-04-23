@@ -35,10 +35,9 @@ class TestLoadAgentExamples:
         assert isinstance(examples, list)
         if examples:
             assert "query" in examples[0]
-            has_category = (
-                "complaint_category" in examples[0]
-                or "complaint_category" in examples[0].get("slots", {})
-            )
+            has_category = "complaint_category" in examples[0] or "complaint_category" in examples[
+                0
+            ].get("slots", {})
             assert has_category
 
     def test_load_agent_examples_all_types(self):
@@ -87,7 +86,9 @@ class TestLoadAgentExamples:
             "router",
         ]:
             examples = load_agent_examples(agent_type)
-            assert len(examples) >= 50, f"Expected at least 50 examples for {agent_type}, got {len(examples)}"
+            assert len(examples) >= 50, (
+                f"Expected at least 50 examples for {agent_type}, got {len(examples)}"
+            )
 
 
 # ========== Token Overlap Tests ==========
@@ -234,9 +235,7 @@ class TestSelectTopKExamplesSemantic:
             {"query": "查询订单详情"},
             {"query": "退款申请"},
         ]
-        result = await select_top_k_examples_semantic(
-            "查询订单", examples, k=2, use_semantic=False
-        )
+        result = await select_top_k_examples_semantic("查询订单", examples, k=2, use_semantic=False)
         assert len(result) <= 2
         assert all("查询" in ex["query"] for ex in result)
 
@@ -425,6 +424,5 @@ class TestFewShotIntegration:
         ]:
             examples = load_agent_examples(agent_type)
             assert len(examples) >= 50, (
-                f"Agent '{agent_type}' has only {len(examples)} examples, "
-                f"expected at least 50"
+                f"Agent '{agent_type}' has only {len(examples)} examples, expected at least 50"
             )

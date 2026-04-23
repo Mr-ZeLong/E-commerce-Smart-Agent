@@ -40,6 +40,46 @@ celery_app.conf.update(
             "task": "prompt_effect.generate_monthly_report",
             "schedule": 2592000.0,
         },
+        "cleanup-old-checkpoints-daily": {
+            "task": "checkpoint.cleanup_old_checkpoints",
+            "schedule": 86400.0,
+        },
+        "check-celery-workers": {
+            "task": "autoheal.check_celery_workers",
+            "schedule": 300.0,
+        },
+        "clear-redis-cache": {
+            "task": "autoheal.clear_redis_cache",
+            "schedule": 600.0,
+        },
+        "restart-stuck-workers": {
+            "task": "autoheal.restart_stuck_workers",
+            "schedule": 300.0,
+        },
+        "clear-expired-redis-keys": {
+            "task": "autoheal.clear_expired_redis_keys",
+            "schedule": 600.0,
+        },
+        "check-db-pool-health": {
+            "task": "autoheal.check_db_pool_health",
+            "schedule": 300.0,
+        },
+        "evaluate-alert-rules": {
+            "task": "alerting.evaluate_rules",
+            "schedule": 60.0,
+        },
+        "check-service-health": {
+            "task": "alerting.check_service_health",
+            "schedule": 30.0,
+        },
+        "run-shadow-tests": {
+            "task": "shadow.run_shadow_test",
+            "schedule": 60.0,
+        },
+        "run-adversarial-suite": {
+            "task": "evaluation.run_adversarial_suite",
+            "schedule": 86400.0,
+        },
     },
 )
 

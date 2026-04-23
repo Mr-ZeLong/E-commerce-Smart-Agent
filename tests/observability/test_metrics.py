@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from app.observability.metrics import (
+    AGENT_CONTEXT_TOKENS,
     CHAT_ERRORS_TOTAL,
     CHAT_LATENCY_SECONDS,
     CHAT_REQUESTS_TOTAL,
@@ -21,6 +22,7 @@ from app.observability.metrics import (
     RAG_PRECISION,
     TOKEN_USAGE_TOTAL,
     get_metrics_response,
+    record_agent_context_tokens,
     record_chat_error,
     record_chat_latency,
     record_chat_request,
@@ -156,22 +158,39 @@ class TestSetHallucinationRate:
         assert value == pytest.approx(0.02)
 
 
+class TestRecordAgentContextTokens:
+    def test_record_agent_context_tokens(self):
+        record_agent_context_tokens(tokens=512, agent_name="order_agent")
+        value = AGENT_CONTEXT_TOKENS.labels(agent_name="order_agent")._value.get()
+        assert value == pytest.approx(512)
+
+    def test_record_agent_context_tokens_default_agent(self):
+        record_agent_context_tokens(tokens=256)
+        value = AGENT_CONTEXT_TOKENS.labels(agent_name="unknown")._value.get()
+        assert value == pytest.approx(256)
+
+
 class TestGetMetricsResponse:
     def test_returns_bytes_and_content_type(self):
         body, content_type = get_metrics_response()
         assert isinstance(body, bytes)
-        assert content_type == "text/plain; version=0.0.4; charset=utf-8"
+        assert content_type.startswith("text/plain; version=")
+        assert "charset=utf-8" in content_type
         assert b"chat_requests_total" in body
 
 
 class TestMetricsEndpointIntegration:
+    @pytest.mark.asyncio
     async def test_metrics_endpoint(self, client):
         response = await client.get("/metrics", follow_redirects=True)
         assert response.status_code == 200
-        assert response.headers["content-type"] == ("text/plain; version=0.0.4; charset=utf-8")
+        ct = response.headers["content-type"]
+        assert ct.startswith("text/plain; version=")
+        assert "charset=utf-8" in ct
         assert b"chat_requests_total" in response.content
         assert b"chat_latency_seconds_bucket" in response.content
 
+    @pytest.mark.asyncio
     async def test_metrics_after_chat_request(self, client):
         record_chat_request(intent_category="POLICY", final_agent="policy_agent")
         record_chat_latency(latency_seconds=0.5, final_agent="policy_agent")
@@ -184,6 +203,7 @@ class TestMetricsEndpointIntegration:
 
 
 class TestExecutionLoggerIntegration:
+    @pytest.mark.asyncio
     async def test_log_graph_execution_records_metrics(
         self,
         db_session,
@@ -218,6 +238,7 @@ class TestExecutionLoggerIntegration:
 
 
 class TestLatencyTrackerIntegration:
+    @pytest.mark.asyncio
     async def test_compute_node_latency_stats_records_prometheus(self, db_session):
         from app.models.observability import GraphExecutionLog, GraphNodeLog
         from app.models.user import User

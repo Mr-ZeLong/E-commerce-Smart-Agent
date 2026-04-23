@@ -16,11 +16,32 @@ from sqlmodel import select
 from app.celery_app import celery_app
 from app.core.config import settings
 from app.core.database import sync_session_maker
+from app.core.redis import create_redis_client
 from app.core.utils import utc_now
 from app.models.knowledge_document import KnowledgeDocument
 from app.retrieval.client import QdrantKnowledgeClient
 from app.retrieval.embeddings import create_embedding_model
 from app.retrieval.sparse_embedder import SparseTextEmbedder
+
+
+def _invalidate_retrieval_cache() -> None:
+    """Invalidate all retrieval caches after knowledge base update."""
+    try:
+        client = create_redis_client()
+
+        async def _do_invalidate() -> None:
+            keys: list[str] = []
+            async for key in client.scan_iter(match="retrieval:*"):
+                keys.append(key)
+            if keys:
+                await client.delete(*keys)
+            await client.aclose()
+
+        asyncio.run(_do_invalidate())
+        logger.info("Invalidated retrieval cache after knowledge sync")
+    except Exception as exc:
+        logger.warning("Failed to invalidate retrieval cache: %s", exc)
+
 
 logger = logging.getLogger(__name__)
 BATCH_SIZE = 32
@@ -156,6 +177,7 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
 
         try:
             _run_etl_script(os.path.dirname(doc.storage_path), recreate=False)
+            _invalidate_retrieval_cache()
             doc.sync_status = "done"
             doc.sync_message = "Synced successfully"
             doc.last_synced_at = utc_now()

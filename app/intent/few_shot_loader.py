@@ -84,10 +84,7 @@ def load_agent_examples(agent_type: str) -> list[dict[str, Any]]:
         return []
 
     directory = (
-        Path(__file__).resolve().parent.parent.parent
-        / "data"
-        / "prompt_examples"
-        / agent_type
+        Path(__file__).resolve().parent.parent.parent / "data" / "prompt_examples" / agent_type
     )
     return _load_examples_from_dir(directory)
 
@@ -206,9 +203,7 @@ def format_complaint_examples_for_prompt(examples: list[dict[str, Any]]) -> str:
     return "\n".join(parts)
 
 
-def format_agent_examples_for_prompt(
-    agent_type: str, examples: list[dict[str, Any]]
-) -> str:
+def format_agent_examples_for_prompt(agent_type: str, examples: list[dict[str, Any]]) -> str:
     """Format few-shot examples for a specific agent type into a prompt string.
 
     Args:

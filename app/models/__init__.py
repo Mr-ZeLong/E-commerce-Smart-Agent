@@ -1,3 +1,12 @@
+from app.models.alert import (
+    AlertChannel,
+    AlertEvent,
+    AlertNotification,
+    AlertRule,
+    AlertRuleStatus,
+    AlertSeverity,
+    AlertStatus,
+)
 from app.models.audit import AuditAction, AuditLog, RiskLevel
 from app.models.complaint import (
     ComplaintCategory,
@@ -25,9 +34,22 @@ from app.models.order import Order, OrderStatus
 from app.models.pii_audit import PIIAuditLog
 from app.models.prompt_effect_report import PromptEffectReport
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
+from app.models.review import ReviewerMetrics, ReviewStatus, ReviewTicket
+from app.models.token_usage import (
+    OptimizationSuggestion,
+    OptimizationSuggestionStatus,
+    TokenUsageLog,
+)
 from app.models.user import User
 
 __all__ = [
+    "AlertChannel",
+    "AlertEvent",
+    "AlertNotification",
+    "AlertRule",
+    "AlertRuleStatus",
+    "AlertSeverity",
+    "AlertStatus",
     "AgentConfig",
     "AgentConfigAuditLog",
     "AgentConfigVersion",
@@ -49,6 +71,8 @@ __all__ = [
     "MessageStatus",
     "MessageType",
     "MultiIntentDecisionLog",
+    "OptimizationSuggestion",
+    "OptimizationSuggestionStatus",
     "Order",
     "OrderStatus",
     "PIIAuditLog",
@@ -57,8 +81,12 @@ __all__ = [
     "RefundApplication",
     "RefundReason",
     "RefundStatus",
+    "ReviewStatus",
+    "ReviewTicket",
+    "ReviewerMetrics",
     "RiskLevel",
     "RoutingRule",
+    "TokenUsageLog",
     "User",
     "UserFact",
     "UserPreference",

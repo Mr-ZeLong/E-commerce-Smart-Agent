@@ -3,6 +3,7 @@ import logging
 
 from pydantic import BaseModel
 
+from app.core.cache import CacheManager
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class HybridRetriever:
         reranker,
         rewriter,
         use_multi_query: bool = False,
+        cache_manager: CacheManager | None = None,
     ):
         self.qdrant_client = qdrant_client
         self.dense_embedder = dense_embedder
@@ -31,6 +33,7 @@ class HybridRetriever:
         self.reranker = reranker
         self.rewriter = rewriter
         self.use_multi_query = use_multi_query
+        self._cache = cache_manager
 
     @staticmethod
     def _to_chunk(point, score: float) -> RetrievedChunk:
@@ -52,6 +55,11 @@ class HybridRetriever:
     ) -> list[RetrievedChunk]:
         use_reranker = variant_reranker_enabled if variant_reranker_enabled is not None else True
         top_k = variant_top_k if variant_top_k is not None else settings.RETRIEVER_FINAL_TOPK
+
+        if self._cache is not None and not self.use_multi_query:
+            cached = await self._cache.get_retrieval(query)
+            if cached is not None:
+                return [RetrievedChunk.model_validate(c) for c in cached]
 
         if self.use_multi_query:
             variants = await self.rewriter.rewrite_multi(
@@ -83,7 +91,15 @@ class HybridRetriever:
                     )
             return final
 
-        return await self._retrieve_single(query, top_k, use_reranker)
+        chunks = await self._retrieve_single(query, top_k, use_reranker)
+
+        if self._cache is not None and not self.use_multi_query:
+            try:
+                await self._cache.set_retrieval(query, [c.model_dump() for c in chunks])
+            except Exception as exc:
+                logger.warning("Failed to cache retrieval result: %s", exc)
+
+        return chunks
 
     async def _retrieve_single(
         self,
@@ -91,8 +107,10 @@ class HybridRetriever:
         top_k: int | None = None,
         use_reranker: bool = True,
     ) -> list[RetrievedChunk]:
-        dense_vec = await self.dense_embedder.aembed_query(query)
-        sparse_vecs = await self.sparse_embedder.aembed([query])
+        # Parallelize dense and sparse embedding generation to reduce latency.
+        dense_task = self.dense_embedder.aembed_query(query)
+        sparse_task = self.sparse_embedder.aembed([query])
+        dense_vec, sparse_vecs = await asyncio.gather(dense_task, sparse_task)
         sparse_vec = sparse_vecs[0]
 
         final_top_k = top_k if top_k is not None else settings.RETRIEVER_FINAL_TOPK

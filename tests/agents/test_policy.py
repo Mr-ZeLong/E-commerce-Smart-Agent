@@ -134,16 +134,21 @@ async def test_process_with_empty_retrieval(mock_load_config):
 @pytest.mark.asyncio
 async def test_retrieve_knowledge_filters_low_score_chunks(mock_load_config):
     class LowScoreRetriever(DeterministicRetriever):
-        async def retrieve(self, query, conversation_history=None, memory_context=None, variant_top_k=None, variant_reranker_enabled=None):
+        async def retrieve(
+            self,
+            query,
+            conversation_history=None,
+            memory_context=None,
+            variant_top_k=None,
+            variant_reranker_enabled=None,
+        ):
             return [
                 _Result("高相关", "doc1", 0.6),
                 _Result("低相关", "doc2", 0.3),
                 _Result("刚好相关", "doc3", 0.5),
             ]
 
-    agent = PolicyAgent(
-        retriever=LowScoreRetriever(), llm=_make_self_rag_llm()
-    )
+    agent = PolicyAgent(retriever=LowScoreRetriever(), llm=_make_self_rag_llm())
     state = make_agent_state(question="运费政策", user_id=1)
     data = await agent._retrieve_knowledge(state)
     assert "低相关" not in data["chunks"]
@@ -153,7 +158,14 @@ async def test_retrieve_knowledge_filters_low_score_chunks(mock_load_config):
 @pytest.mark.asyncio
 async def test_retrieve_knowledge_returns_empty_when_grader_rejects_all(mock_load_config):
     class OneResultRetriever(DeterministicRetriever):
-        async def retrieve(self, query, conversation_history=None, memory_context=None, variant_top_k=None, variant_reranker_enabled=None):
+        async def retrieve(
+            self,
+            query,
+            conversation_history=None,
+            memory_context=None,
+            variant_top_k=None,
+            variant_reranker_enabled=None,
+        ):
             return [_Result("某个文档", "doc1", 0.8)]
 
     llm = DeterministicChatModel(structured={"GradeDocuments": {"binary_score": "no"}})
@@ -167,7 +179,14 @@ async def test_retrieve_knowledge_returns_empty_when_grader_rejects_all(mock_loa
 @pytest.mark.asyncio
 async def test_process_self_rag_refusal_when_no_relevant_docs(mock_load_config):
     class OneResultRetriever(DeterministicRetriever):
-        async def retrieve(self, query, conversation_history=None, memory_context=None, variant_top_k=None, variant_reranker_enabled=None):
+        async def retrieve(
+            self,
+            query,
+            conversation_history=None,
+            memory_context=None,
+            variant_top_k=None,
+            variant_reranker_enabled=None,
+        ):
             return [_Result("不相关文档", "doc1", 0.8)]
 
     llm = DeterministicChatModel(structured={"GradeDocuments": {"binary_score": "no"}})
@@ -219,9 +238,7 @@ async def test_self_rag_adequate_retrieval(mock_load_config):
 
 @pytest.mark.asyncio
 async def test_self_rag_inadequate_retrieval(mock_load_config):
-    retriever = DeterministicRetriever(
-        results=[_Result("部分信息", "doc1", 0.8)]
-    )
+    retriever = DeterministicRetriever(results=[_Result("部分信息", "doc1", 0.8)])
     llm = DeterministicChatModel(
         structured={
             "GradeDocuments": {"binary_score": "yes"},
@@ -241,9 +258,7 @@ async def test_self_rag_inadequate_retrieval(mock_load_config):
 
 @pytest.mark.asyncio
 async def test_self_rag_partial_retrieval_with_fallback(mock_load_config):
-    retriever = DeterministicRetriever(
-        results=[_Result("部分运费信息", "doc1", 0.7)]
-    )
+    retriever = DeterministicRetriever(results=[_Result("部分运费信息", "doc1", 0.7)])
     llm = DeterministicChatModel(
         structured={
             "GradeDocuments": {"binary_score": "yes"},
@@ -266,9 +281,7 @@ async def test_self_rag_partial_retrieval_with_fallback(mock_load_config):
 
 @pytest.mark.asyncio
 async def test_self_rag_partial_retrieval_without_fallback(mock_load_config):
-    retriever = DeterministicRetriever(
-        results=[_Result("部分运费信息", "doc1", 0.7)]
-    )
+    retriever = DeterministicRetriever(results=[_Result("部分运费信息", "doc1", 0.7)])
     llm = DeterministicChatModel(
         responses=[
             (["运费"], "运费满100免运费。[来源: doc1]"),
@@ -306,9 +319,7 @@ async def test_self_rag_partial_retrieval_without_fallback(mock_load_config):
 
 @pytest.mark.asyncio
 async def test_self_rag_citation_enforcement(mock_load_config):
-    retriever = DeterministicRetriever(
-        results=[_Result("退换货政策内容", "policy.md", 0.9)]
-    )
+    retriever = DeterministicRetriever(results=[_Result("退换货政策内容", "policy.md", 0.9)])
     llm = DeterministicChatModel(
         responses=[
             (["政策"], "根据政策，支持7天无理由退货。[来源: policy.md]"),
@@ -339,9 +350,7 @@ async def test_self_rag_citation_enforcement(mock_load_config):
 
 @pytest.mark.asyncio
 async def test_self_rag_missing_citations_detected(mock_load_config):
-    retriever = DeterministicRetriever(
-        results=[_Result("退换货政策内容", "policy.md", 0.9)]
-    )
+    retriever = DeterministicRetriever(results=[_Result("退换货政策内容", "policy.md", 0.9)])
     llm = DeterministicChatModel(
         responses=[
             (["政策"], "根据政策，支持7天无理由退货。"),

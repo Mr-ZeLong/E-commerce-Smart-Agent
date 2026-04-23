@@ -29,6 +29,9 @@ class OnlineEvalService:
         message_index: int,
         sentiment: str,
         comment: str | None = None,
+        category: str | None = None,
+        agent_type: str | None = None,
+        confidence_score: float | None = None,
     ) -> MessageFeedback:
         score = FEEDBACK_SCORE_MAP.get(sentiment, 0)
         feedback = MessageFeedback(
@@ -37,6 +40,9 @@ class OnlineEvalService:
             message_index=message_index,
             score=score,
             comment=comment,
+            category=category,
+            agent_type=agent_type,
+            confidence_score=confidence_score,
         )
         db.add(feedback)
         await db.commit()
@@ -49,6 +55,9 @@ class OnlineEvalService:
         sentiment: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        agent_type: str | None = None,
+        category: str | None = None,
+        search: str | None = None,
         offset: int = 0,
         limit: int = 20,
     ) -> tuple[list[MessageFeedback], int]:
@@ -66,10 +75,79 @@ class OnlineEvalService:
         if date_to:
             stmt = stmt.where(MessageFeedback.created_at <= date_to)
             count_stmt = count_stmt.where(MessageFeedback.created_at <= date_to)
+        if agent_type:
+            stmt = stmt.where(MessageFeedback.agent_type == agent_type)
+            count_stmt = count_stmt.where(MessageFeedback.agent_type == agent_type)
+        if category:
+            stmt = stmt.where(MessageFeedback.category == category)
+            count_stmt = count_stmt.where(MessageFeedback.category == category)
+        if search:
+            from sqlalchemy import func as sa_func
+
+            search_pattern = f"%{search}%"
+            stmt = stmt.where(
+                sa_func.lower(MessageFeedback.comment).like(sa_func.lower(search_pattern))  # type: ignore[union-attr]
+            )
+            count_stmt = count_stmt.where(
+                sa_func.lower(MessageFeedback.comment).like(sa_func.lower(search_pattern))  # type: ignore[union-attr]
+            )
 
         result = await db.exec(stmt.offset(offset).limit(limit))
         count_result = await db.exec(count_stmt)
         return list(result.all()), count_result.one()
+
+    async def get_feedback_stats(
+        self,
+        db: AsyncSession,
+        days: int = 30,
+        agent_type: str | None = None,
+    ) -> dict[str, Any]:
+        since = datetime.now(UTC) - timedelta(days=days)
+        stmt = select(MessageFeedback).where(MessageFeedback.created_at >= since)
+        if agent_type:
+            stmt = stmt.where(MessageFeedback.agent_type == agent_type)
+
+        result = await db.exec(stmt)
+        feedbacks = list(result.all())
+
+        total = len(feedbacks)
+        if total == 0:
+            return {
+                "total": 0,
+                "category_breakdown": {},
+                "confidence_correlation": {"avg_confidence_up": None, "avg_confidence_down": None},
+                "agent_breakdown": {},
+            }
+
+        category_counts: dict[str, int] = {}
+        agent_counts: dict[str, int] = {}
+        up_confidences: list[float] = []
+        down_confidences: list[float] = []
+
+        for fb in feedbacks:
+            if fb.category:
+                category_counts[fb.category] = category_counts.get(fb.category, 0) + 1
+            if fb.agent_type:
+                agent_counts[fb.agent_type] = agent_counts.get(fb.agent_type, 0) + 1
+            if fb.confidence_score is not None:
+                if fb.score == 1:
+                    up_confidences.append(fb.confidence_score)
+                elif fb.score == -1:
+                    down_confidences.append(fb.confidence_score)
+
+        return {
+            "total": total,
+            "category_breakdown": category_counts,
+            "confidence_correlation": {
+                "avg_confidence_up": round(sum(up_confidences) / len(up_confidences), 3)
+                if up_confidences
+                else None,
+                "avg_confidence_down": round(sum(down_confidences) / len(down_confidences), 3)
+                if down_confidences
+                else None,
+            },
+            "agent_breakdown": agent_counts,
+        }
 
     async def get_csat_trend(self, db: AsyncSession, days: int = 30) -> list[dict[str, Any]]:
         since = datetime.now(UTC) - timedelta(days=days)

@@ -107,6 +107,34 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
     REDIS_PASSWORD: SecretStr
+    REDIS_POOL_SIZE: int = 20
+    REDIS_MAX_CONNECTIONS: int = 50
+    REDIS_SOCKET_TIMEOUT: int = 5
+    REDIS_SOCKET_CONNECT_TIMEOUT: int = 5
+    REDIS_HEALTH_CHECK_INTERVAL: int = 30
+    REDIS_CIRCUIT_FAILURE_THRESHOLD: int = 5
+    REDIS_CIRCUIT_RECOVERY_TIMEOUT: int = 30
+
+    # Redis connection pool settings
+    REDIS_POOL_SIZE: int = 10
+    REDIS_MAX_CONNECTIONS: int = 50
+    REDIS_SOCKET_TIMEOUT: float = 5.0
+    REDIS_SOCKET_CONNECT_TIMEOUT: float = 5.0
+    REDIS_HEALTH_CHECK_INTERVAL: int = 30
+    REDIS_RETRY_ON_TIMEOUT: bool = True
+    REDIS_SOCKET_KEEPALIVE: bool = True
+    REDIS_CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = 5
+    REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = 30
+    REDIS_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS: int = 3
+
+    # Cache TTL settings (seconds)
+    CACHE_TTL_INTENT: int = 3600  # 1 hour
+    CACHE_TTL_PROFILE: int = 300  # 5 minutes
+    CACHE_TTL_RETRIEVAL: int = 600  # 10 minutes
+
+    # Shadow testing
+    SHADOW_TESTING_ENABLED: bool = False
+    SHADOW_SAMPLE_RATE: float = 0.1  # 10% of traffic
 
     @computed_field
     @property
@@ -272,6 +300,7 @@ class Settings(BaseSettings):
 
     MEMORY_RETENTION_DAYS: int = 90
     MEMORY_CONTEXT_TOKEN_BUDGET: int = 2048
+    HISTORY_CONTEXT_TOKEN_BUDGET: int = 1024
     COMPACTION_THRESHOLD: float = 0.75
     OBSERVATION_MASKING_MAX_CHARS: int = 500
     VECTOR_MEMORY_SCORE_THRESHOLD: float = 0.5
@@ -294,6 +323,8 @@ class Settings(BaseSettings):
     ALERT_TRANSFER_RATE_THRESHOLD: float = 0.3
     ALERT_CONFIDENCE_THRESHOLD: float = 0.6
     ALERT_LATENCY_MS_THRESHOLD: float = 5000.0
+
+    LOG_FORMAT: str = "text"
 
     KNOWLEDGE_UPLOAD_DIR: str = "uploads/knowledge"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""

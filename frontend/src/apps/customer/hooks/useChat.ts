@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { Message } from '@/types'
+import type { Message, MessageMetadata } from '@/types'
 import { apiFetch } from '@/lib/api'
 
 interface FeedbackRequest {
@@ -7,6 +7,9 @@ interface FeedbackRequest {
   message_index: number
   sentiment: 'up' | 'down'
   comment?: string
+  category?: string
+  agent_type?: string
+  confidence_score?: number
 }
 
 const WELCOME_MESSAGE: Message = {
@@ -22,6 +25,16 @@ interface StreamToken {
   type?: string
 }
 
+interface StreamMetadata {
+  type: 'metadata'
+  confidence_score?: number
+  confidence_signals?: Record<string, unknown>
+  needs_human_transfer?: boolean
+  transfer_reason?: string
+  audit_level?: string
+  current_agent?: string
+}
+
 interface UseChatReturn {
   messages: Message[]
   isLoading: boolean
@@ -31,6 +44,7 @@ interface UseChatReturn {
     sentiment: 'up' | 'down',
     threadId: string,
     messageIndex: number,
+    category?: string,
     comment?: string
   ) => Promise<void>
   resetMessages: () => void
@@ -83,6 +97,7 @@ export function useChat(): UseChatReturn {
         const decoder = new TextDecoder()
         let fullContent = ''
         let buffer = ''
+        let metadata: MessageMetadata | undefined
 
         if (reader) {
           while (true) {
@@ -99,8 +114,10 @@ export function useChat(): UseChatReturn {
 
                 if (data === '[DONE]') {
                   setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
+                    prev.map((msg) =
+                      msg.id === assistantMessageId
+                        ? { ...msg, isStreaming: false, metadata }
+                        : msg
                     )
                   )
                   setIsLoading(false)
@@ -108,16 +125,24 @@ export function useChat(): UseChatReturn {
                 }
 
                 try {
-                  const parsed = JSON.parse(data) as StreamToken
-                  if (parsed.token) {
+                  const parsed = JSON.parse(data) as StreamToken | StreamMetadata
+                  if ('token' in parsed && parsed.token) {
                     fullContent += parsed.token
-                    setMessages((prev) =>
-                      prev.map((msg) =>
+                    setMessages((prev) =
+                      prev.map((msg) =
                         msg.id === assistantMessageId ? { ...msg, content: fullContent } : msg
                       )
                     )
-                  } else if (parsed.type === 'metadata') {
-                    // 处理元数据（置信度等）
+                  } else if ('type' in parsed && parsed.type === 'metadata') {
+                    const meta = parsed as StreamMetadata
+                    metadata = {
+                      confidence_score: meta.confidence_score,
+                      confidence_signals: meta.confidence_signals,
+                      needs_human_transfer: meta.needs_human_transfer,
+                      transfer_reason: meta.transfer_reason,
+                      audit_level: meta.audit_level,
+                      current_agent: meta.current_agent,
+                    }
                   }
                 } catch {
                   // 忽略解析错误
@@ -128,7 +153,7 @@ export function useChat(): UseChatReturn {
         }
       } catch {
         setMessages((prev) =>
-          prev.map((msg) =>
+          prev.map((msg) =
             msg.id === assistantMessageId
               ? {
                   ...msg,
@@ -155,14 +180,21 @@ export function useChat(): UseChatReturn {
       sentiment: 'up' | 'down',
       threadId: string,
       messageIndex: number,
+      category?: string,
       comment?: string
     ) => {
       try {
+        const msg = messages.find((m) => m.id === messageId)
         const feedbackData: FeedbackRequest = {
           thread_id: threadId,
           message_index: messageIndex,
           sentiment: sentiment,
+          ...(category && { category }),
           ...(comment && { comment }),
+          ...(msg?.metadata?.current_agent && { agent_type: msg.metadata.current_agent }),
+          ...(msg?.metadata?.confidence_score !== undefined && {
+            confidence_score: msg.metadata.confidence_score,
+          }),
         }
 
         const res = await apiFetch(`/feedback`, {
@@ -175,13 +207,15 @@ export function useChat(): UseChatReturn {
         }
 
         setMessages((prev) =>
-          prev.map((msg) => (msg.id === messageId ? { ...msg, feedbackSentiment: sentiment } : msg))
+          prev.map((msg) =
+            msg.id === messageId ? { ...msg, feedbackSentiment: sentiment } : msg
+          )
         )
       } catch (error) {
         console.error('Failed to submit feedback:', error)
       }
     },
-    []
+    [messages]
   )
 
   return {

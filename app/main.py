@@ -22,7 +22,8 @@ from app.api.v1.status import router as status_router
 from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
 from app.core.limiter import limiter
-from app.core.logging import CorrelationIdFilter, generate_correlation_id, set_correlation_id
+from app.core.logging import generate_correlation_id, set_correlation_id
+from app.core.structured_logging import configure_logging
 from app.observability.otel_setup import instrument_fastapi, setup_otel_tracing
 from app.websocket.manager import get_manager
 from app.websocket.redis_bridge import RedisBroadcastBridge
@@ -45,8 +46,6 @@ async def lifespan(app: FastAPI):
             "Please restrict CORS_ORIGINS to specific domains."
         )
 
-    from langgraph.checkpoint.redis import AsyncRedisSaver
-
     from app.agents.account import AccountAgent
     from app.agents.cart import CartAgent
     from app.agents.complaint import ComplaintAgent
@@ -58,9 +57,11 @@ async def lifespan(app: FastAPI):
     from app.agents.product import ProductAgent
     from app.agents.router import IntentRouterAgent
     from app.agents.supervisor import SupervisorAgent
+    from app.core.cache import CacheManager
     from app.core.database import async_engine
     from app.core.llm_factory import create_openai_llm
     from app.core.redis import create_redis_client
+    from app.graph.checkpointer import OptimizedRedisCheckpoint
     from app.graph.workflow import compile_app_graph
     from app.intent.service import IntentRecognitionService
     from app.memory.structured_manager import StructuredMemoryManager
@@ -84,17 +85,22 @@ async def lifespan(app: FastAPI):
     listener_task = None
     try:
         redis_client = create_redis_client()
-        checkpointer = AsyncRedisSaver(redis_client=redis_client)
+        checkpointer = OptimizedRedisCheckpoint(redis_client=redis_client)
         await checkpointer.setup()
 
         llm = create_openai_llm()
         eval_llm = create_openai_llm(model=settings.CONFIDENCE.EVALUATION_MODEL)
-        intent_service = IntentRecognitionService(llm=llm, redis_client=redis_client)
-        structured_manager = StructuredMemoryManager()
+        cache_manager = CacheManager(redis_client)
+        intent_service = IntentRecognitionService(
+            llm=llm, redis_client=redis_client, cache_manager=cache_manager
+        )
+        structured_manager = StructuredMemoryManager(cache_manager=cache_manager)
         router_agent = IntentRouterAgent(
             intent_service=intent_service, llm=llm, structured_manager=structured_manager
         )
-        retriever = create_retriever(llm=llm, redis_client=redis_client)
+        retriever = create_retriever(
+            llm=llm, redis_client=redis_client, cache_manager=cache_manager
+        )
 
         app.state.manager = get_manager()
 
@@ -130,11 +136,19 @@ async def lifespan(app: FastAPI):
         complaint_agent = ComplaintAgent(llm=llm)
         supervisor_agent = SupervisorAgent(llm=llm)
         evaluator = ConfidenceEvaluator(llm=eval_llm)
-        vector_manager = VectorMemoryManager()
+        vector_manager = VectorMemoryManager(cache_manager=cache_manager)
 
         app.state.intent_service = intent_service
         app.state.llm = llm
         app.state.vector_manager = vector_manager
+        app.state.redis_client = redis_client
+        app.state.cache_manager = cache_manager
+
+        from app.services.alert_service import AlertService
+
+        app.state.alert_service = AlertService(redis=redis_client)
+        logger.info("AlertService initialized")
+
         app.state.app_graph = await compile_app_graph(
             router_agent=router_agent,
             policy_agent=policy_agent,
@@ -205,26 +219,8 @@ def _setup_langsmith_tracing() -> None:
     )
 
 
-class SafeFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        if not hasattr(record, "correlation_id"):
-            record.correlation_id = "-"
-        return super().format(record)
-
-
 def _setup_logging() -> None:
-    formatter = SafeFormatter(
-        "%(asctime)s [%(correlation_id)s] %(levelname)s %(name)s - %(message)s"
-    )
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    root_logger = logging.getLogger()
-    if not root_logger.handlers:
-        root_logger.addHandler(handler)
-    root_logger.addFilter(CorrelationIdFilter())
-
-    for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
-        logging.getLogger(name).addFilter(CorrelationIdFilter())
+    configure_logging(log_format=settings.LOG_FORMAT)
 
 
 app = FastAPI(

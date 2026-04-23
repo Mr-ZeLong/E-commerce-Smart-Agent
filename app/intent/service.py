@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 
 import redis.asyncio as aioredis
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from app.core.cache import CacheManager
 from app.intent.clarification import ClarificationEngine, ClarificationResponse
 from app.intent.classifier import IntentClassifier
 from app.intent.models import ClarificationState, IntentAction, IntentCategory, IntentResult
@@ -27,6 +27,7 @@ class IntentRecognitionService:
         redis_client: aioredis.Redis,
         result_cache_ttl: int = 300,
         session_cache_ttl: int = 1800,
+        cache_manager: CacheManager | None = None,
     ):
         self.llm = llm
         self.redis = redis_client
@@ -38,6 +39,7 @@ class IntentRecognitionService:
         self.topic_switch_detector = TopicSwitchDetector()
         self.multi_intent_processor = MultiIntentProcessor(classifier=self.classifier, llm=llm)
         self.safety_filter = SafetyFilter(llm=llm, config=SafetyConfig())
+        self._cache = cache_manager or CacheManager(redis_client)
 
     async def recognize(
         self,
@@ -146,22 +148,18 @@ class IntentRecognitionService:
 
     async def _get_cached_result(self, query: str) -> IntentResult | None:
         try:
-            query_hash = hashlib.sha256(query.encode()).hexdigest()
-            key = f"intent:cache:{query_hash}"
-            data = await self.redis.get(key)
-            if data:
-                return IntentResult.model_validate_json(data)
-        except (aioredis.RedisError, json.JSONDecodeError) as e:
-            logger.warning(f"Failed to get cached result: {e}")
+            cached = await self._cache.get_intent(query)
+            if cached is not None:
+                return IntentResult.model_validate(cached)
+        except Exception as e:
+            logger.warning("Failed to get cached intent result: %s", e)
         return None
 
     async def _cache_result(self, query: str, result: IntentResult) -> None:
         try:
-            query_hash = hashlib.sha256(query.encode()).hexdigest()
-            key = f"intent:cache:{query_hash}"
-            await self.redis.setex(key, self.result_cache_ttl, result.model_dump_json())
-        except aioredis.RedisError as e:
-            logger.warning(f"Failed to cache result: {e}")
+            await self._cache.set_intent(query, result.model_dump())
+        except Exception as e:
+            logger.warning("Failed to cache intent result: %s", e)
 
     def _create_safety_warning_result(
         self, query: str, safety_result: SafetyCheckResult

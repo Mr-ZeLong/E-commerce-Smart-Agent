@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import type { FeedbackListResponse, FeedbackFilters, CSATTrend } from '@/types'
+import type { FeedbackListResponse, FeedbackFilters, CSATTrend, FeedbackStats } from '@/types'
 import { apiFetch } from '@/lib/api'
 
 export function useFeedbackList(filters: FeedbackFilters = {}) {
@@ -10,6 +10,9 @@ export function useFeedbackList(filters: FeedbackFilters = {}) {
       if (filters.sentiment) params.append('sentiment', filters.sentiment)
       if (filters.date_from) params.append('date_from', filters.date_from)
       if (filters.date_to) params.append('date_to', filters.date_to)
+      if (filters.agent_type) params.append('agent_type', filters.agent_type)
+      if (filters.category) params.append('category', filters.category)
+      if (filters.search) params.append('search', filters.search)
       if (filters.offset !== undefined) params.append('offset', String(filters.offset))
       if (filters.limit !== undefined) params.append('limit', String(filters.limit))
 
@@ -30,6 +33,9 @@ export function useExportFeedback() {
       if (filters.sentiment) params.append('sentiment', filters.sentiment)
       if (filters.date_from) params.append('date_from', filters.date_from)
       if (filters.date_to) params.append('date_to', filters.date_to)
+      if (filters.agent_type) params.append('agent_type', filters.agent_type)
+      if (filters.category) params.append('category', filters.category)
+      if (filters.search) params.append('search', filters.search)
 
       const queryString = params.toString()
       const res = await apiFetch(`/admin/feedback/export${queryString ? `?${queryString}` : ''}`)
@@ -51,6 +57,22 @@ export function useCSATTrend(days = 30) {
         throw new Error('获取CSAT趋势失败')
       }
       return res.json() as Promise<{ days: number; trend: CSATTrend[] }>
+    },
+  })
+}
+
+export function useFeedbackStats(days = 30, agentType?: string) {
+  return useQuery<{ days: number } & FeedbackStats>({
+    queryKey: ['admin', 'feedback', 'stats', days, agentType],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.append('days', String(days))
+      if (agentType) params.append('agent_type', agentType)
+      const res = await apiFetch(`/admin/feedback/stats?${params.toString()}`)
+      if (!res.ok) {
+        throw new Error('获取反馈统计失败')
+      }
+      return res.json() as Promise<{ days: number } & FeedbackStats>
     },
   })
 }

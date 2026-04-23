@@ -6,7 +6,7 @@ from typing import Any
 
 from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.core.config import settings
 from app.core.llm_factory import maybe_add_cache_control
@@ -198,6 +198,39 @@ class BaseAgent(ABC):
             )
         return user_message
 
+    def _build_history_messages(
+        self,
+        history: list[dict],
+        budget: int,
+    ) -> list[HumanMessage | AIMessage]:
+        """Build history messages from most recent backwards within token budget.
+
+        Args:
+            history: List of message dicts with ``role`` and ``content`` keys.
+            budget: Maximum token budget for history messages.
+
+        Returns:
+            List of ``HumanMessage`` / ``AIMessage`` objects to prepend before
+            the current user message, ordered chronologically.
+        """
+        if not history or budget <= 0:
+            return []
+        result: list[HumanMessage | AIMessage] = []
+        for msg in reversed(history):
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role.lower() == "assistant":
+                candidate_msg = AIMessage(content=content)
+            else:
+                candidate_msg = HumanMessage(content=content)
+            candidate = [candidate_msg] + result
+            total_tokens = _estimate_tokens("\n".join(str(m.content) for m in candidate))
+            if total_tokens <= budget:
+                result = candidate
+            else:
+                break
+        return result
+
     def _create_messages(
         self,
         user_message: str,
@@ -207,6 +240,7 @@ class BaseAgent(ABC):
         system_prompt_override: str | None = None,
         memory_context_config: dict[str, Any] | None = None,
         few_shot_examples: list[dict[str, Any]] | None = None,
+        history: list[dict] | None = None,
     ) -> list:
         """Build message list with static system prompt and dynamic user content.
 
@@ -215,7 +249,7 @@ class BaseAgent(ABC):
         """
         import hashlib
 
-        messages = []
+        messages: list[SystemMessage | HumanMessage | AIMessage] = []
         effective_prompt = (
             system_prompt_override
             if system_prompt_override is not None
@@ -229,11 +263,21 @@ class BaseAgent(ABC):
             prompt_hash = hashlib.md5(effective_prompt.encode()).hexdigest()
             logger.debug(f"[{self.name}] System prompt hash: {prompt_hash}")
 
+        if history:
+            history_budget = settings.HISTORY_CONTEXT_TOKEN_BUDGET
+            if memory_context_config is not None:
+                budget_override = memory_context_config.get("history_token_budget")
+                if budget_override is not None:
+                    history_budget = budget_override
+            history_messages = self._build_history_messages(history, history_budget)
+            messages.extend(history_messages)
+
         user_prompt = self._build_user_prompt(
             user_message, context, memory_context, memory_context_config
         )
         if few_shot_examples:
             from app.intent.few_shot_loader import format_agent_examples_for_prompt
+
             examples_text = format_agent_examples_for_prompt(self.name, few_shot_examples)
             if examples_text:
                 user_prompt = examples_text + "\n" + user_prompt

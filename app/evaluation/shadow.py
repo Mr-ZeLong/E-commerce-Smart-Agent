@@ -22,6 +22,8 @@ class ShadowComparisonResult:
     production_answer: str
     shadow_answer: str
     answer_similarity: float
+    semantic_similarity: float | None
+    llm_quality_score: float | None
     production_latency_ms: int
     shadow_latency_ms: int
     latency_delta_ms: int
@@ -33,6 +35,8 @@ class ShadowReport:
     total_comparisons: int
     intent_match_rate: float
     avg_answer_similarity: float
+    avg_semantic_similarity: float | None
+    avg_llm_quality_score: float | None
     avg_latency_delta_ms: float
     latency_regression: bool
     results: list[ShadowComparisonResult]
@@ -119,7 +123,8 @@ class ShadowOrchestrator:
 
         prod_answer = prod_data.get("answer", "")
         shadow_answer = shadow_data.get("answer", "")
-        similarity = _answer_similarity(prod_answer, shadow_answer)
+        jaccard = _answer_similarity(prod_answer, shadow_answer)
+        semantic = _semantic_similarity(prod_answer, shadow_answer)
 
         prod_latency = production_result["latency_ms"]
         shadow_latency = shadow_result["latency_ms"]
@@ -131,12 +136,51 @@ class ShadowOrchestrator:
             intent_match=intent_match,
             production_answer=prod_answer,
             shadow_answer=shadow_answer,
-            answer_similarity=similarity,
+            answer_similarity=jaccard,
+            semantic_similarity=semantic,
+            llm_quality_score=None,
             production_latency_ms=prod_latency,
             shadow_latency_ms=shadow_latency,
             latency_delta_ms=shadow_latency - prod_latency,
             timestamp=datetime.now(UTC),
         )
+
+    @staticmethod
+    async def compare_with_llm(
+        comparison: ShadowComparisonResult,
+        llm: Any,
+    ) -> ShadowComparisonResult:
+        """Use an LLM to score answer quality differences.
+
+        Args:
+            comparison: Existing comparison result.
+            llm: LangChain chat model for quality evaluation.
+
+        Returns:
+            Updated comparison with llm_quality_score.
+        """
+        if not comparison.production_answer or not comparison.shadow_answer:
+            comparison.llm_quality_score = (
+                1.0 if comparison.production_answer == comparison.shadow_answer else 0.0
+            )
+            return comparison
+
+        prompt = (
+            "Compare the following two answers to the same user query and rate their "
+            "similarity in quality and accuracy on a scale of 0.0 to 1.0.\n\n"
+            f"Production answer: {comparison.production_answer}\n\n"
+            f"Shadow answer: {comparison.shadow_answer}\n\n"
+            "Respond with only a number between 0.0 and 1.0."
+        )
+        try:
+            response = await llm.ainvoke([{"role": "user", "content": prompt}])
+            content = getattr(response, "content", str(response))
+            score = float(content.strip().split()[0])
+            comparison.llm_quality_score = max(0.0, min(1.0, score))
+        except (ValueError, TypeError, AttributeError):
+            logger.exception("LLM quality comparison failed for thread %s", comparison.thread_id)
+            comparison.llm_quality_score = None
+        return comparison
 
     @staticmethod
     def generate_report(results: list[ShadowComparisonResult]) -> ShadowReport:
@@ -153,6 +197,8 @@ class ShadowOrchestrator:
                 total_comparisons=0,
                 intent_match_rate=0.0,
                 avg_answer_similarity=0.0,
+                avg_semantic_similarity=None,
+                avg_llm_quality_score=None,
                 avg_latency_delta_ms=0.0,
                 latency_regression=False,
                 results=[],
@@ -164,14 +210,61 @@ class ShadowOrchestrator:
         avg_latency_delta = sum(r.latency_delta_ms for r in results) / total
         latency_regression = avg_latency_delta > 500
 
+        semantic_scores = [
+            r.semantic_similarity for r in results if r.semantic_similarity is not None
+        ]
+        avg_semantic = sum(semantic_scores) / len(semantic_scores) if semantic_scores else None
+
+        llm_scores = [r.llm_quality_score for r in results if r.llm_quality_score is not None]
+        avg_llm = sum(llm_scores) / len(llm_scores) if llm_scores else None
+
         return ShadowReport(
             total_comparisons=total,
             intent_match_rate=intent_matches / total,
             avg_answer_similarity=avg_similarity,
+            avg_semantic_similarity=avg_semantic,
+            avg_llm_quality_score=avg_llm,
             avg_latency_delta_ms=avg_latency_delta,
             latency_regression=latency_regression,
             results=results,
         )
+
+    @staticmethod
+    async def store_result(
+        comparison: ShadowComparisonResult,
+        user_id: int,
+        query: str | None,
+        db_session: Any,
+    ) -> None:
+        """Store a shadow comparison result in the database.
+
+        Args:
+            comparison: The comparison result to store.
+            user_id: The user ID associated with the conversation.
+            query: The original user query.
+            db_session: Async SQLModel session.
+        """
+        from app.models.evaluation import ShadowTestResult
+
+        record = ShadowTestResult(
+            thread_id=comparison.thread_id,
+            user_id=user_id,
+            query=query,
+            production_intent=comparison.production_intent,
+            shadow_intent=comparison.shadow_intent,
+            intent_match=comparison.intent_match,
+            production_answer=comparison.production_answer,
+            shadow_answer=comparison.shadow_answer,
+            jaccard_similarity=comparison.answer_similarity,
+            semantic_similarity=comparison.semantic_similarity,
+            llm_quality_score=comparison.llm_quality_score,
+            production_latency_ms=comparison.production_latency_ms,
+            shadow_latency_ms=comparison.shadow_latency_ms,
+            latency_delta_ms=comparison.latency_delta_ms,
+            latency_regression=comparison.latency_delta_ms > 500,
+        )
+        db_session.add(record)
+        await db_session.commit()
 
 
 def _answer_similarity(answer1: str, answer2: str) -> float:
@@ -191,3 +284,26 @@ def _answer_similarity(answer1: str, answer2: str) -> float:
     union = len(words1 | words2)
 
     return intersection / union if union > 0 else 0.0
+
+
+def _semantic_similarity(answer1: str, answer2: str) -> float | None:
+    """Compute semantic similarity using sentence embeddings if available.
+
+    Falls back to None if sentence-transformers is not installed.
+    """
+    if not answer1 or not answer2:
+        return 1.0 if answer1 == answer2 else 0.0
+
+    try:
+        tfidf = __import__("sklearn.feature_extraction.text", fromlist=["TfidfVectorizer"])
+        pairwise = __import__("sklearn.metrics.pairwise", fromlist=["cosine_similarity"])
+        vectorizer = tfidf.TfidfVectorizer()
+        vectors = vectorizer.fit_transform([answer1, answer2])
+        similarity = pairwise.cosine_similarity(vectors[0:1], vectors[1:2])[0][0]
+        return float(similarity)
+    except ImportError:
+        logger.debug("sklearn not available for semantic similarity; falling back to None")
+        return None
+    except ValueError:
+        logger.debug("TF-IDF vectorization failed for answers; returning 0.0")
+        return 0.0

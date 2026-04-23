@@ -163,6 +163,48 @@ class TestMemoryTokenBudgetPruning:
         assert "preferences" in result
 
 
+class TestHistoryBudget:
+    def test_calculate_history_budget_default(self, budget):
+        result = budget.calculate_history_budget()
+        assert result > 0
+
+    def test_calculate_history_budget_override(self, budget):
+        config = {"history_token_budget": 500}
+        result = budget.calculate_history_budget(config)
+        assert result == 500
+
+    def test_allocate_history_empty(self, budget):
+        assert budget.allocate_history([], 100) == []
+
+    def test_allocate_history_within_budget(self, budget):
+        history = [
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi"},
+        ]
+        result = budget.allocate_history(history, 1000)
+        assert len(result) == 2
+
+    def test_allocate_history_truncates_oldest_first(self, budget):
+        history = [
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": "second"},
+            {"role": "user", "content": "third"},
+        ]
+        result = budget.allocate_history(history, 10)
+        assert len(result) < 3
+        if result:
+            assert result[-1]["content"] == "third"
+
+    def test_allocate_history_respects_role(self, budget):
+        history = [
+            {"role": "user", "content": "q"},
+            {"role": "assistant", "content": "a"},
+        ]
+        result = budget.allocate_history(history, 1000)
+        assert result[0]["role"] == "user"
+        assert result[1]["role"] == "assistant"
+
+
 class TestTokenBudgetABC:
     def test_token_budget_is_abstract(self):
         with pytest.raises(TypeError):

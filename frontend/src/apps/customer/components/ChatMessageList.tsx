@@ -3,12 +3,19 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { User, Bot, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { FeedbackWidget } from './FeedbackWidget'
 import type { Message } from '@/types'
 
 interface ChatMessageListProps {
   messages: Message[]
   isLoading: boolean
-  onFeedback?: (messageId: string, sentiment: 'up' | 'down', messageIndex: number) => void
+  onFeedback?: (
+    messageId: string,
+    sentiment: 'up' | 'down',
+    messageIndex: number,
+    category?: string,
+    comment?: string
+  ) => void
 }
 
 export const ChatMessageList = forwardRef<HTMLDivElement, ChatMessageListProps>(
@@ -49,33 +56,45 @@ export const ChatMessageList = forwardRef<HTMLDivElement, ChatMessageListProps>(
                   </div>
 
                   {isAssistant && !msg.isStreaming && onFeedback && (
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-6 w-6 ${
-                          msg.feedbackSentiment === 'up'
-                            ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                            : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                        onClick={() => onFeedback(msg.id, 'up', currentMessageIndex)}
-                        aria-label="Thumbs up"
-                      >
-                        <ThumbsUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={`h-6 w-6 ${
-                          msg.feedbackSentiment === 'down'
-                            ? 'text-red-600 bg-red-50 hover:bg-red-100'
-                            : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                        onClick={() => onFeedback(msg.id, 'down', currentMessageIndex)}
-                        aria-label="Thumbs down"
-                      >
-                        <ThumbsDown className="h-3 w-3" />
-                      </Button>
+                    <div className="flex flex-col gap-1">
+                      {msg.feedbackSentiment ? (
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              msg.feedbackSentiment === 'up'
+                                ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                            disabled
+                            aria-label="已点赞"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              msg.feedbackSentiment === 'down'
+                                ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                            disabled
+                            aria-label="已点踩"
+                          >
+                            <ThumbsDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <FeedbackWidget
+                          messageId={msg.id}
+                          messageIndex={currentMessageIndex}
+                          confidenceScore={msg.metadata?.confidence_score}
+                          onSubmit={onFeedback}
+                          autoTrigger={msg.metadata?.confidence_score !== undefined && msg.metadata.confidence_score < 0.6}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

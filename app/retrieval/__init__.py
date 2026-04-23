@@ -8,7 +8,7 @@ from app.retrieval.rewriter import QueryRewriter
 from app.retrieval.sparse_embedder import SparseTextEmbedder
 
 
-def create_retriever(llm, redis_client=None) -> HybridRetriever:
+def create_retriever(llm, redis_client=None, cache_manager=None) -> HybridRetriever:
     _ = llm
     return HybridRetriever(
         qdrant_client=QdrantKnowledgeClient(
@@ -31,4 +31,5 @@ def create_retriever(llm, redis_client=None) -> HybridRetriever:
             redis_client=redis_client,
         ),
         use_multi_query=settings.RETRIEVER_MULTI_QUERY,
+        cache_manager=cache_manager,
     )

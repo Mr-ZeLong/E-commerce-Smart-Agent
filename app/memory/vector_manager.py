@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -8,6 +9,7 @@ from qdrant_client.models import Distance, VectorParams
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.context.pii_filter import log_pii_detection, pii_filter
+from app.core.cache import CacheManager
 from app.core.config import settings
 from app.retrieval.embeddings import create_embedding_model
 
@@ -19,7 +21,7 @@ class VectorMemoryManager:
 
     COLLECTION_NAME = "conversation_memory"
 
-    def __init__(self, client=None, embedder=None):
+    def __init__(self, client=None, embedder=None, cache_manager: CacheManager | None = None):
         if client is None:
             if settings.QDRANT_URL == ":memory:":
                 self.client = AsyncQdrantClient(
@@ -35,6 +37,7 @@ class VectorMemoryManager:
             self.client = client
         self._embedder = embedder if embedder is not None else create_embedding_model()
         self._collection_ensured: bool = False
+        self._cache = cache_manager
 
     async def aclose(self) -> None:
         await self.client.close()
@@ -118,6 +121,14 @@ class VectorMemoryManager:
     ) -> list[dict]:
         await self.ensure_collection()
 
+        query_hash = hashlib.sha256(query_text.encode()).hexdigest()[:16]
+        if self._cache is not None:
+            cached = await self._cache.get_vector_search(
+                user_id, query_hash, top_k, message_role=message_role
+            )
+            if cached is not None:
+                return cached
+
         embeddings = await self._embedder.aembed_documents([query_text])
         query_vector = embeddings[0]
 
@@ -144,11 +155,18 @@ class VectorMemoryManager:
             with_payload=True,
         )
 
-        return [
+        results = [
             {**point.payload, "score": point.score}
             for point in response.points
             if point.payload is not None
         ]
+
+        if self._cache is not None:
+            await self._cache.set_vector_search(
+                user_id, query_hash, top_k, results, message_role=message_role, ttl=300
+            )
+
+        return results
 
     async def prune_old_messages(self, retention_days: int) -> None:
         exists = await self.client.collection_exists(self.COLLECTION_NAME)
