@@ -39,6 +39,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "opentelemetry-instrumentation-fastapi>=0.49b",
     "opentelemetry-exporter-otlp>=1.28",
+    "prometheus-client>=0.21.0",
 ]
 
 [build-system]

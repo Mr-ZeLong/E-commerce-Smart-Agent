@@ -1,6 +1,13 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.observability import GraphExecutionLog, GraphNodeLog
+from app.observability.metrics import (
+    record_chat_request,
+    record_confidence_score,
+    record_context_utilization,
+    record_human_transfer,
+    record_token_usage,
+)
 
 
 async def log_graph_execution(
@@ -16,6 +23,7 @@ async def log_graph_execution(
     context_tokens: int | None = None,
     context_utilization: float | None = None,
     langsmith_run_url: str | None = None,
+    query: str | None = None,
 ) -> int:
     log = GraphExecutionLog(
         thread_id=thread_id,
@@ -29,11 +37,23 @@ async def log_graph_execution(
         context_tokens=context_tokens,
         context_utilization=context_utilization,
         langsmith_run_url=langsmith_run_url,
+        query=query,
     )
     session.add(log)
     await session.commit()
     await session.refresh(log)
     assert log.id is not None
+
+    record_chat_request(intent_category=intent_category, final_agent=final_agent)
+    if confidence_score is not None:
+        record_confidence_score(float(confidence_score))
+    if needs_human_transfer:
+        record_human_transfer(reason="low_confidence")
+    if context_utilization is not None:
+        record_context_utilization(float(context_utilization))
+    if context_tokens is not None:
+        record_token_usage(tokens=int(context_tokens), agent=final_agent)
+
     return log.id
 
 

@@ -17,15 +17,27 @@ from sqlmodel import desc, select
 
 from app.api.v1.chat_utils import create_stream_metadata_message
 from app.api.v1.schemas import ChatRequest
+from app.context.pii_filter import log_pii_detection, pii_filter
 from app.core.config import settings
 from app.core.database import async_session_maker
-from app.core.limiter import limiter
+from app.core.limiter import check_user_rate_limit, limiter
+from app.core.redis import create_redis_client
 from app.core.security import get_current_user_id
 from app.core.tracing import build_llm_config
 from app.core.utils import build_thread_id, utc_now
 from app.models.memory import AgentConfigVersion
 from app.models.state import make_agent_state
 from app.observability.execution_logger import log_graph_execution, log_graph_node
+from app.observability.metrics import (
+    record_chat_error,
+    record_chat_latency,
+    record_chat_request,
+    record_confidence_score,
+    record_context_utilization,
+    record_human_transfer,
+    record_node_latency,
+    record_token_usage,
+)
 from app.services.experiment_assigner import ExperimentAssigner
 from app.services.online_eval import OnlineEvalService
 
@@ -49,6 +61,15 @@ async def chat(
 
     v4.1 更新：流式响应结束时发送置信度元数据
     """
+    # Per-user rate limiting: 10 requests/minute before LLM calls
+    redis_client = create_redis_client()
+    try:
+        await check_user_rate_limit(
+            redis_client, current_user_id, max_requests=10, window_seconds=60
+        )
+    finally:
+        await redis_client.aclose()
+
     app_graph = request.app.state.app_graph
     if app_graph is None:
         raise HTTPException(
@@ -57,6 +78,18 @@ async def chat(
         )
 
     thread_id = build_thread_id(current_user_id, chat_request.thread_id)
+
+    # Real-time PII filtering: redact sensitive data before any LLM or storage operations
+    pii_result = pii_filter.filter_text(chat_request.question)
+    filtered_question = pii_result.redacted_text
+    if pii_result.has_pii:
+        log_pii_detection(
+            user_id=current_user_id,
+            thread_id=thread_id,
+            source="chat_input",
+            detections=pii_result.detections,
+        )
+
     with tracer.start_as_current_span("chat_endpoint") as span:
         span.set_attribute("chat.user_id", current_user_id)
         span.set_attribute("chat.thread_id", thread_id)
@@ -72,11 +105,13 @@ async def chat(
             intent_category = None
             if intent_service is not None:
                 intent_result = await intent_service.recognize(
-                    query=chat_request.question,
+                    query=filtered_question,
                     session_id=thread_id,
                     conversation_history=None,
                 )
                 intent_category = intent_result.primary_intent.value if intent_result else None
+
+            record_chat_request(intent_category=intent_category)
 
             config: RunnableConfig = build_llm_config(
                 user_id=current_user_id,
@@ -105,10 +140,10 @@ async def chat(
                     variant_reranker_enabled = variant_config.reranker_enabled
 
             initial_state = make_agent_state(
-                question=chat_request.question,
+                question=filtered_question,
                 user_id=current_user_id,
                 thread_id=thread_id,
-                history=[{"role": "user", "content": chat_request.question}],
+                history=[{"role": "user", "content": filtered_question}],
                 experiment_variant_id=variant_id,
                 memory_context_config=memory_context_config,
                 variant_llm_model=variant_llm_model,
@@ -123,7 +158,7 @@ async def chat(
                         user_id=current_user_id,
                         thread_id=thread_id,
                         message_role="user",
-                        content=chat_request.question,
+                        content=filtered_question,
                         timestamp=utc_now().isoformat(),
                         intent=intent_category,
                     )
@@ -200,6 +235,10 @@ async def chat(
                                 latency_ms = int((time.time() - node_start_times[run_id]) * 1000)
                                 node_latencies[langgraph_node] = (
                                     node_latencies.get(langgraph_node, 0) + latency_ms
+                                )
+                                record_node_latency(
+                                    node_name=langgraph_node,
+                                    latency_seconds=latency_ms / 1000.0,
                                 )
                                 del node_start_times[run_id]
 
@@ -315,6 +354,7 @@ async def chat(
                         context_tokens=final_state.get("context_tokens"),
                         context_utilization=final_state.get("context_utilization"),
                         langsmith_run_url=langsmith_run_url,
+                        query=chat_request.question,
                     )
                     for node_name, latency_ms in node_latencies.items():
                         await log_graph_node(
@@ -345,6 +385,23 @@ async def chat(
                             logger.exception("Failed to record experiment metrics")
                             await session.rollback()
 
+                final_agent_name = final_state.get("current_agent")
+                record_chat_latency(
+                    latency_seconds=total_latency_ms / 1000.0,
+                    final_agent=final_agent_name,
+                )
+                if final_state.get("confidence_score") is not None:
+                    record_confidence_score(float(final_state["confidence_score"]))
+                if final_state.get("needs_human_transfer"):
+                    record_human_transfer(reason=final_state.get("transfer_reason") or "unknown")
+                if final_state.get("context_utilization") is not None:
+                    record_context_utilization(float(final_state["context_utilization"]))
+                if final_state.get("context_tokens") is not None:
+                    record_token_usage(
+                        tokens=int(final_state["context_tokens"]),
+                        agent=final_agent_name,
+                    )
+
             except asyncio.CancelledError:
                 logger.info("[Chat] Client disconnected (CancelledError)")
                 raise
@@ -353,6 +410,7 @@ async def chat(
                 return
             except (RuntimeError, OSError):
                 logger.exception("[Chat] Unhandled error during SSE streaming")
+                record_chat_error(error_type="runtime")
                 error_payload = json.dumps(
                     {"error": "聊天服务出现内部错误，请稍后重试。"},
                     ensure_ascii=False,
@@ -367,6 +425,7 @@ async def chat(
                     yield chunk
             except TimeoutError:
                 logger.warning("[Chat] Request timed out after 15s")
+                record_chat_error(error_type="timeout")
                 error_payload = json.dumps(
                     {"error": "服务响应超时，请稍后重试或联系人工客服。"},
                     ensure_ascii=False,

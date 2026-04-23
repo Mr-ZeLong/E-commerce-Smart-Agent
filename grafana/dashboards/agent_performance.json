@@ -1,0 +1,72 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Agent Performance",
+    "tags": ["ecommerce", "agent", "performance"],
+    "timezone": "utc",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Intent Accuracy by Agent",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "intent_accuracy{job=\"ecommerce-agent\"}",
+            "legendFormat": "{{agent_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "RAG Precision",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rag_precision{job=\"ecommerce-agent\"}",
+            "legendFormat": "RAG"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Answer Correctness",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "answer_correctness{job=\"ecommerce-agent\"}",
+            "legendFormat": "Correctness"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Agent Latency P95",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(agent_latency_seconds_bucket[5m]))",
+            "legendFormat": "{{agent_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Token Efficiency",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "token_efficiency{job=\"ecommerce-agent\"}",
+            "legendFormat": "Efficiency"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      }
+    ]
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "E-commerce Smart Agent",
+    "tags": ["ecommerce", "agent", "llm"],
+    "timezone": "utc",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Chat Requests / sec",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(chat_requests_total[1m])",
+            "legendFormat": "{{intent_category}} / {{final_agent}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(chat_errors_total[1m]) / rate(chat_requests_total[1m])",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "p95 Latency (seconds)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(chat_latency_seconds_bucket[5m]))",
+            "legendFormat": "{{final_agent}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Human Transfer Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(human_transfers_total[1m]) / rate(chat_requests_total[1m])",
+            "legendFormat": "{{reason}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Intent Accuracy",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "intent_accuracy",
+            "legendFormat": "{{intent_category}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "RAG Precision",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rag_precision",
+            "legendFormat": "RAG Precision"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Hallucination Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "hallucination_rate",
+            "legendFormat": "Hallucination Rate"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 8}
+      },
+      {
+        "id": 8,
+        "title": "Token Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(token_usage_total[1m])",
+            "legendFormat": "{{agent}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 8}
+      },
+      {
+        "id": 9,
+        "title": "Node Latency (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(node_latency_seconds_bucket[5m]))",
+            "legendFormat": "{{node_name}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 10,
+        "title": "Confidence Score Distribution",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "rate(confidence_score_bucket[5m])",
+            "legendFormat": "{{le}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 11,
+        "title": "Context Utilization",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "context_utilization_ratio",
+            "legendFormat": "Context Utilization"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 12,
+        "title": "Total Requests",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "chat_requests_total",
+            "legendFormat": "{{intent_category}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      }
+    ]
+  }
+}

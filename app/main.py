@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from opentelemetry import trace
+from prometheus_client import make_asgi_app
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -287,6 +288,8 @@ app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["Chat"])
 app.include_router(status_router, prefix=settings.API_V1_STR, tags=["Status"])
 app.include_router(admin_router, prefix=settings.API_V1_STR, tags=["Admin"])
 app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocket"])
+
+app.mount("/metrics", make_asgi_app())
 
 # 3. 静态文件托管
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

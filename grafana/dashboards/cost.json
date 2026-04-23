@@ -1,0 +1,60 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Cost Optimization",
+    "tags": ["ecommerce", "agent", "cost"],
+    "timezone": "utc",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Token Usage / Request",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(tokens_total[5m]) / rate(chat_requests_total[5m])",
+            "legendFormat": "{{token_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Estimated Cost / Hour",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(tokens_total[1h]) * 0.00001",
+            "legendFormat": "Cost ($)"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Cache Hit Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m]))",
+            "legendFormat": "Cache Hit %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "High Cost Alerts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "high_cost_requests_total",
+            "legendFormat": "Requests > 10K tokens"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      }
+    ]
+  }
+}

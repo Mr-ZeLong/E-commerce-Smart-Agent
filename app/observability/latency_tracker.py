@@ -11,6 +11,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.observability import GraphNodeLog
+from app.observability.metrics import record_node_latency
 
 logger = logging.getLogger(__name__)
 
@@ -99,5 +100,8 @@ async def compute_node_latency_stats(
             "min_ms": sorted_latencies[0] if sorted_latencies else 0.0,
             "max_ms": sorted_latencies[-1] if sorted_latencies else 0.0,
         }
+
+        for lat in latencies:
+            record_node_latency(node_name=name, latency_seconds=lat / 1000.0)
 
     return stats

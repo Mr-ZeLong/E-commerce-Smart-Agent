@@ -1,0 +1,60 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Security Monitoring",
+    "tags": ["ecommerce", "agent", "security"],
+    "timezone": "utc",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Safety Blocks / min",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(safety_blocks_total[1m])",
+            "legendFormat": "{{block_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "PII Detections",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(pii_detections_total[1m])",
+            "legendFormat": "{{pii_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Injection Attempts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(injection_attempts_total[1m])",
+            "legendFormat": "{{injection_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Rate Limit Hits",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(rate_limit_hits_total[1m])",
+            "legendFormat": "{{user_id}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      }
+    ]
+  }
+}
