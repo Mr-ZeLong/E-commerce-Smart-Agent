@@ -22,7 +22,7 @@ Note: WebSocket routes (`@app/api/v1/websocket.py`) are the FastAPI entrypoints 
 
 | Role | File | Notes |
 |------|------|-------|
-| Chat API | `@app/api/v1/chat.py` | POST /chat (SSE streaming), POST /feedback |
+| Chat API | `@app/api/v1/chat.py` | POST /chat (SSE streaming, 60/min IP + 10/min per-user rate limits), POST /feedback |
 | Auth API | `@app/api/v1/auth.py` | POST /login, POST /register, GET /me |
 | WebSocket API | `@app/api/v1/websocket.py` | WS /ws/{thread_id}, WS /ws/admin/{admin_id} |
 | Status API | `@app/api/v1/status.py` | Thread status endpoints |
@@ -66,6 +66,7 @@ General Python rules are defined in the root `AGENTS.md`. API-specific conventio
 - **SSE format**: Chat responses use SSE with `data:` prefix and JSON payload.
 - **Auth**: Use OAuth2 bearer tokens; validate in dependency functions.
 - **Admin routes**: All admin routes under `/api/v1/admin/` with admin auth requirements.
+- **Rate limiting**: Chat endpoint enforces dual rate limits: 60 req/min per IP (slowapi) and 10 req/min per user (Redis-based fixed window). Per-user limits are checked before LLM calls to prevent abuse.
 
 ## Anti-Patterns
 

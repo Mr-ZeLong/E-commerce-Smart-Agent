@@ -26,7 +26,7 @@ Intent recognition pipeline that classifies user messages into intents, determin
 | Clarification engine | `@app/intent/clarification.py` | Clarification prompts when slots are missing |
 | Slot validator | `@app/intent/slot_validator.py` | Slot value validation |
 | Topic switch detector | `@app/intent/topic_switch.py` | Topic drift detection |
-| Safety filter | `@app/intent/safety.py` | Input safety review before LLM calls |
+| Safety filter | `@app/intent/safety.py` | Multi-layer input safety: keyword, adversarial pattern detection, injection, code, semantic checks, plus input sanitization and metrics |
 | State models | `@app/intent/models.py` | Intent/slot state models |
 | Config | `@app/intent/config.py` | Intent module configuration |
 | Few-shot loader | `@app/intent/few_shot_loader.py` | Few-shot example loading |
@@ -52,7 +52,7 @@ General Python rules are defined in the root `AGENTS.md`. Intent-specific conven
 - **Classifier tests**: Mock LLM responses to cover single-intent, multi-intent, and unknown-intent scenarios.
 - **Multi-intent tests**: `@tests/intent/test_multi_intent.py` validates the independence judgment matrix via `are_independent()`.
 - **Clarification tests**: Cover missing slots, clarification prompt generation, and termination conditions.
-- **Safety tests**: Partition by concern (sensitive keywords, injection attacks, PII leakage) into separate test files or `describe` blocks.
+- **Safety tests**: Partition by concern (sensitive keywords, injection attacks, PII leakage, adversarial patterns, input sanitization, metrics) into separate test files or `describe` blocks. Cover zero-width character evasion, Unicode homoglyphs, delimiter attacks, and prompt leakage.
 
 ## Conventions
 
@@ -63,7 +63,8 @@ General Python rules are defined in the root `AGENTS.md`. Intent-specific conven
 
 ## Anti-Patterns
 
-- **Rule bloat in safety**: Do not accumulate large rule sets in `safety.py` that degrade performance; hoist high-frequency rules or cache results.
+- **Rule bloat in safety**: Do not accumulate large rule sets in `safety.py` that degrade performance; pre-compile regex patterns at initialization and consider caching high-frequency checks.
+- **Sanitization bypass**: Never run detection solely on sanitized input; always check the original query (and normalized variants) to prevent evasion via zero-width characters or Unicode homoglyphs.
 - **Global state mutation in classifier**: Never mutate global or module-level state in `classifier.py`; all outputs must be written to the passed `state` object.
 
 ## Related Files
