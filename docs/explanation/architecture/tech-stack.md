@@ -20,6 +20,7 @@ flowchart TB
         B5["退货服务\nRefund Service"]
         B6["记忆系统\nStructured + Vector + Extractor + Summarizer"]
         B7["Agent 配置中心\n热重载 + 路由规则 + 审计日志"]
+        B8["内容安全\n4 层输出审核"]
     end
 
     subgraph Layer4["任务层"]

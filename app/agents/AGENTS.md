@@ -91,3 +91,8 @@ The `IntentRouterAgent` (`@app/agents/router.py`) produces these intent strings 
 - **Cross-layer coupling**: `supervisor.py` should minimize direct imports from `@app/graph/parallel.py`; prefer dependency injection for dispatch planning.
 - **Direct DB access in agents**: Agents should not bypass the tool/service layer to access the database directly.
 - **Stale AGENTS.md**: Adding a new agent without updating this file and the corresponding test suite.
+
+## Related Files
+
+- `@app/safety/AGENTS.md` — Output moderation pipeline integrated into agent responses.
+- `@app/tools/AGENTS.md` — Tool layer consumed by agents.

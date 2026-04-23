@@ -33,7 +33,8 @@ E-commerce-Smart-Agent/
 │   ├── 📁 services/                # 业务服务层
 │   ├── 📁 schemas/                 # 共享 Schema
 │   ├── 📁 tasks/                   # Celery 异步任务
-│   └── 📁 websocket/               # WebSocket 服务
+│   ├── 📁 websocket/               # WebSocket 服务
+│   └── 📁 safety/                  # 输出内容安全审核
 │
 ├── 📁 frontend/                    # React + TypeScript 前端
 │   ├── 📄 package.json             # npm 依赖配置

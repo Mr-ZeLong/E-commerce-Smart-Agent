@@ -17,7 +17,9 @@
 | **bcrypt** | 密码哈希 |
 | **slowapi** | API 限流 |
 | **OpenTelemetry** | 分布式链路追踪与可观测性 |
+| **Prometheus** | 指标采集与监控 |
 | **OpenAI API / Qwen** | LLM 与 Embedding 模型 |
+| **Content Moderation** | 4 层输出内容审核（规则 + 正则 + 语义 + LLM 评判） |
 | **Alembic** | 数据库迁移 |
 | **ruff** | Python Linter + Formatter |
 | **ty** | Python 类型检查器 |

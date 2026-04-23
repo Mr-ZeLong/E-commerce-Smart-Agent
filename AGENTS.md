@@ -36,6 +36,7 @@ Use the right `AGENTS.md` for the area you're working in:
 - **Core** (`@app/core/**`) → [`app/core/AGENTS.md`](app/core/AGENTS.md)
 - **Confidence** (`@app/confidence/**`) → [`app/confidence/AGENTS.md`](app/confidence/AGENTS.md)
 - **Context** (`@app/context/**`) → [`app/context/AGENTS.md`](app/context/AGENTS.md)
+- **Safety** (`@app/safety/**`) → [`app/safety/AGENTS.md`](app/safety/AGENTS.md)
 - **WebSocket** (`@app/websocket/**`) → [`app/websocket/AGENTS.md`](app/websocket/AGENTS.md)
 - **Utils** (`@app/utils/**`) → [`app/utils/AGENTS.md`](app/utils/AGENTS.md)
 - **Tests** (`@tests/**`) → [`tests/AGENTS.md`](tests/AGENTS.md)
@@ -65,7 +66,8 @@ For any other area, this root file applies.
   - `@app/services/`: Business logic services (auth, order, refund, admin, status, experiment, continuous improvement).
   - `@app/core/`: Core configuration, security, database, Redis, LLM factory, tracing, logging (cross-cutting infrastructure).
   - `@app/core/utils.py`: Core cross-cutting utilities (`utc_now`, `build_thread_id`, `clamp_score`).
-- `@app/utils/`: Shared domain utility functions (order utilities, helpers).
+  - `@app/safety/`: Output content moderation system (4-layer pipeline: rule-based, regex, embedding similarity, LLM judge).
+  - `@app/utils/`: Shared domain utility functions (order utilities, helpers).
 - `@frontend/`: React 19 + TypeScript frontend (Vite, Tailwind CSS, shadcn/ui).
   - `@frontend/src/apps/admin/`: B端管理后台 (dashboard, knowledge base, agent config, feedback, analytics).
   - `@frontend/src/apps/customer/`: C端用户聊天界面 (SSE streaming chat).

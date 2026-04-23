@@ -22,6 +22,7 @@ Observability layer providing OpenTelemetry tracing, execution logging, and late
 |------|------|-------|
 | Execution logger | `@app/observability/execution_logger.py` | Graph execution logging with structured events |
 | Latency tracker | `@app/observability/latency_tracker.py` | Per-node latency measurement and reporting |
+| Prometheus metrics | `@app/observability/metrics.py` | Custom counters, histograms, and gauges for chat latency, token usage, intent accuracy, hallucination rate |
 | OpenTelemetry setup | `@app/observability/otel_setup.py` | OTel tracer provider and exporter configuration |
 
 ## Commands

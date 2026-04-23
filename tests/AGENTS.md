@@ -29,6 +29,7 @@ Backend test suite using pytest + pytest-asyncio with a flat directory structure
 | API tests | `@tests/test_auth_api.py`, `@tests/test_chat_api.py`, `@tests/test_admin_api.py` | Route-layer validation |
 | Service tests | `@tests/test_order_service.py`, `@tests/test_refund_service.py`, `@tests/test_auth_service.py`, `@tests/test_status_service.py`, `@tests/test_admin_service.py` | Business logic validation |
 | Module unit tests | `@tests/agents/`, `@tests/graph/`, `@tests/intent/`, `@tests/memory/`, `@tests/tools/`, `@tests/retrieval/`, `@tests/evaluation/`, `@tests/context/`, `@tests/observability/`, `@tests/core/`, `@tests/models/` | Agent/graph/intent/memory/RAG/evaluation/context/observability/core/model tests |
+| Safety tests | `@tests/safety/test_output_moderator.py`, `@tests/safety/conftest.py` | 4-layer output moderation pipeline tests |
 | Service tests | `@tests/services/test_continuous_improvement.py` | Business service validation |
 | Admin API tests | `@tests/admin/`, `@tests/test_admin_api.py`, `@tests/test_knowledge_admin.py`, `@tests/api/admin/test_metrics_dashboard.py` | Admin endpoints validation |
 | Task tests | `@tests/tasks/` | Celery task tests |
@@ -67,6 +68,7 @@ uv run pytest tests/observability/
 uv run pytest tests/tasks/
 uv run pytest tests/admin/
 uv run pytest tests/services/
+uv run pytest tests/safety/
 ```
 
 ## Code Style

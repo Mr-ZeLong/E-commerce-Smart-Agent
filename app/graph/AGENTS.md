@@ -99,3 +99,4 @@ The subgraph wrapper (`@app/graph/subgraphs.py`) and direct agent nodes (`_build
 ## Related Files
 
 - `@app/intent/multi_intent.py` — `are_independent()` controls LangGraph parallel dispatch decisions.
+- `@app/safety/AGENTS.md` — `synthesis_node` uses `OutputModerator` for output content moderation.

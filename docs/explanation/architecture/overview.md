@@ -74,6 +74,10 @@ flowchart TB
         end
     end
 
+    subgraph SafetyLayer["🛡️ 安全层"]
+        OUTPUT_MOD["4层输出审核\u003cbr/\u003e规则+正则+语义+LLM"]
+    end
+
     subgraph ServiceLayer["🛠️ 服务层"]
         REFUND_SVC["Refund Service\u003cbr/\u003e退货业务逻辑"]
         RULES["Refund Rules\u003cbr/\u003e退货规则引擎"]
@@ -183,7 +187,8 @@ flowchart TB
     PLAN_DISPATCH --> BUILD_SENDS
     BUILD_SENDS --> Subgraphs
     Subgraphs --> SYNTHESIS_NODE
-    SYNTHESIS_NODE --> EVALUATOR_NODE
+    SYNTHESIS_NODE --> OUTPUT_MOD
+    OUTPUT_MOD --> EVALUATOR_NODE
     EVALUATOR_NODE --> DECIDER_NODE
     EVALUATOR_NODE -->|"低置信度"| ROUTER_NODE
 
@@ -191,9 +196,14 @@ flowchart TB
     REFUND_SVC --> DB
 
     ServiceLayer -->|"高风险触发"| CELERY
-    CELERY --> TASKS
+    CELERY --> REFUND_TASKS
+    CELERY --> KB_TASKS
+    CELERY --> MEM_TASKS
+    CELERY --> EVAL_TASKS
+    CELERY --> SHADOW_TASKS
+    CELERY --> CI_TASKS
+    CELERY --> NOTIFY_TASKS
     KB_TASKS --> Qdrant
-    TASKS --> DB
     CELERY -->|"记忆抽取"| MEM_MGR
 
     Nodes <-->|"Embedding/LLM"| External
@@ -218,7 +228,8 @@ E-commerce Smart Agent v4.1 采用多层架构：
 5. **服务层**：Refund Service 处理退货规则与风控逻辑
 6. **任务层**：Celery 异步队列处理退款、短信、知识库同步、记忆抽取
 7. **记忆层**：PostgreSQL 结构化记忆 + Qdrant 向量记忆
-8. **数据层**：PostgreSQL 业务数据 + Qdrant 向量数据 + Redis 缓存
-9. **外部层**：通义千问/Qwen LLM 与 Embedding 服务
+8. **安全层**：4 层输出内容审核（规则匹配、正则检测、语义相似度、LLM 评判）
+9. **数据层**：PostgreSQL 业务数据 + Qdrant 向量数据 + Redis 缓存
+10. **外部层**：通义千问/Qwen LLM 与 Embedding 服务
 
 > 详细的技术栈说明请参考 [技术栈详情](../../reference/tech-stack-detail.md)。

@@ -70,3 +70,4 @@ General Python rules are defined in the root `AGENTS.md`. Intent-specific conven
 ## Related Files
 
 - `@app/graph/parallel.py` — consumes `are_independent()` to construct `Send` for multi-intent parallel execution.
+- `@app/safety/AGENTS.md` — Output moderation pipeline (complements input safety filtering).

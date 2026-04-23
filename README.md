@@ -9,8 +9,9 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 - **结构化记忆系统**：PostgreSQL 用户画像/偏好/事实 + Qdrant 向量对话记忆
 - **Agent 配置中心**：B 端热重载、路由规则、审计日志与 A/B 实验
 - **智能风控与人工审核**：按金额分级风控，自动转交高风险请求
+- **内容安全审核**：4 层输出内容过滤（规则匹配、正则检测、语义相似度、LLM 评判）
 - **知识库管理**：支持 PDF/Markdown 上传、Embedding 检索与同步
-- **可观测性**：OpenTelemetry 全链路追踪
+- **可观测性**：OpenTelemetry 全链路追踪 + Prometheus 指标监控
 
 ## 快速开始
 
