@@ -2,17 +2,30 @@
 
 from typing import Any
 
+from app.context.pii_filter import PIIFilter, pii_filter
 from app.core.config import settings
 
 
-def mask_observation(data: dict[str, Any], max_chars: int | None = None) -> dict[str, Any]:
-    """Mask dictionary values whose string representation exceeds ``max_chars``."""
+def mask_observation(
+    data: dict[str, Any],
+    max_chars: int | None = None,
+    filter_pii: bool = True,
+    pii_filter_instance: PIIFilter | None = None,
+) -> dict[str, Any]:
+    """Mask dictionary values whose string representation exceeds ``max_chars``.
+
+    PII is redacted before length-based masking when ``filter_pii`` is True,
+    following the masking priority rule: PII and secrets first.
+    """
     if max_chars is None:
         max_chars = getattr(settings, "OBSERVATION_MASKING_MAX_CHARS", 500)
 
+    pii = pii_filter_instance or pii_filter
     result: dict[str, Any] = {}
     for key, value in data.items():
         text = str(value)
+        if filter_pii:
+            text = pii.filter_text(text).redacted_text
         if len(text) > max_chars:
             result[key] = {
                 "_masked": True,
@@ -21,7 +34,7 @@ def mask_observation(data: dict[str, Any], max_chars: int | None = None) -> dict
                 "original_length": len(text),
             }
         else:
-            result[key] = value
+            result[key] = text
     return result
 
 
