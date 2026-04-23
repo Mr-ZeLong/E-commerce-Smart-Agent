@@ -20,12 +20,12 @@ Hybrid RAG retrieval system combining dense embeddings, sparse embeddings (BM25)
 
 | Role | File | Notes |
 |------|------|-------|
-| Hybrid retriever | `app/retrieval/retriever.py` | `HybridRetriever` combining dense + sparse + reranker |
-| Embeddings | `app/retrieval/embeddings.py` | Dense embedding model creation and caching |
-| Sparse embedder | `app/retrieval/sparse_embedder.py` | Sparse/BM25 embedding generation |
-| Reranker | `app/retrieval/reranker.py` | Cross-encoder reranking for result refinement |
-| Query rewriter | `app/retrieval/rewriter.py` | LLM-based query rewriting and expansion |
-| Qdrant client | `app/retrieval/client.py` | Qdrant vector store client wrapper |
+| Hybrid retriever | `@app/retrieval/retriever.py` | `HybridRetriever` combining dense + sparse + reranker |
+| Embeddings | `@app/retrieval/embeddings.py` | Dense embedding model creation and caching |
+| Sparse embedder | `@app/retrieval/sparse_embedder.py` | Sparse/BM25 embedding generation |
+| Reranker | `@app/retrieval/reranker.py` | Cross-encoder reranking for result refinement |
+| Query rewriter | `@app/retrieval/rewriter.py` | LLM-based query rewriting and expansion |
+| Qdrant client | `@app/retrieval/client.py` | Qdrant vector store client wrapper |
 
 ## Commands
 
@@ -64,6 +64,6 @@ General Python rules are defined in the root `AGENTS.md`. Retrieval-specific con
 
 ## Related Files
 
-- `app/agents/policy.py` — Uses retrieval for policy Q&A.
-- `app/tools/product_tool.py` — Uses retrieval for product catalog search.
-- `app/memory/vector_manager.py` — Uses retrieval for conversation memory.
+- `@app/agents/policy.py` — Uses retrieval for policy Q&A.
+- `@app/tools/product_tool.py` — Uses retrieval for product catalog search.
+- `@app/memory/vector_manager.py` — Uses retrieval for conversation memory.

@@ -20,18 +20,18 @@ Offline evaluation framework for assessing agent response quality, hallucination
 
 | Role | File | Notes |
 |------|------|-------|
-| Evaluation pipeline | `app/evaluation/pipeline.py` | Orchestrates evaluation runs |
-| Evaluation runner | `app/evaluation/run.py` | Executes evaluation scenarios |
-| Adversarial testing | `app/evaluation/adversarial.py` | Adversarial example generation and testing |
-| Shadow testing | `app/evaluation/shadow.py` | Shadow mode evaluation against production |
-| Metrics | `app/evaluation/metrics.py` | Evaluation metrics (accuracy, relevance, etc.) |
-| Hallucination detection | `app/evaluation/hallucination.py` | LLM-based hallucination detection |
-| Tone consistency | `app/evaluation/tone_consistency.py` | Tone and style consistency evaluation |
-| Baseline comparison | `app/evaluation/baseline.py` | Baseline model comparison |
-| Dataset management | `app/evaluation/dataset.py` | Evaluation dataset curation |
-| Containment | `app/evaluation/containment.py` | Response containment validation |
-| Token efficiency | `app/evaluation/token_efficiency.py` | Token usage optimization metrics |
-| Few-shot evaluation | `app/evaluation/few_shot_eval.py` | Few-shot prompt evaluation |
+| Evaluation pipeline | `@app/evaluation/pipeline.py` | Orchestrates evaluation runs |
+| Evaluation runner | `@app/evaluation/run.py` | Executes evaluation scenarios |
+| Adversarial testing | `@app/evaluation/adversarial.py` | Adversarial example generation and testing |
+| Shadow testing | `@app/evaluation/shadow.py` | Shadow mode evaluation against production |
+| Metrics | `@app/evaluation/metrics.py` | Evaluation metrics (accuracy, relevance, etc.) |
+| Hallucination detection | `@app/evaluation/hallucination.py` | LLM-based hallucination detection |
+| Tone consistency | `@app/evaluation/tone_consistency.py` | Tone and style consistency evaluation |
+| Baseline comparison | `@app/evaluation/baseline.py` | Baseline model comparison |
+| Dataset management | `@app/evaluation/dataset.py` | Evaluation dataset curation |
+| Containment | `@app/evaluation/containment.py` | Response containment validation |
+| Token efficiency | `@app/evaluation/token_efficiency.py` | Token usage optimization metrics |
+| Few-shot evaluation | `@app/evaluation/few_shot_eval.py` | Few-shot prompt evaluation |
 
 ## Commands
 
@@ -70,6 +70,6 @@ General Python rules are defined in the root `AGENTS.md`. Evaluation-specific co
 
 ## Related Files
 
-- `app/agents/evaluator.py` — Uses evaluation metrics for agent response scoring.
-- `app/services/online_eval.py` — Online evaluation service for real-time feedback.
-- `app/tasks/evaluation_tasks.py` — Celery tasks for async evaluation runs.
+- `@app/agents/evaluator.py` — Uses evaluation metrics for agent response scoring.
+- `@app/services/online_eval.py` — Online evaluation service for real-time feedback.
+- `@app/tasks/evaluation_tasks.py` — Celery tasks for async evaluation runs.

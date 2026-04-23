@@ -20,15 +20,15 @@ Celery async task layer for background processing. Tasks are triggered by graph 
 
 | Role | File | Notes |
 |------|------|-------|
-| Memory tasks | `app/tasks/memory_tasks.py` | Async fact extraction and vector pruning |
-| Notifications | `app/tasks/notifications.py` | Email/SMS notification sending |
-| Knowledge tasks | `app/tasks/knowledge_tasks.py` | Knowledge base sync and embedding |
-| Refund tasks | `app/tasks/refund_tasks.py` | Refund processing workflows |
-| Evaluation tasks | `app/tasks/evaluation_tasks.py` | Async evaluation runs |
-| Continuous improvement | `app/tasks/continuous_improvement_tasks.py` | CI pipeline tasks |
-| Prompt effect tracking | `app/tasks/prompt_effect_tasks.py` | Prompt A/B effect measurement |
-| Shadow testing | `app/tasks/shadow_tasks.py` | Shadow mode testing tasks |
-| Tracing setup | `app/tasks/tracing_setup.py` | Celery LangSmith tracing configuration |
+| Memory tasks | `@app/tasks/memory_tasks.py` | Async fact extraction and vector pruning |
+| Notifications | `@app/tasks/notifications.py` | Email/SMS notification sending |
+| Knowledge tasks | `@app/tasks/knowledge_tasks.py` | Knowledge base sync and embedding |
+| Refund tasks | `@app/tasks/refund_tasks.py` | Refund processing workflows |
+| Evaluation tasks | `@app/tasks/evaluation_tasks.py` | Async evaluation runs |
+| Continuous improvement | `@app/tasks/continuous_improvement_tasks.py` | CI pipeline tasks |
+| Prompt effect tracking | `@app/tasks/prompt_effect_tasks.py` | Prompt A/B effect measurement |
+| Shadow testing | `@app/tasks/shadow_tasks.py` | Shadow mode testing tasks |
+| Tracing setup | `@app/tasks/tracing_setup.py` | Celery LangSmith tracing configuration |
 
 ## Commands
 
@@ -36,7 +36,10 @@ Celery async task layer for background processing. Tasks are triggered by graph 
 # Run task module tests
 uv run pytest tests/tasks/
 
-# Start Celery worker with Beat scheduler
+# Start Celery worker (recommended: auto-waits for dependencies)
+./start_worker.sh
+
+# Manual start (when dependencies are already running)
 uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
 ```
 
@@ -71,6 +74,6 @@ General Python rules are defined in the root `AGENTS.md`. Task-specific conventi
 
 ## Related Files
 
-- `app/celery_app.py` — Celery application configuration.
-- `app/memory/extractor.py` — Fact extraction triggered by memory tasks.
-- `app/memory/summarizer.py` — Session summarization triggered from graph nodes.
+- `@app/celery_app.py` — Celery application configuration.
+- `@app/memory/extractor.py` — Fact extraction triggered by memory tasks.
+- `@app/memory/summarizer.py` — Session summarization triggered from graph nodes.

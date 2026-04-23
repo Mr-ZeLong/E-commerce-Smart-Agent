@@ -20,22 +20,31 @@ Context engineering utilities for managing LLM context windows, including observ
 
 | Role | File | Notes |
 |------|------|-------|
-| Observation masking | `app/context/masking.py` | Masks sensitive observations before LLM injection |
-| Token budget | `app/context/token_budget.py` | `MemoryTokenBudget` for context allocation across memory tiers |
+| Observation masking | `@app/context/masking.py` | Masks sensitive observations before LLM injection |
+| Token budget | `@app/context/token_budget.py` | `MemoryTokenBudget` for context allocation across memory tiers |
+| Memory context truncation | `@app/agents/base.py` | `_truncate_parts_by_budget()` — drops parts from end until token count is within `MEMORY_CONTEXT_TOKEN_BUDGET`; preserves last part (user question) |
+
+## Commands
+
+```bash
+# Run context module tests
+uv run pytest tests/context/
+```
 
 ## Code Style
 
 General Python rules are defined in the root `AGENTS.md`. Context-specific conventions:
 
-- **Type hints**: All context manipulation functions must be fully typed.
-- **Performance**: Context operations are on the hot path; optimize for minimal overhead.
-- **Immutability**: Prefer creating new context objects over mutating existing ones.
+- **Pure functions**: Context utilities should be pure functions without side effects.
+- **Type hints**: All context functions must have complete type annotations.
+- **Immutability**: Return new context objects rather than mutating inputs in place.
 
 ## Testing Patterns
 
-- Test masking logic with various input patterns (PII, secrets, etc.).
-- Verify token budget allocation respects limits and priorities.
-- Benchmark context operations for performance regression detection.
+- Test token budget allocation with various memory sizes.
+- Verify masking correctly hides sensitive data while preserving structure.
+- Test truncation behavior at boundary conditions (exact budget, over budget by 1 token).
+- Mock LLM token counting for deterministic tests.
 
 ## Conventions
 
@@ -51,5 +60,5 @@ General Python rules are defined in the root `AGENTS.md`. Context-specific conve
 
 ## Related Files
 
-- `app/memory/compactor.py` — Unconditionally compacts conversation history to reduce context size.
-- `app/agents/base.py` — Builds memory context using token budget allocation.
+- `@app/memory/compactor.py` — Unconditionally compacts conversation history to reduce context size.
+- `@app/agents/base.py` — Builds memory context using token budget allocation.

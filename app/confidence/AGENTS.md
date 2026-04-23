@@ -20,7 +20,14 @@ Confidence signal calculation for agent response quality assessment. Combines RA
 
 | Role | File | Notes |
 |------|------|-------|
-| Confidence signals | `app/confidence/signals.py` | `calculate_rag_signal`, `calculate_llm_signal`, `calculate_emotion_signal`, `calculate_confidence_signals` |
+| Confidence signals | `@app/confidence/signals.py` | `calculate_rag_signal`, `calculate_llm_signal`, `calculate_emotion_signal`, `calculate_confidence_signals` |
+
+## Commands
+
+```bash
+# Run confidence module tests
+uv run pytest tests/test_confidence_signals.py
+```
 
 ## Code Style
 
@@ -52,6 +59,6 @@ General Python rules are defined in the root `AGENTS.md`. Confidence-specific co
 
 ## Related Files
 
-- `app/agents/evaluator.py` — Uses `calculate_confidence_signals` for agent response evaluation.
-- `app/api/v1/chat_utils.py` — Embeds confidence metadata in SSE responses.
-- `app/models/state.py` — `AgentProcessResult` includes confidence scores.
+- `@app/agents/evaluator.py` — Uses `calculate_confidence_signals` for agent response evaluation.
+- `@app/api/v1/chat_utils.py` — Embeds confidence metadata in SSE responses.
+- `@app/models/state.py` — `AgentProcessResult` includes confidence scores.

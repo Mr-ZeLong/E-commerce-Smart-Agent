@@ -20,60 +20,60 @@
 
 Use the right `AGENTS.md` for the area you're working in:
 
-- **Agent implementations** (`app/agents/**`) → [`app/agents/AGENTS.md`](app/agents/AGENTS.md)
-- **LangGraph workflow** (`app/graph/**`) → [`app/graph/AGENTS.md`](app/graph/AGENTS.md)
-- **Intent recognition** (`app/intent/**`) → [`app/intent/AGENTS.md`](app/intent/AGENTS.md)
-- **Memory system** (`app/memory/**`) → [`app/memory/AGENTS.md`](app/memory/AGENTS.md)
-- **Tools** (`app/tools/**`) → [`app/tools/AGENTS.md`](app/tools/AGENTS.md)
-- **Retrieval** (`app/retrieval/**`) → [`app/retrieval/AGENTS.md`](app/retrieval/AGENTS.md)
-- **Evaluation** (`app/evaluation/**`) → [`app/evaluation/AGENTS.md`](app/evaluation/AGENTS.md)
-- **Observability** (`app/observability/**`) → [`app/observability/AGENTS.md`](app/observability/AGENTS.md)
-- **Tasks** (`app/tasks/**`) → [`app/tasks/AGENTS.md`](app/tasks/AGENTS.md)
-- **API layer** (`app/api/**`) → [`app/api/AGENTS.md`](app/api/AGENTS.md)
-- **Schemas** (`app/schemas/**`) → [`app/schemas/AGENTS.md`](app/schemas/AGENTS.md)
-- **Models** (`app/models/**`) → [`app/models/AGENTS.md`](app/models/AGENTS.md)
-- **Services** (`app/services/**`) → [`app/services/AGENTS.md`](app/services/AGENTS.md)
-- **Core** (`app/core/**`) → [`app/core/AGENTS.md`](app/core/AGENTS.md)
-- **Confidence** (`app/confidence/**`) → [`app/confidence/AGENTS.md`](app/confidence/AGENTS.md)
-- **Context** (`app/context/**`) → [`app/context/AGENTS.md`](app/context/AGENTS.md)
-- **WebSocket** (`app/websocket/**`) → [`app/websocket/AGENTS.md`](app/websocket/AGENTS.md)
-- **Utils** (`app/utils/**`) → [`app/utils/AGENTS.md`](app/utils/AGENTS.md)
-- **Tests** (`tests/**`) → [`tests/AGENTS.md`](tests/AGENTS.md)
-- **Admin frontend** (`frontend/src/apps/admin/**`) → [`frontend/src/apps/admin/AGENTS.md`](frontend/src/apps/admin/AGENTS.md)
-- **Customer frontend** (`frontend/src/apps/customer/**`) → [`frontend/src/apps/customer/AGENTS.md`](frontend/src/apps/customer/AGENTS.md)
+- **Agent implementations** (`@app/agents/**`) → [`app/agents/AGENTS.md`](app/agents/AGENTS.md)
+- **LangGraph workflow** (`@app/graph/**`) → [`app/graph/AGENTS.md`](app/graph/AGENTS.md)
+- **Intent recognition** (`@app/intent/**`) → [`app/intent/AGENTS.md`](app/intent/AGENTS.md)
+- **Memory system** (`@app/memory/**`) → [`app/memory/AGENTS.md`](app/memory/AGENTS.md)
+- **Tools** (`@app/tools/**`) → [`app/tools/AGENTS.md`](app/tools/AGENTS.md)
+- **Retrieval** (`@app/retrieval/**`) → [`app/retrieval/AGENTS.md`](app/retrieval/AGENTS.md)
+- **Evaluation** (`@app/evaluation/**`) → [`app/evaluation/AGENTS.md`](app/evaluation/AGENTS.md)
+- **Observability** (`@app/observability/**`) → [`app/observability/AGENTS.md`](app/observability/AGENTS.md)
+- **Tasks** (`@app/tasks/**`) → [`app/tasks/AGENTS.md`](app/tasks/AGENTS.md)
+- **API layer** (`@app/api/**`) → [`app/api/AGENTS.md`](app/api/AGENTS.md)
+- **Schemas** (`@app/schemas/**`) → [`app/schemas/AGENTS.md`](app/schemas/AGENTS.md)
+- **Models** (`@app/models/**`) → [`app/models/AGENTS.md`](app/models/AGENTS.md)
+- **Services** (`@app/services/**`) → [`app/services/AGENTS.md`](app/services/AGENTS.md)
+- **Core** (`@app/core/**`) → [`app/core/AGENTS.md`](app/core/AGENTS.md)
+- **Confidence** (`@app/confidence/**`) → [`app/confidence/AGENTS.md`](app/confidence/AGENTS.md)
+- **Context** (`@app/context/**`) → [`app/context/AGENTS.md`](app/context/AGENTS.md)
+- **WebSocket** (`@app/websocket/**`) → [`app/websocket/AGENTS.md`](app/websocket/AGENTS.md)
+- **Utils** (`@app/utils/**`) → [`app/utils/AGENTS.md`](app/utils/AGENTS.md)
+- **Tests** (`@tests/**`) → [`tests/AGENTS.md`](tests/AGENTS.md)
+- **Admin frontend** (`@frontend/src/apps/admin/**`) → [`frontend/src/apps/admin/AGENTS.md`](frontend/src/apps/admin/AGENTS.md)
+- **Customer frontend** (`@frontend/src/apps/customer/**`) → [`frontend/src/apps/customer/AGENTS.md`](frontend/src/apps/customer/AGENTS.md)
 
 For any other area, this root file applies.
 
 ## Repo Map
 
-- `app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation, memory, intent, retrieval, confidence, context, api, models, schemas, utils, websocket, tasks, core.
-  - `app/agents/`: Expert agent fleet (order, product, cart, payment, logistics, account, policy, complaint, supervisor, router, evaluator).
-  - `app/graph/`: LangGraph workflow compiler and runtime node layer.
-  - `app/intent/`: Intent recognition pipeline (classifier, multi-intent, safety, clarification, slot validation, topic switch).
-  - `app/memory/`: Multi-tier memory system (structured PostgreSQL, vector Qdrant, fact extraction, summarization, compaction).
-  - `app/tools/`: Tool layer for agents (product, cart, logistics, payment, account, complaint tools + registry).
-  - `app/tasks/`: Celery async tasks (memory, notifications, knowledge, refund, evaluation, continuous improvement, prompt effects, shadow testing).
-  - `app/retrieval/`: Hybrid RAG retrieval (dense + sparse embeddings, reranker, query rewriter, Qdrant client).
-  - `app/evaluation/`: Offline evaluation framework (pipeline, adversarial, shadow, metrics, hallucination, containment).
-  - `app/observability/`: OpenTelemetry tracing, execution logging, latency tracking.
-  - `app/confidence/`: Confidence signal calculation for response quality.
-  - `app/context/`: Context engineering (observation masking, token budget management).
-  - `app/websocket/`: WebSocket connection manager for real-time chat.
-  - `app/schemas/`: Pydantic request/response schemas.
-  - `app/api/`: FastAPI routers (chat, auth, admin, websocket, status).
-  - `app/models/`: SQLModel/Pydantic data models (user, order, refund, memory, evaluation, experiment, etc.).
-  - `app/services/`: Business logic services (auth, order, refund, admin, status, experiment, continuous improvement).
-  - `app/core/`: Core configuration, security, database, Redis, LLM factory, tracing, logging (cross-cutting infrastructure).
-  - `app/core/utils.py`: Core cross-cutting utilities (`utc_now`, `build_thread_id`, `clamp_score`).
-- `app/utils/`: Shared domain utility functions (order utilities, helpers).
-- `frontend/`: React 19 + TypeScript frontend (Vite, Tailwind CSS, shadcn/ui).
-  - `frontend/src/apps/admin/`: B端管理后台 (dashboard, knowledge base, agent config, feedback, analytics).
-  - `frontend/src/apps/customer/`: C端用户聊天界面 (SSE streaming chat).
-- `tests/`: Backend test suite (pytest + pytest-asyncio), organized by module.
+- `@app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation, memory, intent, retrieval, confidence, context, api, models, schemas, utils, websocket, tasks, core.
+  - `@app/agents/`: Expert agent fleet (order, product, cart, payment, logistics, account, policy, complaint, supervisor, router, evaluator).
+  - `@app/graph/`: LangGraph workflow compiler and runtime node layer.
+  - `@app/intent/`: Intent recognition pipeline (classifier, multi-intent, safety, clarification, slot validation, topic switch).
+  - `@app/memory/`: Multi-tier memory system (structured PostgreSQL, vector Qdrant, fact extraction, summarization, compaction).
+  - `@app/tools/`: Tool layer for agents (product, cart, logistics, payment, account, complaint tools + registry).
+  - `@app/tasks/`: Celery async tasks (memory, notifications, knowledge, refund, evaluation, continuous improvement, prompt effects, shadow testing).
+  - `@app/retrieval/`: Hybrid RAG retrieval (dense + sparse embeddings, reranker, query rewriter, Qdrant client).
+  - `@app/evaluation/`: Offline evaluation framework (pipeline, adversarial, shadow, metrics, hallucination, containment).
+  - `@app/observability/`: OpenTelemetry tracing, execution logging, latency tracking.
+  - `@app/confidence/`: Confidence signal calculation for response quality.
+  - `@app/context/`: Context engineering (observation masking, token budget management).
+  - `@app/websocket/`: WebSocket connection manager for real-time chat.
+  - `@app/schemas/`: Pydantic request/response schemas.
+  - `@app/api/`: FastAPI routers (chat, auth, admin, websocket, status).
+  - `@app/models/`: SQLModel/Pydantic data models (user, order, refund, memory, evaluation, experiment, etc.).
+  - `@app/services/`: Business logic services (auth, order, refund, admin, status, experiment, continuous improvement).
+  - `@app/core/`: Core configuration, security, database, Redis, LLM factory, tracing, logging (cross-cutting infrastructure).
+  - `@app/core/utils.py`: Core cross-cutting utilities (`utc_now`, `build_thread_id`, `clamp_score`).
+- `@app/utils/`: Shared domain utility functions (order utilities, helpers).
+- `@frontend/`: React 19 + TypeScript frontend (Vite, Tailwind CSS, shadcn/ui).
+  - `@frontend/src/apps/admin/`: B端管理后台 (dashboard, knowledge base, agent config, feedback, analytics).
+  - `@frontend/src/apps/customer/`: C端用户聊天界面 (SSE streaming chat).
+- `@tests/`: Backend test suite (pytest + pytest-asyncio), organized by module.
 - `scripts/`: Seed data, ETL, and utility scripts.
 - `migrations/`: Alembic database migrations.
 - `data/`: Static seed data (policies, products).
-- `docs/`: Project documentation.
+- `@docs/`: Project documentation.
 
 ## Quick Commands
 
@@ -86,7 +86,12 @@ For any other area, this root file applies.
 # Manual backend
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Manual Celery worker (run from repo root, with Beat scheduler)
+# Scripted Celery worker (recommended for local development)
+# Automatically waits for Redis, PostgreSQL, and Qdrant to be ready, then starts both worker and Beat scheduler
+./start_worker.sh
+
+# Manual Celery worker (use when dependencies are already running)
+# Start worker + Beat scheduler directly without health checks; requires Redis/PostgreSQL/Qdrant to be up
 uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
 ```
 
@@ -145,7 +150,7 @@ All backend code is async. Use `AsyncSession`, `await llm.ainvoke(...)`, async F
 Every query involving orders, refunds, carts, or user memories must filter by the current `user_id`. Never return cross-user data.
 
 ### 3. No Hardcoded Secrets
-Use `app.core.config.settings` for all configuration. Never read `os.environ` directly outside of `app/core/config.py`.
+Use `app.core.config.settings` for all configuration. Never read `os.environ` directly outside of `@app/core/config.py`.
 
 ### 4. Type Safety
 - Python: never suppress type errors with `typing.Any` casts or `# type: ignore`, **except** when the diagnostic originates from a third-party package (e.g., missing stubs, incorrect annotations, or known compatibility issues like `ty` vs `pydantic-settings`). In that case, suppression is allowed only in the smallest scope and must include a comment explaining the reason and the package/version involved.
@@ -192,7 +197,7 @@ When modifying code in a scoped directory, check whether the nearest `AGENTS.md`
 
 ## Formatting Rules
 
-- **Python**: `ruff` enforces line length 100, double quotes for strings, and 4-space indentation. Run `uv run ruff format app tests` before committing.
+- **Python**: The linter (`ruff check`) ignores E501 because `ruff format` handles line-length=100 (wrapping) automatically. The formatter also enforces double quotes. Run `uv run ruff format app tests` and `uv run ruff check app tests --fix` before committing.
 - **Python types**: Run `uv run ty check --error-on-warning app tests` and resolve all diagnostics.
 - **Frontend**: `prettier` + `eslint` enforce consistent formatting. Run `cd frontend && npm run format && npm run lint` before committing.
 - **Pre-commit**: The project uses `pre-commit` hooks (ruff, ty). Install them with `pre-commit install`.

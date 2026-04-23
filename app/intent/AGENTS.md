@@ -50,7 +50,7 @@ General Python rules are defined in the root `AGENTS.md`. Intent-specific conven
 ## Testing Patterns
 
 - **Classifier tests**: Mock LLM responses to cover single-intent, multi-intent, and unknown-intent scenarios.
-- **Multi-intent tests**: `tests/intent/test_multi_intent.py` validates the independence judgment matrix via `are_independent()`.
+- **Multi-intent tests**: `@tests/intent/test_multi_intent.py` validates the independence judgment matrix via `are_independent()`.
 - **Clarification tests**: Cover missing slots, clarification prompt generation, and termination conditions.
 - **Safety tests**: Partition by concern (sensitive keywords, injection attacks, PII leakage) into separate test files or `describe` blocks.
 

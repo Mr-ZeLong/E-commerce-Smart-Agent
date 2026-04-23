@@ -10,7 +10,7 @@ docker compose up --build
 
 包含的服务：
 - `app` — FastAPI 主应用
-- `worker` — Celery 异步任务 worker
+- `worker` — Celery 异步任务 worker（通过 `docker-compose.yaml` 自动启动，无需手动运行 `start_worker.sh`）
 - `postgres` — PostgreSQL 数据库
 - `redis` — Redis 缓存与消息队列
 - `qdrant` — Qdrant 向量数据库

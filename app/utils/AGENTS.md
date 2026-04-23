@@ -20,12 +20,13 @@ Shared utility functions used across the application. Keep utilities stateless a
 
 | Role | File | Notes |
 |------|------|-------|
-| Order utilities | `app/utils/order_utils.py` | Order-related helper functions |
+| Order utilities | `@app/utils/order_utils.py` | Order-related helper functions |
 
 ## Commands
 
 ```bash
-# Utils are typically tested alongside the modules that use them
+# Run utility tests
+uv run pytest tests/utils/
 ```
 
 ## Code Style
@@ -56,4 +57,4 @@ General Python rules are defined in the root `AGENTS.md`. Utility-specific conve
 
 ## Related Files
 
-- `app/core/utils.py` — Core utilities (cross-cutting concerns like `utc_now`, `build_thread_id`).
+- `@app/core/utils.py` — Core utilities (cross-cutting concerns like `utc_now`, `build_thread_id`).

@@ -20,14 +20,14 @@ The tool layer provides a unified interface for agents to perform I/O operations
 
 | Role | File | Notes |
 |------|------|-------|
-| Base class | `app/tools/base.py` | `BaseTool` ABC; `ToolResult` dataclass |
-| Tool registry | `app/tools/registry.py` | `ToolRegistry` for dynamic tool discovery |
-| Product tool | `app/tools/product_tool.py` | Qdrant semantic retrieval for product catalog |
-| Cart tool | `app/tools/cart_tool.py` | Redis-persisted cart operations with 24h TTL |
-| Complaint tool | `app/tools/complaint_tool.py` | Complaint ticket creation and management |
-| Payment tool | `app/tools/payment_tool.py` | Payment query and refund processing |
-| Logistics tool | `app/tools/logistics_tool.py` | Shipping and logistics tracking |
-| Account tool | `app/tools/account_tool.py` | User account management |
+| Base class | `@app/tools/base.py` | `BaseTool` ABC; `ToolResult` (Pydantic BaseModel) |
+| Tool registry | `@app/tools/registry.py` | `ToolRegistry` for dynamic tool discovery |
+| Product tool | `@app/tools/product_tool.py` | Qdrant semantic retrieval for product catalog |
+| Cart tool | `@app/tools/cart_tool.py` | Redis-persisted cart operations with 24h TTL |
+| Complaint tool | `@app/tools/complaint_tool.py` | Complaint ticket creation and management |
+| Payment tool | `@app/tools/payment_tool.py` | Payment query and refund processing |
+| Logistics tool | `@app/tools/logistics_tool.py` | Shipping and logistics tracking |
+| Account tool | `@app/tools/account_tool.py` | User account management |
 
 ## Commands
 
@@ -67,5 +67,5 @@ General Python rules are defined in the root `AGENTS.md`. Tool-specific conventi
 
 ## Related Files
 
-- `app/agents/AGENTS.md` — Agent fleet that consumes these tools.
-- `app/agents/base.py` — `BaseAgent` delegates I/O to the tool layer.
+- `@app/agents/AGENTS.md` — Agent fleet that consumes these tools.
+- `@app/agents/base.py` — `BaseAgent` delegates I/O to the tool layer.

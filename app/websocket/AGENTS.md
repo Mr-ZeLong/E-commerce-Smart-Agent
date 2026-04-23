@@ -20,8 +20,15 @@ WebSocket connection manager for real-time chat between users and the agent syst
 
 | Role | File | Notes |
 |------|------|-------|
-| Connection manager | `app/websocket/manager.py` | `ConnectionManager` for user/admin WebSocket connections |
-| Redis bridge | `app/websocket/redis_bridge.py` | Redis pub/sub bridge for cross-instance WebSocket messaging |
+| Connection manager | `@app/websocket/manager.py` | `ConnectionManager` for user/admin WebSocket connections |
+| Redis bridge | `@app/websocket/redis_bridge.py` | Redis pub/sub bridge for cross-instance WebSocket messaging |
+
+## Commands
+
+```bash
+# Run WebSocket module tests
+uv run pytest tests/test_websocket.py tests/test_websocket_manager.py
+```
 
 ## Code Style
 
@@ -53,5 +60,5 @@ General Python rules are defined in the root `AGENTS.md`. WebSocket-specific con
 
 ## Related Files
 
-- `app/api/v1/websocket.py` — FastAPI WebSocket route definitions.
-- `frontend/src/hooks/useWebSocket.ts` — Frontend WebSocket client.
+- `@app/api/v1/websocket.py` — FastAPI WebSocket route definitions.
+- `@frontend/src/hooks/useWebSocket.ts` — Frontend WebSocket client.

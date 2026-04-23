@@ -41,7 +41,7 @@ General Python rules are defined in the root `AGENTS.md`. Graph-specific convent
 - **Type hints**: All node builder functions and graph compilation methods must have complete type annotations.
 - **Node purity**: Node functions should be deterministic and free of side effects; all state changes are returned via `update`.
 - **Command returns**: Always use `Command(goto=..., update=...)` instead of mutating input state in place.
-- **File length**: Keep node files under 400 lines; split by responsibility (routing, memory, synthesis, etc.). Note: `nodes.py` is currently 627 lines and should be refactored.
+- **File length**: Keep node files under 400 lines; split by responsibility (routing, memory, synthesis, etc.). Note: `nodes.py` is currently 627 lines and contains 6 node builder categories: router, memory, supervisor, synthesis, evaluator, and decider.
 
 ## Testing Patterns
 
@@ -57,6 +57,37 @@ General Python rules are defined in the root `AGENTS.md`. Graph-specific convent
 - **Subgraph standard**: Each expert agent is wrapped as an independent `StateGraph`, consuming a subset of `AgentState` and producing `{"sub_answers": [...]}` merged via `operator.add`.
 - **Parallel dispatch**: `@app/graph/parallel.py` calls `are_independent()` from `@app/intent/multi_intent.py` to decide parallel execution.
 - **Node purity**: Node builders should avoid side effects; state modifications must be returned explicitly via the `update` dict.
+
+## State Isolation
+
+Agent subgraphs receive only a filtered subset of `AgentState` keys to enforce state isolation and prevent context leakage between agents. This is controlled by two constants defined in `@app/graph/workflow.py` (lines 27-51).
+
+| Constant | Purpose |
+|----------|---------|
+| `_COMMON_ALLOWED_KEYS` | Base keys shared by all agents (user context, memory, intent metadata, iteration counters, etc.) |
+| `_AGENT_ALLOWED_KEYS` | Per-agent overrides that extend `_COMMON_ALLOWED_KEYS` with domain-specific keys |
+
+### `_COMMON_ALLOWED_KEYS`
+
+Keys present in every agent's filtered state:
+- `question`, `user_id`, `thread_id`
+- `history`, `memory_context`, `memory_context_config`
+- `intent_result`, `slots`
+- `iteration_count`, `experiment_variant_id`
+- `context_tokens`, `context_utilization`
+
+### `_AGENT_ALLOWED_KEYS` examples
+
+| Agent | Additional keys beyond common |
+|-------|------------------------------|
+| `policy_agent` | `retrieval_result` |
+| `order_agent` | `order_data`, `retrieval_result` |
+| `logistics` | `order_data`, `retrieval_result` |
+| `product` | `product_data`, `retrieval_result` |
+| `cart` | `cart_data`, `retrieval_result` |
+| `account`, `payment`, `complaint` | `retrieval_result` |
+
+The subgraph wrapper (`@app/graph/subgraphs.py`) and direct agent nodes (`_build_agent_node` in `@app/graph/nodes.py`) use these lists to filter the full `AgentState` via `_filter_state()` before passing it to the agent's `process()` method. Any state updates returned by the agent are then merged back into the parent graph state via `Command(update=...)`.
 
 ## Anti-Patterns
 

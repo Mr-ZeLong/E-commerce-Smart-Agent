@@ -26,13 +26,13 @@ The memory system provides persistent, multi-tier memory for the agent:
 
 | Task | File | Description |
 |------|------|-------------|
-| Structured memory CRUD | `app/memory/structured_manager.py` | `UserProfile`, `UserPreference`, `InteractionSummary`, `UserFact` |
-| Vector conversation memory | `app/memory/vector_manager.py` | Qdrant `conversation_memory` collection; semantic search of chat history |
-| Fact extraction | `app/memory/extractor.py` | `FactExtractor` using LLM + JSON parsing; confidence filtering at 0.7 |
-| Session summarization | `app/memory/summarizer.py` | `SessionSummarizer`; dual-writes summary to PostgreSQL and Qdrant |
-| Memory compaction | `app/memory/compactor.py` | Compacts oversized memory context before prompt injection |
-| Data models | `app/models/memory.py` | SQLModel definitions for all memory entities |
-| Async tasks | `app/tasks/memory_tasks.py` | Celery tasks for async fact extraction and memory sync |
+| Structured memory CRUD | `@app/memory/structured_manager.py` | `UserProfile`, `UserPreference`, `InteractionSummary`, `UserFact` |
+| Vector conversation memory | `@app/memory/vector_manager.py` | Qdrant `conversation_memory` collection; semantic search of chat history |
+| Fact extraction | `@app/memory/extractor.py` | `FactExtractor` using LLM + JSON parsing; confidence filtering at 0.7 |
+| Session summarization | `@app/memory/summarizer.py` | `SessionSummarizer`; dual-writes summary to PostgreSQL and Qdrant |
+| Memory compaction | `@app/memory/compactor.py` | Compacts oversized memory context before prompt injection |
+| Data models | `@app/models/memory.py` | SQLModel definitions for all memory entities |
+| Async tasks | `@app/tasks/memory_tasks.py` | Celery tasks for async fact extraction and memory sync |
 
 ## Commands
 
@@ -66,6 +66,47 @@ General Python rules are defined in the root `AGENTS.md`. Memory-specific conven
 - **User ID isolation**: All structured memory queries must filter by `user_id`. Never return cross-user data.
 - **Dual-write summaries**: `SessionSummarizer` writes summaries to both PostgreSQL (`InteractionSummary`) and Qdrant (vector form).
 
+## Experiment Variant Configuration (`memory_context_config`)
+
+The `memory_context_config` parameter in `AgentState` allows experiment variants to override memory token budgets and compaction thresholds at runtime. This enables A/B tests to evaluate different context window allocations without code changes.
+
+### Parameter Structure
+
+`memory_context_config` is an optional `dict[str, Any]` carried in `AgentState` (see `@app/models/state.py`). It accepts the following override keys:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `memory_token_budget` | `int` | `2048` (from `settings.MEMORY_CONTEXT_TOKEN_BUDGET`) | Maximum tokens allocated to memory context injection. When exceeded, lowest-priority memory fields are pruned first. |
+| `compaction_threshold` | `float` | `0.75` (from `settings.COMPACTION_THRESHOLD`) | Token utilization ratio that triggers session summarization in the decider node. |
+
+### How Experiment Variants Use This Parameter
+
+When an `experiment_variant_id` is present in `AgentState`, the graph layer may load variant-specific configuration into `memory_context_config`. The override flows through three layers:
+
+1. **Graph node allocation** (`@app/graph/nodes.py`): `memory_node` passes `memory_context_config` to `MemoryTokenBudget.allocate()`, which applies the `memory_token_budget` override when pruning memory fields.
+
+2. **Agent prompt building** (`@app/agents/base.py`): `BaseAgent._build_user_prompt()` extracts `memory_token_budget` from `memory_context_config` and uses it to cap the injected memory text. This affects both `_build_contextual_message()` (used by most agents) and the legacy contextual path.
+
+3. **Compaction trigger** (`@app/graph/nodes.py`): `decider_node` reads `compaction_threshold` from `memory_context_config` and passes it to `SessionSummarizer.should_summarize()`. When utilization exceeds this threshold, the compactor replaces message history with a condensed summary.
+
+### Memory Injection Priority
+
+When pruning is required (token budget exceeded), fields are dropped in this priority order (lowest priority first):
+
+1. `relevant_past_messages` - Vector-retrieved conversation history
+2. `interaction_summaries` - Condensed session summaries
+3. `structured_facts` - Extracted user facts
+4. `preferences` - User preference key/value pairs
+5. `user_profile` - Core user identity (never pruned)
+
+### Cross-References
+
+- `@app/models/state.py` — `AgentState` definition; `memory_context_config` field (line 80).
+- `@app/agents/base.py` — Budget override extraction in `_format_memory_prefix()` (lines 242-243) and `_build_contextual_message()` (lines 309-310); `memory_context_config` parameter defined in `_build_user_prompt()` (line 164).
+- `@app/graph/nodes.py` — `memory_node` allocation (lines 234-235) and `decider_node` compaction threshold override (lines 553-558).
+- `@app/context/token_budget.py` — `MemoryTokenBudget.allocate()` implements priority-based pruning.
+- `@app/core/config.py` — Default values: `MEMORY_CONTEXT_TOKEN_BUDGET = 2048`, `COMPACTION_THRESHOLD = 0.75`.
+
 ## Anti-Patterns
 
 - **Oversized `memory_context` in prompts**: Use `compactor.py` to trim context before injection. Never stuff unbounded history into prompts.
@@ -74,5 +115,5 @@ General Python rules are defined in the root `AGENTS.md`. Memory-specific conven
 
 ## Related Files
 
-- `app/graph/nodes.py`: `memory_node` injects and persists memory around graph execution.
-- `app/tasks/memory_tasks.py`: `extract_and_save_facts` is triggered asynchronously after `decider_node` completes.
+- `@app/graph/nodes.py`: `memory_node` injects and persists memory around graph execution.
+- `@app/tasks/memory_tasks.py`: `extract_and_save_facts` is triggered asynchronously after `decider_node` completes.

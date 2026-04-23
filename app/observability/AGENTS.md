@@ -20,9 +20,9 @@ Observability layer providing OpenTelemetry tracing, execution logging, and late
 
 | Role | File | Notes |
 |------|------|-------|
-| Execution logger | `app/observability/execution_logger.py` | Graph execution logging with structured events |
-| Latency tracker | `app/observability/latency_tracker.py` | Per-node latency measurement and reporting |
-| OpenTelemetry setup | `app/observability/otel_setup.py` | OTel tracer provider and exporter configuration |
+| Execution logger | `@app/observability/execution_logger.py` | Graph execution logging with structured events |
+| Latency tracker | `@app/observability/latency_tracker.py` | Per-node latency measurement and reporting |
+| OpenTelemetry setup | `@app/observability/otel_setup.py` | OTel tracer provider and exporter configuration |
 
 ## Commands
 
@@ -60,6 +60,6 @@ General Python rules are defined in the root `AGENTS.md`. Observability-specific
 
 ## Related Files
 
-- `app/core/tracing.py` — Core tracing configuration and LangSmith integration.
-- `app/core/logging.py` — Logging utilities with correlation ID support.
-- `app/models/observability.py` — Data models for execution logs and supervisor decisions.
+- `@app/core/tracing.py` — Core tracing configuration and LangSmith integration.
+- `@app/core/logging.py` — Logging utilities with correlation ID support.
+- `@app/models/observability.py` — Data models for execution logs and supervisor decisions.

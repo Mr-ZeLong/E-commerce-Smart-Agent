@@ -20,20 +20,20 @@ Expert agent fleet based on `BaseAgent` ABC covering orders, policies, products,
 
 | Role | File | Notes |
 |------|------|-------|
-| Base class | `app/agents/base.py` | `BaseAgent` ABC; `process()` → `AgentProcessResult` |
-| Product QA | `app/agents/product.py` + `app/tools/product_tool.py` | Qdrant `product_catalog` semantic retrieval |
-| Cart | `app/agents/cart.py` + `app/tools/cart_tool.py` | Redis persistence, 24h TTL |
-| Complaint | `app/agents/complaint.py` + `app/tools/complaint_tool.py` | LLM auto-classification + ticket creation |
-| Order | `app/agents/order.py` | Order query and management |
-| Payment | `app/agents/payment.py` + `app/tools/payment_tool.py` | Payment query and refund processing |
-| Logistics | `app/agents/logistics.py` + `app/tools/logistics_tool.py` | Shipping and logistics tracking |
-| Account | `app/agents/account.py` + `app/tools/account_tool.py` | User account management |
-| Policy | `app/agents/policy.py` | Policy Q&A via RAG retrieval |
-| Supervisor | `app/agents/supervisor.py` | Serial/parallel dispatch logic |
-| Intent router | `app/agents/router.py` | `IntentRouterAgent`; handles greeting personalization, retry logic, disabled agent fallback, and iteration limits |
-| Config hot-reload | `app/agents/config_loader.py` | Redis-cached routing rules and system prompts (60s TTL) |
-| Experiment prompts | `app/agents/base.py` | `BaseAgent._resolve_experiment_prompt()` resolves experiment variant prompts from database |
-| Evaluator | `app/agents/evaluator.py` | Agent response quality evaluation using `calculate_confidence_signals` from `app/confidence/signals.py` |
+| Base class | `@app/agents/base.py` | `BaseAgent` ABC; `process()` → `AgentProcessResult` |
+| Product QA | `@app/agents/product.py` + `@app/tools/product_tool.py` | Qdrant `product_catalog` semantic retrieval |
+| Cart | `@app/agents/cart.py` + `@app/tools/cart_tool.py` | Redis persistence, 24h TTL |
+| Complaint | `@app/agents/complaint.py` + `@app/tools/complaint_tool.py` | LLM auto-classification + ticket creation |
+| Order | `@app/agents/order.py` | Order query and management |
+| Payment | `@app/agents/payment.py` + `@app/tools/payment_tool.py` | Payment query and refund processing |
+| Logistics | `@app/agents/logistics.py` + `@app/tools/logistics_tool.py` | Shipping and logistics tracking |
+| Account | `@app/agents/account.py` + `@app/tools/account_tool.py` | User account management |
+| Policy | `@app/agents/policy.py` | Policy Q&A via RAG retrieval |
+| Supervisor | `@app/agents/supervisor.py` | Serial/parallel dispatch logic |
+| Intent router | `@app/agents/router.py` | `IntentRouterAgent`; handles greeting personalization, retry logic, disabled agent fallback, and iteration limits |
+| Config hot-reload | `@app/agents/config_loader.py` | Redis-cached routing rules and system prompts (60s TTL) |
+| Experiment prompts | `@app/agents/base.py` | `BaseAgent._resolve_experiment_prompt()` resolves experiment variant prompts from database |
+| Evaluator | `@app/agents/evaluator.py` | Agent response quality evaluation using `calculate_confidence_signals` from `@app/confidence/signals.py` |
 
 ## Commands
 
@@ -53,7 +53,7 @@ General Python rules are defined in the root `AGENTS.md`. Agent-specific convent
 
 ## Testing Patterns
 
-- Use `make_agent_state()` from `app/models/state.py` to construct agent state.
+- Use `make_agent_state()` from `@app/models/state.py` to construct agent state.
 - Mock LLM calls and tool invocations; verify `AgentProcessResult` structure.
 - Cover normal flows and edge cases (missing slots, permission checks).
 - New agent → new test file under `tests/agents/`.
@@ -66,8 +66,28 @@ General Python rules are defined in the root `AGENTS.md`. Agent-specific convent
 - **User isolation**: All order/refund/cart queries must filter by `user_id`. Never return cross-user data.
 - **Return contract**: `AgentProcessResult` must include `response` (string); optionally carry `updated_state`.
 
+## Routing
+
+The `SupervisorAgent` (see `@app/agents/supervisor.py`) routes intents to agents via `_INTENT_TO_AGENT`:
+
+| Intent | Target Agent | Description |
+|--------|--------------|-------------|
+| `ORDER` | `order_agent` | Order query and management |
+| `AFTER_SALES` | `order_agent` | Post-sale support (refunds, cancellations) |
+| `POLICY` | `policy_agent` | Policy Q&A via RAG retrieval |
+| `LOGISTICS` | `logistics` | Shipping and logistics tracking |
+| `ACCOUNT` | `account` | User account management |
+| `PAYMENT` | `payment` | Payment query and refund processing |
+| `PRODUCT` | `product` | Product catalog Q&A via semantic retrieval |
+| `CART` | `cart` | Cart operations (add, remove, view) |
+| `PROMOTION` | `policy_agent` | Promotion-related inquiries |
+| `COMPLAINT` | `complaint` | Complaint filing and ticket creation |
+| `OTHER` | `policy_agent` | Fallback for unrecognized intents |
+
+The `IntentRouterAgent` (`@app/agents/router.py`) produces these intent strings from user input.
+
 ## Anti-Patterns
 
-- **Cross-layer coupling**: `supervisor.py` should minimize direct imports from `app/graph/parallel.py`; prefer dependency injection for dispatch planning.
+- **Cross-layer coupling**: `supervisor.py` should minimize direct imports from `@app/graph/parallel.py`; prefer dependency injection for dispatch planning.
 - **Direct DB access in agents**: Agents should not bypass the tool/service layer to access the database directly.
 - **Stale AGENTS.md**: Adding a new agent without updating this file and the corresponding test suite.

@@ -19,6 +19,10 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # 启动 Celery Worker（含 Beat）
+# 方式一：推荐脚本（自动等待 Redis/PostgreSQL/Qdrant 就绪）
+./start_worker.sh
+
+# 方式二：手动启动（需确保依赖服务已就绪）
 uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
 ```
 

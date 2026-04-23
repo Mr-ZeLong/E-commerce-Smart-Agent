@@ -20,10 +20,17 @@ Pydantic v2 request and response schemas for API validation. Defines structured 
 
 | Role | File | Notes |
 |------|------|-------|
-| Auth schemas | `app/schemas/auth.py` | `LoginRequest`, `RegisterRequest`, `TokenResponse`, `UserInfoResponse` |
-| Admin schemas | `app/schemas/admin.py` | Admin-related request/response schemas |
-| Agent config schemas | `app/schemas/agent_config.py` | Agent configuration schemas |
-| Status schemas | `app/schemas/status.py` | Thread status response schema |
+| Auth schemas | `@app/schemas/auth.py` | `LoginRequest`, `RegisterRequest`, `TokenResponse`, `UserInfoResponse` |
+| Admin schemas | `@app/schemas/admin.py` | Admin-related request/response schemas |
+| Agent config schemas | `@app/schemas/agent_config.py` | Agent configuration schemas |
+| Status schemas | `@app/schemas/status.py` | Thread status response schema |
+
+## Commands
+
+```bash
+# Run schema tests
+uv run pytest tests/schemas/
+```
 
 ## Code Style
 
@@ -54,6 +61,6 @@ General Python rules are defined in the root `AGENTS.md`. Schema-specific conven
 
 ## Related Files
 
-- `app/api/v1/schemas.py` — API-specific request/response schemas (legacy location).
-- `app/api/v1/auth.py` — Uses auth schemas for login/register endpoints.
-- `app/models/` — SQLModel database models (distinct from API schemas).
+- `@app/api/v1/schemas.py` — API-specific request/response schemas (legacy location).
+- `@app/api/v1/auth.py` — Uses auth schemas for login/register endpoints.
+- `@app/models/` — SQLModel database models (distinct from API schemas).

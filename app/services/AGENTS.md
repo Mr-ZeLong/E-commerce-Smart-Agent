@@ -20,15 +20,15 @@ Business logic services that orchestrate domain operations. Services sit between
 
 | Role | File | Notes |
 |------|------|-------|
-| Auth service | `app/services/auth_service.py` | Authentication and authorization logic |
-| Order service | `app/services/order_service.py` | Order management and query |
-| Refund service | `app/services/refund_service.py` | Refund processing workflows |
-| Status service | `app/services/status_service.py` | Thread status polling |
-| Admin service | `app/services/admin_service.py` | Admin operations and user management |
-| Online evaluation | `app/services/online_eval.py` | Real-time evaluation from user feedback |
-| Continuous improvement | `app/services/continuous_improvement.py` | CI pipeline for prompt and model optimization |
-| Experiment management | `app/services/experiment.py` | A/B experiment lifecycle management |
-| Experiment assigner | `app/services/experiment_assigner.py` | User variant assignment for experiments |
+| Auth service | `@app/services/auth_service.py` | Authentication and authorization logic |
+| Order service | `@app/services/order_service.py` | Order management and query |
+| Refund service | `@app/services/refund_service.py` | Refund processing workflows |
+| Status service | `@app/services/status_service.py` | Thread status polling |
+| Admin service | `@app/services/admin_service.py` | Admin operations and user management |
+| Online evaluation | `@app/services/online_eval.py` | Real-time evaluation from user feedback |
+| Continuous improvement | `@app/services/continuous_improvement.py` | CI pipeline for prompt and model optimization |
+| Experiment management | `@app/services/experiment.py` | A/B experiment lifecycle management |
+| Experiment assigner | `@app/services/experiment_assigner.py` | User variant assignment for experiments |
 
 ## Commands
 
@@ -68,6 +68,6 @@ General Python rules are defined in the root `AGENTS.md`. Service-specific conve
 
 ## Related Files
 
-- `app/api/v1/` — API routes that consume services.
-- `app/models/` — Data models used by services.
-- `app/tools/` — Tools that services may delegate to.
+- `@app/api/v1/` — API routes that consume services.
+- `@app/models/` — Data models used by services.
+- `@app/tools/` — Tools that services may delegate to.

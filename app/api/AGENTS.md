@@ -14,27 +14,27 @@
 
 ## Overview
 
-FastAPI router layer defining RESTful and WebSocket endpoints for the agent system. Organized under `app/api/v1/` with admin subroutes.
+FastAPI router layer defining RESTful and WebSocket endpoints for the agent system. Organized under `@app/api/v1/` with admin subroutes.
 
-Note: WebSocket routes (`app/api/v1/websocket.py`) are the FastAPI entrypoints that delegate connection management to `app/websocket/manager.py`.
+Note: WebSocket routes (`@app/api/v1/websocket.py`) are the FastAPI entrypoints that delegate connection management to `@app/websocket/manager.py`.
 
 ## Key Files
 
 | Role | File | Notes |
 |------|------|-------|
-| Chat API | `app/api/v1/chat.py` | POST /chat (SSE streaming), POST /feedback |
-| Auth API | `app/api/v1/auth.py` | POST /login, POST /register, GET /me |
-| WebSocket API | `app/api/v1/websocket.py` | WS /ws/{thread_id}, WS /ws/admin/{admin_id} |
-| Status API | `app/api/v1/status.py` | Thread status endpoints |
-| API schemas | `app/api/v1/schemas.py` | Pydantic request/response schemas (legacy location) |
-| Chat utilities | `app/api/v1/chat_utils.py` | SSE metadata message utilities (v4.1 confidence metadata) |
-| Admin agent config | `app/api/v1/admin/agent_config.py` | Agent configuration admin endpoints |
-| Admin complaints | `app/api/v1/admin/complaints.py` | Complaint management endpoints |
-| Admin analytics | `app/api/v1/admin/analytics.py` | Analytics data endpoints |
-| Admin feedback | `app/api/v1/admin/feedback.py` | Feedback management endpoints |
-| Admin experiments | `app/api/v1/admin/experiments.py` | A/B experiment admin endpoints |
-| Admin metrics | `app/api/v1/admin/metrics_dashboard.py` | Metrics dashboard endpoints |
-| App entry | `app/main.py` | FastAPI application entry point, router mounting, middleware, health endpoint |
+| Chat API | `@app/api/v1/chat.py` | POST /chat (SSE streaming), POST /feedback |
+| Auth API | `@app/api/v1/auth.py` | POST /login, POST /register, GET /me |
+| WebSocket API | `@app/api/v1/websocket.py` | WS /ws/{thread_id}, WS /ws/admin/{admin_id} |
+| Status API | `@app/api/v1/status.py` | Thread status endpoints |
+| API schemas | `@app/api/v1/schemas.py` | Pydantic request/response schemas (legacy location) |
+| Chat utilities | `@app/api/v1/chat_utils.py` | SSE metadata message utilities (v4.1 confidence metadata) |
+| Admin agent config | `@app/api/v1/admin/agent_config.py` | Agent configuration admin endpoints |
+| Admin complaints | `@app/api/v1/admin/complaints.py` | Complaint management endpoints |
+| Admin analytics | `@app/api/v1/admin/analytics.py` | Analytics data endpoints |
+| Admin feedback | `@app/api/v1/admin/feedback.py` | Feedback management endpoints |
+| Admin experiments | `@app/api/v1/admin/experiments.py` | A/B experiment admin endpoints |
+| Admin metrics | `@app/api/v1/admin/metrics_dashboard.py` | Metrics dashboard endpoints |
+| App entry | `@app/main.py` | FastAPI application entry point, router mounting, middleware, health endpoint |
 
 ## Commands
 
@@ -75,6 +75,6 @@ General Python rules are defined in the root `AGENTS.md`. API-specific conventio
 
 ## Related Files
 
-- `app/services/` — Business logic services consumed by API routes.
-- `app/schemas/` — Pydantic schemas for request/response validation.
-- `app/core/security.py` — JWT token creation and validation.
+- `@app/services/` — Business logic services consumed by API routes.
+- `@app/schemas/` — Pydantic schemas for request/response validation.
+- `@app/core/security.py` — JWT token creation and validation.

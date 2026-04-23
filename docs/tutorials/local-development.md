@@ -54,8 +54,11 @@ uv run alembic upgrade head
 # 终端 1：后端
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 终端 2：Celery Worker
-uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
+# 终端 2：Celery Worker（推荐：自动等待依赖服务就绪）
+./start_worker.sh
+
+# 或手动启动（需确保依赖服务已就绪）
+# uv run celery -A app.celery_app worker --loglevel=info --concurrency=4 --pool=solo --beat
 
 # 终端 3：前端
 cd frontend && npm run dev

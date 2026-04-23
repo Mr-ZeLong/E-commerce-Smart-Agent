@@ -15,7 +15,11 @@ E-commerce Smart Agent 是一个先进的全栈智能客服系统，旨在通过
 ## 快速开始
 
 ```bash
+# 启动整个系统（后端 + 前端构建 + 基础设施）
 ./start.sh
+
+# 启动 Celery Worker（推荐：自动等待依赖服务就绪）
+./start_worker.sh
 ```
 
 启动后访问：

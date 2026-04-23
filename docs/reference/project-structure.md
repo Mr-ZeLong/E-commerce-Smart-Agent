@@ -10,7 +10,8 @@ E-commerce-Smart-Agent/
 ├── 📄 pyproject.toml               # Python 项目配置 (uv)
 ├── 📄 uv.lock                      # uv 依赖锁定文件
 ├── 📄 docker-compose.yaml          # 容器编排配置
-├── 📄 celery_worker.py             # Celery Worker 启动脚本
+├── 📄 start_worker.sh              # 推荐：Celery Worker 启动脚本（含健康检查）
+├── 📄 celery_worker.py             # Celery Worker Python 入口
 │
 ├── 📁 app/                         # 主应用目录
 │   ├── 📄 main.py                  # FastAPI 应用入口
@@ -23,6 +24,7 @@ E-commerce-Smart-Agent/
 │   ├── 📁 graph/                   # LangGraph 核心逻辑
 │   ├── 📁 agents/                  # Agent 实现层
 │   ├── 📁 tools/                   # Agent Tool 层
+│   ├── 📁 evaluation/               # 离线评估框架
 │   ├── 📁 confidence/              # 置信度信号模块
 │   ├── 📁 context/                 # 上下文优化（Token 预算、观察掩码）
 │   ├── 📁 utils/                   # 通用工具函数
