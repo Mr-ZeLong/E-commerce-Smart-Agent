@@ -7,6 +7,7 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, VectorParams
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.context.pii_filter import log_pii_detection, pii_filter
 from app.core.config import settings
 from app.retrieval.embeddings import create_embedding_model
 
@@ -62,14 +63,6 @@ class VectorMemoryManager:
             logger.exception("Failed to create payload index for user_id")
         self._collection_ensured = True
 
-    def _contains_pii(self, text: str) -> bool:
-        import re
-
-        return bool(
-            re.search(r"\b\d{13,19}\b", text)
-            or re.search(r"password[:\s]*\S+", text, re.IGNORECASE)
-        )
-
     async def upsert_message(
         self,
         user_id: int,
@@ -81,15 +74,17 @@ class VectorMemoryManager:
     ) -> None:
         await self.ensure_collection()
 
-        if self._contains_pii(content):
-            logger.warning(
-                "Skipping vector upsert for user_id=%s thread_id=%s due to detected PII",
-                user_id,
-                thread_id,
+        pii_result = pii_filter.filter_text(content)
+        filtered_content = pii_result.redacted_text
+        if pii_result.has_pii:
+            log_pii_detection(
+                user_id=user_id,
+                thread_id=thread_id,
+                source="vector_memory",
+                detections=pii_result.detections,
             )
-            return
 
-        embeddings = await self._embedder.aembed_documents([content])
+        embeddings = await self._embedder.aembed_documents([filtered_content])
         vector = embeddings[0]
 
         point_id = str(uuid.uuid4())
@@ -97,7 +92,7 @@ class VectorMemoryManager:
             "user_id": user_id,
             "thread_id": thread_id,
             "message_role": message_role,
-            "content": content,
+            "content": filtered_content,
             "timestamp": timestamp,
         }
         if intent is not None:

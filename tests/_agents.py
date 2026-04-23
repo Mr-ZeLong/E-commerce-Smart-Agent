@@ -34,6 +34,8 @@ class DeterministicRetriever(HybridRetriever):
         query: str,
         conversation_history: list[dict] | None = None,
         memory_context: dict | None = None,
+        variant_top_k: int | None = None,
+        variant_reranker_enabled: bool | None = None,
     ) -> list:
         return self._results
 
