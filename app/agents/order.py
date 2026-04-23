@@ -3,6 +3,7 @@ import logging
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
+from app.intent.few_shot_loader import load_agent_examples
 from app.models.state import AgentProcessResult, AgentState
 from app.services.order_service import OrderService
 from app.utils.order_utils import extract_order_sn
@@ -24,6 +25,7 @@ class OrderAgent(BaseAgent):
     def __init__(self, order_service: OrderService, llm: BaseChatModel):
         super().__init__(name="order_agent", llm=llm, system_prompt=ORDER_SYSTEM_PROMPT)
         self.order_service = order_service
+        self._few_shot_examples = load_agent_examples("order")
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()

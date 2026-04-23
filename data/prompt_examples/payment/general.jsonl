@@ -1,0 +1,51 @@
+{"query": "我的支付状态是什么", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询支付状态。", "slots": {}}
+{"query": "为什么我的支付失败了", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问支付失败原因。", "slots": {}}
+{"query": "帮我查一下退款进度", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询退款进度。", "slots": {}}
+{"query": "我的退款到账了吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询退款到账情况。", "slots": {}}
+{"query": "怎么申请开发票", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问发票申请。", "slots": {}}
+{"query": "我的发票还没收到", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问发票状态。", "slots": {}}
+{"query": "支付方式有哪些", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问支付方式。", "slots": {}}
+{"query": "可以用微信支付吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问特定支付方式。", "slots": {"payment_method": "微信支付"}}
+{"query": "我的退款金额不对", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈退款金额异常。", "slots": {}}
+{"query": "帮我查一下订单的支付记录", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询支付记录。", "slots": {}}
+{"query": "为什么扣了两次款", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈重复扣款。", "slots": {}}
+{"query": "退款多久能到账", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问退款时效。", "slots": {}}
+{"query": "我的钱包余额是多少", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询钱包余额。", "slots": {}}
+{"query": "怎么修改支付方式", "expected_intent": "PAYMENT", "expected_action": "MODIFY", "reasoning": "用户想修改支付方式。", "slots": {}}
+{"query": "可以货到付款吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问货到付款。", "slots": {"payment_method": "货到付款"}}
+{"query": "我的优惠券怎么用不了", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈优惠券使用问题。", "slots": {}}
+{"query": "帮我申请电子发票", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户申请电子发票。", "slots": {"invoice_type": "电子发票"}}
+{"query": "支付时提示余额不足怎么办", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问余额不足处理。", "slots": {}}
+{"query": "退款到哪里了", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询退款去向。", "slots": {}}
+{"query": "帮我查一下这笔交易的详情", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询交易详情。", "slots": {}}
+{"query": "支付密码忘了怎么办", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问支付密码找回。", "slots": {}}
+{"query": "可以分期付款吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问分期付款。", "slots": {"payment_method": "分期付款"}}
+{"query": "我的退款被拒绝了", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈退款被拒。", "slots": {}}
+{"query": "帮我取消这笔支付", "expected_intent": "PAYMENT", "expected_action": "CANCEL", "reasoning": "用户想取消支付。", "slots": {}}
+{"query": "发票信息填错了可以改吗", "expected_intent": "PAYMENT", "expected_action": "MODIFY", "reasoning": "用户想修改发票信息。", "slots": {}}
+{"query": "支付成功但没收到确认", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈支付确认问题。", "slots": {}}
+{"query": "帮我查询历史支付记录", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询历史支付。", "slots": {}}
+{"query": "为什么退款比实际金额少", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈退款金额差异。", "slots": {}}
+{"query": "可以用银行卡支付吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问银行卡支付。", "slots": {"payment_method": "银行卡"}}
+{"query": "帮我申请退款到原支付账户", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户申请原路退款。", "slots": {}}
+{"query": "支付时验证码收不到", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈验证码问题。", "slots": {}}
+{"query": "我的钱包可以提现吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问钱包提现。", "slots": {}}
+{"query": "怎么更改支付密码", "expected_intent": "PAYMENT", "expected_action": "MODIFY", "reasoning": "用户想修改支付密码。", "slots": {}}
+{"query": "支付时网络错误怎么办", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问支付网络问题。", "slots": {}}
+{"query": "帮我查一下退款单号", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询退款单号。", "slots": {}}
+{"query": "可以用支付宝支付吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问支付宝支付。", "slots": {"payment_method": "支付宝"}}
+{"query": "我的账户被多扣钱了", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈多扣款。", "slots": {}}
+{"query": "怎么查看我的消费记录", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询消费记录。", "slots": {}}
+{"query": "退款需要多长时间处理", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问退款处理时间。", "slots": {}}
+{"query": "支付时提示风险控制怎么办", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问风险控制问题。", "slots": {}}
+{"query": "帮我申请纸质发票", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户申请纸质发票。", "slots": {"invoice_type": "纸质发票"}}
+{"query": "我的钱包充值失败", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈充值失败。", "slots": {}}
+{"query": "可以合并支付多个订单吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问合并支付。", "slots": {}}
+{"query": "支付时提示银行卡过期", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈银行卡过期。", "slots": {}}
+{"query": "帮我查一下积分抵扣记录", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询积分抵扣。", "slots": {}}
+{"query": "退款可以退到不同账户吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问退款账户变更。", "slots": {}}
+{"query": "支付时提示商户异常", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈商户异常。", "slots": {}}
+{"query": "怎么设置免密支付", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问免密支付设置。", "slots": {}}
+{"query": "我的优惠券过期了还能用吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问过期优惠券。", "slots": {}}
+{"query": "支付成功但订单未生成", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户反馈支付后无订单。", "slots": {}}
+{"query": "帮我申请退款加急处理", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户申请加急退款。", "slots": {}}

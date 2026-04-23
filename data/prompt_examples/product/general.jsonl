@@ -1,0 +1,54 @@
+{"query": "这款手机有货吗，多少钱？", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品库存和价格，属于商品查询意图。", "slots": {"product_name": "手机"}}
+{"query": "A款和B款有什么区别，哪个更好？", "expected_intent": "PRODUCT", "expected_action": "COMPARE", "reasoning": "用户对比两款商品，属于商品对比意图。", "slots": {"product_a": "A款", "product_b": "B款"}}
+{"query": "这款手机的屏幕刷新率是多少", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问具体商品参数。", "slots": {"product_name": "手机", "attribute": "屏幕刷新率"}}
+{"query": "这款笔记本电脑重量多少，方便携带吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品重量属性。", "slots": {"product_name": "笔记本电脑", "attribute": "重量"}}
+{"query": "这款商品的材质是什么", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品材质。", "slots": {"attribute": "材质"}}
+{"query": "有推荐的运动耳机吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户寻求商品推荐。", "slots": {"category": "运动耳机"}}
+{"query": "这款相机的像素是多少", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问相机像素参数。", "slots": {"product_name": "相机", "attribute": "像素"}}
+{"query": "这款商品支持七天无理由退货吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品售后政策。", "slots": {}}
+{"query": "这款手机的电池容量多大", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问电池参数。", "slots": {"product_name": "手机", "attribute": "电池容量"}}
+{"query": "这款商品有优惠券可以用吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品优惠。", "slots": {}}
+{"query": "这款手表防水吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品防水性能。", "slots": {"product_name": "手表", "attribute": "防水"}}
+{"query": "帮我找找性价比高的平板电脑", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户寻求特定类型商品推荐。", "slots": {"category": "平板电脑"}}
+{"query": "这款商品的产地是哪里", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品产地。", "slots": {"attribute": "产地"}}
+{"query": "这款耳机的续航时间多久", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问耳机续航参数。", "slots": {"product_name": "耳机", "attribute": "续航时间"}}
+{"query": "这款商品和另一款有什么区别", "expected_intent": "PRODUCT", "expected_action": "COMPARE", "reasoning": "用户要求对比两款商品。", "slots": {}}
+{"query": "这款商品的保修期是多久", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问保修期。", "slots": {"attribute": "保修期"}}
+{"query": "这款衣服有什么颜色可选", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问颜色选项。", "slots": {"product_name": "衣服", "attribute": "颜色"}}
+{"query": "这款商品的尺寸有哪些", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问尺寸规格。", "slots": {"attribute": "尺寸"}}
+{"query": "帮我推荐一款适合送礼的商品", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户寻求送礼推荐。", "slots": {"scenario": "送礼"}}
+{"query": "这款商品的销量怎么样", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品销量。", "slots": {"attribute": "销量"}}
+{"query": "这款商品的成分是什么", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品成分。", "slots": {"attribute": "成分"}}
+{"query": "这款手机的存储容量有多大", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问存储容量。", "slots": {"product_name": "手机", "attribute": "存储容量"}}
+{"query": "这款商品的包装清单有什么", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问包装清单。", "slots": {"attribute": "包装清单"}}
+{"query": "这款商品适合什么年龄段", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问适用年龄。", "slots": {}}
+{"query": "帮我找找适合户外运动的装备", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户按场景搜索商品。", "slots": {"scenario": "户外运动"}}
+{"query": "这款商品有什么用户评价", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户查看商品评价。", "slots": {"attribute": "用户评价"}}
+{"query": "这款商品的重量是多少克", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问精确重量。", "slots": {"attribute": "重量"}}
+{"query": "这款商品的功率多大", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问功率参数。", "slots": {"attribute": "功率"}}
+{"query": "这款商品的噪音水平如何", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问噪音参数。", "slots": {"attribute": "噪音"}}
+{"query": "帮我对比这几款手机的性能", "expected_intent": "PRODUCT", "expected_action": "COMPARE", "reasoning": "用户要求多商品对比。", "slots": {}}
+{"query": "这款商品有节能认证吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问认证信息。", "slots": {"attribute": "认证"}}
+{"query": "这款商品的退货率高吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户关心商品退货率。", "slots": {}}
+{"query": "这款商品的上市时间是什么时候", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问上市时间。", "slots": {"attribute": "上市时间"}}
+{"query": "这款商品支持哪些支付方式", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问支付方式。", "slots": {}}
+{"query": "这款商品的配件有哪些", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问配件信息。", "slots": {"attribute": "配件"}}
+{"query": "帮我推荐一款适合学生用的笔记本", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户按人群需求推荐。", "slots": {"category": "笔记本", "scenario": "学生用"}}
+{"query": "这款商品的能耗等级是多少", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问能耗等级。", "slots": {"attribute": "能耗等级"}}
+{"query": "这款商品的安装复杂吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问安装难度。", "slots": {}}
+{"query": "这款商品的质保政策是怎样的", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问质保政策。", "slots": {"attribute": "质保"}}
+{"query": "这款商品支持以旧换新吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问以旧换新。", "slots": {}}
+{"query": "帮我找一款轻薄便携的笔记本电脑", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户按特性搜索商品。", "slots": {"category": "笔记本电脑", "scenario": "轻薄便携"}}
+{"query": "这款商品的兼容性如何", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问兼容性。", "slots": {}}
+{"query": "这款商品的使用场景有哪些", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问使用场景。", "slots": {}}
+{"query": "这款商品的售后服务怎么样", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问售后服务。", "slots": {"attribute": "售后服务"}}
+{"query": "帮我找找销量最高的商品", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户按销量排序搜索。", "slots": {"sort_by": "销量"}}
+{"query": "这款商品的配送方式有哪些", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问配送方式。", "slots": {}}
+{"query": "这款商品的退换货条件是什么", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问退换货条件。", "slots": {}}
+{"query": "帮我对比这两款相机的拍照效果", "expected_intent": "PRODUCT", "expected_action": "COMPARE", "reasoning": "用户对比商品具体功能。", "slots": {"product_a": "相机", "attribute": "拍照效果"}}
+{"query": "这款商品有环保认证吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问环保认证。", "slots": {"attribute": "环保认证"}}
+{"query": "这款商品的品牌知名度如何", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问品牌信息。", "slots": {"attribute": "品牌"}}
+{"query": "帮我推荐一款性价比高的手机", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户按性价比要求推荐。", "slots": {"category": "手机", "scenario": "高性价比"}}
+{"query": "这款商品的材质是否环保", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问材质环保性。", "slots": {"attribute": "材质", "scenario": "环保"}}
+{"query": "这款商品的充电速度快吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问充电速度。", "slots": {"attribute": "充电速度"}}
+{"query": "这款商品的屏幕分辨率是多少", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问屏幕分辨率。", "slots": {"attribute": "屏幕分辨率"}}

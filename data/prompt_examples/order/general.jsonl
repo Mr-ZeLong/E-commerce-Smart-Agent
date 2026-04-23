@@ -1,0 +1,55 @@
+{"query": "帮我查一下订单 SN2024001 的状态", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户明确提到订单号并询问状态，属于订单查询意图。", "slots": {"order_sn": "SN2024001"}}
+{"query": "我的订单到哪了，什么时候能到？", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单物流进度，属于订单查询意图。", "slots": {}}
+{"query": "我昨天下的单发货了吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单是否已发货。", "slots": {}}
+{"query": "订单号 SN2024099 的物流信息怎么查不到", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单物流，但查不到信息。", "slots": {"order_sn": "SN2024099"}}
+{"query": "我的订单显示已签收但我没收到", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户对订单签收状态有疑问。", "slots": {}}
+{"query": "帮我看看最近的订单", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户想查看最近订单列表。", "slots": {}}
+{"query": "订单里买了什么，总价多少", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单详情和金额。", "slots": {}}
+{"query": "SN2024111 什么时候能到", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单预计到达时间。", "slots": {"order_sn": "SN2024111"}}
+{"query": "为什么我的订单被取消了", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单取消原因。", "slots": {}}
+{"query": "我要申请退款，这个商品我不想要了", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户明确表示要退款，属于售后申请-退款意图。", "slots": {"reason": "不想要"}}
+{"query": "这件衣服太长了，能不能换货？", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户提到换货，属于售后申请-换货意图。", "slots": {"reason": "尺寸不合适"}}
+{"query": "这个商品有质量问题，我要退货", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户因质量问题申请退货。", "slots": {"reason": "质量问题"}}
+{"query": "订单下错了，可以取消吗", "expected_intent": "ORDER", "expected_action": "CANCEL", "reasoning": "用户想要取消订单。", "slots": {}}
+{"query": "帮我取消订单 SN2024123", "expected_intent": "ORDER", "expected_action": "CANCEL", "reasoning": "用户明确要求取消指定订单。", "slots": {"order_sn": "SN2024123"}}
+{"query": "这个订单还没发货，能取消吗", "expected_intent": "ORDER", "expected_action": "CANCEL", "reasoning": "用户询问未发货订单是否可以取消。", "slots": {}}
+{"query": "我想修改订单地址", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户想要修改订单信息。", "slots": {}}
+{"query": "订单收货地址填错了怎么办", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户发现地址填写错误，需要修改。", "slots": {}}
+{"query": "能把订单里的商品换成另一款吗", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户想要更换订单中的商品。", "slots": {}}
+{"query": "我的订单什么时候发货", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单发货时间。", "slots": {}}
+{"query": "订单已经付款了怎么还没发货", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户质疑付款后未发货。", "slots": {}}
+{"query": "查一下我的所有订单", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户想查看全部订单。", "slots": {}}
+{"query": "最近一个月买了什么东西", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户按时间范围查询订单。", "slots": {}}
+{"query": "订单 SN2024005 的详情", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询特定订单详情。", "slots": {"order_sn": "SN2024005"}}
+{"query": "帮我追踪一下包裹", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户想追踪订单物流。", "slots": {}}
+{"query": "这个订单可以开发票吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单发票事宜。", "slots": {}}
+{"query": "订单金额不对，怎么少了一件商品", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户发现订单金额异常。", "slots": {}}
+{"query": "我下单后想改联系方式", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户想修改订单联系方式。", "slots": {}}
+{"query": "这个订单可以合并发货吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单合并发货。", "slots": {}}
+{"query": "帮我看看订单有没有优惠券", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单优惠券使用情况。", "slots": {}}
+{"query": "订单状态显示异常怎么办", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户反馈订单状态异常。", "slots": {}}
+{"query": "重复下单了，能退一个吗", "expected_intent": "ORDER", "expected_action": "CANCEL", "reasoning": "用户因重复下单需要取消一个。", "slots": {}}
+{"query": "这个商品缺货了，订单会取消吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户担心缺货导致订单取消。", "slots": {}}
+{"query": "帮我查一下上周的订单记录", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户按时间查询历史订单。", "slots": {}}
+{"query": "订单配送时间可以指定吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问配送时间指定。", "slots": {}}
+{"query": "我的订单被拆分了，为什么", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单拆分原因。", "slots": {}}
+{"query": "这个订单可以货到付款吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单支付方式。", "slots": {}}
+{"query": "帮我确认一下订单是否成功", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户想确认订单提交状态。", "slots": {}}
+{"query": "订单里的商品降价了，能退差价吗", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户申请价保退差价。", "slots": {"reason": "降价"}}
+{"query": "这个订单已经发货了还能改地址吗", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户想修改已发货订单地址。", "slots": {}}
+{"query": "帮我看看订单的物流轨迹", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户想查看详细物流轨迹。", "slots": {}}
+{"query": "订单收到了但商品数量不对", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户反馈收货数量异常。", "slots": {}}
+{"query": "我要申请售后，商品有瑕疵", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户因商品瑕疵申请售后。", "slots": {"reason": "瑕疵"}}
+{"query": "这个订单可以延期发货吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问延期发货。", "slots": {}}
+{"query": "帮我查一下订单的支付状态", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单支付状态。", "slots": {}}
+{"query": "订单取消后多久退款到账", "expected_intent": "AFTER_SALES", "expected_action": "QUERY", "reasoning": "用户询问取消订单后的退款时间。", "slots": {}}
+{"query": "我要退货，商品与描述不符", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户因描述不符申请退货。", "slots": {"reason": "描述不符"}}
+{"query": "帮我看看这个订单的优惠信息", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单优惠详情。", "slots": {}}
+{"query": "订单签收后发现商品破损怎么办", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户签收后发现破损申请售后。", "slots": {"reason": "破损"}}
+{"query": "这个订单可以 Gift 包装吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单 gift 包装服务。", "slots": {}}
+{"query": "帮我催一下订单发货", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户催促订单发货。", "slots": {}}
+{"query": "订单已经付款一周了还没发货", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户投诉长时间未发货。", "slots": {}}
+{"query": "我要修改订单里的商品规格", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户想修改商品规格。", "slots": {}}
+{"query": "帮我查一下订单历史", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单历史记录。", "slots": {}}
+{"query": "这个订单可以自提吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单自提方式。", "slots": {}}
+{"query": "订单里的商品有保修吗", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问订单商品保修。", "slots": {}}

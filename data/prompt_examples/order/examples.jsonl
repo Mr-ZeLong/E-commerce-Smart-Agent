@@ -1,0 +1,55 @@
+{"query": "帮我查下订单 SN2024055 现在什么状态", "intent": "QUERY", "scenario": "order_status", "slots": {"order_sn": "SN2024055"}, "expected_response": "查询订单状态并告知用户"}
+{"query": "我昨天下的单发货了吗", "intent": "QUERY", "scenario": "shipping_status", "slots": {}, "expected_response": "查询最近订单的发货状态"}
+{"query": "订单号 SN2024099 的物流信息怎么查不到", "intent": "QUERY", "scenario": "logistics_issue", "slots": {"order_sn": "SN2024099"}, "expected_response": "解释可能原因并提供解决方案"}
+{"query": "我的订单显示已签收但我没收到", "intent": "QUERY", "scenario": "delivery_issue", "slots": {}, "expected_response": "核实签收信息并启动调查"}
+{"query": "帮我看看最近的订单", "intent": "QUERY", "scenario": "recent_orders", "slots": {}, "expected_response": "列出用户最近的订单列表"}
+{"query": "订单里买了什么，总价多少", "intent": "QUERY", "scenario": "order_details", "slots": {}, "expected_response": "提供订单商品明细和金额"}
+{"query": "SN2024111 什么时候能到", "intent": "QUERY", "scenario": "delivery_estimate", "slots": {"order_sn": "SN2024111"}, "expected_response": "提供预计送达时间"}
+{"query": "为什么我的订单被取消了", "intent": "QUERY", "scenario": "cancellation_reason", "slots": {}, "expected_response": "查询取消原因并解释"}
+{"query": "我想申请退货，订单 SN2024001", "intent": "REFUND", "scenario": "refund_request", "slots": {"order_sn": "SN2024001"}, "expected_response": "检查退货资格并处理申请"}
+{"query": "这个商品能退吗，昨天才买的", "intent": "REFUND", "scenario": "refund_eligibility", "slots": {}, "expected_response": "确认退货政策并告知资格"}
+{"query": "退货进度怎么样了", "intent": "REFUND", "scenario": "refund_status", "slots": {}, "expected_response": "查询退货处理进度"}
+{"query": "我不想退了，取消退货申请", "intent": "REFUND", "scenario": "cancel_refund", "slots": {}, "expected_response": "协助取消退货申请"}
+{"query": "订单已经付款了能改地址吗", "intent": "QUERY", "scenario": "modify_address", "slots": {}, "expected_response": "确认是否可修改收货地址"}
+{"query": "帮我取消还没发货的订单", "intent": "QUERY", "scenario": "cancel_order", "slots": {}, "expected_response": "查询并协助取消未发货订单"}
+{"query": "我想把订单里的一个商品退了", "intent": "REFUND", "scenario": "partial_refund", "slots": {}, "expected_response": "处理部分退货申请"}
+{"query": "这个订单用了优惠券，退货能退吗", "intent": "REFUND", "scenario": "refund_with_coupon", "slots": {}, "expected_response": "说明优惠券退款规则"}
+{"query": "订单金额不对，少了个折扣", "intent": "QUERY", "scenario": "price_discrepancy", "slots": {}, "expected_response": "核实订单金额和折扣"}
+{"query": "我下了两个订单能合并发货吗", "intent": "QUERY", "scenario": "merge_orders", "slots": {}, "expected_response": "确认是否支持合并发货"}
+{"query": "订单已经发货了还能改地址吗", "intent": "QUERY", "scenario": "change_address_shipped", "slots": {}, "expected_response": "说明发货后地址修改规则"}
+{"query": "为什么我的订单还在待处理", "intent": "QUERY", "scenario": "pending_status", "slots": {}, "expected_response": "解释订单处理流程和当前状态"}
+{"query": "帮我查下3月份的所有订单", "intent": "QUERY", "scenario": "historical_orders", "slots": {}, "expected_response": "按时间段查询订单列表"}
+{"query": "这个订单的发票怎么开", "intent": "QUERY", "scenario": "invoice_request", "slots": {}, "expected_response": "提供发票开具指引"}
+{"query": "我想把订单换成另一个颜色", "intent": "QUERY", "scenario": "modify_order", "slots": {}, "expected_response": "确认是否支持修改商品规格"}
+{"query": "订单里有个商品缺货了怎么办", "intent": "QUERY", "scenario": "out_of_stock", "slots": {}, "expected_response": "提供缺货处理方案"}
+{"query": "我的订单被拆分成两个包裹了", "intent": "QUERY", "scenario": "split_shipment", "slots": {}, "expected_response": "解释分包裹发货原因"}
+{"query": "帮我确认一下订单 SN2024333 的商品", "intent": "QUERY", "scenario": "confirm_items", "slots": {"order_sn": "SN2024333"}, "expected_response": "列出订单商品明细"}
+{"query": "这个订单的实付金额是多少", "intent": "QUERY", "scenario": "payment_amount", "slots": {}, "expected_response": "提供订单实际支付金额"}
+{"query": "我想延长收货时间", "intent": "QUERY", "scenario": "extend_receipt", "slots": {}, "expected_response": "确认是否支持延长收货"}
+{"query": "订单已经交易成功了还能退货吗", "intent": "REFUND", "scenario": "post_completion_refund", "slots": {}, "expected_response": "说明交易成功后退货政策"}
+{"query": "帮我查下订单的支付时间", "intent": "QUERY", "scenario": "payment_time", "slots": {}, "expected_response": "提供订单支付时间信息"}
+{"query": "这个订单的优惠券还能退回来吗", "intent": "REFUND", "scenario": "coupon_refund", "slots": {}, "expected_response": "说明优惠券退还规则"}
+{"query": "我误删了订单还能恢复吗", "intent": "QUERY", "scenario": "recover_order", "slots": {}, "expected_response": "确认是否支持订单恢复"}
+{"query": "帮我查询订单 SN2024444 的退款状态", "intent": "REFUND", "scenario": "refund_tracking", "slots": {"order_sn": "SN2024444"}, "expected_response": "查询退款处理状态和进度"}
+{"query": "订单显示已完成但我没收到货", "intent": "QUERY", "scenario": "completed_not_received", "slots": {}, "expected_response": "核实订单状态并启动调查"}
+{"query": "我想投诉订单问题", "intent": "REFUND", "scenario": "complaint_order", "slots": {}, "expected_response": "引导用户提交投诉"}
+{"query": "这个订单的物流单号是多少", "intent": "QUERY", "scenario": "tracking_number", "slots": {}, "expected_response": "提供物流单号信息"}
+{"query": "帮我看看有哪些订单还没评价", "intent": "QUERY", "scenario": "unreviewed_orders", "slots": {}, "expected_response": "列出待评价订单"}
+{"query": "订单里的赠品没收到", "intent": "QUERY", "scenario": "missing_gift", "slots": {}, "expected_response": "核实赠品发货情况"}
+{"query": "我买了两件只收到一件", "intent": "QUERY", "scenario": "missing_item", "slots": {}, "expected_response": "核实订单商品数量并处理"}
+{"query": "订单价格降了能退差价吗", "intent": "REFUND", "scenario": "price_protection", "slots": {}, "expected_response": "说明保价政策"}
+{"query": "帮我查一下去年双11的订单", "intent": "QUERY", "scenario": "historical_event", "slots": {}, "expected_response": "按活动查询历史订单"}
+{"query": "这个订单能开发票吗", "intent": "QUERY", "scenario": "invoice_eligibility", "slots": {}, "expected_response": "确认发票开具资格"}
+{"query": "订单取消后钱什么时候退回来", "intent": "REFUND", "scenario": "refund_timeline", "slots": {}, "expected_response": "说明退款到账时间"}
+{"query": "我想把订单转送给别人", "intent": "QUERY", "scenario": "gift_transfer", "slots": {}, "expected_response": "确认是否支持订单转赠"}
+{"query": "帮我查下订单的优惠信息", "intent": "QUERY", "scenario": "discount_details", "slots": {}, "expected_response": "列出订单使用的优惠"}
+{"query": "订单里有个商品发错货了", "intent": "REFUND", "scenario": "wrong_item", "slots": {}, "expected_response": "处理发错货问题"}
+{"query": "我重复下单了能取消一个吗", "intent": "QUERY", "scenario": "duplicate_order", "slots": {}, "expected_response": "协助取消重复订单"}
+{"query": "帮我催一下订单发货", "intent": "QUERY", "scenario": "urge_shipment", "slots": {}, "expected_response": "联系仓库催促发货"}
+{"query": "这个订单的会员积分是多少", "intent": "QUERY", "scenario": "member_points", "slots": {}, "expected_response": "提供订单积分信息"}
+{"query": "订单已经退款了为什么还没到账", "intent": "REFUND", "scenario": "refund_not_received", "slots": {}, "expected_response": "查询退款状态和到账时间"}
+{"query": "我想把已签收的商品退回去", "intent": "REFUND", "scenario": "return_after_receipt", "slots": {}, "expected_response": "处理已签收商品退货"}
+{"query": "帮我查下订单的售后记录", "intent": "QUERY", "scenario": "after_sales_history", "slots": {}, "expected_response": "查询订单售后历史"}
+{"query": "这个订单支持7天无理由退货吗", "intent": "REFUND", "scenario": "return_policy", "slots": {}, "expected_response": "说明退货政策"}
+{"query": "订单里有预售商品什么时候发", "intent": "QUERY", "scenario": "preorder_shipment", "slots": {}, "expected_response": "说明预售商品发货时间"}
+{"query": "帮我看下订单的物流轨迹", "intent": "QUERY", "scenario": "tracking_history", "slots": {}, "expected_response": "提供完整物流轨迹"}

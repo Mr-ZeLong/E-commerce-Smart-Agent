@@ -6,9 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.agents.base import BaseAgent
-from app.intent.few_shot_loader import (
-    load_complaint_examples,
-)
+from app.intent.few_shot_loader import load_agent_examples
 from app.models.state import AgentProcessResult, AgentState
 from app.tools.complaint_tool import ComplaintTool
 
@@ -49,7 +47,7 @@ class ComplaintAgent(BaseAgent):
     def __init__(self, llm: BaseChatModel):
         super().__init__(name="complaint", llm=llm, system_prompt=_COMPLAINT_SYSTEM_PROMPT)
         self._tool: ComplaintTool = ComplaintTool()
-        self._few_shot_examples = load_complaint_examples()
+        self._few_shot_examples = load_agent_examples("complaint")
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()

@@ -3,6 +3,7 @@ import logging
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.agents.base import BaseAgent
+from app.intent.few_shot_loader import load_agent_examples
 from app.models.state import AgentProcessResult, AgentState
 from app.tools.registry import ToolRegistry
 
@@ -23,6 +24,7 @@ class AccountAgent(BaseAgent):
     def __init__(self, tool_registry: ToolRegistry, llm: BaseChatModel):
         super().__init__(name="account", llm=llm, system_prompt=ACCOUNT_SYSTEM_PROMPT)
         self.tool_registry = tool_registry
+        self._few_shot_examples = load_agent_examples("account")
 
     async def process(self, state: AgentState) -> AgentProcessResult:
         await self._load_config()

@@ -1,0 +1,50 @@
+{"query": "帮我看看购物车里有什么", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户想查看购物车内容，属于购物车查询意图。", "slots": {}}
+{"query": "把这件T恤加到购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户要求添加商品到购物车，属于购物车添加意图。", "slots": {"product_name": "T恤"}}
+{"query": "帮我删了购物车里的那条裤子", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户要求删除购物车商品，属于购物车移除意图。", "slots": {"product_name": "裤子"}}
+{"query": "购物车里有几件商品", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问购物车商品数量。", "slots": {}}
+{"query": "把这款手机的数量改成2", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改购物车商品数量。", "slots": {"product_name": "手机", "quantity": 2}}
+{"query": "帮我清空购物车", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户要求清空购物车。", "slots": {}}
+{"query": "把这件商品加入购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加商品到购物车。", "slots": {}}
+{"query": "购物车里的商品可以结算了吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问购物车结算状态。", "slots": {}}
+{"query": "帮我删除购物车里的手机", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除指定商品。", "slots": {"product_name": "手机"}}
+{"query": "把购物车里那个耳机的数量改成3", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改耳机数量。", "slots": {"product_name": "耳机", "quantity": 3}}
+{"query": "帮我看看购物车总价多少", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查询购物车总价。", "slots": {}}
+{"query": "把这款商品也放进购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加商品到购物车。", "slots": {}}
+{"query": "购物车里的笔记本帮我删掉", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除笔记本。", "slots": {"product_name": "笔记本"}}
+{"query": "帮我加一件这个商品到购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加商品。", "slots": {}}
+{"query": "购物车里有优惠券可以用吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问购物车优惠券。", "slots": {}}
+{"query": "把购物车里的衣服数量改成1", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改衣服数量。", "slots": {"product_name": "衣服", "quantity": 1}}
+{"query": "帮我查看购物车详情", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查看购物车详情。", "slots": {}}
+{"query": "把这款耳机加到购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加耳机。", "slots": {"product_name": "耳机"}}
+{"query": "删除购物车里的所有商品", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除所有商品。", "slots": {}}
+{"query": "帮我把购物车里的手机数量改成5", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改手机数量。", "slots": {"product_name": "手机", "quantity": 5}}
+{"query": "购物车里的商品还有库存吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问库存情况。", "slots": {}}
+{"query": "把这件外套加到购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加外套。", "slots": {"product_name": "外套"}}
+{"query": "帮我移除购物车里的平板电脑", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户移除平板电脑。", "slots": {"product_name": "平板电脑"}}
+{"query": "购物车结算时需要运费吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问运费。", "slots": {}}
+{"query": "把购物车里的键盘数量改成2", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改键盘数量。", "slots": {"product_name": "键盘", "quantity": 2}}
+{"query": "帮我看看购物车里的商品信息", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查看商品信息。", "slots": {}}
+{"query": "把这款手表加入购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加手表。", "slots": {"product_name": "手表"}}
+{"query": "删除购物车里的充电器", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除充电器。", "slots": {"product_name": "充电器"}}
+{"query": "购物车里的商品支持货到付款吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问支付方式。", "slots": {}}
+{"query": "把购物车里的鼠标数量改成1", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改鼠标数量。", "slots": {"product_name": "鼠标", "quantity": 1}}
+{"query": "帮我看看购物车总金额", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查询总金额。", "slots": {}}
+{"query": "把这款音响加到购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加音响。", "slots": {"product_name": "音响"}}
+{"query": "移除购物车里的那条裙子", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户移除裙子。", "slots": {"product_name": "裙子"}}
+{"query": "购物车可以保存多久", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问保存时间。", "slots": {}}
+{"query": "把购物车里的相机数量改成3", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改相机数量。", "slots": {"product_name": "相机", "quantity": 3}}
+{"query": "帮我查看购物车里的优惠活动", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查看优惠活动。", "slots": {}}
+{"query": "把这件衬衫加入购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加衬衫。", "slots": {"product_name": "衬衫"}}
+{"query": "删除购物车里的台灯", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除台灯。", "slots": {"product_name": "台灯"}}
+{"query": "购物车里的商品可以延期付款吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问延期付款。", "slots": {}}
+{"query": "把购物车里的书包数量改成2", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改书包数量。", "slots": {"product_name": "书包", "quantity": 2}}
+{"query": "帮我看看购物车有哪些商品", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查看商品列表。", "slots": {}}
+{"query": "把这款零食加到购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加零食。", "slots": {"product_name": "零食"}}
+{"query": "移除购物车里的保温杯", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户移除保温杯。", "slots": {"product_name": "保温杯"}}
+{"query": "购物车结算支持分期付款吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问分期付款。", "slots": {}}
+{"query": "把购物车里的运动鞋数量改成1", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改运动鞋数量。", "slots": {"product_name": "运动鞋", "quantity": 1}}
+{"query": "帮我看看购物车里的商品规格", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户查看商品规格。", "slots": {}}
+{"query": "把这款水杯加入购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加水杯。", "slots": {"product_name": "水杯"}}
+{"query": "删除购物车里的护手霜", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除护手霜。", "slots": {"product_name": "护手霜"}}
+{"query": "购物车里的商品价格变动了吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问价格变动。", "slots": {}}
+{"query": "把购物车里的零食数量改成5", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改零食数量。", "slots": {"product_name": "零食", "quantity": 5}}

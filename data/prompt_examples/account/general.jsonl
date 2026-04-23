@@ -1,0 +1,53 @@
+{"query": "怎么修改我的收货地址？", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改账户信息中的地址，属于账户修改意图。", "slots": {"field": "收货地址"}}
+{"query": "帮我看看我的账户信息", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询账户信息。", "slots": {}}
+{"query": "我的会员等级是什么", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询会员等级。", "slots": {}}
+{"query": "怎么修改登录密码", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改密码。", "slots": {"field": "登录密码"}}
+{"query": "我的优惠券有哪些", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询优惠券。", "slots": {}}
+{"query": "帮我查一下账户余额", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询余额。", "slots": {}}
+{"query": "怎么修改手机号", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改手机号。", "slots": {"field": "手机号"}}
+{"query": "我的积分有多少", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询积分。", "slots": {}}
+{"query": "怎么绑定邮箱", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想绑定邮箱。", "slots": {"field": "邮箱"}}
+{"query": "帮我看看个人信息", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询个人信息。", "slots": {}}
+{"query": "怎么修改昵称", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改昵称。", "slots": {"field": "昵称"}}
+{"query": "我的会员权益有哪些", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询会员权益。", "slots": {}}
+{"query": "怎么注销账户", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户询问注销账户。", "slots": {}}
+{"query": "帮我查一下账户安全状态", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询安全状态。", "slots": {}}
+{"query": "怎么修改支付密码", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改支付密码。", "slots": {"field": "支付密码"}}
+{"query": "我的收货地址有哪些", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询收货地址。", "slots": {}}
+{"query": "怎么添加新地址", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想添加地址。", "slots": {"field": "收货地址"}}
+{"query": "帮我看看账户登录记录", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询登录记录。", "slots": {}}
+{"query": "怎么更换头像", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想更换头像。", "slots": {"field": "头像"}}
+{"query": "我的成长值有多少", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询成长值。", "slots": {}}
+{"query": "怎么绑定银行卡", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想绑定银行卡。", "slots": {"field": "银行卡"}}
+{"query": "帮我查一下实名认证状态", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询实名认证。", "slots": {}}
+{"query": "怎么修改实名信息", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改实名信息。", "slots": {"field": "实名信息"}}
+{"query": "我的关注列表有哪些店铺", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询关注店铺。", "slots": {}}
+{"query": "怎么设置消息通知", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想设置通知。", "slots": {"field": "消息通知"}}
+{"query": "帮我看看账户消费统计", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询消费统计。", "slots": {}}
+{"query": "怎么解绑手机号", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想解绑手机号。", "slots": {"field": "手机号"}}
+{"query": "我的收藏商品有哪些", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询收藏商品。", "slots": {}}
+{"query": "怎么修改默认地址", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改默认地址。", "slots": {"field": "默认地址"}}
+{"query": "帮我查一下账户冻结状态", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询冻结状态。", "slots": {}}
+{"query": "怎么开通会员", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户询问开通会员。", "slots": {}}
+{"query": "我的订单历史怎么看", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询订单历史。", "slots": {}}
+{"query": "怎么修改邮箱地址", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改邮箱。", "slots": {"field": "邮箱"}}
+{"query": "帮我看看账户权限", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询账户权限。", "slots": {}}
+{"query": "怎么设置隐私选项", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想设置隐私。", "slots": {"field": "隐私选项"}}
+{"query": "我的账户被限制了怎么办", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户反馈账户限制。", "slots": {}}
+{"query": "怎么更换绑定的微信", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想更换微信绑定。", "slots": {"field": "微信"}}
+{"query": "帮我查一下账户信用分", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询信用分。", "slots": {}}
+{"query": "怎么删除历史地址", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想删除地址。", "slots": {"field": "历史地址"}}
+{"query": "我的账户安全等级是多少", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询安全等级。", "slots": {}}
+{"query": "怎么开启双重验证", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想开启双重验证。", "slots": {"field": "双重验证"}}
+{"query": "帮我看看账户绑定的社交账号", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询社交账号绑定。", "slots": {}}
+{"query": "怎么修改账户名称", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改账户名称。", "slots": {"field": "账户名称"}}
+{"query": "我的会员到期时间", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询会员到期时间。", "slots": {}}
+{"query": "怎么升级会员等级", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户询问升级会员。", "slots": {}}
+{"query": "帮我查一下账户异常提醒", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询异常提醒。", "slots": {}}
+{"query": "怎么关闭自动续费", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想关闭自动续费。", "slots": {"field": "自动续费"}}
+{"query": "我的账户最近登录地点", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询登录地点。", "slots": {}}
+{"query": "怎么设置支付限额", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想设置支付限额。", "slots": {"field": "支付限额"}}
+{"query": "帮我看看账户绑定的设备", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询绑定设备。", "slots": {}}
+{"query": "怎么修改账户地区", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改地区。", "slots": {"field": "地区"}}
+{"query": "我的账户积分怎么兑换", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户询问积分兑换。", "slots": {}}
+{"query": "怎么查看账户操作日志", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询操作日志。", "slots": {}}

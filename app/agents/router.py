@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.agents.base import BaseAgent
 from app.core.config import settings
+from app.intent.few_shot_loader import load_agent_examples
 from app.intent.models import IntentCategory, IntentResult
 from app.intent.service import IntentRecognitionService
 from app.models.state import AgentProcessResult, AgentState
@@ -42,6 +43,7 @@ class IntentRouterAgent(BaseAgent):
         super().__init__(name="intent_router", llm=llm, system_prompt=None)
         self.intent_service = intent_service
         self.structured_manager = structured_manager
+        self._few_shot_examples = load_agent_examples("router")
         logger.debug("IntentRouterAgent initialized")
 
     async def process(self, state: AgentState) -> AgentProcessResult:

@@ -80,6 +80,7 @@ class BaseAgent(ABC):
         self.llm = llm
         self.system_prompt = system_prompt
         self._dynamic_system_prompt: str | None = None
+        self._few_shot_examples: list[dict[str, Any]] | None = None
 
     async def _load_config(self) -> None:
         from app.agents.config_loader import get_effective_system_prompt
@@ -101,6 +102,17 @@ class BaseAgent(ABC):
             if variant and variant.system_prompt:
                 return variant.system_prompt
         return None
+
+    async def _get_few_shot_examples(self, query: str | None = None) -> list[dict[str, Any]] | None:
+        if not self._few_shot_examples:
+            return None
+        if query is None or len(self._few_shot_examples) <= 3:
+            return self._few_shot_examples
+        from app.intent.few_shot_loader import select_top_k_examples_semantic
+
+        return await select_top_k_examples_semantic(
+            query, self._few_shot_examples, k=3, use_semantic=True
+        )
 
     @abstractmethod
     async def process(self, state: AgentState) -> AgentProcessResult: ...
@@ -194,6 +206,7 @@ class BaseAgent(ABC):
         user_context: dict[str, Any] | None = None,
         system_prompt_override: str | None = None,
         memory_context_config: dict[str, Any] | None = None,
+        few_shot_examples: list[dict[str, Any]] | None = None,
     ) -> list:
         """Build message list with static system prompt and dynamic user content.
 
@@ -219,6 +232,11 @@ class BaseAgent(ABC):
         user_prompt = self._build_user_prompt(
             user_message, context, memory_context, memory_context_config
         )
+        if few_shot_examples:
+            from app.intent.few_shot_loader import format_agent_examples_for_prompt
+            examples_text = format_agent_examples_for_prompt(self.name, few_shot_examples)
+            if examples_text:
+                user_prompt = examples_text + "\n" + user_prompt
         date_prefix = f"今天是 {datetime.date.today().isoformat()}。\n\n"
         messages.append(HumanMessage(content=date_prefix + user_prompt))
         return maybe_add_cache_control(messages)

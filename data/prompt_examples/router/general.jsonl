@@ -1,0 +1,65 @@
+{"query": "帮我查一下订单 SN2024001 的状态", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户明确提到订单号并询问状态，应路由到订单Agent。", "slots": {"order_sn": "SN2024001"}}
+{"query": "这款手机有货吗，多少钱？", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品库存和价格，应路由到商品Agent。", "slots": {"product_name": "手机"}}
+{"query": "帮我看看购物车里有什么", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户想查看购物车内容，应路由到购物车Agent。", "slots": {}}
+{"query": "我的包裹到哪里了", "expected_intent": "LOGISTICS", "expected_action": "QUERY", "reasoning": "用户询问物流进度，应路由到物流Agent。", "slots": {}}
+{"query": "怎么修改我的收货地址？", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户想修改账户信息，应路由到账户Agent。", "slots": {"field": "收货地址"}}
+{"query": "我的支付状态是什么", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询支付状态，应路由到支付Agent。", "slots": {}}
+{"query": "你们运费怎么算的？", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问运费计算规则，应路由到政策Agent。", "slots": {"topic": "运费"}}
+{"query": "我要投诉你们的客服态度太差了", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户明确表达投诉意愿，应路由到投诉Agent。", "slots": {"complaint_target": "客服"}}
+{"query": "你好，有人工客服吗？", "expected_intent": "OTHER", "expected_action": "CONSULT", "reasoning": "用户只是打招呼，没有明确业务意图，应由策略Agent处理。", "slots": {}}
+{"query": "我要申请退款", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户申请退款，应路由到订单Agent处理售后。", "slots": {}}
+{"query": "帮我查一下最近的订单", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询最近订单，路由到订单Agent。", "slots": {}}
+{"query": "这款商品和另一款有什么区别", "expected_intent": "PRODUCT", "expected_action": "COMPARE", "reasoning": "用户对比商品，路由到商品Agent。", "slots": {}}
+{"query": "把这件商品加入购物车", "expected_intent": "CART", "expected_action": "ADD", "reasoning": "用户添加购物车，路由到购物车Agent。", "slots": {}}
+{"query": "快递什么时候能送到", "expected_intent": "LOGISTICS", "expected_action": "QUERY", "reasoning": "用户询问送达时间，路由到物流Agent。", "slots": {}}
+{"query": "我的会员等级是什么", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询会员等级，路由到账户Agent。", "slots": {}}
+{"query": "帮我查一下退款进度", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询退款进度，路由到支付Agent。", "slots": {}}
+{"query": "退换货政策是什么", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问退换货政策，路由到政策Agent。", "slots": {}}
+{"query": "我要投诉物流太慢", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户投诉物流，路由到投诉Agent。", "slots": {}}
+{"query": "谢谢你的帮助", "expected_intent": "OTHER", "expected_action": "CONSULT", "reasoning": "用户表达感谢，无业务意图。", "slots": {}}
+{"query": "订单里的商品降价了，能退差价吗", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户申请价保，路由到订单Agent处理售后。", "slots": {}}
+{"query": "帮我看看订单详情", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查看订单详情，路由到订单Agent。", "slots": {}}
+{"query": "有推荐的运动耳机吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户寻求商品推荐，路由到商品Agent。", "slots": {}}
+{"query": "删除购物车里的手机", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户删除购物车商品，路由到购物车Agent。", "slots": {}}
+{"query": "物流显示异常怎么办", "expected_intent": "LOGISTICS", "expected_action": "QUERY", "reasoning": "用户询问物流异常，路由到物流Agent。", "slots": {}}
+{"query": "怎么修改登录密码", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户修改密码，路由到账户Agent。", "slots": {}}
+{"query": "为什么我的支付失败了", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问支付失败，路由到支付Agent。", "slots": {}}
+{"query": "会员有什么权益", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问会员权益，路由到政策Agent。", "slots": {}}
+{"query": "收到的商品有质量问题", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户投诉质量问题，路由到投诉Agent。", "slots": {}}
+{"query": "你好", "expected_intent": "OTHER", "expected_action": "CONSULT", "reasoning": "用户打招呼，无明确业务意图。", "slots": {}}
+{"query": "这件衣服太长了，能不能换货", "expected_intent": "AFTER_SALES", "expected_action": "APPLY", "reasoning": "用户申请换货，路由到订单Agent处理售后。", "slots": {}}
+{"query": "订单 SN2024099 的物流信息怎么查不到", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户查询订单物流，路由到订单Agent。", "slots": {}}
+{"query": "这款手机的屏幕刷新率是多少", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问商品参数，路由到商品Agent。", "slots": {}}
+{"query": "把购物车里那个耳机的数量改成3", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改购物车数量，路由到购物车Agent。", "slots": {}}
+{"query": "可以修改收货地址吗", "expected_intent": "LOGISTICS", "expected_action": "MODIFY", "reasoning": "用户想修改收货地址，路由到物流Agent。", "slots": {}}
+{"query": "我的优惠券有哪些", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询优惠券，路由到账户Agent。", "slots": {}}
+{"query": "我的钱包余额是多少", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户查询余额，路由到支付Agent。", "slots": {}}
+{"query": "优惠券使用规则", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问优惠券规则，路由到政策Agent。", "slots": {}}
+{"query": "客服一直让我等，等了半小时也没解决问题", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户投诉客服效率，路由到投诉Agent。", "slots": {}}
+{"query": "再见", "expected_intent": "OTHER", "expected_action": "CONSULT", "reasoning": "用户告别，无业务意图。", "slots": {}}
+{"query": "这个订单可以取消吗", "expected_intent": "ORDER", "expected_action": "CANCEL", "reasoning": "用户想取消订单，路由到订单Agent。", "slots": {}}
+{"query": "帮我对比这几款手机的性能", "expected_intent": "PRODUCT", "expected_action": "COMPARE", "reasoning": "用户对比手机性能，路由到商品Agent。", "slots": {}}
+{"query": "帮我清空购物车", "expected_intent": "CART", "expected_action": "REMOVE", "reasoning": "用户清空购物车，路由到购物车Agent。", "slots": {}}
+{"query": "帮我催一下快递", "expected_intent": "LOGISTICS", "expected_action": "QUERY", "reasoning": "用户催促快递，路由到物流Agent。", "slots": {}}
+{"query": "帮我查一下账户余额", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询余额，路由到账户Agent。", "slots": {}}
+{"query": "怎么申请开发票", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户申请发票，路由到支付Agent。", "slots": {}}
+{"query": "发货时间规定", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问发货时间，路由到政策Agent。", "slots": {}}
+{"query": "订单被你们莫名其妙取消了", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户投诉订单被取消，路由到投诉Agent。", "slots": {}}
+{"query": "请问有什么可以帮您", "expected_intent": "OTHER", "expected_action": "CONSULT", "reasoning": "用户询问帮助，无明确意图。", "slots": {}}
+{"query": "我想修改订单地址", "expected_intent": "ORDER", "expected_action": "MODIFY", "reasoning": "用户修改订单地址，路由到订单Agent。", "slots": {}}
+{"query": "这款商品支持七天无理由退货吗", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户询问售后政策，路由到商品Agent。", "slots": {}}
+{"query": "购物车里的商品可以结算了吗", "expected_intent": "CART", "expected_action": "QUERY", "reasoning": "用户询问结算状态，路由到购物车Agent。", "slots": {}}
+{"query": "可以延迟配送吗", "expected_intent": "LOGISTICS", "expected_action": "MODIFY", "reasoning": "用户想延迟配送，路由到物流Agent。", "slots": {}}
+{"query": "我的积分有多少", "expected_intent": "ACCOUNT", "expected_action": "QUERY", "reasoning": "用户查询积分，路由到账户Agent。", "slots": {}}
+{"query": "退款多久能到账", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问退款时效，路由到支付Agent。", "slots": {}}
+{"query": "商品保修政策", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问保修，路由到政策Agent。", "slots": {}}
+{"query": "你们平台泄露了我的个人信息", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户投诉信息泄露，路由到投诉Agent。", "slots": {}}
+{"query": "有人工客服吗", "expected_intent": "OTHER", "expected_action": "CONSULT", "reasoning": "用户询问人工客服。", "slots": {}}
+{"query": "为什么我的订单被取消了", "expected_intent": "ORDER", "expected_action": "QUERY", "reasoning": "用户询问取消原因，路由到订单Agent。", "slots": {}}
+{"query": "帮我推荐一款适合送礼的商品", "expected_intent": "PRODUCT", "expected_action": "QUERY", "reasoning": "用户寻求推荐，路由到商品Agent。", "slots": {}}
+{"query": "把这款手机的数量改成2", "expected_intent": "CART", "expected_action": "MODIFY", "reasoning": "用户修改数量，路由到购物车Agent。", "slots": {}}
+{"query": "可以自取吗", "expected_intent": "LOGISTICS", "expected_action": "QUERY", "reasoning": "用户询问自提，路由到物流Agent。", "slots": {}}
+{"query": "怎么绑定邮箱", "expected_intent": "ACCOUNT", "expected_action": "MODIFY", "reasoning": "用户绑定邮箱，路由到账户Agent。", "slots": {}}
+{"query": "可以分期付款吗", "expected_intent": "PAYMENT", "expected_action": "QUERY", "reasoning": "用户询问分期，路由到支付Agent。", "slots": {}}
+{"query": "积分怎么获得", "expected_intent": "POLICY", "expected_action": "CONSULT", "reasoning": "用户询问积分获取，路由到政策Agent。", "slots": {}}
+{"query": "收到的商品与图片完全不符", "expected_intent": "COMPLAINT", "expected_action": "APPLY", "reasoning": "用户投诉描述不符，路由到投诉Agent。", "slots": {}}
