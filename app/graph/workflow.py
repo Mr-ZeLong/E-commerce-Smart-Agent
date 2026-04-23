@@ -35,6 +35,9 @@ _COMMON_ALLOWED_KEYS = [
     "slots",
     "iteration_count",
     "experiment_variant_id",
+    "variant_llm_model",
+    "variant_retriever_top_k",
+    "variant_reranker_enabled",
     "context_tokens",
     "context_utilization",
 ]

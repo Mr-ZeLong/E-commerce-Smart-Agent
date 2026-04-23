@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.engine.row import Row as SQLRow
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.observability import GraphNodeLog
@@ -66,7 +67,7 @@ async def compute_node_latency_stats(
     try:
         result = await session.exec(stmt)  # type: ignore - SQLModel async exec typing issue with ty
         rows = result.all()
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, OperationalError) as e:
         logger.warning("Database query failed during latency tracking: %s", e)
         return {}
 

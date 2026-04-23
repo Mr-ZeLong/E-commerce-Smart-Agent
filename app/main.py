@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
                         await get_manager().broadcast_to_admins(payload.get("data", {}))
             except asyncio.CancelledError:
                 raise
-            except Exception:
+            except (ConnectionError, OSError, RuntimeError):
                 logger.exception("Redis broadcast listener error")
 
         listener_task = asyncio.create_task(_redis_listener())
@@ -157,7 +157,7 @@ async def lifespan(app: FastAPI):
             logger.info("Warming up LLM...")
             await llm.ainvoke([{"role": "user", "content": "Hello"}])
             logger.info("LLM warm-up complete.")
-        except Exception:
+        except (TimeoutError, OSError):
             logger.warning("LLM warm-up failed, will warm up on first request")
 
         yield
@@ -191,13 +191,12 @@ def _setup_langsmith_tracing() -> None:
 
     # Set required environment variables for LangChain automatic tracing
     os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
-    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGSMITH_API_KEY)
+    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGSMITH_API_KEY.get_secret_value())
     os.environ.setdefault("LANGCHAIN_PROJECT", settings.LANGSMITH_PROJECT)
 
     # Log tracing status (avoid logging the full API key)
-    masked_key = (
-        f"{settings.LANGSMITH_API_KEY[:8]}..." if len(settings.LANGSMITH_API_KEY) > 8 else "***"
-    )
+    secret_key = settings.LANGSMITH_API_KEY.get_secret_value()
+    masked_key = f"{secret_key[:8]}..." if len(secret_key) > 8 else "***"
     logger.info(
         "LangSmith tracing enabled (project=%s, api_key=%s)",
         settings.LANGSMITH_PROJECT,

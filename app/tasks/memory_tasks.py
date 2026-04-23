@@ -2,11 +2,12 @@
 Memory extraction Celery tasks.
 """
 
-import asyncio
 import json
 import logging
 from typing import Any
 
+from asgiref.sync import async_to_sync
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from app.celery_app import celery_app
@@ -48,7 +49,7 @@ def _save_facts_body(
             session.add(fact)
             saved_count += 1
         session.commit()
-    except Exception as exc:
+    except (SQLAlchemyError, OSError) as exc:
         logger.exception("Failed to save facts for user_id=%s thread_id=%s", user_id, thread_id)
         session.rollback()
         try:
@@ -83,13 +84,10 @@ def extract_and_save_facts(
         extractor = FactExtractor()
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        facts = loop.run_until_complete(
-            extractor.extract_facts(user_id, thread_id, history, answer, question)
+        facts = async_to_sync(extractor.extract_facts)(
+            user_id, thread_id, history, answer, question
         )
-        loop.close()
-    except Exception as exc:
+    except (OSError, RuntimeError) as exc:
         logger.exception("Fact extraction failed for user_id=%s thread_id=%s", user_id, thread_id)
         try:
             raise self.retry(exc=exc)
@@ -106,12 +104,9 @@ def extract_and_save_facts(
 def prune_vector_memory() -> dict[str, Any]:
     manager = VectorMemoryManager()
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(manager.prune_old_messages(settings.MEMORY_RETENTION_DAYS))
-        loop.run_until_complete(manager.aclose())
-        loop.close()
+        async_to_sync(manager.prune_old_messages)(settings.MEMORY_RETENTION_DAYS)
+        async_to_sync(manager.aclose)()
         return {"status": "success", "pruned": True}
-    except Exception:
+    except (OSError, RuntimeError):
         logger.exception("Vector memory pruning failed")
         return {"status": "failed", "message": "向量记忆清理失败"}

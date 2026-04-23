@@ -12,7 +12,9 @@ from app.core.utils import utc_now
 class TestCreateAccessToken:
     def test_generates_valid_jwt_with_correct_claims(self):
         token = create_access_token(user_id=42, is_admin=True)
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.ALGORITHM]
+        )
 
         assert payload["sub"] == "42"
         assert payload["is_admin"] is True
@@ -44,7 +46,9 @@ class TestGetCurrentUserId:
             "iat": utc_now() - timedelta(hours=2),
             "is_admin": False,
         }
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        token = jwt.encode(
+            payload, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM
+        )
 
         with pytest.raises(HTTPException) as exc_info:
             get_current_user_id(token)
@@ -67,7 +71,7 @@ class TestGetCurrentUserId:
     def test_raises_401_for_missing_sub_claim(self):
         token = jwt.encode(
             {"exp": utc_now() + timedelta(hours=1), "iat": utc_now(), "is_admin": False},
-            settings.SECRET_KEY,
+            settings.SECRET_KEY.get_secret_value(),
             algorithm=settings.ALGORITHM,
         )
         with pytest.raises(HTTPException) as exc_info:

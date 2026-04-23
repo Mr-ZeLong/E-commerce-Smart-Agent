@@ -7,6 +7,7 @@ from typing import Any, Literal
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.account import AccountAgent
@@ -55,7 +56,7 @@ def _log_supervisor_decision(
             )
             session.add(log)
             session.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.exception("Failed to log supervisor decision")
 
 
@@ -130,6 +131,7 @@ def build_memory_node(
                 break
 
         memory_context: dict[str, Any] = {}
+        budgeter = MemoryTokenBudget()
 
         if (
             structured_manager is not None
@@ -137,6 +139,9 @@ def build_memory_node(
             and user_id is not None
             and thread_id is not None
         ):
+            token_budget = settings.MEMORY_CONTEXT_TOKEN_BUDGET
+            fetch_limits = budgeter.calculate_fetch_limits(token_budget)
+
             async with _memory_session(session) as mem_session:
                 try:
                     profile = await structured_manager.get_user_profile(mem_session, user_id)
@@ -149,7 +154,7 @@ def build_memory_node(
                             "total_orders": profile.total_orders,
                             "lifetime_value": profile.lifetime_value,
                         }
-                except Exception:
+                except SQLAlchemyError:
                     logger.exception("Failed to fetch user profile for memory context")
 
                 try:
@@ -164,11 +169,13 @@ def build_memory_node(
                             }
                             for p in preferences
                         ]
-                except Exception:
+                except SQLAlchemyError:
                     logger.exception("Failed to fetch user preferences for memory context")
 
                 try:
-                    facts = await structured_manager.get_user_facts(mem_session, user_id, limit=50)
+                    facts = await structured_manager.get_user_facts(
+                        mem_session, user_id, limit=fetch_limits["facts_limit"]
+                    )
                     if facts:
                         memory_context["structured_facts"] = [
                             {
@@ -178,12 +185,12 @@ def build_memory_node(
                             }
                             for f in facts
                         ]
-                except Exception:
+                except SQLAlchemyError:
                     logger.exception("Failed to fetch user facts for memory context")
 
                 try:
                     summaries = await structured_manager.get_recent_summaries(
-                        mem_session, user_id, limit=50
+                        mem_session, user_id, limit=fetch_limits["summaries_limit"]
                     )
                     if summaries:
                         memory_context["interaction_summaries"] = [
@@ -194,16 +201,21 @@ def build_memory_node(
                             }
                             for s in summaries
                         ]
-                except Exception:
+                except SQLAlchemyError:
                     logger.exception("Failed to fetch interaction summaries for memory context")
 
             try:
                 if last_user_message:
                     summary_results = await vector_manager.search_similar(
-                        user_id, query_text=last_user_message, top_k=10, message_role="summary"
+                        user_id,
+                        query_text=last_user_message,
+                        top_k=fetch_limits["vector_top_k"],
+                        message_role="summary",
                     )
                     message_results = await vector_manager.search_similar(
-                        user_id, query_text=last_user_message, top_k=10
+                        user_id,
+                        query_text=last_user_message,
+                        top_k=fetch_limits["vector_top_k"],
                     )
                     # Filter by relevance score threshold before deduplication
                     threshold = settings.VECTOR_MEMORY_SCORE_THRESHOLD
@@ -227,10 +239,9 @@ def build_memory_node(
                             }
                             for payload in combined[:10]
                         ]
-            except Exception:
+            except (OperationalError, OSError):
                 logger.exception("Failed to fetch vector memory for memory context")
 
-        budgeter = MemoryTokenBudget()
         memory_context_config = state.get("memory_context_config")
         memory_context = budgeter.allocate(memory_context, config=memory_context_config)
 
@@ -333,7 +344,14 @@ def build_synthesis_node(
             )
             response = await llm.ainvoke(messages, config=config)
             synthesized = str(response.content)
-        except Exception as exc:
+
+            from app.safety import OutputModerator
+
+            moderator = OutputModerator(llm=llm)
+            mod_result = await moderator.moderate(synthesized, context="synthesis_node")
+            if not mod_result.is_safe and mod_result.replacement_text:
+                synthesized = mod_result.replacement_text
+        except OSError as exc:
             logger.error("Synthesis LLM call failed: %s", exc)
             synthesized = "\n\n".join(parts)
 
@@ -586,7 +604,7 @@ def build_decider_node(
 
                 try:
                     extract_and_save_facts.delay(user_id, thread_id, history_json, question, answer)
-                except Exception:
+                except (OperationalError, KeyError):
                     logger.exception("Failed to enqueue fact extraction")
 
         if should_summarize_flag:
@@ -603,7 +621,7 @@ def build_decider_node(
                         utilization=context_utilization,
                         threshold=compaction_threshold,
                     )
-            except Exception:
+            except (SQLAlchemyError, OperationalError):
                 logger.exception("Failed to run session summarizer")
 
         answer = result.get("answer", "") or state.get("answer", "")

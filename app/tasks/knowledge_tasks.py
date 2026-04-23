@@ -10,6 +10,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import models
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 
 from app.celery_app import celery_app
@@ -55,7 +56,7 @@ async def _do_sync(document_id: int, storage_path: str, source_name: str) -> dic
     qdrant_client = QdrantKnowledgeClient(
         url=settings.QDRANT_URL,
         collection_name=settings.QDRANT_COLLECTION_NAME,
-        api_key=settings.QDRANT_API_KEY,
+        api_key=settings.QDRANT_API_KEY.get_secret_value(),
     )
     try:
         await qdrant_client.ensure_collection()
@@ -165,7 +166,7 @@ def sync_knowledge_document(self, document_id: int) -> dict[str, Any]:
                 "status": "success",
                 "document_id": document_id,
             }
-        except Exception as exc:
+        except (SQLAlchemyError, RuntimeError) as exc:
             logger.exception(f"Failed to sync knowledge document {document_id}")
             doc.sync_status = "failed"
             doc.sync_message = "同步失败，已达到最大重试次数"

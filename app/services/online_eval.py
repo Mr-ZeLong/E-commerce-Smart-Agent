@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import case, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import desc, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -154,7 +155,7 @@ class OnlineEvalService:
                         )
                         db.add(qs)
                         scores.append(qs)
-            except Exception:
+            except (SQLAlchemyError, ValueError, json.JSONDecodeError):
                 logger.exception("Quality score LLM evaluation failed")
         await db.commit()
         return scores

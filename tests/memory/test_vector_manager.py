@@ -159,7 +159,7 @@ async def test_aclose(deterministic_embedder):
 
     client = AsyncQdrantClient(
         url=settings.QDRANT_URL,
-        api_key=settings.QDRANT_API_KEY or None,
+        api_key=settings.QDRANT_API_KEY.get_secret_value() if settings.QDRANT_API_KEY else None,
         timeout=settings.QDRANT_TIMEOUT,
     )
     collection_name = "test_aclose_collection"

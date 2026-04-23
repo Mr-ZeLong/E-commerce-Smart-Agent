@@ -30,7 +30,9 @@ class ProductTool(BaseTool):
         if self._qdrant is None:
             self._qdrant = AsyncQdrantClient(
                 url=settings.QDRANT_URL,
-                api_key=settings.QDRANT_API_KEY or None,
+                api_key=settings.QDRANT_API_KEY.get_secret_value()
+                if settings.QDRANT_API_KEY
+                else None,
                 timeout=settings.QDRANT_TIMEOUT,
             )
         return self._qdrant
@@ -113,7 +115,7 @@ class ProductTool(BaseTool):
                     "query": query,
                 }
             )
-        except Exception:
+        except (RuntimeError, OSError, ConnectionError):
             logger.exception("Product search failed")
             return ToolResult(output={"status": "error", "reason": "商品搜索失败，请稍后重试"})
 
@@ -126,7 +128,7 @@ class ProductTool(BaseTool):
             gen = create_embedding_model()
             vector = await gen.aembed_query(query)
             return vector
-        except Exception:
+        except (ImportError, OSError):
             return [0.0] * settings.EMBEDDING_DIM
 
     def _try_direct_answer(self, query: str, products: list[dict]) -> str | None:

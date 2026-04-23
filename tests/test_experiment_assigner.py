@@ -1,7 +1,11 @@
 import pytest
 
 from app.models.experiment import Experiment, ExperimentStatus, ExperimentVariant
-from app.services.experiment_assigner import ExperimentAssigner, _deterministic_hash
+from app.services.experiment_assigner import (
+    ExperimentAssigner,
+    VariantConfig,
+    _deterministic_hash,
+)
 
 
 @pytest.mark.asyncio
@@ -102,3 +106,72 @@ async def test_assign_non_numeric_user_id(db_session):
 
     result = await assigner.assign("abc", "exp_str_user", db_session)
     assert result == v1.id
+
+
+@pytest.mark.asyncio
+async def test_assign_with_config_returns_none_when_experiment_not_found(db_session):
+    assigner = ExperimentAssigner()
+    result = await assigner.assign_with_config("123", "nonexistent_exp", db_session)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_assign_with_config_returns_full_variant_config(db_session):
+    assigner = ExperimentAssigner()
+    exp = Experiment(name="exp_config", status=ExperimentStatus.RUNNING.value)
+    db_session.add(exp)
+    await db_session.flush()
+    await db_session.refresh(exp)
+    assert exp.id is not None
+
+    v1 = ExperimentVariant(
+        experiment_id=exp.id,
+        name="variant_config",
+        weight=1,
+        system_prompt="test prompt",
+        llm_model="gpt-4o-mini",
+        retriever_top_k=8,
+        reranker_enabled=False,
+        memory_context_config={"memory_token_budget": 512},
+        extra_config={"temperature": 0.5},
+    )
+    db_session.add(v1)
+    await db_session.flush()
+    await db_session.refresh(v1)
+    assert v1.id is not None
+
+    result = await assigner.assign_with_config("123", "exp_config", db_session)
+    assert isinstance(result, VariantConfig)
+    assert result.variant_id == v1.id
+    assert result.system_prompt == "test prompt"
+    assert result.llm_model == "gpt-4o-mini"
+    assert result.retriever_top_k == 8
+    assert result.reranker_enabled is False
+    assert result.memory_context_config == {"memory_token_budget": 512}
+    assert result.extra_config == {"temperature": 0.5}
+
+
+@pytest.mark.asyncio
+async def test_variant_config_defaults_none(db_session):
+    assigner = ExperimentAssigner()
+    exp = Experiment(name="exp_defaults", status=ExperimentStatus.RUNNING.value)
+    db_session.add(exp)
+    await db_session.flush()
+    await db_session.refresh(exp)
+    assert exp.id is not None
+
+    v1 = ExperimentVariant(experiment_id=exp.id, name="variant_defaults", weight=1)
+    db_session.add(v1)
+    await db_session.flush()
+    await db_session.refresh(v1)
+    assert v1.id is not None
+
+    result = await assigner.assign_with_config("123", "exp_defaults", db_session)
+    assert isinstance(result, VariantConfig)
+    assert result.variant_id == v1.id
+    assert result.system_prompt is None
+    assert result.llm_model is None
+    assert result.retriever_top_k is None
+    assert result.reranker_enabled is None
+    assert result.memory_context_config is None
+    assert result.extra_config is None

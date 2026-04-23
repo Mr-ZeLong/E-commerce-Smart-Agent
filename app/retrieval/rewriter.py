@@ -4,9 +4,11 @@ import logging
 from typing import Any
 
 import redis.asyncio as aioredis
+from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
+from redis.exceptions import RedisError
 
 from app.core.config import settings
 from app.core.tracing import build_llm_config
@@ -111,7 +113,7 @@ class QueryRewriter:
                 if isinstance(cached, bytes):
                     cached = cached.decode("utf-8")
                 return str(cached)
-        except Exception:
+        except (RedisError, ConnectionError, OSError):
             logger.exception("Failed to read query rewrite cache")
         return None
 
@@ -120,7 +122,7 @@ class QueryRewriter:
             return
         try:
             await self.redis.setex(cache_key, self.cache_ttl_seconds, value)
-        except Exception:
+        except (RedisError, ConnectionError, OSError):
             logger.exception("Failed to write query rewrite cache")
 
     async def rewrite(
@@ -152,7 +154,7 @@ class QueryRewriter:
             if rewritten:
                 await self._cache_result(cache_key, rewritten)
                 return rewritten
-        except Exception as exc:
+        except (LangChainException, json.JSONDecodeError, ValueError) as exc:
             logger.warning(
                 "Query rewrite failed for %r: %s, falling back to original query",
                 query,
@@ -213,7 +215,7 @@ class QueryRewriter:
 
             await self._cache_result(cache_key, json.dumps(variants))
             return variants
-        except Exception as exc:
+        except (LangChainException, json.JSONDecodeError, ValueError) as exc:
             logger.warning(
                 "Multi-query rewrite failed for %r: %s, falling back to original query",
                 query,

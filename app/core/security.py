@@ -33,7 +33,9 @@ def create_access_token(user_id: int, is_admin: bool = False) -> str:
         "iat": utc_now(),
         "is_admin": is_admin,  # v4.0 新增：区分管理员权限
     }
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(
+        to_encode, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM
+    )
 
 
 def _decode_token(
@@ -61,7 +63,9 @@ def _decode_token(
         )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.ALGORITHM]
+        )
         user_id = payload.get("sub")
 
         if user_id is None:

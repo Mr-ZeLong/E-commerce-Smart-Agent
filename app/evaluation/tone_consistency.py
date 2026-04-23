@@ -75,6 +75,6 @@ async def tone_consistency(
     except (ValueError, TypeError):
         logger.warning("Failed to parse tone consistency score from LLM response.")
         return 0.0
-    except Exception as e:  # noqa: BLE001
+    except OSError as e:
         logger.warning("LLM call failed during tone consistency evaluation: %s", e)
         return 0.0

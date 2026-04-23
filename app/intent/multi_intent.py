@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol
 
+from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
@@ -209,7 +210,7 @@ class MultiIntentProcessor:
             if isinstance(result, dict):
                 return IndependenceCheck(**result)
             return IndependenceCheck(are_independent=False, reason="Unexpected output type")
-        except Exception as exc:
+        except (LangChainException, ConnectionError, OSError) as exc:
             logger.warning("LLM independence check failed: %s", exc)
             return IndependenceCheck(are_independent=False, reason="LLM check failed")
 

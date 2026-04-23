@@ -12,6 +12,7 @@ from langchain_core.tracers.context import tracing_v2_enabled
 from langgraph.types import Command
 from opentelemetry import trace
 from pydantic import BaseModel
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel import desc, select
 
 from app.api.v1.chat_utils import create_stream_metadata_message
@@ -88,15 +89,20 @@ async def chat(
 
             variant_id: int | None = None
             memory_context_config: dict[str, Any] | None = None
+            variant_llm_model: str | None = None
+            variant_retriever_top_k: int | None = None
+            variant_reranker_enabled: bool | None = None
             async with async_session_maker() as db:
                 assigner = ExperimentAssigner()
-                variant_id = await assigner.assign(str(current_user_id), "agent_prompt", db=db)
-                if variant_id is not None:
-                    from app.models.experiment import ExperimentVariant
-
-                    variant = await db.get(ExperimentVariant, variant_id)
-                    if variant is not None:
-                        memory_context_config = variant.memory_context_config
+                variant_config = await assigner.assign_with_config(
+                    str(current_user_id), "agent_prompt", db=db
+                )
+                if variant_config is not None:
+                    variant_id = variant_config.variant_id
+                    memory_context_config = variant_config.memory_context_config
+                    variant_llm_model = variant_config.llm_model
+                    variant_retriever_top_k = variant_config.retriever_top_k
+                    variant_reranker_enabled = variant_config.reranker_enabled
 
             initial_state = make_agent_state(
                 question=chat_request.question,
@@ -105,6 +111,9 @@ async def chat(
                 history=[{"role": "user", "content": chat_request.question}],
                 experiment_variant_id=variant_id,
                 memory_context_config=memory_context_config,
+                variant_llm_model=variant_llm_model,
+                variant_retriever_top_k=variant_retriever_top_k,
+                variant_reranker_enabled=variant_reranker_enabled,
             )
 
             vector_manager = getattr(request.app.state, "vector_manager", None)
@@ -118,7 +127,7 @@ async def chat(
                         timestamp=utc_now().isoformat(),
                         intent=intent_category,
                     )
-                except Exception:
+                except (OperationalError, OSError):
                     logger.exception("Failed to upsert user message to vector memory")
 
             # v4.1: 用于收集最终状态中的置信度信息
@@ -256,7 +265,7 @@ async def chat(
                     if cb is not None:
                         try:
                             langsmith_run_url = cb.get_run_url()
-                        except Exception:
+                        except (AttributeError, TypeError):
                             logger.debug("Failed to get LangSmith run URL", exc_info=True)
 
                 # v4.1: 在 [DONE] 之前发送元数据消息（如果存在）
@@ -283,7 +292,7 @@ async def chat(
                             timestamp=utc_now().isoformat(),
                             intent=intent_category,
                         )
-                    except Exception:
+                    except (OperationalError, OSError):
                         logger.exception("Failed to upsert assistant message to vector memory")
 
                 # Log execution metrics asynchronously after streaming completes
@@ -315,13 +324,34 @@ async def chat(
                             latency_ms=latency_ms,
                         )
 
+                    if variant_id is not None:
+                        try:
+                            from app.models.experiment import ExperimentMetrics
+
+                            metrics = ExperimentMetrics(
+                                variant_id=variant_id,
+                                user_id=current_user_id,
+                                session_id=thread_id,
+                                latency_ms=total_latency_ms,
+                                token_count=final_state.get("context_tokens"),
+                                confidence_score=final_state.get("confidence_score"),
+                                needs_human_transfer=bool(
+                                    final_state.get("needs_human_transfer", False)
+                                ),
+                            )
+                            session.add(metrics)
+                            await session.commit()
+                        except SQLAlchemyError:
+                            logger.exception("Failed to record experiment metrics")
+                            await session.rollback()
+
             except asyncio.CancelledError:
                 logger.info("[Chat] Client disconnected (CancelledError)")
                 raise
             except (ConnectionResetError, BrokenPipeError):
                 logger.info("[Chat] Client disconnected during SSE streaming")
                 return
-            except Exception:
+            except (RuntimeError, OSError):
                 logger.exception("[Chat] Unhandled error during SSE streaming")
                 error_payload = json.dumps(
                     {"error": "聊天服务出现内部错误，请稍后重试。"},

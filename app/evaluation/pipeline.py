@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -107,7 +108,7 @@ class EvaluationPipeline:
             config = {**config, "configurable": {"thread_id": session_id}}
             try:
                 final_state = await self.graph.ainvoke(initial_state, config=config)
-            except Exception:
+            except (SQLAlchemyError, RuntimeError):
                 logger.exception("Graph invocation failed for query: %s", query)
                 final_state = {}
 
@@ -166,14 +167,14 @@ class EvaluationPipeline:
                 result = await self.db_session.exec(stmt)
                 logs: list[GraphExecutionLog] = list(result.all())
                 results["containment_rate"] = containment_rate(logs)
-            except Exception:
+            except (SQLAlchemyError, OperationalError):
                 logger.exception("Failed to query containment rate from database.")
                 results["containment_rate"] = 0.0
 
             try:
                 latency_stats = await compute_node_latency_stats(self.db_session)
                 results["latency_stats"] = latency_stats
-            except Exception:
+            except (SQLAlchemyError, OperationalError):
                 logger.exception("Failed to compute latency statistics from database.")
                 results["latency_stats"] = {}
         else:

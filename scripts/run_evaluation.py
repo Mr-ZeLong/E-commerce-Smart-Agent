@@ -10,7 +10,7 @@ from app.main import lifespan
 
 
 async def main() -> int:
-    if settings.OPENAI_API_KEY in ("", "sk-test") or "localhost" in settings.OPENAI_BASE_URL:
+    if settings.OPENAI_API_KEY.get_secret_value() in ("", "sk-test") or "localhost" in settings.OPENAI_BASE_URL:
         print(
             json.dumps(
                 {

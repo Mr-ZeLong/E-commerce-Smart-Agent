@@ -1,6 +1,7 @@
-import asyncio
 import logging
 import uuid
+
+from asgiref.sync import async_to_sync
 
 from app.celery_app import celery_app
 from app.evaluation.shadow import ShadowOrchestrator
@@ -175,7 +176,7 @@ async def _run_shadow_test(query: str, thread_id: str | None = None) -> dict:
                 "latency_regression": report.latency_regression,
             },
         }
-    except Exception as e:
+    except (RuntimeError, OSError) as e:
         logger.exception("Shadow test failed for query: %s", query)
         return {
             "sampled": True,
@@ -187,9 +188,4 @@ async def _run_shadow_test(query: str, thread_id: str | None = None) -> dict:
 
 @celery_app.task(bind=True, name="shadow.run_shadow_test")
 def run_shadow_test(_self, query: str) -> dict:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_run_shadow_test(query))
-    finally:
-        loop.close()
+    return async_to_sync(_run_shadow_test)(query)

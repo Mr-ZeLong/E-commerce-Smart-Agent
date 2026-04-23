@@ -1,6 +1,7 @@
-import asyncio
 import logging
 from pathlib import Path
+
+from asgiref.sync import async_to_sync
 
 from app.celery_app import celery_app
 from app.core.database import async_session_maker
@@ -47,9 +48,4 @@ async def _run_weekly_audit() -> dict:
 
 @celery_app.task(bind=True, name="continuous_improvement.run_weekly_audit")
 def run_weekly_audit(_self) -> dict:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_run_weekly_audit())
-    finally:
-        loop.close()
+    return async_to_sync(_run_weekly_audit)()

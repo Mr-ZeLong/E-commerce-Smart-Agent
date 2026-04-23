@@ -1,5 +1,6 @@
-import asyncio
 import logging
+
+from asgiref.sync import async_to_sync
 
 from app.celery_app import celery_app
 from app.core.config import settings
@@ -25,9 +26,4 @@ async def _run_few_shot_evaluation() -> dict:
 
 @celery_app.task(bind=True, name="evaluation.run_few_shot_evaluation")
 def run_few_shot_evaluation(_self) -> dict:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_run_few_shot_evaluation())
-    finally:
-        loop.close()
+    return async_to_sync(_run_few_shot_evaluation)()

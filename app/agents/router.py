@@ -1,6 +1,7 @@
 import logging
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.agents.base import BaseAgent
 from app.core.config import settings
@@ -191,7 +192,7 @@ class IntentRouterAgent(BaseAgent):
                         f"{prefix}我是您的智能客服助手，"
                         "可以帮您查询订单、咨询政策或处理退货。请问有什么可以帮您？"
                     )
-            except Exception:
+            except (SQLAlchemyError, ConnectionError, OSError):
                 logger.exception("Failed to fetch user profile for greeting personalization")
         return self.GREETING_RESPONSE
 

@@ -14,12 +14,12 @@ def create_retriever(llm, redis_client=None) -> HybridRetriever:
         qdrant_client=QdrantKnowledgeClient(
             url=settings.QDRANT_URL,
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            api_key=settings.QDRANT_API_KEY,
+            api_key=settings.QDRANT_API_KEY.get_secret_value(),
         ),
         dense_embedder=create_embedding_model(),
         sparse_embedder=SparseTextEmbedder(),
         reranker=QwenReranker(
-            api_key=settings.DASHSCOPE_API_KEY,
+            api_key=settings.DASHSCOPE_API_KEY.get_secret_value(),
             base_url=settings.RERANK_BASE_URL,
             model=settings.RERANK_MODEL,
         ),

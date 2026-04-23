@@ -139,7 +139,7 @@ class SessionSummarizer:
                     user_id,
                     thread_id,
                 )
-            except Exception:
+            except (RuntimeError, OSError, ConnectionError):
                 logger.exception("Failed to upsert summary vector")
 
         return record

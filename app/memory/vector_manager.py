@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, VectorParams
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.retrieval.embeddings import create_embedding_model
@@ -26,7 +27,7 @@ class VectorMemoryManager:
             else:
                 self.client = AsyncQdrantClient(
                     url=settings.QDRANT_URL,
-                    api_key=settings.QDRANT_API_KEY,
+                    api_key=settings.QDRANT_API_KEY.get_secret_value(),
                     timeout=settings.QDRANT_TIMEOUT,
                 )
         else:
@@ -57,7 +58,7 @@ class VectorMemoryManager:
                 field_name="user_id",
                 field_schema=models.PayloadSchemaType.INTEGER,
             )
-        except Exception:
+        except (SQLAlchemyError, RuntimeError, OSError):
             logger.exception("Failed to create payload index for user_id")
         self._collection_ensured = True
 

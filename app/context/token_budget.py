@@ -16,7 +16,7 @@ class TokenBudget(ABC):
             import tiktoken
 
             self._encoder = tiktoken.get_encoding("cl100k_base")
-        except Exception:
+        except ImportError:
             self._encoder = None
 
     def estimate_tokens(self, text: str) -> int:
@@ -121,3 +121,23 @@ class MemoryTokenBudget(TokenBudget):
                 break
 
         return result
+
+    def calculate_fetch_limits(self, budget: int) -> dict[str, int]:
+        """Calculate fetch limits for memory retrieval based on token budget.
+
+        Distributes the budget between structured memory (facts, summaries)
+        and vector memory (top_k) with a 50/50 split.
+
+        Args:
+            budget: Total token budget for memory fetching.
+
+        Returns:
+            Dictionary with ``facts_limit``, ``summaries_limit``, and ``vector_top_k``.
+        """
+        structured_budget = int(budget * 0.5)
+        vector_budget = int(budget * 0.5)
+        return {
+            "facts_limit": max(3, min(50, structured_budget // 50)),
+            "summaries_limit": max(2, min(50, structured_budget // 100)),
+            "vector_top_k": max(5, min(20, vector_budget // 150)),
+        }

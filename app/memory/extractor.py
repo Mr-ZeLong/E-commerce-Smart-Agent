@@ -3,6 +3,7 @@ import logging
 import re
 from typing import Any
 
+from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.core.llm_factory import create_llm
@@ -60,11 +61,11 @@ class FactExtractor:
             response = await self.llm.ainvoke(messages, config=config)
             raw_content = str(response.content) if hasattr(response, "content") else str(response)
             facts = json.loads(raw_content)
-        except Exception:
+        except (LangChainException, json.JSONDecodeError, OSError):
             # Attempt to recover JSON from markdown wrapping
             try:
                 facts = json.loads(self._extract_json_block(raw_content))
-            except Exception:
+            except (json.JSONDecodeError, OSError):
                 logger.exception("Failed to parse LLM response as JSON for fact extraction")
                 return []
 

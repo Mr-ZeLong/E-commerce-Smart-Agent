@@ -114,3 +114,24 @@ class ExperimentAssignment(SQLModel, table=True):
             DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
         ),
     )
+
+
+class ExperimentMetrics(SQLModel, table=True):
+    __tablename__ = "experiment_metrics"
+
+    id: int | None = Field(default=None, primary_key=True)
+    variant_id: int = Field(foreign_key="experiment_variants.id", index=True, description="变体 ID")
+    user_id: int = Field(foreign_key="users.id", index=True, description="用户 ID")
+    session_id: str = Field(max_length=128, description="会话 ID")
+
+    latency_ms: int | None = Field(default=None, description="响应延迟(毫秒)")
+    token_count: int | None = Field(default=None, description="token数量")
+    confidence_score: float | None = Field(default=None, description="置信度分数")
+    needs_human_transfer: bool | None = Field(default=None, description="是否需要人工转接")
+
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        ),
+    )

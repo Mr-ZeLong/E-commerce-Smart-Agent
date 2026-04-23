@@ -82,6 +82,10 @@ class AgentState(TypedDict):
     context_tokens: Annotated[int | None, _last_value]
     context_utilization: Annotated[float | None, _last_value]
 
+    variant_llm_model: Annotated[str | None, _last_value]
+    variant_retriever_top_k: Annotated[int | None, _last_value]
+    variant_reranker_enabled: Annotated[bool | None, _last_value]
+
 
 def make_agent_state(
     *,
@@ -125,6 +129,9 @@ def make_agent_state(
     memory_context_config: dict[str, Any] | None = None,
     context_tokens: int | None = None,
     context_utilization: float | None = None,
+    variant_llm_model: str | None = None,
+    variant_retriever_top_k: int | None = None,
+    variant_reranker_enabled: bool | None = None,
 ) -> AgentState:
     return {
         "question": question,
@@ -167,4 +174,7 @@ def make_agent_state(
         "memory_context_config": memory_context_config,
         "context_tokens": context_tokens,
         "context_utilization": context_utilization,
+        "variant_llm_model": variant_llm_model,
+        "variant_retriever_top_k": variant_retriever_top_k,
+        "variant_reranker_enabled": variant_reranker_enabled,
     }

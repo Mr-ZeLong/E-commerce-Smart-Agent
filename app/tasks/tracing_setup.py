@@ -17,12 +17,11 @@ def setup_celery_langsmith_tracing() -> None:
         return
 
     os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
-    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGSMITH_API_KEY)
+    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGSMITH_API_KEY.get_secret_value())
     os.environ.setdefault("LANGCHAIN_PROJECT", settings.LANGSMITH_PROJECT)
 
-    masked_key = (
-        f"{settings.LANGSMITH_API_KEY[:8]}..." if len(settings.LANGSMITH_API_KEY) > 8 else "***"
-    )
+    api_key = settings.LANGSMITH_API_KEY.get_secret_value()
+    masked_key = f"{api_key[:8]}..." if len(api_key) > 8 else "***"
     logger.info(
         "LangSmith Celery tracing enabled (project=%s, api_key=%s)",
         settings.LANGSMITH_PROJECT,

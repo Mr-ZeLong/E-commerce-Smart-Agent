@@ -47,7 +47,12 @@ class HybridRetriever:
         query: str,
         conversation_history: list[dict] | None = None,
         memory_context: dict | None = None,
+        variant_top_k: int | None = None,
+        variant_reranker_enabled: bool | None = None,
     ) -> list[RetrievedChunk]:
+        use_reranker = variant_reranker_enabled if variant_reranker_enabled is not None else True
+        top_k = variant_top_k if variant_top_k is not None else settings.RETRIEVER_FINAL_TOPK
+
         if self.use_multi_query:
             variants = await self.rewriter.rewrite_multi(
                 query,
@@ -55,14 +60,16 @@ class HybridRetriever:
                 conversation_history=conversation_history,
                 memory_context=memory_context,
             )
-            results = await asyncio.gather(*[self._retrieve_single(v) for v in variants])
+            results = await asyncio.gather(
+                *[self._retrieve_single(v, top_k, use_reranker) for v in variants]
+            )
             all_chunks = self._deduplicate_chunks([c for r in results for c in r])
             if not all_chunks:
                 return []
+            if not use_reranker:
+                return all_chunks[:top_k]
             documents = [c.content for c in all_chunks]
-            reranked = await self.reranker.rerank(
-                query, documents, top_n=settings.RETRIEVER_FINAL_TOPK
-            )
+            reranked = await self.reranker.rerank(query, documents, top_n=top_k)
             final = []
             for r in reranked:
                 if 0 <= r.index < len(all_chunks):
@@ -76,12 +83,19 @@ class HybridRetriever:
                     )
             return final
 
-        return await self._retrieve_single(query)
+        return await self._retrieve_single(query, top_k, use_reranker)
 
-    async def _retrieve_single(self, query: str) -> list[RetrievedChunk]:
+    async def _retrieve_single(
+        self,
+        query: str,
+        top_k: int | None = None,
+        use_reranker: bool = True,
+    ) -> list[RetrievedChunk]:
         dense_vec = await self.dense_embedder.aembed_query(query)
         sparse_vecs = await self.sparse_embedder.aembed([query])
         sparse_vec = sparse_vecs[0]
+
+        final_top_k = top_k if top_k is not None else settings.RETRIEVER_FINAL_TOPK
 
         scored_points = await self.qdrant_client.query_hybrid(
             dense_vector=dense_vec,
@@ -95,7 +109,13 @@ class HybridRetriever:
 
         documents = [str((p.payload or {}).get("content", "")) for p in scored_points]
 
-        reranked = await self.reranker.rerank(query, documents, top_n=settings.RETRIEVER_FINAL_TOPK)
+        if not use_reranker:
+            return [
+                self._to_chunk(scored_points[i], 1.0)
+                for i in range(min(final_top_k, len(scored_points)))
+            ]
+
+        reranked = await self.reranker.rerank(query, documents, top_n=final_top_k)
 
         results = []
         for r in reranked:

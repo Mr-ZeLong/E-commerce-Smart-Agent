@@ -2,6 +2,7 @@ import json
 import logging
 
 import redis.asyncio as aioredis
+from redis.exceptions import RedisError
 
 from app.core.config import settings
 from app.models.state import AgentState
@@ -108,7 +109,7 @@ class CartTool(BaseTool):
                 )
 
             return ToolResult(output={"status": "error", "reason": f"不支持的操作: {action}"})
-        except Exception:
+        except (RedisError, ConnectionError, OSError, json.JSONDecodeError):
             logger.exception("Cart tool execution failed")
             return ToolResult(
                 output={"status": "error", "reason": "购物车服务暂时不可用，请稍后重试"}

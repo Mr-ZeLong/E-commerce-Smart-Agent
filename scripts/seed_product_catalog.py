@@ -28,7 +28,7 @@ async def main():
     qdrant_client = QdrantKnowledgeClient(
         url=settings.QDRANT_URL,
         collection_name=COLLECTION_NAME,
-        api_key=settings.QDRANT_API_KEY,
+        api_key=settings.QDRANT_API_KEY.get_secret_value() if settings.QDRANT_API_KEY else None,
     )
     await qdrant_client.ensure_collection()
 

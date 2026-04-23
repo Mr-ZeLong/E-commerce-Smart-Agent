@@ -11,7 +11,7 @@ class QdrantKnowledgeClient:
         url: str,
         *,
         collection_name: str,
-        api_key: str,
+        api_key: str | None,
         client: AsyncQdrantClient | None = None,
     ):
         self.collection_name = collection_name

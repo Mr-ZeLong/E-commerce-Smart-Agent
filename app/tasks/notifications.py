@@ -30,11 +30,11 @@ def _sync_send_email(to_emails: list[str], subject: str, body: str) -> dict:
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
             if settings.SMTP_PORT == 587:
                 server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD.get_secret_value())
             server.sendmail(msg["From"], to_emails, msg.as_string())
         logger.info("邮件已发送至 %s", to_emails)
         return {"sent": True, "recipients": to_emails}
-    except Exception:
+    except (smtplib.SMTPException, OSError, ConnectionError):
         logger.exception("邮件发送失败")
         return {"sent": False, "reason": "smtp_error"}
 

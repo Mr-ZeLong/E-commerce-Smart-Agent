@@ -3,6 +3,7 @@ import logging
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.agents.base import BaseAgent
 from app.intent.few_shot_loader import (
@@ -75,7 +76,7 @@ class ComplaintAgent(BaseAgent):
             response_text = classification.empathetic_response.replace(
                 "{ticket_id}", str(ticket_id)
             )
-        except Exception:
+        except (SQLAlchemyError, ConnectionError, OSError):
             logger.exception("Failed to create complaint ticket")
             response_text = (
                 "非常抱歉给您带来不好的体验，我们已经记录了您的问题，客服团队会尽快与您联系处理。"
@@ -130,7 +131,7 @@ class ComplaintAgent(BaseAgent):
                 json_str = raw.split("```")[1].split("```")[0].strip()
             data = json.loads(json_str)
             return ComplaintClassification(**data)
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             logger.warning("Failed to parse complaint classification JSON, using defaults")
             return ComplaintClassification(
                 category="other",

@@ -7,6 +7,7 @@ import logging
 import re
 from typing import Any
 
+from langchain_core.exceptions import LangChainException
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -209,7 +210,7 @@ class IntentClassifier:
         except TimeoutError:
             logger.warning("Intent classification LLM call timed out after 5s")
             return None
-        except Exception as exc:
+        except (LangChainException, ConnectionError, OSError) as exc:
             logger.warning("Intent classification LLM call failed: %s", exc)
             return None
         tool_calls = response.tool_calls or []

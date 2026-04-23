@@ -121,7 +121,7 @@ class AdversarialRunner:
 
                 try:
                     record = AdversarialRecord.model_validate(raw)
-                except Exception as exc:
+                except (ValueError, TypeError) as exc:
                     raise ValueError(f"Validation failed on line {line_number}: {exc}") from exc
                 records.append(record)
 
@@ -167,7 +167,7 @@ class AdversarialRunner:
                 "risk_level": result.risk_level,
                 "risk_type": result.risk_type,
             }
-        except Exception:
+        except (ImportError, RuntimeError):
             logger.exception("Safety filter check failed for query: %s", query)
             return {"is_safe": True, "risk_level": "low", "risk_type": None}
 

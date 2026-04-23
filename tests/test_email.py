@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from app.core.email import send_email
 
@@ -21,7 +22,7 @@ async def test_send_email_success_with_starttls():
         mock_settings.SMTP_HOST = "smtp.test.com"
         mock_settings.SMTP_PORT = 587
         mock_settings.SMTP_USER = "user@test.com"
-        mock_settings.SMTP_PASSWORD = "pass"
+        mock_settings.SMTP_PASSWORD = SecretStr("pass")
         mock_settings.SMTP_FROM_EMAIL = "noreply@test.com"
         with patch("app.core.email.smtplib.SMTP") as mock_smtp:
             mock_smtp.return_value.__enter__ = MagicMock(return_value=mock_server)
@@ -41,7 +42,7 @@ async def test_send_email_success_without_starttls():
         mock_settings.SMTP_HOST = "smtp.test.com"
         mock_settings.SMTP_PORT = 465
         mock_settings.SMTP_USER = "user@test.com"
-        mock_settings.SMTP_PASSWORD = "pass"
+        mock_settings.SMTP_PASSWORD = SecretStr("pass")
         mock_settings.SMTP_FROM_EMAIL = None
         with patch("app.core.email.smtplib.SMTP") as mock_smtp:
             mock_smtp.return_value.__enter__ = MagicMock(return_value=mock_server)
@@ -60,7 +61,7 @@ async def test_send_email_returns_error_on_exception():
         mock_settings.SMTP_HOST = "smtp.test.com"
         mock_settings.SMTP_PORT = 587
         mock_settings.SMTP_USER = "user@test.com"
-        mock_settings.SMTP_PASSWORD = "pass"
+        mock_settings.SMTP_PASSWORD = SecretStr("pass")
         mock_settings.SMTP_FROM_EMAIL = "noreply@test.com"
         with patch("app.core.email.smtplib.SMTP") as mock_smtp:
             mock_smtp.return_value.__enter__ = MagicMock(return_value=mock_server)

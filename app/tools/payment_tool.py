@@ -2,6 +2,7 @@ import logging
 from contextlib import nullcontext
 from datetime import datetime
 
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel import select
 
 from app.core.database import async_session_maker
@@ -74,7 +75,7 @@ class PaymentTool(BaseTool):
                             "created_at": created_at_str,
                         }
                     )
-        except Exception:
+        except (SQLAlchemyError, OperationalError):
             logger.exception("[PaymentTool] 查询支付/退款记录失败")
             return ToolResult(
                 output={

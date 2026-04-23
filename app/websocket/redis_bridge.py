@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import redis.asyncio as aioredis
+from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class RedisBroadcastBridge:
         payload = json.dumps({"event": event, "data": data, "room": room})
         try:
             await self._redis.publish(channel, payload)
-        except Exception:
+        except (RedisError, ConnectionError, OSError):
             logger.exception("Failed to publish WebSocket message to Redis channel %s", channel)
 
     async def subscribe(self, room: str) -> AsyncGenerator[dict[str, Any], None]:
@@ -31,7 +32,7 @@ class RedisBroadcastBridge:
         try:
             pubsub = self._redis.pubsub()
             await pubsub.subscribe(channel)
-        except Exception:
+        except (RedisError, ConnectionError, OSError):
             logger.exception("Failed to subscribe to Redis channel %s", channel)
             return
 
@@ -44,18 +45,18 @@ class RedisBroadcastBridge:
                         logger.warning("Invalid JSON in Redis pubsub message on %s", channel)
                         continue
                     yield payload
-        except Exception:
+        except (RedisError, ConnectionError, OSError):
             logger.exception("Error in Redis pubsub listener for channel %s", channel)
         finally:
             try:
                 await pubsub.unsubscribe(channel)
                 await pubsub.aclose()
-            except Exception:
+            except (RedisError, OSError):
                 logger.exception("Error closing Redis pubsub for channel %s", channel)
 
     async def close(self) -> None:
         """Close the underlying Redis client."""
         try:
             await self._redis.aclose()
-        except Exception:
+        except (RedisError, OSError):
             logger.exception("Error closing Redis client")

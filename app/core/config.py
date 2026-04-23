@@ -1,5 +1,5 @@
 # app/core/config.py
-from pydantic import Field, PostgresDsn, RedisDsn, computed_field
+from pydantic import Field, PostgresDsn, RedisDsn, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,9 +64,16 @@ class Settings(BaseSettings):
     # Database
     POSTGRES_SERVER: str
     POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
+    POSTGRES_PASSWORD: SecretStr
     POSTGRES_DB: str
     POSTGRES_PORT: int
+
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE: int = 1800
+    DB_POOL_TIMEOUT: int = 15
+    DB_CONNECT_TIMEOUT: int = 10
+    DB_STATEMENT_TIMEOUT: int = 5000
 
     @computed_field
     @property
@@ -75,7 +82,7 @@ class Settings(BaseSettings):
             PostgresDsn.build(
                 scheme="postgresql+asyncpg",
                 username=self.POSTGRES_USER,
-                password=self.POSTGRES_PASSWORD,
+                password=self.POSTGRES_PASSWORD.get_secret_value(),
                 host=self.POSTGRES_SERVER,
                 port=self.POSTGRES_PORT,
                 path=self.POSTGRES_DB,
@@ -89,7 +96,7 @@ class Settings(BaseSettings):
             PostgresDsn.build(
                 scheme="postgresql",
                 username=self.POSTGRES_USER,
-                password=self.POSTGRES_PASSWORD,
+                password=self.POSTGRES_PASSWORD.get_secret_value(),
                 host=self.POSTGRES_SERVER,
                 port=self.POSTGRES_PORT,
                 path=self.POSTGRES_DB,
@@ -99,7 +106,7 @@ class Settings(BaseSettings):
     # Redis
     REDIS_HOST: str
     REDIS_PORT: int
-    REDIS_PASSWORD: str
+    REDIS_PASSWORD: SecretStr
 
     @computed_field
     @property
@@ -109,21 +116,21 @@ class Settings(BaseSettings):
                 scheme="redis",
                 host=self.REDIS_HOST,
                 port=self.REDIS_PORT,
-                password=self.REDIS_PASSWORD,
+                password=self.REDIS_PASSWORD.get_secret_value(),
             )
         )
 
     # LLM (Qwen)
     OPENAI_BASE_URL: str
-    OPENAI_API_KEY: str
-    DASHSCOPE_API_KEY: str
+    OPENAI_API_KEY: SecretStr
+    DASHSCOPE_API_KEY: SecretStr
     LLM_MODEL: str = "qwen-plus"
     EMBEDDING_MODEL: str = "text-embedding-v3"
     EMBEDDING_DIM: int = 1024
 
     # Qdrant
     QDRANT_URL: str = "http://localhost:6333"
-    QDRANT_API_KEY: str
+    QDRANT_API_KEY: SecretStr
     QDRANT_COLLECTION_NAME: str = "knowledge_chunks"
     QDRANT_TIMEOUT: int = 10
     QDRANT_RETRIES: int = 3
@@ -138,7 +145,7 @@ class Settings(BaseSettings):
 
     # LangSmith / LangChain tracing
     LANGCHAIN_TRACING_V2: bool = False
-    LANGSMITH_API_KEY: str = ""
+    LANGSMITH_API_KEY: SecretStr = SecretStr("")
     LANGSMITH_PROJECT: str = "ecommerce-smart-agent"
     LANGSMITH_OTEL_ENABLED: bool = False
     LANGSMITH_CELERY_TRACING: bool = True
@@ -163,7 +170,7 @@ class Settings(BaseSettings):
 
     # === 安全配置 ===
     # 建议生产环境使用: openssl rand -hex 32 生成
-    SECRET_KEY: str
+    SECRET_KEY: SecretStr
     ALGORITHM: str
     # Token 有效期（分钟），默认 1 天
     ACCESS_TOKEN_EXPIRE_MINUTES: int
@@ -175,7 +182,7 @@ class Settings(BaseSettings):
     ENABLE_OPENAPI_DOCS: bool = False
 
     # Celery 配置
-    CELERY_BROKER_URL: str
+    CELERY_BROKER_URL: SecretStr
     CELERY_RESULT_BACKEND: str
 
     # 风控阈值配置
@@ -274,7 +281,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_PASSWORD: SecretStr = SecretStr("")
     SMTP_FROM_EMAIL: str = ""
     ALERT_ADMIN_EMAILS: list[str] = Field(default_factory=list)
 

@@ -82,6 +82,8 @@ class PolicyAgent(BaseAgent):
             question,
             conversation_history=state.get("history"),
             memory_context=state.get("memory_context"),
+            variant_top_k=state.get("variant_retriever_top_k"),
+            variant_reranker_enabled=state.get("variant_reranker_enabled"),
         )
         filtered = [r for r in results if r.score > _RELEVANCE_THRESHOLD]
         if not filtered:

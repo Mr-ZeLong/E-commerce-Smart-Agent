@@ -87,7 +87,7 @@ def load_golden_dataset(path: str | Path) -> GoldenDataset:
 
             try:
                 record = GoldenRecord.model_validate(raw)
-            except Exception as exc:
+            except (ValueError, TypeError) as exc:
                 raise ValueError(f"Validation failed on line {line_number}: {exc}") from exc
             records.append(record)
 

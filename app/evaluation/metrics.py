@@ -130,7 +130,7 @@ async def _rag_precision_llm(
             logger.warning("Failed to parse RAG precision scores from LLM response.")
             return 0.0
         return _compute_rag_average(scores, top_chunks)
-    except Exception as e:  # noqa: BLE001
+    except OSError as e:
         logger.warning("LLM call failed during RAG precision evaluation: %s", e)
         return 0.0
 
@@ -220,6 +220,6 @@ async def answer_correctness(
     except (ValueError, TypeError):
         logger.warning("Failed to parse answer correctness score from LLM response.")
         return 0.0
-    except Exception as e:  # noqa: BLE001
+    except OSError as e:
         logger.warning("LLM call failed during answer correctness evaluation: %s", e)
         return 0.0

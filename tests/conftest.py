@@ -26,8 +26,8 @@ def real_llm():
     Skips the test if no valid API key is configured. Uses a lower-cost model
     for testing to control costs while still exercising real LLM behavior.
     """
-    key = settings.OPENAI_API_KEY
-    dashscope_key = settings.DASHSCOPE_API_KEY
+    key = settings.OPENAI_API_KEY.get_secret_value()
+    dashscope_key = settings.DASHSCOPE_API_KEY.get_secret_value()
     if key in ("", "sk-test", "dummy") and dashscope_key in ("", "sk-test", "dummy"):
         pytest.skip("OPENAI_API_KEY or DASHSCOPE_API_KEY not set or is a dummy value")
 
@@ -124,9 +124,10 @@ async def redis_checkpointer(redis_client):
 
 @pytest_asyncio.fixture(scope="function", loop_scope="session")
 async def qdrant_client():
+    qdrant_key = settings.QDRANT_API_KEY.get_secret_value()
     client = AsyncQdrantClient(
         url=settings.QDRANT_URL,
-        api_key=settings.QDRANT_API_KEY or None,
+        api_key=qdrant_key if qdrant_key else None,
         timeout=settings.QDRANT_TIMEOUT,
     )
     collection_name = f"test_{uuid.uuid4().hex}"
@@ -144,7 +145,7 @@ def deterministic_llm():
 
 def pytest_runtest_setup(item):
     if any(mark.name == "requires_llm" for mark in item.iter_markers()):
-        key = settings.OPENAI_API_KEY
-        dashscope_key = settings.DASHSCOPE_API_KEY
+        key = settings.OPENAI_API_KEY.get_secret_value()
+        dashscope_key = settings.DASHSCOPE_API_KEY.get_secret_value()
         if key in ("", "sk-test", "dummy") and dashscope_key in ("", "sk-test", "dummy"):
             pytest.skip("OPENAI_API_KEY or DASHSCOPE_API_KEY not set or is a dummy value")

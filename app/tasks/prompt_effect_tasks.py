@@ -1,8 +1,8 @@
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
+from asgiref.sync import async_to_sync
 from sqlmodel import desc, func, select
 
 from app.celery_app import celery_app
@@ -99,9 +99,4 @@ async def _generate_monthly_report(
 def generate_monthly_report(
     _self, agent_name: str | None = None, report_month: str | None = None
 ) -> dict:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_generate_monthly_report(agent_name, report_month))
-    finally:
-        loop.close()
+    return async_to_sync(_generate_monthly_report)(agent_name, report_month)

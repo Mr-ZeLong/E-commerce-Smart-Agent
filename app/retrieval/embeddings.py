@@ -56,7 +56,7 @@ class QwenEmbeddings:
                     ):
                         results[idx] = emb
                         self._cache[self._cache_key(text)] = emb
-                except Exception:
+                except (httpx.HTTPError, OSError):
                     logger = __import__("logging").getLogger(__name__)
                     logger.warning("Embedding API call failed or timed out, returning zero vectors")
                     for idx in uncached_indices:
@@ -72,7 +72,7 @@ class QwenEmbeddings:
 def create_embedding_model() -> QwenEmbeddings:
     return QwenEmbeddings(
         base_url=settings.OPENAI_BASE_URL,
-        api_key=settings.OPENAI_API_KEY,
+        api_key=settings.OPENAI_API_KEY.get_secret_value(),
         model=settings.EMBEDDING_MODEL,
         dimensions=settings.EMBEDDING_DIM,
     )

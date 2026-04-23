@@ -25,7 +25,7 @@ def _estimate_tokens(text: str) -> int:
 
         encoder = tiktoken.get_encoding("cl100k_base")
         return len(encoder.encode(text))
-    except Exception:
+    except (ImportError, OSError):
         return len(text) // 4
 
 
@@ -117,6 +117,8 @@ class BaseAgent(ABC):
                 metadata["intent"] = intent_result.get("primary_intent")
             else:
                 metadata["intent"] = getattr(intent_result, "primary_intent", None)
+        if variant_model := state.get("variant_llm_model"):
+            metadata["variant_llm_model"] = variant_model
         return metadata
 
     async def _call_llm(
@@ -127,14 +129,28 @@ class BaseAgent(ABC):
         metadata: dict[str, Any] | None = None,
     ) -> str:
         try:
-            llm = self.llm.bind(temperature=temperature) if temperature is not None else self.llm
+            llm = self.llm
+            if metadata and metadata.get("variant_llm_model"):
+                from app.core.llm_factory import create_openai_llm
+
+                variant_model = metadata.get("variant_llm_model")
+                llm = create_openai_llm(model=variant_model)
+            llm = llm.bind(temperature=temperature) if temperature is not None else llm
             config = build_llm_config(
                 agent_name=self.name,
                 tags=tags,
                 extra_metadata=metadata,
             )
             response = await llm.ainvoke(messages, config=config)
-            return str(response.content)
+            content = str(response.content)
+
+            from app.safety import OutputModerator
+
+            moderator = OutputModerator(llm=self.llm)
+            mod_result = await moderator.moderate(content, context=self.name)
+            if not mod_result.is_safe and mod_result.replacement_text:
+                return mod_result.replacement_text
+            return content
         except (LangChainException, ConnectionError) as e:
             logger.error(f"[{self.name}] LLM call failed: {e}")
             raise
@@ -179,16 +195,27 @@ class BaseAgent(ABC):
         system_prompt_override: str | None = None,
         memory_context_config: dict[str, Any] | None = None,
     ) -> list:
+        """Build message list with static system prompt and dynamic user content.
+
+        System prompt is kept static to enable KV-cache hits across requests.
+        Dynamic content (date, user-specific context) is moved to HumanMessage.
+        """
+        import hashlib
+
         messages = []
-        system_prompt = (
+        effective_prompt = (
             system_prompt_override
             if system_prompt_override is not None
-            else self._build_system_prompt(user_context)
+            else (self._dynamic_system_prompt or self.system_prompt)
         )
-        if system_prompt:
+        if effective_prompt:
             if system_prompt_override is not None:
-                system_prompt = render_prompt(system_prompt, user_context or {})
-            messages.append(SystemMessage(content=system_prompt))
+                effective_prompt = render_prompt(effective_prompt, user_context or {})
+            messages.append(SystemMessage(content=effective_prompt))
+
+            prompt_hash = hashlib.md5(effective_prompt.encode()).hexdigest()
+            logger.debug(f"[{self.name}] System prompt hash: {prompt_hash}")
+
         user_prompt = self._build_user_prompt(
             user_message, context, memory_context, memory_context_config
         )

@@ -113,5 +113,5 @@ def get_langsmith_run_url(callback) -> str | None:
         return None
     try:
         return callback.get_run_url()
-    except Exception:
+    except (AttributeError, TypeError):
         return None
