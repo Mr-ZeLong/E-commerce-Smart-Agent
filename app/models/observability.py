@@ -20,6 +20,7 @@ class GraphExecutionLog(SQLModel, table=True):
     final_agent: str | None = Field(default=None, max_length=32)
     confidence_score: float | None = None
     needs_human_transfer: bool = False
+    query: str | None = Field(default=None, max_length=512, description="User query text")
     langsmith_run_url: str | None = Field(default=None, description="LangSmith trace 链接")
     agent_config_version_id: int | None = Field(
         default=None,

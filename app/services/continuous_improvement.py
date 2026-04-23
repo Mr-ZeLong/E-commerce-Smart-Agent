@@ -36,6 +36,7 @@ class AuditSample(BaseModel):
     confidence_score: float | None
     needs_human_transfer: bool
     created_at: datetime
+    query: str = ""
     root_cause: RootCause | None = None
     notes: str | None = None
 
@@ -120,6 +121,7 @@ class ContinuousImprovementService:
                     confidence_score=log.confidence_score,
                     needs_human_transfer=log.needs_human_transfer,
                     created_at=log.created_at,
+                    query=log.query or "",
                 )
                 for log in samples
             ],
@@ -173,6 +175,7 @@ class ContinuousImprovementService:
             for r in dataset.records
             if r.query.strip().startswith("[AUDIT]")
         }
+        existing_queries = {r.query.strip() for r in dataset.records}
 
         dimension_map = {
             RootCause.INTENT_ERROR: "ambiguous_intent",
@@ -187,14 +190,18 @@ class ContinuousImprovementService:
         for sample in audit_batch.samples:
             if not sample.root_cause:
                 continue
+            query_text = sample.query if sample.query else f"[AUDIT] thread={sample.thread_id}"
+            if query_text in existing_queries:
+                continue
             if sample.thread_id in existing_thread_ids:
                 continue
+            query_text = sample.query if sample.query else f"[AUDIT] thread={sample.thread_id}"
             new_records.append(
                 GoldenRecord(
-                    query=f"[AUDIT] thread={sample.thread_id}",
+                    query=query_text,
                     expected_intent=sample.intent_category or "OTHER",
                     expected_slots={},
-                    expected_answer_fragment="",
+                    expected_answer_fragment=f"Audit: {sample.root_cause.value if sample.root_cause else 'unknown'}",
                     expected_audit_level="medium",
                     dimension=dimension_map.get(sample.root_cause, "abnormal_input"),
                 )

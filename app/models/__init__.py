@@ -22,6 +22,7 @@ from app.models.message import MessageCard, MessageStatus, MessageType
 from app.models.multi_intent_log import MultiIntentDecisionLog
 from app.models.observability import GraphExecutionLog, GraphNodeLog
 from app.models.order import Order, OrderStatus
+from app.models.pii_audit import PIIAuditLog
 from app.models.prompt_effect_report import PromptEffectReport
 from app.models.refund import RefundApplication, RefundReason, RefundStatus
 from app.models.user import User
@@ -50,6 +51,7 @@ __all__ = [
     "MultiIntentDecisionLog",
     "Order",
     "OrderStatus",
+    "PIIAuditLog",
     "PromptEffectReport",
     "QualityScore",
     "RefundApplication",
