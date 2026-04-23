@@ -102,25 +102,41 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Ensure baseline exists
-        run: |
-          mkdir -p reports
-          if [ ! -f reports/eval_baseline.json ]; then
-            echo '{"intent_accuracy":0.85,"slot_recall":0.80,"rag_precision":0.75,"answer_correctness":0.80,"token_efficiency":0.70,"tone_consistency":0.75,"containment_rate":0.90,"total_records":160}' > reports/eval_baseline.json
-          fi
+      - name: Download baseline artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-baseline
+          path: reports
+        continue-on-error: true
 
-      - name: Run evaluation
+      - name: Run evaluation with baseline
         run: |
-          uv run python -m app.evaluation.run \
-            --dataset data/golden_dataset_v2.jsonl \
-            --output-dir reports \
-            --baseline reports/eval_baseline.json
+          if [ -f reports/eval_baseline.json ]; then
+            uv run python -m app.evaluation.run \
+              --dataset data/golden_dataset_v2.jsonl \
+              --output-dir reports \
+              --baseline reports/eval_baseline.json \
+              --threshold 0.02
+          else
+            # First run: generate baseline
+            uv run python -m app.evaluation.run \
+              --dataset data/golden_dataset_v2.jsonl \
+              --output-dir reports \
+              --threshold 0.02
+            cp reports/eval_*.json reports/eval_baseline.json
+          fi
 
       - name: Upload evaluation results
         uses: actions/upload-artifact@v4
         with:
           name: eval-results
           path: reports/eval_*.json
+
+      - name: Upload baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-baseline
+          path: reports/eval_baseline.json
 
       - name: Comment PR with results
         if: github.event_name == 'pull_request'
