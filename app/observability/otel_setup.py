@@ -1,8 +1,9 @@
 # app/observability/otel_setup.py
-"""OpenTelemetry setup for FastAPI instrumentation."""
+"""OpenTelemetry setup for FastAPI and Celery instrumentation."""
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -43,3 +44,13 @@ def setup_otel_tracing(service_name: str = "ecommerce-smart-agent") -> TracerPro
 def instrument_fastapi(app) -> None:
     """Instrument a FastAPI application with OpenTelemetry."""
     FastAPIInstrumentor.instrument_app(app)
+
+
+def setup_celery_tracing() -> None:
+    """Instrument Celery with OpenTelemetry tracing.
+
+    Must be called after the Celery app is created and before tasks are
+    dispatched so that trace context is automatically propagated across
+    the broker boundary.
+    """
+    CeleryInstrumentor().instrument()

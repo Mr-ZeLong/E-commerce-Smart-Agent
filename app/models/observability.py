@@ -36,6 +36,7 @@ class GraphExecutionLog(SQLModel, table=True):
     total_latency_ms: int | None = None
     context_tokens: int | None = None
     context_utilization: float | None = None
+    trace_id: str | None = Field(default=None, max_length=32, description="OpenTelemetry trace ID")
 
 
 class GraphNodeLog(SQLModel, table=True):

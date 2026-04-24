@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from asgiref.sync import async_to_sync
+from opentelemetry import propagate, trace
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel import desc, select
 
@@ -22,6 +23,7 @@ from app.observability.token_tracker import TokenTracker
 from app.services.review_queue import ReviewQueueService
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 async def _async_log_chat_observability(
@@ -35,6 +37,7 @@ async def _async_log_chat_observability(
     variant_id: int | None,
     variant_llm_model: str | None,
     langsmith_run_url: str | None,
+    trace_id: str | None,
 ) -> int | None:
     """Async helper for observability logging using AsyncSession."""
     async with async_session_maker() as session:
@@ -66,6 +69,7 @@ async def _async_log_chat_observability(
             context_utilization=final_state.get("context_utilization"),
             langsmith_run_url=langsmith_run_url,
             query=chat_request_question,
+            trace_id=trace_id,
         )
         session.add(log)
         await session.commit()
@@ -167,49 +171,61 @@ def log_chat_observability(
     variant_id: int | None,
     variant_llm_model: str | None,
     langsmith_run_url: str | None,
+    trace_context: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Persist execution logs, metrics, review tickets, and token usage asynchronously.
 
     This task is enqueued from the chat endpoint after SSE streaming completes so
     that the HTTP response is not blocked by observability I/O.
     """
-    try:
-        execution_id = async_to_sync(_async_log_chat_observability)(
-            thread_id=thread_id,
-            user_id=user_id,
-            intent_category=intent_category,
-            final_state=final_state,
-            node_latencies=node_latencies,
-            total_latency_ms=total_latency_ms,
-            chat_request_question=chat_request_question,
-            variant_id=variant_id,
-            variant_llm_model=variant_llm_model,
-            langsmith_run_url=langsmith_run_url,
-        )
+    parent_context = propagate.extract(trace_context) if trace_context else None
+    with tracer.start_as_current_span(
+        "celery.log_chat_observability", context=parent_context
+    ) as span:
+        span.set_attribute("chat.thread_id", thread_id)
+        span.set_attribute("chat.user_id", user_id)
 
-        final_agent_name = final_state.get("current_agent")
+        current_span = trace.get_current_span()
+        span_context = current_span.get_span_context()
+        trace_id = format(span_context.trace_id, "032x") if span_context.is_valid else None
 
-        # Prometheus metrics (outside DB session)
-        record_chat_latency(
-            latency_seconds=total_latency_ms / 1000.0,
-            final_agent=final_agent_name,
-        )
-        if final_state.get("confidence_score") is not None:
-            record_confidence_score(float(final_state["confidence_score"]))
-        if final_state.get("needs_human_transfer"):
-            record_human_transfer(reason=final_state.get("transfer_reason") or "unknown")
-        if final_state.get("context_utilization") is not None:
-            record_context_utilization(float(final_state["context_utilization"]))
-        if final_state.get("context_tokens") is not None:
-            record_token_usage(
-                tokens=int(final_state["context_tokens"]),
-                agent=final_agent_name,
+        try:
+            execution_id = async_to_sync(_async_log_chat_observability)(
+                thread_id=thread_id,
+                user_id=user_id,
+                intent_category=intent_category,
+                final_state=final_state,
+                node_latencies=node_latencies,
+                total_latency_ms=total_latency_ms,
+                chat_request_question=chat_request_question,
+                variant_id=variant_id,
+                variant_llm_model=variant_llm_model,
+                langsmith_run_url=langsmith_run_url,
+                trace_id=trace_id,
             )
 
-        return {"status": "success", "execution_id": execution_id}
-    except (SQLAlchemyError, OperationalError) as exc:
-        logger.exception("Observability logging failed for thread %s", thread_id)
-        try:
-            raise self.retry(exc=exc)
-        except self.MaxRetriesExceededError:
-            return {"status": "failed", "message": "Observability logging max retries exceeded"}
+            final_agent_name = final_state.get("current_agent")
+
+            record_chat_latency(
+                latency_seconds=total_latency_ms / 1000.0,
+                final_agent=final_agent_name,
+            )
+            if final_state.get("confidence_score") is not None:
+                record_confidence_score(float(final_state["confidence_score"]))
+            if final_state.get("needs_human_transfer"):
+                record_human_transfer(reason=final_state.get("transfer_reason") or "unknown")
+            if final_state.get("context_utilization") is not None:
+                record_context_utilization(float(final_state["context_utilization"]))
+            if final_state.get("context_tokens") is not None:
+                record_token_usage(
+                    tokens=int(final_state["context_tokens"]),
+                    agent=final_agent_name,
+                )
+
+            return {"status": "success", "execution_id": execution_id}
+        except (SQLAlchemyError, OperationalError) as exc:
+            logger.exception("Observability logging failed for thread %s", thread_id)
+            try:
+                raise self.retry(exc=exc)
+            except self.MaxRetriesExceededError:
+                return {"status": "failed", "message": "Observability logging max retries exceeded"}

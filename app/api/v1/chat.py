@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tracers.context import tracing_v2_enabled
 from langgraph.types import Command
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from pydantic import BaseModel
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlmodel import desc, select
@@ -306,11 +306,10 @@ async def chat(
         span.set_attribute("chat.user_id", current_user_id)
         span.set_attribute("chat.thread_id", thread_id)
 
+        span_context = span.get_span_context()
+        otel_trace_id = format(span_context.trace_id, "032x") if span_context.is_valid else None
+
         async def event_generator():
-            # OTel trace ID for correlation with LangSmith
-            current_span = trace.get_current_span()
-            span_context = current_span.get_span_context()
-            otel_trace_id = format(span_context.trace_id, "032x") if span_context.is_valid else None
 
             # Intent result for LangSmith metadata and observability
             # Check Redis cache first to avoid redundant LLM calls for identical queries.
@@ -543,6 +542,9 @@ async def chat(
                     metadata_payload = json.dumps(metadata, ensure_ascii=False)
                     yield f"data: {metadata_payload}\n\n"
 
+                if otel_trace_id:
+                    yield f"data: {json.dumps({'type': 'metadata', 'trace_id': otel_trace_id}, ensure_ascii=False)}\n\n"
+
                 yield "data: [DONE]\n\n"
 
                 total_latency_ms = int((time.time() - start_time) * 1000)
@@ -581,6 +583,9 @@ async def chat(
 
                 # Move all post-streaming DB writes to a Celery task so the HTTP
                 # connection can be closed immediately after [DONE].
+                # Propagate OTel trace context so the Celery task creates a child span.
+                trace_context: dict[str, str] = {}
+                propagate.inject(trace_context)
                 log_chat_observability.delay(
                     thread_id=thread_id,
                     user_id=current_user_id,
@@ -592,6 +597,7 @@ async def chat(
                     variant_id=variant_id,
                     variant_llm_model=variant_llm_model,
                     langsmith_run_url=langsmith_run_url,
+                    trace_context=trace_context,
                 )
 
                 # Trigger shadow testing in background without blocking response
@@ -622,6 +628,8 @@ async def chat(
                     ensure_ascii=False,
                 )
                 yield f"data: {error_payload}\n\n"
+                if otel_trace_id:
+                    yield f"data: {json.dumps({'type': 'metadata', 'trace_id': otel_trace_id}, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
 
         async def _timed_event_generator():
@@ -639,7 +647,12 @@ async def chat(
                 yield f"data: {error_payload}\n\n"
                 yield "data: [DONE]\n\n"
 
-        return StreamingResponse(_timed_event_generator(), media_type="text/event-stream")
+        headers = {}
+        if otel_trace_id:
+            headers["X-Trace-ID"] = otel_trace_id
+        return StreamingResponse(
+            _timed_event_generator(), media_type="text/event-stream", headers=headers
+        )
 
 
 _feedback_service = OnlineEvalService()

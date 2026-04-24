@@ -493,7 +493,9 @@ dependencies = [
     { name = "langgraph-checkpoint-redis" },
     { name = "langsmith" },
     { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-instrumentation-celery" },
     { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-propagator-b3" },
     { name = "prometheus-client" },
     { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
@@ -539,7 +541,9 @@ requires-dist = [
     { name = "langgraph-checkpoint-redis", specifier = ">=0.3.2" },
     { name = "langsmith", specifier = ">=0.4.25" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.28" },
+    { name = "opentelemetry-instrumentation-celery", specifier = ">=0.49b0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.49b0" },
+    { name = "opentelemetry-propagator-b3", specifier = ">=1.28" },
     { name = "prometheus-client", specifier = ">=0.21.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
@@ -1695,6 +1699,20 @@ wheels = [
 ]
 
 [[package]]
+name = "opentelemetry-instrumentation-celery"
+version = "0.62b0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-semantic-conventions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/b4/20a3c8c669dc45aa3703c0370041d67e8be613f1829523cdaf634a5f9626/opentelemetry_instrumentation_celery-0.62b0.tar.gz", hash = "sha256:55e8fa48e5b886bcca448fa32e28a6cc2165157745e8328de479a826d3903095", size = 14808, upload-time = "2026-04-09T14:40:31.603Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f6/60/cf951e6bd6ec62ec55bd2384e0ba9841ea38f2d128c773d85dc60da97172/opentelemetry_instrumentation_celery-0.62b0-py3-none-any.whl", hash = "sha256:cadfd3e65287a36099dce5ba7e05d98e4c5f9479a455241e01d140ecc5c10935", size = 13864, upload-time = "2026-04-09T14:39:35.009Z" },
+]
+
+[[package]]
 name = "opentelemetry-instrumentation-fastapi"
 version = "0.62b0"
 source = { registry = "https://pypi.org/simple" }
@@ -1708,6 +1726,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/37/09/92740c6d114d1bef392557a03ae6de64065c83c1b331dae9b57fe718497c/opentelemetry_instrumentation_fastapi-0.62b0.tar.gz", hash = "sha256:e4748e4e575077e08beaf2c5d2f369da63dd90882d89d73c4192a97356637dec", size = 25056, upload-time = "2026-04-09T14:40:36.438Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/64/bb/186ffe0fde0ad33ceb50e1d3596cc849b732d3b825592a6a507a40c8c49b/opentelemetry_instrumentation_fastapi-0.62b0-py3-none-any.whl", hash = "sha256:06d3272ad15f9daea5a0a27c32831aff376110a4b0394197120256ef6d610e6e", size = 13482, upload-time = "2026-04-09T14:39:43.446Z" },
+]
+
+[[package]]
+name = "opentelemetry-propagator-b3"
+version = "1.41.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ef/43/cea77e171c014324876104cf2a17c78f5e931408b977b9e64979f950912c/opentelemetry_propagator_b3-1.41.0.tar.gz", hash = "sha256:ef98b715b3a05e8b0b03ebaea1bf295b4ad61a0e306e2d1da81d32af7395e6ad", size = 9588, upload-time = "2026-04-09T14:38:43.328Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/c1/11345c06774ec6ed6d89e3994dd1f62ad2ab41dfeb312eacd6b2a2323280/opentelemetry_propagator_b3-1.41.0-py3-none-any.whl", hash = "sha256:0b085c26ba59fcb66771226f967e91886bdeef998b3b5f2e9da6a604918c6f90", size = 8923, upload-time = "2026-04-09T14:38:26.865Z" },
 ]
 
 [[package]]

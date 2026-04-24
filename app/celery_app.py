@@ -1,12 +1,13 @@
 # app/celery_app.py
-"""
-Celery 异步任务系统
+"""Celery 异步任务系统
 处理短信发送、退款网关调用等耗时操作
 """
 
 from celery import Celery
 
 from app.core.config import settings
+from app.observability.otel_setup import setup_celery_tracing
+from app.tasks.tracing_setup import setup_celery_langsmith_tracing
 
 # 创建 Celery 实例
 celery_app = Celery(
@@ -83,5 +84,11 @@ celery_app.conf.update(
     },
 )
 
+# Configure LangSmith tracing for Celery workers BEFORE autodiscover (env vars must be set before potential langchain imports)
+setup_celery_langsmith_tracing()
+
 # 自动发现任务
 celery_app.autodiscover_tasks(["app.tasks"])
+
+# Instrument Celery with OpenTelemetry tracing
+setup_celery_tracing()

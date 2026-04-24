@@ -38,6 +38,8 @@ dependencies = [
     "fastembed>=0.6.0",
     "slowapi>=0.1.9",
     "opentelemetry-instrumentation-fastapi>=0.49b",
+    "opentelemetry-instrumentation-celery>=0.49b",
+    "opentelemetry-propagator-b3>=1.28",
     "opentelemetry-exporter-otlp>=1.28",
     "prometheus-client>=0.21.0",
 ]
