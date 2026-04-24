@@ -114,7 +114,7 @@ export function useChat(): UseChatReturn {
 
                 if (data === '[DONE]') {
                   setMessages((prev) =>
-                    prev.map((msg) =
+                    prev.map((msg) =>
                       msg.id === assistantMessageId
                         ? { ...msg, isStreaming: false, metadata }
                         : msg
@@ -128,8 +128,8 @@ export function useChat(): UseChatReturn {
                   const parsed = JSON.parse(data) as StreamToken | StreamMetadata
                   if ('token' in parsed && parsed.token) {
                     fullContent += parsed.token
-                    setMessages((prev) =
-                      prev.map((msg) =
+                    setMessages((prev) =>
+                      prev.map((msg) =>
                         msg.id === assistantMessageId ? { ...msg, content: fullContent } : msg
                       )
                     )
@@ -153,7 +153,7 @@ export function useChat(): UseChatReturn {
         }
       } catch {
         setMessages((prev) =>
-          prev.map((msg) =
+          prev.map((msg) =>
             msg.id === assistantMessageId
               ? {
                   ...msg,
@@ -207,7 +207,7 @@ export function useChat(): UseChatReturn {
         }
 
         setMessages((prev) =>
-          prev.map((msg) =
+          prev.map((msg) =>
             msg.id === messageId ? { ...msg, feedbackSentiment: sentiment } : msg
           )
         )

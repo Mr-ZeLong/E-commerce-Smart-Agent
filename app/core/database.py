@@ -9,9 +9,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 
-_connect_args = {
+_async_connect_args = {
     "timeout": settings.DB_CONNECT_TIMEOUT,
     "server_settings": {"application_name": "ecommerce-agent", "jit": "off"},
+}
+
+_sync_connect_args = {
+    "connect_timeout": settings.DB_CONNECT_TIMEOUT,
+    "options": "-c application_name=ecommerce-agent -c jit=off",
 }
 
 # 异步引擎与 Session 工厂（FastAPI / Agent 使用）
@@ -24,7 +29,7 @@ async_engine = create_async_engine(
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_recycle=settings.DB_POOL_RECYCLE,
     pool_timeout=settings.DB_POOL_TIMEOUT,
-    connect_args=_connect_args,
+    connect_args=_async_connect_args,
 )
 async_session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -37,7 +42,7 @@ sync_engine = create_engine(
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_recycle=settings.DB_POOL_RECYCLE,
     pool_timeout=settings.DB_POOL_TIMEOUT,
-    connect_args=_connect_args,
+    connect_args=_sync_connect_args,
 )
 sync_session_maker = sessionmaker(sync_engine, class_=Session, expire_on_commit=False)
 
