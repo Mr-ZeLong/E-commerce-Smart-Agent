@@ -1,0 +1,417 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ecommerce-agent-alerts
+    folder: Observability
+    interval: 1m
+    rules:
+      - uid: ecommerce-agent-high-error-rate
+        title: High Error Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: rate(chat_errors_total[5m]) / rate(chat_requests_total[5m]) > 0.01
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.01
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "High chat error rate detected"
+          description: "Error rate is above 1% for more than 2 minutes. Current value: {{ $value }}"
+          runbook_url: "https://wiki.internal/observability/runbooks/high-error-rate"
+        labels:
+          severity: warning
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-high-latency-p95
+        title: High Latency P95
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: histogram_quantile(0.95, rate(chat_latency_seconds_bucket[5m])) > 2
+              conditions:
+                - evaluator:
+                    params:
+                      - 2
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "Chat p95 latency is high"
+          description: "p95 chat latency exceeds 2 seconds for more than 3 minutes. Current value: {{ $value }}s"
+          runbook_url: "https://wiki.internal/observability/runbooks/high-latency"
+        labels:
+          severity: warning
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-high-human-transfer-rate
+        title: High Human Transfer Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: rate(human_transfers_total[5m]) / rate(chat_requests_total[5m]) > 0.3
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.3
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "High human transfer rate"
+          description: "More than 30% of requests are being transferred to humans. Current value: {{ $value }}"
+          runbook_url: "https://wiki.internal/observability/runbooks/high-human-transfer"
+        labels:
+          severity: warning
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-low-confidence-score
+        title: Low Confidence Score
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: histogram_quantile(0.5, rate(confidence_score_bucket[5m])) < 0.6
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.6
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Median confidence score is low"
+          description: "Median confidence score has dropped below 0.6. Current value: {{ $value }}"
+          runbook_url: "https://wiki.internal/observability/runbooks/low-confidence"
+        labels:
+          severity: warning
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-low-intent-accuracy
+        title: Low Intent Accuracy
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: intent_accuracy < 0.7
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.7
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "Intent accuracy is critically low"
+          description: "Intent classification accuracy is below 70%. Current value: {{ $value }}"
+          runbook_url: "https://wiki.internal/observability/runbooks/low-intent-accuracy"
+        labels:
+          severity: critical
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-high-hallucination-rate
+        title: High Hallucination Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: hallucination_rate > 0.05
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.05
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "High hallucination rate detected"
+          description: "Hallucination rate exceeds 5%. Current value: {{ $value }}"
+          runbook_url: "https://wiki.internal/observability/runbooks/high-hallucination"
+        labels:
+          severity: critical
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-low-rag-precision
+        title: Low RAG Precision
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: rag_precision < 0.6
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.6
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "RAG precision is low"
+          description: "RAG retrieval precision has dropped below 60%. Current value: {{ $value }}"
+          runbook_url: "https://wiki.internal/observability/runbooks/low-rag-precision"
+        labels:
+          severity: warning
+          team: observability
+          service: ecommerce-agent
+
+      - uid: ecommerce-agent-service-down
+        title: Service Down
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: up{job="ecommerce-agent"} == 0
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "E-commerce Smart Agent is down"
+          description: "The /metrics endpoint has been unreachable for more than 1 minute."
+          runbook_url: "https://wiki.internal/observability/runbooks/service-down"
+        labels:
+          severity: critical
+          team: observability
+          service: ecommerce-agent
+
+      - uid: slo-availability-burn-rate-fast
+        title: SLO Availability Burn Rate (Fast)
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: |
+                (
+                  (
+                    sum(rate(chat_errors_total[1h]))
+                    /
+                    sum(rate(chat_requests_total[1h]))
+                  )
+                  /
+                  (1 - 0.999)
+                ) > 14.4
+              conditions:
+                - evaluator:
+                    params:
+                      - 14.4
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Availability SLO burn rate exceeds 14.4x (fast burn)"
+          description: "The error budget is being consumed faster than the 1h fast-burn threshold. Current burn rate: {{ $value }}x"
+          runbook_url: "https://wiki.internal/observability/runbooks/slo-burn-rate"
+        labels:
+          severity: critical
+          team: observability
+          service: ecommerce-agent
+          slo: availability
+
+      - uid: slo-availability-burn-rate-slow
+        title: SLO Availability Burn Rate (Slow)
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 21600
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: |
+                (
+                  (
+                    sum(rate(chat_errors_total[6h]))
+                    /
+                    sum(rate(chat_requests_total[6h]))
+                  )
+                  /
+                  (1 - 0.999)
+                ) > 2
+              conditions:
+                - evaluator:
+                    params:
+                      - 2
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+              intervalMs: 1000
+              maxDataPoints: 100
+              refId: A
+              type: math
+        noDataState: NoData
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: "Availability SLO burn rate exceeds 2x (slow burn)"
+          description: "The error budget is being consumed faster than the 6h slow-burn threshold. Current burn rate: {{ $value }}x"
+          runbook_url: "https://wiki.internal/observability/runbooks/slo-burn-rate"
+        labels:
+          severity: warning
+          team: observability
+          service: ecommerce-agent
+          slo: availability

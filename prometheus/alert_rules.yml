@@ -1,3 +1,21 @@
+# =============================================================================
+# DEPRECATED: Prometheus Alert Rules
+# =============================================================================
+# 
+# WARNING: These alert rules are deprecated as of Phase 3.3 migration.
+# 
+# Please use Grafana Unified Alerting instead. The rules below are kept
+# for a 1-sprint fallback period only and will be removed in a future release.
+#
+# New alerting configuration location:
+#   - Contact Points: grafana/provisioning/alerting/contact-points.yml
+#   - Notification Policies: grafana/provisioning/alerting/notification-policies.yml
+#   - Alert Rules: grafana/provisioning/alerting/rules/ecommerce-agent.yml
+#
+# Migration Date: Auto-generated
+# Target Removal: 1 sprint from migration date
+# =============================================================================
+
 groups:
   - name: ecommerce_agent_alerts
     rules:

@@ -1,0 +1,720 @@
+{
+  "id": null,
+  "uid": "slo-dashboard",
+  "title": "SLO / Error Budget Dashboard",
+  "tags": [
+    "ecommerce",
+    "agent",
+    "slo",
+    "error-budget"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 36,
+  "refresh": "30s",
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "SLO Breaches",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "mimir"
+        },
+        "expr": "slo:availability:ratio_30d \u003c 99.9 or slo:latency:p95_7d \u003e 2 or slo:accuracy:intent_7d \u003c 0.98",
+        "iconColor": "red",
+        "tags": ["slo", "breach"],
+        "type": "tags"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Availability SLO — Current vs Target",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:availability:ratio_30d",
+          "legendFormat": "Availability %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 99,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99.9 },
+              { "color": "green", "value": 99.95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Availability — Error Budget Remaining",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "((slo:availability:ratio_30d - 99.9) / 0.1) * 100",
+          "legendFormat": "Budget %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 }
+    },
+    {
+      "id": 3,
+      "title": "Availability — Burn Rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:availability:error_rate_30d / 0.1",
+          "legendFormat": "Burn Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 }
+    },
+    {
+      "id": 4,
+      "title": "Availability — 30-Day Trend",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:availability:ratio_30d",
+          "legendFormat": "Availability %"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 }
+    },
+    {
+      "id": 5,
+      "title": "Latency SLO — P95 vs Target (2s)",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:latency:p95_7d",
+          "legendFormat": "P95 Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 5,
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 }
+    },
+    {
+      "id": 6,
+      "title": "Latency SLO — P99 vs Target (5s)",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:latency:p99_7d",
+          "legendFormat": "P99 Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 10,
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 }
+    },
+    {
+      "id": 7,
+      "title": "Latency — Error Budget Remaining",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "clamp_max((2 - slo:latency:p95_7d) / 2 * 100, 100)",
+          "legendFormat": "Budget %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 }
+    },
+    {
+      "id": 8,
+      "title": "Latency — 7-Day Trend",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:latency:p95_7d",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "slo:latency:p99_7d",
+          "legendFormat": "P99"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 }
+    },
+    {
+      "id": 9,
+      "title": "Accuracy SLO — Intent Accuracy vs 98%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:accuracy:intent_7d * 100",
+          "legendFormat": "Intent Accuracy %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 90,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 98 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 5, "x": 0, "y": 16 }
+    },
+    {
+      "id": 10,
+      "title": "Accuracy SLO — RAG Precision vs 95%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:accuracy:rag_7d * 100",
+          "legendFormat": "RAG Precision %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 80,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 98 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 5, "x": 5, "y": 16 }
+    },
+    {
+      "id": 11,
+      "title": "Accuracy SLO — Hallucination Rate vs 2%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:accuracy:hallucination_7d * 100",
+          "legendFormat": "Hallucination %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 10,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 5, "x": 10, "y": 16 }
+    },
+    {
+      "id": 12,
+      "title": "Accuracy — Error Budget Remaining",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "clamp_max(((0.98 - slo:accuracy:intent_7d) / 0.02) * 100, 100)",
+          "legendFormat": "Intent Budget %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 4, "x": 15, "y": 16 }
+    },
+    {
+      "id": 13,
+      "title": "Accuracy — 7-Day Trend",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:accuracy:intent_7d * 100",
+          "legendFormat": "Intent Acc %"
+        },
+        {
+          "expr": "slo:accuracy:rag_7d * 100",
+          "legendFormat": "RAG Prec %"
+        },
+        {
+          "expr": "slo:accuracy:hallucination_7d * 100",
+          "legendFormat": "Halluc %"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 5, "x": 19, "y": 16 }
+    },
+    {
+      "id": 14,
+      "title": "Cost SLO — Tokens / Request vs Budget",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:cost:token_per_request_30d * 0.00001 * 100",
+          "legendFormat": "Est. $ / Request"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 0.1,
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.08 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 24 }
+    },
+    {
+      "id": 15,
+      "title": "Cost SLO — Cache Hit Ratio vs 80%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:cost:cache_hit_ratio_30d * 100",
+          "legendFormat": "Cache Hit %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "green", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 24 }
+    },
+    {
+      "id": 16,
+      "title": "Cost — Error Budget Remaining",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "clamp_max(((0.05 - (slo:cost:token_per_request_30d * 0.00001)) / 0.05) * 100, 100)",
+          "legendFormat": "Budget %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 }
+    },
+    {
+      "id": 17,
+      "title": "Cost — 30-Day Trend",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:cost:token_per_request_30d * 0.00001",
+          "legendFormat": "$ / Request"
+        },
+        {
+          "expr": "slo:cost:cache_hit_ratio_30d * 100",
+          "legendFormat": "Cache Hit %"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 24 }
+    },
+    {
+      "id": 18,
+      "title": "Security SLO — PII Detection vs 99.99%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:security:pii_detection_ratio_30d * 100",
+          "legendFormat": "PII Detection %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 99,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99.99 },
+              { "color": "green", "value": 99.995 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 5, "x": 0, "y": 32 }
+    },
+    {
+      "id": 19,
+      "title": "Security SLO — Injection Block vs 99.9%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:security:injection_block_ratio_30d * 100",
+          "legendFormat": "Injection Block %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 99,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99.9 },
+              { "color": "green", "value": 99.95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 5, "x": 5, "y": 32 }
+    },
+    {
+      "id": 20,
+      "title": "Security SLO — Safety Block vs 99%",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "slo:security:safety_block_ratio_30d * 100",
+          "legendFormat": "Safety Block %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 90,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99 },
+              { "color": "green", "value": 99.5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 5, "x": 10, "y": 32 }
+    },
+    {
+      "id": 21,
+      "title": "Security — Error Budget Remaining",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "clamp_max(((0.9999 - slo:security:pii_detection_ratio_30d) / 0.0001) * 100, 100)",
+          "legendFormat": "PII Budget %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 4, "x": 15, "y": 32 }
+    },
+    {
+      "id": 22,
+      "title": "Security — 30-Day Trend",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:security:pii_detection_ratio_30d * 100",
+          "legendFormat": "PII Det %"
+        },
+        {
+          "expr": "slo:security:injection_block_ratio_30d * 100",
+          "legendFormat": "Inj Block %"
+        },
+        {
+          "expr": "slo:security:safety_block_ratio_30d * 100",
+          "legendFormat": "Safety Block %"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 5, "x": 19, "y": 32 }
+    },
+    {
+      "id": 23,
+      "title": "Burn Rate — All SLOs",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "slo:availability:error_rate_30d / 0.1",
+          "legendFormat": "Availability Burn"
+        },
+        {
+          "expr": "clamp_min(slo:latency:p95_7d / 2, 0)",
+          "legendFormat": "Latency Burn"
+        },
+        {
+          "expr": "clamp_min((0.98 - slo:accuracy:intent_7d) / 0.02, 0)",
+          "legendFormat": "Accuracy Burn"
+        },
+        {
+          "expr": "clamp_min(((slo:cost:token_per_request_30d * 0.00001) - 0.05) / 0.05, 0)",
+          "legendFormat": "Cost Burn"
+        },
+        {
+          "expr": "clamp_min((0.9999 - slo:security:pii_detection_ratio_30d) / 0.0001, 0)",
+          "legendFormat": "Security Burn"
+        }
+      ],
+      "gridPos": { "h": 10, "w": 16, "x": 0, "y": 40 }
+    },
+    {
+      "id": 24,
+      "title": "SLO Breach Alerts",
+      "type": "alertlist",
+      "options": {
+        "showOptions": "changes",
+        "sortOrder": 1,
+        "stateFilter": {
+          "ok": false,
+          "pending": true,
+          "alerting": true,
+          "no_data": false,
+          "execution_error": false
+        },
+        "alertName": "SLO",
+        "dashboardAlerts": false,
+        "folder": "SLO"
+      },
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 40 }
+    },
+    {
+      "id": 25,
+      "title": "Web Vitals — LCP (Largest Contentful Paint)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, rate(web_vitals_lcp_seconds_bucket[5m]))",
+          "legendFormat": "LCP p75"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(web_vitals_lcp_seconds_bucket[5m]))",
+          "legendFormat": "LCP p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2.5 },
+              { "color": "red", "value": 4.0 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 50 }
+    },
+    {
+      "id": 26,
+      "title": "Web Vitals — CLS (Cumulative Layout Shift)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, rate(web_vitals_cls_score_bucket[5m]))",
+          "legendFormat": "CLS p75"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(web_vitals_cls_score_bucket[5m]))",
+          "legendFormat": "CLS p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 50 }
+    },
+    {
+      "id": 27,
+      "title": "Web Vitals — FID (First Input Delay)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, rate(web_vitals_fid_seconds_bucket[5m]))",
+          "legendFormat": "FID p75"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(web_vitals_fid_seconds_bucket[5m]))",
+          "legendFormat": "FID p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 50 }
+    }
+  ]
+}

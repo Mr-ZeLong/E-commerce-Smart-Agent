@@ -1,0 +1,47 @@
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: email-default
+    group_by:
+      - alertname
+      - severity
+      - service
+      - team
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    mute_time_windows: []
+    routes:
+      - receiver: pagerduty-critical
+        match:
+          severity: critical
+        continue: true
+        group_wait: 10s
+        group_interval: 5m
+        repeat_interval: 2h
+      - receiver: email-default
+        match:
+          severity: critical
+        continue: true
+      - receiver: email-default
+        match:
+          severity: warning
+        continue: true
+      - receiver: webhook-default
+        match:
+          severity: warning
+        continue: true
+      - receiver: pagerduty-critical
+        match:
+          alertname: ServiceDown
+        continue: true
+        group_wait: 5s
+        repeat_interval: 30m
+      - receiver: slack-alerts
+        match:
+          channel: slack
+        continue: true
+
+muteTimes: []
+templates: []

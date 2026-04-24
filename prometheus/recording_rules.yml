@@ -1,0 +1,152 @@
+groups:
+  - name: slo_availability
+    interval: 60s
+    rules:
+      - record: slo:availability:ratio_30d
+        expr: |
+          (
+            avg_over_time(up{job="ecommerce-agent"}[30d])
+          ) * 100
+        labels:
+          slo: "availability"
+          window: "30d"
+
+      - record: slo:availability:error_rate_30d
+        expr: |
+          (
+            sum(rate(chat_errors_total[30d]))
+            /
+            sum(rate(chat_requests_total[30d]))
+          ) * 100
+        labels:
+          slo: "availability"
+          window: "30d"
+
+  - name: slo_latency
+    interval: 60s
+    rules:
+      - record: slo:latency:p95_7d
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(chat_latency_seconds_bucket[7d])) by (le)
+          )
+        labels:
+          slo: "latency"
+          window: "7d"
+
+      - record: slo:latency:p99_7d
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(chat_latency_seconds_bucket[7d])) by (le)
+          )
+        labels:
+          slo: "latency"
+          window: "7d"
+
+  - name: slo_accuracy
+    interval: 60s
+    rules:
+      - record: slo:accuracy:intent_7d
+        expr: |
+          avg_over_time(
+            avg(intent_accuracy) or vector(1)
+            [7d:1h]
+          )
+        labels:
+          slo: "accuracy"
+          window: "7d"
+
+      - record: slo:accuracy:rag_7d
+        expr: |
+          avg_over_time(
+            rag_precision or vector(1)
+            [7d:1h]
+          )
+        labels:
+          slo: "accuracy"
+          window: "7d"
+
+      - record: slo:accuracy:hallucination_7d
+        expr: |
+          avg_over_time(
+            hallucination_rate or vector(0)
+            [7d:1h]
+          )
+        labels:
+          slo: "accuracy"
+          window: "7d"
+
+  - name: slo_cost
+    interval: 60s
+    rules:
+      - record: slo:cost:token_per_request_30d
+        expr: |
+          (
+            sum(rate(tokens_total[30d]))
+            /
+            sum(rate(chat_requests_total[30d]))
+          )
+        labels:
+          slo: "cost"
+          window: "30d"
+
+      - record: slo:cost:cache_hit_ratio_30d
+        expr: |
+          (
+            sum(rate(cache_hits_total[30d]))
+            /
+            (
+              sum(rate(cache_hits_total[30d]))
+              +
+              sum(rate(cache_misses_total[30d]))
+            )
+          )
+        labels:
+          slo: "cost"
+          window: "30d"
+
+  - name: slo_security
+    interval: 60s
+    rules:
+      - record: slo:security:pii_detection_ratio_30d
+        expr: |
+          (
+            sum(rate(pii_detections_total[30d]))
+            /
+            (
+              sum(rate(pii_detections_total[30d]))
+              +
+              sum(rate(pii_breaches_total[30d]))
+            )
+          )
+        labels:
+          slo: "security"
+          window: "30d"
+
+      - record: slo:security:injection_block_ratio_30d
+        expr: |
+          (
+            sum(rate(injection_attempts_total[30d]))
+            /
+            (
+              sum(rate(injection_attempts_total[30d]))
+              +
+              sum(rate(injection_bypassed_total[30d]))
+            )
+          )
+        labels:
+          slo: "security"
+          window: "30d"
+
+      - record: slo:security:safety_block_ratio_30d
+        expr: |
+          (
+            sum(rate(safety_blocks_total[30d]))
+            /
+            sum(rate(safety_checks_total[30d]))
+          )
+        labels:
+          slo: "security"
+          window: "30d"
