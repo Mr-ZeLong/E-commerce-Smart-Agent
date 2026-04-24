@@ -50,21 +50,44 @@ For any other area, this root file applies.
 - `@app/`: FastAPI backend, LangGraph workflow, agents, tools, services, observability, evaluation, memory, intent, retrieval, confidence, context, api, models, schemas, utils, websocket, tasks, core.
   - `@app/agents/`: Expert agent fleet (order, product, cart, payment, logistics, account, policy, complaint, supervisor, router, evaluator).
   - `@app/graph/`: LangGraph workflow compiler and runtime node layer.
+    - `@app/graph/checkpointer.py` - OptimizedRedisCheckpoint with diff-based storage, compression, and TTL management.
+    - `@app/graph/subgraphs.py` - Subgraph wrapper for agent state isolation.
   - `@app/intent/`: Intent recognition pipeline (classifier, multi-intent, safety, clarification, slot validation, topic switch).
+    - `@app/intent/few_shot_loader.py` - Few-shot example loading for intent classification.
   - `@app/memory/`: Multi-tier memory system (structured PostgreSQL, vector Qdrant, fact extraction, summarization, compaction).
+    - `@app/memory/structured_manager.py` - Structured memory manager for user profiles/preferences/facts.
   - `@app/tools/`: Tool layer for agents (product, cart, logistics, payment, account, complaint tools + registry).
   - `@app/tasks/`: Celery async tasks (memory, notifications, knowledge, refund, evaluation, continuous improvement, prompt effects, shadow testing).
+    - `@app/tasks/alert_tasks.py` - Evaluate alert rules, check service health.
+    - `@app/tasks/autoheal.py` - Self-healing orchestration module.
+    - `@app/tasks/autoheal_tasks.py` - Restart stuck workers, clear expired Redis keys, check DB pool health.
+    - `@app/tasks/checkpoint_tasks.py` - Cleanup old LangGraph checkpoints from Redis.
+    - `@app/tasks/observability_tasks.py` - Post-chat async observability logging.
   - `@app/retrieval/`: Hybrid RAG retrieval (dense + sparse embeddings, reranker, query rewriter, Qdrant client).
+    - `@app/retrieval/sparse_embedder.py` - Sparse embedding support (BM25).
   - `@app/evaluation/`: Offline evaluation framework (pipeline, adversarial, shadow, metrics, hallucination, containment).
   - `@app/observability/`: OpenTelemetry tracing, execution logging, latency tracking.
+    - `@app/observability/alert_rules.py` - Prometheus alert rule definitions.
+    - `@app/observability/alerting.py` - Alert management (AlertManager, AlertSeverity).
+    - `@app/observability/token_tracker.py` - Per-user/per-agent cost monitoring.
   - `@app/confidence/`: Confidence signal calculation for response quality.
   - `@app/context/`: Context engineering (observation masking, token budget management).
+    - `@app/context/pii_filter.py` - PII detection and filtering with regex patterns for credit cards, phone numbers, ID numbers, passports, email, SSN, bank accounts.
   - `@app/websocket/`: WebSocket connection manager for real-time chat.
   - `@app/schemas/`: Pydantic request/response schemas.
   - `@app/api/`: FastAPI routers (chat, auth, admin, websocket, status).
   - `@app/models/`: SQLModel/Pydantic data models (user, order, refund, memory, evaluation, experiment, etc.).
+    - `@app/models/alert.py` - AlertRule, AlertEvent, AlertNotification models.
+    - `@app/models/pii_audit.py` - PIIAuditLog model for GDPR compliance.
+    - `@app/models/review.py` - ReviewTicket, ReviewerMetrics models.
+    - `@app/models/token_usage.py` - TokenUsageLog, OptimizationSuggestion models.
   - `@app/services/`: Business logic services (auth, order, refund, admin, status, experiment, continuous improvement).
+    - `@app/services/alert_service.py` - AlertService with email/webhook/PagerDuty/OpsGenie integrations, suppression, deduplication, SLA tracking.
+    - `@app/services/online_eval.py` - OnlineEvalService for real-time evaluation from user feedback.
+    - `@app/services/review_queue.py` - ReviewQueueService for human review tickets with SLA tracking.
   - `@app/core/`: Core configuration, security, database, Redis, LLM factory, tracing, logging (cross-cutting infrastructure).
+    - `@app/core/cache.py` - CacheManager with 7 cache types + circuit breaker + Prometheus metrics.
+    - `@app/core/structured_logging.py` - JsonFormatter with trace_id/span_id/correlation_id support.
   - `@app/core/utils.py`: Core cross-cutting utilities (`utc_now`, `build_thread_id`, `clamp_score`).
   - `@app/safety/`: Output content moderation system (4-layer pipeline: rule-based, regex, embedding similarity, LLM judge).
   - `@app/utils/`: Shared domain utility functions (order utilities, helpers).

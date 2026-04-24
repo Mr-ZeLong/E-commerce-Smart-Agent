@@ -17,22 +17,23 @@ E-commerce-Smart-Agent/
 │   ├── 📄 main.py                  # FastAPI 应用入口
 │   ├── 📄 celery_app.py            # Celery 配置
 │   ├── 📁 api/v1/                  # API 路由层
-│   ├── 📁 core/                    # 核心基础设施
-│   ├── 📁 observability/           # 可观测性基础设施
+│   │   └── 📁 admin/               # B 端管理后台 API（Agent 配置、投诉、分析、反馈、实验、指标、告警、审核队列、Token 用量）
+│   ├── 📁 core/                    # 核心基础设施（配置、安全、数据库、Redis、LLM 工厂、缓存、结构化日志）
+│   ├── 📁 observability/           # 可观测性基础设施（追踪、指标、告警规则、Token 追踪）
 │   ├── 📁 models/                  # 数据库模型 (SQLModel)
-│   ├── 📁 memory/                  # 记忆系统
-│   ├── 📁 graph/                   # LangGraph 核心逻辑
+│   ├── 📁 memory/                  # 记忆系统（结构化记忆、事实提取、摘要、向量管理）
+│   ├── 📁 graph/                   # LangGraph 核心逻辑（工作流编译器、检查点、子图、并行调度）
 │   ├── 📁 agents/                  # Agent 实现层
 │   ├── 📁 tools/                   # Agent Tool 层
-│   ├── 📁 evaluation/               # 离线评估框架
+│   ├── 📁 evaluation/              # 离线评估框架
 │   ├── 📁 confidence/              # 置信度信号模块
-│   ├── 📁 context/                 # 上下文优化（Token 预算、观察掩码）
+│   ├── 📁 context/                 # 上下文优化（Token 预算、观察掩码、PII 过滤）
 │   ├── 📁 utils/                   # 通用工具函数
-│   ├── 📁 intent/                  # 意图识别模块
-│   ├── 📁 retrieval/               # RAG 检索层
-│   ├── 📁 services/                # 业务服务层
+│   ├── 📁 intent/                  # 意图识别模块（分类器、安全过滤、少样本加载）
+│   ├── 📁 retrieval/               # RAG 检索层（稠密+稀疏向量、重排序、查询重写）
+│   ├── 📁 services/                # 业务服务层（告警、审核队列、在线评估）
 │   ├── 📁 schemas/                 # 共享 Schema
-│   ├── 📁 tasks/                   # Celery 异步任务
+│   ├── 📁 tasks/                   # Celery 异步任务（内存、通知、退款、评估、自动恢复、检查点清理）
 │   ├── 📁 websocket/               # WebSocket 服务
 │   └── 📁 safety/                  # 输出内容安全审核
 │

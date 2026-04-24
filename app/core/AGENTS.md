@@ -20,11 +20,13 @@ Core infrastructure and cross-cutting concerns: configuration, security, databas
 
 | Role | File | Notes |
 |------|------|-------|
+| Cache | `@app/core/cache.py` | `CacheManager` with 7 cache types (intent, profile, retrieval, facts, preferences, summaries, vector_search) + Redis connection pooling + circuit breaker + Prometheus metrics |
 | Configuration | `@app/core/config.py` | `Settings` with nested `ConfidenceSettings`; single source of truth for env vars. Uses `_create_settings()` factory to avoid top-level instantiation errors during static analysis |
 | Security | `@app/core/security.py` | JWT token creation/validation, OAuth2 scheme, password hashing |
 | Database | `@app/core/database.py` | AsyncSession makers, engine configuration |
 | Redis | `@app/core/redis.py` | Redis client creation and connection pooling |
 | LLM factory | `@app/core/llm_factory.py` | LLM instance creation (OpenAI, DashScope, etc.) |
+| Structured logging | `@app/core/structured_logging.py` | `JsonFormatter` with trace_id/span_id/correlation_id support, Filebeat/Fluentd integration |
 | Tracing | `@app/core/tracing.py` | OpenTelemetry/LangSmith tracing configuration |
 | Logging | `@app/core/logging.py` | Structured logging with correlation ID support |
 | Email | `@app/core/email.py` | Email sending utilities |

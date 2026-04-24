@@ -20,8 +20,13 @@ Celery async task layer for background processing. Tasks are triggered by graph 
 
 | Role | File | Notes |
 |------|------|-------|
+| Alert evaluation | `@app/tasks/alert_tasks.py` | Evaluate alert rules and check service health |
+| Autoheal orchestration | `@app/tasks/autoheal.py` | Self-healing orchestration module for system health |
+| Autoheal tasks | `@app/tasks/autoheal_tasks.py` | Restart stuck workers, clear expired Redis keys, check DB pool health |
+| Checkpoint cleanup | `@app/tasks/checkpoint_tasks.py` | Cleanup old LangGraph checkpoints from Redis (max 100 per thread) |
 | Memory tasks | `@app/tasks/memory_tasks.py` | Async fact extraction and vector pruning |
 | Notifications | `@app/tasks/notifications.py` | Email/SMS notification sending |
+| Observability logging | `@app/tasks/observability_tasks.py` | Post-chat async observability logging to keep SSE critical path fast |
 | Knowledge tasks | `@app/tasks/knowledge_tasks.py` | Knowledge base sync and embedding |
 | Refund tasks | `@app/tasks/refund_tasks.py` | Refund processing workflows |
 | Evaluation tasks | `@app/tasks/evaluation_tasks.py` | Async evaluation runs |

@@ -20,15 +20,17 @@ Business logic services that orchestrate domain operations. Services sit between
 
 | Role | File | Notes |
 |------|------|-------|
+| Admin service | `@app/services/admin_service.py` | Admin operations and user management |
+| Alert service | `@app/services/alert_service.py` | Email/webhook/PagerDuty/OpsGenie integrations, suppression, deduplication, and SLA tracking |
 | Auth service | `@app/services/auth_service.py` | Authentication and authorization logic |
+| Continuous improvement | `@app/services/continuous_improvement.py` | CI pipeline for prompt and model optimization |
+| Experiment assigner | `@app/services/experiment_assigner.py` | User variant assignment for experiments |
+| Experiment management | `@app/services/experiment.py` | A/B experiment lifecycle management |
+| Online evaluation | `@app/services/online_eval.py` | Real-time evaluation from user feedback |
 | Order service | `@app/services/order_service.py` | Order management and query |
 | Refund service | `@app/services/refund_service.py` | Refund processing workflows |
+| Review queue | `@app/services/review_queue.py` | Human review tickets with SLA tracking |
 | Status service | `@app/services/status_service.py` | Thread status polling |
-| Admin service | `@app/services/admin_service.py` | Admin operations and user management |
-| Online evaluation | `@app/services/online_eval.py` | Real-time evaluation from user feedback |
-| Continuous improvement | `@app/services/continuous_improvement.py` | CI pipeline for prompt and model optimization |
-| Experiment management | `@app/services/experiment.py` | A/B experiment lifecycle management |
-| Experiment assigner | `@app/services/experiment_assigner.py` | User variant assignment for experiments |
 
 ## Commands
 

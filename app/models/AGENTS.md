@@ -20,6 +20,7 @@ SQLModel/Pydantic data models for database entities and agent state. Defines the
 
 | Role | File | Notes |
 |------|------|-------|
+| Alert models | `@app/models/alert.py` | `AlertRule`, `AlertEvent`, `AlertNotification` models with P0/P1/P2 severity levels |
 | Agent state | `@app/models/state.py` | `AgentState` TypedDict, `AgentProcessResult`, `make_agent_state()` factory |
 | Memory models | `@app/models/memory.py` | `UserProfile`, `UserPreference`, `InteractionSummary`, `UserFact`, `AgentConfig`, `RoutingRule` |
 | User model | `@app/models/user.py` | User account model |
@@ -34,6 +35,9 @@ SQLModel/Pydantic data models for database entities and agent state. Defines the
 | Multi-intent log | `@app/models/multi_intent_log.py` | `MultiIntentDecisionLog` model |
 | Prompt effect | `@app/models/prompt_effect_report.py` | Prompt effect report model |
 | Audit log | `@app/models/audit.py` | Audit log model |
+| PII audit | `@app/models/pii_audit.py` | `PIIAuditLog` model for GDPR compliance tracking |
+| Review models | `@app/models/review.py` | `ReviewTicket`, `ReviewerMetrics` models for human review workflow |
+| Token usage | `@app/models/token_usage.py` | `TokenUsageLog`, `OptimizationSuggestion` models for cost optimization |
 
 ## Commands
 

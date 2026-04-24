@@ -22,6 +22,7 @@ LangGraph workflow compiler and runtime node layer. Responsible for Agent Subgra
 
 | Task | File | Description |
 |------|------|-------------|
+| Checkpoint persistence | `@app/graph/checkpointer.py` | OptimizedRedisCheckpoint with diff-based storage, compression, and TTL management for LangGraph checkpoints |
 | Graph compilation | `@app/graph/workflow.py` | Dual-path compilation: Supervisor mode and legacy compatibility mode |
 | Node definitions | `@app/graph/nodes.py` | router / memory / supervisor / synthesis / evaluator / decider |
 | Agent Subgraph standard | `@app/graph/subgraphs.py` | Wraps `BaseAgent` into an independent `StateGraph` |

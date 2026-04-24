@@ -26,6 +26,7 @@ Customer-facing chat SPA. Vite multi-page entry via `index.html`, served by Fast
 | Chat logic   | `@frontend/src/apps/customer/hooks/useChat.ts`               | SSE streaming, message state management                |
 | Message list | `@frontend/src/apps/customer/components/ChatMessageList.tsx` | Message rendering                                      |
 | Chat input   | `@frontend/src/apps/customer/components/ChatInput.tsx`       | User input box                                         |
+| User feedback | `@frontend/src/apps/customer/components/FeedbackWidget.tsx` | User feedback widget for chat messages (thumbs up/down, rating) |
 | Shared UI    | `@frontend/src/components/ui/`                               | shadcn/ui components (Button, Input, ScrollArea, etc.) |
 | API wrapper  | `@frontend/src/lib/api.ts`                                   | Unified `fetch` with request header factory            |
 | Query client | `@frontend/src/lib/query-client.ts`                          | TanStack Query client configuration                    |

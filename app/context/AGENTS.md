@@ -23,6 +23,7 @@ Context engineering utilities for managing LLM context windows, including observ
 | Observation masking | `@app/context/masking.py` | Masks sensitive observations before LLM injection |
 | Token budget | `@app/context/token_budget.py` | `MemoryTokenBudget` for context allocation across memory tiers |
 | Memory context truncation | `@app/agents/base.py` | `_truncate_parts_by_budget()` — drops parts from end until token count is within `MEMORY_CONTEXT_TOKEN_BUDGET`; preserves last part (user question) |
+| PII filter | `@app/context/pii_filter.py` | PII detection and filtering with regex patterns for credit cards, Chinese mobile, ID numbers, passports, email, SSN, bank accounts; GDPR compliance utilities |
 
 ## Commands
 

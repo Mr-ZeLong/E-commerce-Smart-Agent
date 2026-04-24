@@ -33,7 +33,11 @@ Note: WebSocket routes (`@app/api/v1/websocket.py`) are the FastAPI entrypoints 
 | Admin analytics | `@app/api/v1/admin/analytics.py` | Analytics data endpoints |
 | Admin feedback | `@app/api/v1/admin/feedback.py` | Feedback management endpoints |
 | Admin experiments | `@app/api/v1/admin/experiments.py` | A/B experiment admin endpoints |
+| Admin alerts | `@app/api/v1/admin/alerts.py` | Alert management admin endpoints |
+| Admin evaluation dashboard | `@app/api/v1/admin/evaluation_dashboard.py` | Evaluation dashboard endpoints |
 | Admin metrics | `@app/api/v1/admin/metrics_dashboard.py` | Metrics dashboard endpoints |
+| Admin review queue | `@app/api/v1/admin/review_queue.py` | Human review queue admin endpoints |
+| Admin token usage | `@app/api/v1/admin/token_usage.py` | Token usage and cost tracking admin endpoints |
 | App entry | `@app/main.py` | FastAPI application entry point, router mounting, middleware, health endpoint |
 
 ## Commands

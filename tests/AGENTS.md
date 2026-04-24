@@ -28,11 +28,15 @@ Backend test suite using pytest + pytest-asyncio with a flat directory structure
 | LLM mock | `@tests/_llm.py` | LLM call mocks and response helpers |
 | API tests | `@tests/test_auth_api.py`, `@tests/test_chat_api.py`, `@tests/test_admin_api.py` | Route-layer validation |
 | Service tests | `@tests/test_order_service.py`, `@tests/test_refund_service.py`, `@tests/test_auth_service.py`, `@tests/test_status_service.py`, `@tests/test_admin_service.py` | Business logic validation |
-| Module unit tests | `@tests/agents/`, `@tests/graph/`, `@tests/intent/`, `@tests/memory/`, `@tests/tools/`, `@tests/retrieval/`, `@tests/evaluation/`, `@tests/context/`, `@tests/observability/`, `@tests/core/`, `@tests/models/` | Agent/graph/intent/memory/RAG/evaluation/context/observability/core/model tests |
+| Module unit tests | `@tests/agents/`, `@tests/graph/`, `@tests/intent/`, `@tests/memory/`, `@tests/tools/`, `@tests/retrieval/`, `@tests/evaluation/`, `@tests/context/`, `@tests/observability/`, `@tests/core/`, `@tests/models/`, `@tests/performance/` | Agent/graph/intent/memory/RAG/evaluation/context/observability/core/model/performance tests |
+| Graph module tests | `@tests/graph/test_checkpointer.py`, `@tests/graph/test_memory_integration.py`, `@tests/graph/test_parallel.py`, `@tests/graph/test_subgraphs.py`, `@tests/graph/test_workflow.py` | Checkpointer, memory integration, parallel dispatch, subgraph, and workflow compiler tests |
+| Context module tests | `@tests/context/test_pii_filter.py`, `@tests/context/test_token_budget.py` | PII filtering and token budget tests |
+| Core module tests | `@tests/core/test_cache.py`, `@tests/core/test_limiter.py`, `@tests/core/test_redis.py`, `@tests/core/test_structured_logging.py` | Cache manager, rate limiter, Redis pool, and structured logging tests |
+| Observability module tests | `@tests/observability/test_alert_rules.py`, `@tests/observability/test_alerting.py`, `@tests/observability/test_latency_tracker.py`, `@tests/observability/test_metrics.py` | Alert rules, alerting, latency tracker, and metrics tests |
 | Safety tests | `@tests/safety/test_output_moderator.py`, `@tests/safety/conftest.py` | 4-layer output moderation pipeline tests |
-| Service tests | `@tests/services/test_continuous_improvement.py` | Business service validation |
-| Admin API tests | `@tests/admin/`, `@tests/test_admin_api.py`, `@tests/test_knowledge_admin.py`, `@tests/api/admin/test_metrics_dashboard.py` | Admin endpoints validation |
-| Task tests | `@tests/tasks/` | Celery task tests |
+| Admin API tests | `@tests/admin/`, `@tests/api/admin/test_metrics_dashboard.py`, `@tests/api/admin/test_review_queue.py`, `@tests/api/admin/test_token_usage.py` | Admin endpoint tests including metrics, review queue, and token usage |
+| Service tests | `@tests/services/test_continuous_improvement.py`, `@tests/services/test_alert_service.py` | Business service validation |
+| Task tests | `@tests/tasks/`, `@tests/tasks/test_autoheal.py`, `@tests/tasks/test_continuous_improvement_tasks.py`, `@tests/tasks/test_shadow_tasks.py` | Celery task tests including autoheal, CI, and shadow testing |
 | Integration tests | `@tests/integration/test_workflow_invoke.py` | LangGraph integration (including parallel multi-intent scenarios) |
 | Security tests | `@tests/test_main_security.py`, `@tests/test_security.py`, `@tests/test_auth_rate_limit.py` | Security and rate limiting validation |
 | WebSocket tests | `@tests/test_websocket.py`, `@tests/test_websocket_manager.py` | WebSocket connection tests |
