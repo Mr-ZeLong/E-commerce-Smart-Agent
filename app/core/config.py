@@ -327,9 +327,11 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "text"
 
     KNOWLEDGE_UPLOAD_DIR: str = "uploads/knowledge"
-    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
     PROMETHEUS_ENABLED: bool = False
     PROMETHEUS_URL: str = "http://localhost:9090"
+    TEMPO_URL: str = "http://localhost:3200"
+    GRAFANA_URL: str = "http://localhost:3000"
 
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)

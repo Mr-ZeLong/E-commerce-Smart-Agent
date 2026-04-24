@@ -30,6 +30,9 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
     ports:
       - "3000:3000"
     networks:
@@ -77,10 +80,42 @@ services:
       - monitoring
     restart: unless-stopped
 
+  tempo:
+    image: grafana/tempo:2.7.0
+    container_name: ecommerce-tempo
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yaml:ro
+      - tempo_data:/tmp/tempo
+    command:
+      - -config.file=/etc/tempo.yaml
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    container_name: ecommerce-otel-collector
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    volumes:
+      - ./otel/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - tempo
+
 volumes:
   prometheus_data:
   grafana_data:
   loki-data:
+  tempo_data:
   app-logs:
 
 networks:
