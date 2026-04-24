@@ -1,0 +1,268 @@
+name: Monitoring as Code
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "monitoring/**"
+      - "grafana/**"
+      - "prometheus/**"
+      - "alertmanager/**"
+      - "loki/**"
+      - "tempo/**"
+      - "otel/**"
+      - "promtail/**"
+      - "mimir/**"
+      - ".github/workflows/monitoring.yml"
+      - "scripts/validate-monitoring.sh"
+      - "scripts/deploy-monitoring.sh"
+      - "tests/monitoring/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "monitoring/**"
+      - "grafana/**"
+      - "prometheus/**"
+      - "alertmanager/**"
+      - "loki/**"
+      - "tempo/**"
+      - "otel/**"
+      - "promtail/**"
+      - "mimir/**"
+      - ".github/workflows/monitoring.yml"
+      - "scripts/validate-monitoring.sh"
+      - "scripts/deploy-monitoring.sh"
+      - "tests/monitoring/**"
+
+jobs:
+  validate-prometheus:
+    name: Validate Prometheus Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install promtool
+        run: |
+          PROMETHEUS_VERSION="3.2.0"
+          curl -LO "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          tar xzf "prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          sudo mv "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool" /usr/local/bin/
+          rm -rf "prometheus-${PROMETHEUS_VERSION}.linux-amd64" "prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          promtool --version
+
+      - name: Check Prometheus rules
+        run: |
+          for f in prometheus/*.yml; do
+            if [ "$(basename "$f")" = "alert_rules.yml" ]; then
+              echo "Skipping deprecated file: $f"
+              continue
+            fi
+            echo "Checking rules: $f"
+            promtool check rules "$f" || exit 1
+          done
+
+      - name: Check Prometheus config
+        run: promtool check config prometheus/prometheus.yml
+
+  validate-dashboards:
+    name: Validate Grafana Dashboards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Validate dashboard JSON files
+        run: |
+          FAILED=0
+          for f in grafana/dashboards/*.json; do
+            echo "Validating: $f"
+            if ! jq empty "$f" 2>/dev/null; then
+              echo "ERROR: $f is not valid JSON"
+              FAILED=1
+              continue
+            fi
+
+            # Check required fields
+            for field in title uid panels timezone; do
+              if ! jq -e ".${field}" "$f" >/dev/null 2>&1; then
+                echo "ERROR: $f is missing required field: ${field}"
+                FAILED=1
+              fi
+            done
+
+            # Check panels is non-empty array
+            PANELS_COUNT=$(jq '.panels | length' "$f")
+            if [ "$PANELS_COUNT" -eq 0 ]; then
+              echo "ERROR: $f has no panels"
+              FAILED=1
+            fi
+
+            echo "OK: $f"
+          done
+
+          exit $FAILED
+
+      - name: Check dashboard UIDs are unique
+        run: |
+          UIDS=$(jq -r '.uid' grafana/dashboards/*.json | sort)
+          DUPLICATES=$(echo "$UIDS" | uniq -d)
+          if [ -n "$DUPLICATES" ]; then
+            echo "ERROR: Duplicate dashboard UIDs found:"
+            echo "$DUPLICATES"
+            exit 1
+          fi
+          echo "All dashboard UIDs are unique"
+
+  validate-datasources:
+    name: Validate Grafana Datasources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Validate datasource YAML files
+        run: |
+          FAILED=0
+          for f in grafana/provisioning/datasources/*.yml; do
+            echo "Validating: $f"
+            if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
+              echo "ERROR: $f is not valid YAML"
+              FAILED=1
+              continue
+            fi
+
+            # Check apiVersion
+            if ! python3 -c "import yaml; d=yaml.safe_load(open('$f')); exit(0 if 'apiVersion' in d else 1)" 2>/dev/null; then
+              echo "ERROR: $f is missing apiVersion"
+              FAILED=1
+            fi
+
+            # Check datasources key exists
+            if ! python3 -c "import yaml; d=yaml.safe_load(open('$f')); exit(0 if 'datasources' in d else 1)" 2>/dev/null; then
+              echo "ERROR: $f is missing datasources key"
+              FAILED=1
+            fi
+
+            echo "OK: $f"
+          done
+
+          exit $FAILED
+
+      - name: Check datasource names are unique
+        run: |
+          python3 << 'PYEOF'
+          import yaml, glob, sys
+          names = []
+          for f in glob.glob('grafana/provisioning/datasources/*.yml'):
+              with open(f) as fh:
+                  data = yaml.safe_load(fh)
+                  for ds in data.get('datasources', []):
+                      names.append(ds.get('name', ''))
+          seen = set()
+          duplicates = set()
+          for name in names:
+              if name in seen:
+                  duplicates.add(name)
+              seen.add(name)
+          if duplicates:
+              print('ERROR: Duplicate datasource names found:')
+              for name in sorted(duplicates):
+                  print(f'  - {name}')
+              sys.exit(1)
+          print('All datasource names are unique')
+          PYEOF
+
+  validate-alerting:
+    name: Validate Alerting Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install promtool
+        run: |
+          PROMETHEUS_VERSION="3.2.0"
+          curl -LO "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          tar xzf "prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+          sudo mv "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool" /usr/local/bin/
+          rm -rf "prometheus-${PROMETHEUS_VERSION}.linux-amd64" "prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+
+      - name: Validate Prometheus recording rules
+        run: promtool check rules prometheus/recording_rules.yml
+
+      - name: Validate alertmanager config
+        run: |
+          ALERTMANAGER_VERSION="0.27.0"
+          curl -LO "https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
+          tar xzf "alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
+          sudo mv "alertmanager-${ALERTMANAGER_VERSION}.linux-amd64/amtool" /usr/local/bin/ || true
+          rm -rf "alertmanager-${ALERTMANAGER_VERSION}.linux-amd64" "alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz"
+
+      - name: Check alertmanager YAML syntax
+        run: |
+          if command -v amtool >/dev/null 2>&1; then
+            amtool check-config alertmanager/alertmanager.yml
+          else
+            echo "amtool not available, skipping alertmanager config validation"
+            python3 -c "import yaml; yaml.safe_load(open('alertmanager/alertmanager.yml'))"
+            echo "alertmanager YAML syntax is valid"
+          fi
+
+  test-monitoring:
+    name: Run Monitoring Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pyyaml
+
+      - name: Run monitoring tests
+        run: pytest tests/monitoring/ -v
+
+  deploy-monitoring:
+    name: Deploy Monitoring Stack
+    runs-on: ubuntu-latest
+    environment: monitoring-production
+    needs:
+      - validate-prometheus
+      - validate-dashboards
+      - validate-datasources
+      - validate-alerting
+      - test-monitoring
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Deploy monitoring stack
+        run: |
+          chmod +x scripts/deploy-monitoring.sh
+          ./scripts/deploy-monitoring.sh
+
+      - name: Verify services health
+        run: |
+          sleep 30
+          echo "Checking Prometheus..."
+          curl -sf http://localhost:9090/-/healthy || exit 1
+          echo "Checking Grafana..."
+          curl -sf http://localhost:3000/api/health || exit 1
+          echo "All monitoring services are healthy"
