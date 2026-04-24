@@ -1,0 +1,78 @@
+# Mimir single-node configuration for 90-day metrics retention
+# Docs: https://grafana.com/docs/mimir/latest/references/configuration-parameters/
+
+# Multitenancy is disabled for single-node deployment
+multitenancy_enabled: false
+
+# Target modules to run (all in single binary)
+target: all,alertmanager,overrides-exporter
+
+# Ingester configuration
+ingester:
+  ring:
+    kvstore:
+      store: inmemory
+    replication_factor: 1
+
+# Distributor configuration
+distributor:
+  ring:
+    kvstore:
+      store: inmemory
+
+# Store-gateway configuration
+store_gateway:
+  ring:
+    kvstore:
+      store: inmemory
+
+# Compactor configuration
+compactor:
+  compaction_interval: 1h
+  data_dir: /data/mimir-compactor
+  ring:
+    kvstore:
+      store: inmemory
+
+# Blocks storage configuration (filesystem backend)
+blocks_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/mimir/blocks
+  tsdb:
+    dir: /data/mimir/tsdb
+  bucket_store:
+    sync_dir: /data/mimir/tsdb-sync
+  # 90-day retention for metrics blocks
+  retention_period: 90d
+
+# Ruler storage
+ruler_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/mimir/rules
+
+# Alertmanager storage
+alertmanager_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/mimir/alertmanager
+
+# Runtime configuration file (hot-reloadable)
+runtime_config:
+  file: /etc/mimir/runtime.yml
+
+# Server configuration
+server:
+  http_listen_port: 9009
+  grpc_listen_port: 9095
+  log_level: info
+
+# Limits configuration
+limits:
+  # 90-day retention enforced by compactor
+  compactor_blocks_retention_period: 90d
+  ingestion_rate: 10000
+  ingestion_burst_size: 20000
+  max_global_series_per_user: 1000000
+  max_global_series_per_metric: 100000

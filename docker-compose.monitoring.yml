@@ -4,7 +4,7 @@ services:
     container_name: ecommerce-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ./prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -111,12 +111,29 @@ services:
     depends_on:
       - tempo
 
+  mimir:
+    image: grafana/mimir:2.15.0
+    container_name: ecommerce-mimir
+    ports:
+      - "9009:9009"
+    volumes:
+      - ./mimir:/etc/mimir:ro
+      - mimir_data:/data/mimir
+      - mimir_compactor:/data/mimir-compactor
+    command:
+      - --config.file=/etc/mimir/mimir.yml
+    networks:
+      - monitoring
+    restart: unless-stopped
+
 volumes:
   prometheus_data:
   grafana_data:
   loki-data:
   tempo_data:
   app-logs:
+  mimir_data:
+  mimir_compactor:
 
 networks:
   monitoring:
