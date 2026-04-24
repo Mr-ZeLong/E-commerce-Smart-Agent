@@ -87,6 +87,17 @@ _DEFAULT_RULES: list[dict[str, Any]] = [
         "suppress_interval_seconds": 300,
         "auto_resolve": True,
     },
+    {
+        "name": "low_confidence",
+        "description": "Median confidence score below threshold.",
+        "metric": "confidence_score",
+        "operator": "lt",
+        "threshold": 0.6,
+        "duration_seconds": 300,
+        "severity": AlertSeverity.P1,
+        "suppress_interval_seconds": 300,
+        "auto_resolve": True,
+    },
 ]
 
 
@@ -550,6 +561,270 @@ class AlertService:
                     headers={"Authorization": f"GenieKey {api_key}"},
                 )
             return response.is_success, response.status_code, response.text[:500]
+        except Exception as exc:
+            return False, None, str(exc)[:500]
+
+    def fire_alert_sync(
+        self,
+        session: Any,
+        rule: AlertRule,
+        metric_value: float,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> AlertEvent | None:
+        """Fire an alert event synchronously for Celery tasks."""
+        cache_key = f"alert:suppressed:{rule.id}:{rule.name}"
+        now = datetime.now(UTC)
+
+        suppressed = False
+        try:
+            import redis
+
+            sync_redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            last_fired_raw = sync_redis.get(cache_key)
+            if last_fired_raw:
+                last_fired_raw = str(last_fired_raw)
+                try:
+                    last_fired = datetime.fromisoformat(last_fired_raw)
+                    if (now - last_fired).total_seconds() < rule.suppress_interval_seconds:
+                        suppressed = True
+                except ValueError:
+                    pass
+            if not suppressed:
+                sync_redis.setex(cache_key, rule.suppress_interval_seconds, now.isoformat())
+        except Exception:
+            last_fired = self._suppression_cache.get(cache_key)
+            if last_fired and (now - last_fired).total_seconds() < rule.suppress_interval_seconds:
+                suppressed = True
+            else:
+                self._suppression_cache[cache_key] = now
+
+        if suppressed:
+            logger.debug("Alert %s suppressed (sync)", rule.name)
+            return None
+
+        event = AlertEvent(
+            rule_id=rule.id,
+            name=rule.name,
+            severity=rule.severity,
+            status=AlertStatus.FIRING,
+            message=message,
+            metric_value=metric_value,
+            threshold=rule.threshold,
+            metadata_json=json.dumps(metadata or {}, ensure_ascii=False, default=str),
+        )
+        session.add(event)
+        session.commit()
+        session.refresh(event)
+
+        self._notify_sync(session, event, rule)
+        logger.warning("Alert fired: [%s] %s - %s", rule.severity.value, rule.name, message)
+        return event
+
+    def _notify_sync(
+        self,
+        session: Any,
+        event: AlertEvent,
+        rule: AlertRule,
+    ) -> None:
+        """Send notifications through configured channels (sync version)."""
+        try:
+            channels: list[dict[str, Any]] = json.loads(rule.channels)
+        except json.JSONDecodeError:
+            channels = [{"channel": "email", "destination": None}]
+
+        for ch in channels:
+            channel_type = ch.get("channel", "email")
+            destination = ch.get("destination")
+            success = False
+            response_status = None
+            response_body = None
+
+            try:
+                if channel_type == AlertChannel.EMAIL.value:
+                    success, response_status, response_body = self._send_email_notification_sync(
+                        event
+                    )
+                elif channel_type == AlertChannel.WEBHOOK.value:
+                    success, response_status, response_body = self._send_webhook_notification_sync(
+                        event, destination
+                    )
+                elif channel_type == AlertChannel.PAGERDUTY.value:
+                    (
+                        success,
+                        response_status,
+                        response_body,
+                    ) = self._send_pagerduty_notification_sync(event, destination)
+                elif channel_type == AlertChannel.OPSGENIE.value:
+                    (
+                        success,
+                        response_status,
+                        response_body,
+                    ) = self._send_opsgenie_notification_sync(event, destination)
+            except Exception:
+                logger.exception("Notification failed for channel %s (sync)", channel_type)
+                success = False
+                response_body = "notification_exception"
+
+            assert event.id is not None, "Event ID must not be None when creating notification"
+            notification = AlertNotification(
+                alert_event_id=event.id,
+                channel=AlertChannel(channel_type),
+                destination=destination or "default",
+                success=success,
+                response_status=response_status,
+                response_body=response_body,
+            )
+            session.add(notification)
+
+        session.commit()
+
+    def _send_email_notification_sync(
+        self, event: AlertEvent
+    ) -> tuple[bool, int | None, str | None]:
+        """Send alert via email (sync version)."""
+        import smtplib
+        from email.mime.text import MIMEText
+
+        admin_emails = settings.ALERT_ADMIN_EMAILS
+        if not admin_emails:
+            return False, None, "no_admin_emails_configured"
+
+        subject = f"[{event.severity.value}] Alert: {event.name}"
+        body = (
+            f"Severity: {event.severity.value}\n"
+            f"Alert: {event.name}\n"
+            f"Message: {event.message}\n"
+            f"Metric Value: {event.metric_value}\n"
+            f"Threshold: {event.threshold}\n"
+            f"Time: {event.fired_at.isoformat()}\n"
+        )
+
+        try:
+            msg = MIMEText(body, "plain", "utf-8")
+            msg["Subject"] = subject
+            msg["From"] = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
+            msg["To"] = ", ".join(admin_emails)
+
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                if settings.SMTP_PORT == 587:
+                    server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD.get_secret_value())
+                server.sendmail(msg["From"], admin_emails, msg.as_string())
+            return True, 200, None
+        except Exception as exc:
+            return False, 500, str(exc)
+
+    def _send_webhook_notification_sync(
+        self,
+        event: AlertEvent,
+        destination: str | None,
+    ) -> tuple[bool, int | None, str | None]:
+        """Send alert via generic webhook (sync version)."""
+        import urllib.request
+
+        url = destination or settings.OTEL_EXPORTER_OTLP_ENDPOINT
+        if not url:
+            return False, None, "webhook_url_not_configured"
+
+        payload = {
+            "alert": event.name,
+            "severity": event.severity.value,
+            "status": event.status.value,
+            "message": event.message,
+            "metric_value": event.metric_value,
+            "threshold": event.threshold,
+            "timestamp": event.fired_at.isoformat(),
+        }
+
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return True, response.status, None
+        except Exception as exc:
+            return False, None, str(exc)[:500]
+
+    def _send_pagerduty_notification_sync(
+        self,
+        event: AlertEvent,
+        destination: str | None,
+    ) -> tuple[bool, int | None, str | None]:
+        """Send alert to PagerDuty Events API v2 (sync version)."""
+        import urllib.request
+
+        routing_key = destination
+        if not routing_key:
+            return False, None, "pagerduty_routing_key_not_configured"
+
+        payload = {
+            "routing_key": routing_key,
+            "event_action": "trigger",
+            "dedup_key": f"ecommerce-agent-{event.name}-{event.rule_id}",
+            "payload": {
+                "summary": f"[{event.severity.value}] {event.name}: {event.message}",
+                "severity": _map_to_pagerduty_severity(event.severity),
+                "source": "ecommerce-smart-agent",
+                "custom_details": {
+                    "metric_value": event.metric_value,
+                    "threshold": event.threshold,
+                    "rule_id": event.rule_id,
+                },
+            },
+        }
+
+        try:
+            req = urllib.request.Request(
+                "https://events.pagerduty.com/v2/enqueue",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return True, response.status, None
+        except Exception as exc:
+            return False, None, str(exc)[:500]
+
+    def _send_opsgenie_notification_sync(
+        self,
+        event: AlertEvent,
+        destination: str | None,
+    ) -> tuple[bool, int | None, str | None]:
+        """Send alert to OpsGenie Alert API (sync version)."""
+        import urllib.request
+
+        api_key = destination
+        if not api_key:
+            return False, None, "opsgenie_api_key_not_configured"
+
+        payload = {
+            "message": f"[{event.severity.value}] {event.name}: {event.message}",
+            "priority": _map_to_opsgenie_priority(event.severity),
+            "alias": f"ecommerce-agent-{event.name}-{event.rule_id}",
+            "source": "ecommerce-smart-agent",
+            "details": {
+                "metric_value": event.metric_value,
+                "threshold": event.threshold,
+                "rule_id": event.rule_id,
+            },
+        }
+
+        try:
+            req = urllib.request.Request(
+                "https://api.opsgenie.com/v2/alerts",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"GenieKey {api_key}",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return True, response.status, None
         except Exception as exc:
             return False, None, str(exc)[:500]
 

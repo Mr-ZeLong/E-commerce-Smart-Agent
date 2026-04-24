@@ -20,6 +20,8 @@ import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.observability.metrics import (
+    record_cache_hit,
+    record_cache_miss,
     record_redis_connection_error,
     record_redis_operation_latency,
     set_cache_hit_ratio,
@@ -57,10 +59,12 @@ class CacheManager:
 
     def _record_hit(self, cache_name: str) -> None:
         self._stats[cache_name]["hits"] += 1
+        record_cache_hit(cache_name)
         self._maybe_update_ratio(cache_name)
 
     def _record_miss(self, cache_name: str) -> None:
         self._stats[cache_name]["misses"] += 1
+        record_cache_miss(cache_name)
         self._maybe_update_ratio(cache_name)
 
     def _maybe_update_ratio(self, cache_name: str) -> None:

@@ -13,6 +13,11 @@ from app.models.token_usage import (
     OptimizationSuggestion,
     TokenUsageLog,
 )
+from app.observability.metrics import (
+    record_high_cost_request,
+    record_tokens_total,
+    set_token_efficiency,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +37,9 @@ class TokenTracker:
         model_name: str | None = None,
     ) -> TokenUsageLog:
         total = input_tokens + output_tokens
+        record_tokens_total(total)
+        if total > 0:
+            set_token_efficiency(agent_type, output_tokens / total)
         log = TokenUsageLog(
             user_id=user_id,
             thread_id=thread_id,
@@ -48,6 +56,7 @@ class TokenTracker:
 
         if total >= 10000:
             logger.warning("High token usage detected: %d tokens for user %d", total, user_id)
+            record_high_cost_request(agent_type)
 
         await self._maybe_generate_suggestions(log)
         return log

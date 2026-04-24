@@ -18,6 +18,7 @@
 - [Prompt Engineering](./explanation/prompt-engineering/) — Prompt 现状、最佳实践与改进路线图
 - [Context Engineering](./explanation/context-engineering/) — 上下文管理、预算控制与优化策略
 - [Harness Engineering](./explanation/harness-engineering/) — Agent 评估框架工程、数据集、回归测试与监控体系
+- [统一监控改造方案](./explanation/monitoring-unification-plan.md) — 可观测性平台统一规划与分阶段迁移
 
 ### 参考资料
 - [API 文档](./reference/api.md)

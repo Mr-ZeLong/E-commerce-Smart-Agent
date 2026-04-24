@@ -17,7 +17,7 @@
       "targets": [
         {
           "expr": "rate(tokens_total[5m]) / rate(chat_requests_total[5m])",
-          "legendFormat": "{{token_type}}"
+          "legendFormat": "tokens"
         }
       ],
       "gridPos": {

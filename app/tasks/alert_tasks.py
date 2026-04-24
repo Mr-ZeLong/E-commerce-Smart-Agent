@@ -17,6 +17,7 @@ from app.celery_app import celery_app
 from app.core.database import sync_session_maker
 from app.models.alert import AlertEvent, AlertRule, AlertRuleStatus, AlertStatus
 from app.models.observability import GraphExecutionLog
+from app.services.alert_service import AlertService
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,16 @@ def _get_metric_value(metric: str, window_seconds: int) -> tuple[float | None, d
                 healthy = False
             return 1.0 if healthy else 0.0, metadata
 
+        if metric == "confidence_score":
+            result = session.exec(
+                select(func.avg(GraphExecutionLog.confidence_score)).where(
+                    GraphExecutionLog.created_at >= since,
+                    GraphExecutionLog.confidence_score.is_not(None),  # type: ignore
+                )
+            )
+            val = result.one()
+            return (float(val) if val is not None else None), metadata
+
     return None, metadata
 
 
@@ -133,33 +144,6 @@ def _evaluate_operator(value: float, operator: str, threshold: float) -> bool:
         return value != threshold
     logger.warning("Unknown operator: %s", operator)
     return False
-
-
-def _fire_alert_sync(
-    session: Any,
-    rule: AlertRule,
-    metric_value: float,
-    message: str,
-    metadata: dict[str, Any] | None = None,
-) -> AlertEvent | None:
-    """Fire an alert event synchronously (for Celery tasks)."""
-    import json
-
-    event = AlertEvent(
-        rule_id=rule.id,
-        name=rule.name,
-        severity=rule.severity,
-        status=AlertStatus.FIRING,
-        message=message,
-        metric_value=metric_value,
-        threshold=rule.threshold,
-        metadata_json=json.dumps(metadata or {}, ensure_ascii=False, default=str),
-    )
-    session.add(event)
-    session.commit()
-    session.refresh(event)
-    logger.warning("Alert fired: [%s] %s - %s", rule.severity.value, rule.name, message)
-    return event
 
 
 def _auto_resolve_cleared_alerts(session: Any) -> None:
@@ -219,14 +203,17 @@ def evaluate_alert_rules(_self) -> dict:
                 f"{rule.operator} threshold={rule.threshold}"
             )
 
-            _fire_alert_sync(
+            event = AlertService().fire_alert_sync(
                 session=session,
                 rule=rule,
                 metric_value=current_value,
                 message=message,
                 metadata=metadata,
             )
-            alerts_fired += 1
+            if event is not None:
+                alerts_fired += 1
+            else:
+                alerts_suppressed += 1
 
         _auto_resolve_cleared_alerts(session)
 
@@ -255,7 +242,7 @@ def check_service_health(_self) -> dict:
             )
             rule = result.first()
             if rule:
-                _fire_alert_sync(
+                AlertService().fire_alert_sync(
                     session=session,
                     rule=rule,
                     metric_value=0.0,

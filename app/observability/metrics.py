@@ -166,6 +166,71 @@ CHECKPOINT_CLEANUP_TOTAL = _get_or_create_counter(
     "Total number of old checkpoints removed by cleanup tasks.",
 )
 
+ANSWER_CORRECTNESS = _get_or_create_gauge(
+    "answer_correctness",
+    "Answer correctness score from evaluator (0.0-1.0).",
+    ["agent_type"],
+)
+
+AGENT_LATENCY_SECONDS = _get_or_create_histogram(
+    "agent_latency_seconds",
+    "Agent execution latency in seconds.",
+    ["agent_type"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+)
+
+TOKEN_EFFICIENCY = _get_or_create_gauge(
+    "token_efficiency",
+    "Ratio of useful tokens to total tokens (0.0-1.0).",
+    ["agent"],
+)
+
+TOKENS_TOTAL = _get_or_create_counter(
+    "tokens_total",
+    "Total tokens consumed across all agents.",
+)
+
+CACHE_HITS_TOTAL = _get_or_create_counter(
+    "cache_hits_total",
+    "Total cache hits.",
+    ["cache_name"],
+)
+
+CACHE_MISSES_TOTAL = _get_or_create_counter(
+    "cache_misses_total",
+    "Total cache misses.",
+    ["cache_name"],
+)
+
+HIGH_COST_REQUESTS_TOTAL = _get_or_create_counter(
+    "high_cost_requests_total",
+    "Total requests exceeding cost threshold.",
+    ["agent"],
+)
+
+SAFETY_BLOCKS_TOTAL = _get_or_create_counter(
+    "safety_blocks_total",
+    "Total content moderation blocks.",
+    ["layer", "reason"],
+)
+
+PII_DETECTIONS_TOTAL = _get_or_create_counter(
+    "pii_detections_total",
+    "Total PII detections by type.",
+    ["pii_type", "source"],
+)
+
+INJECTION_ATTEMPTS_TOTAL = _get_or_create_counter(
+    "injection_attempts_total",
+    "Total prompt injection attempts detected.",
+)
+
+RATE_LIMIT_HITS_TOTAL = _get_or_create_counter(
+    "rate_limit_hits_total",
+    "Total rate limit hits by user.",
+    ["limit_type"],
+)
+
 
 def record_checkpoint_metrics(compressed_size: int, uncompressed_size: int, is_base: bool) -> None:
     """Record checkpoint storage metrics."""
@@ -269,6 +334,61 @@ def set_redis_connections_active(count: int) -> None:
 def set_cache_hit_ratio(cache_name: str, ratio: float) -> None:
     """Set the cache hit ratio for a named cache."""
     REDIS_CACHE_HIT_RATIO.labels(cache_name=cache_name).set(ratio)
+
+
+def record_answer_correctness(agent_type: str, score: float) -> None:
+    """Set the answer correctness gauge for an agent type."""
+    ANSWER_CORRECTNESS.labels(agent_type=agent_type).set(score)
+
+
+def observe_agent_latency(agent_type: str, duration: float) -> None:
+    """Observe agent execution latency in seconds."""
+    AGENT_LATENCY_SECONDS.labels(agent_type=agent_type).observe(duration)
+
+
+def set_token_efficiency(agent: str, ratio: float) -> None:
+    """Set the token efficiency ratio for an agent."""
+    TOKEN_EFFICIENCY.labels(agent=agent).set(ratio)
+
+
+def record_tokens_total(count: int) -> None:
+    """Increment the total tokens consumed counter."""
+    TOKENS_TOTAL.inc(count)
+
+
+def record_cache_hit(cache_name: str) -> None:
+    """Increment the cache hits counter for a named cache."""
+    CACHE_HITS_TOTAL.labels(cache_name=cache_name).inc()
+
+
+def record_cache_miss(cache_name: str) -> None:
+    """Increment the cache misses counter for a named cache."""
+    CACHE_MISSES_TOTAL.labels(cache_name=cache_name).inc()
+
+
+def record_high_cost_request(agent: str) -> None:
+    """Increment the high cost requests counter for an agent."""
+    HIGH_COST_REQUESTS_TOTAL.labels(agent=agent).inc()
+
+
+def record_safety_block(layer: str, reason: str) -> None:
+    """Increment the safety blocks counter with layer and reason labels."""
+    SAFETY_BLOCKS_TOTAL.labels(layer=layer, reason=reason).inc()
+
+
+def record_pii_detection(pii_type: str, source: str) -> None:
+    """Increment the PII detections counter by type and source."""
+    PII_DETECTIONS_TOTAL.labels(pii_type=pii_type, source=source).inc()
+
+
+def record_injection_attempt() -> None:
+    """Increment the injection attempts counter."""
+    INJECTION_ATTEMPTS_TOTAL.inc()
+
+
+def record_rate_limit_hit(limit_type: str) -> None:
+    """Increment the rate limit hits counter by limit type."""
+    RATE_LIMIT_HITS_TOTAL.labels(limit_type=limit_type).inc()
 
 
 def get_metrics_response() -> tuple[bytes, str]:

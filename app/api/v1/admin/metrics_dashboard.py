@@ -15,6 +15,10 @@ from app.core.config import settings
 from app.core.database import get_session
 from app.core.security import get_admin_user_id
 from app.models.observability import GraphExecutionLog
+from app.observability.prometheus_client import (
+    parse_scalar_value,
+    query_prometheus,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -91,57 +95,94 @@ async def get_dashboard_summary(
     since = now - timedelta(hours=hours)
     since_7d = now - timedelta(days=7)
 
-    total_result = await session.exec(
-        select(func.count()).where(GraphExecutionLog.created_at >= since)
-    )
-    total = total_result.one() or 0
+    total = 0
+    total_7d = 0
+    avg_conf = None
+    transfer_rate = 0.0
+    avg_latency = None
+    containment_rate = 0.0
+    token_eff = None
 
-    total_7d_result = await session.exec(
-        select(func.count()).where(GraphExecutionLog.created_at >= since_7d)
-    )
-    total_7d = total_7d_result.one() or 0
-
-    avg_conf_result = await session.exec(
-        select(func.avg(GraphExecutionLog.confidence_score)).where(
-            GraphExecutionLog.created_at >= since,
-            GraphExecutionLog.confidence_score.is_not(None),  # type: ignore
+    if settings.PROMETHEUS_ENABLED:
+        total = int(
+            parse_scalar_value(await query_prometheus("sum(increase(chat_requests_total[24h]))"))
+            or 0
         )
-    )
-    avg_conf = avg_conf_result.one()
-
-    transfer_count_result = await session.exec(
-        select(func.count()).where(
-            GraphExecutionLog.created_at >= since,
-            GraphExecutionLog.needs_human_transfer.is_(True),  # type: ignore
+        total_7d = int(
+            parse_scalar_value(await query_prometheus("sum(increase(chat_requests_total[7d]))"))
+            or 0
         )
-    )
-    transfer_count = transfer_count_result.one() or 0
-    transfer_rate = transfer_count / total if total > 0 else 0.0
-
-    avg_latency_result = await session.exec(
-        select(func.avg(GraphExecutionLog.total_latency_ms)).where(
-            GraphExecutionLog.created_at >= since,
-            GraphExecutionLog.total_latency_ms.is_not(None),  # type: ignore
+        avg_conf = parse_scalar_value(await query_prometheus("avg(confidence_score)"))
+        transfer_rate = (
+            parse_scalar_value(
+                await query_prometheus(
+                    "sum(increase(human_transfers_total[24h])) / sum(increase(chat_requests_total[24h]))"
+                )
+            )
+            or 0.0
         )
-    )
-    avg_latency = avg_latency_result.one()
+        avg_latency = parse_scalar_value(await query_prometheus("avg(chat_latency_seconds) * 1000"))
+        containment_rate = 1.0 - transfer_rate
+        token_eff = parse_scalar_value(await query_prometheus("avg(token_efficiency)"))
 
-    contained_count_result = await session.exec(
-        select(func.count()).where(
-            GraphExecutionLog.created_at >= since,
-            GraphExecutionLog.needs_human_transfer.is_(False),  # type: ignore
+    if total == 0:
+        total_result = await session.exec(
+            select(func.count()).where(GraphExecutionLog.created_at >= since)
         )
-    )
-    contained_count = contained_count_result.one() or 0
-    containment_rate = contained_count / total if total > 0 else 0.0
+        total = total_result.one() or 0
 
-    token_eff_result = await session.exec(
-        select(func.avg(GraphExecutionLog.context_utilization)).where(
-            GraphExecutionLog.created_at >= since,
-            GraphExecutionLog.context_utilization.is_not(None),  # type: ignore
+    if total_7d == 0:
+        total_7d_result = await session.exec(
+            select(func.count()).where(GraphExecutionLog.created_at >= since_7d)
         )
-    )
-    token_eff = token_eff_result.one()
+        total_7d = total_7d_result.one() or 0
+
+    if avg_conf is None:
+        avg_conf_result = await session.exec(
+            select(func.avg(GraphExecutionLog.confidence_score)).where(
+                GraphExecutionLog.created_at >= since,
+                GraphExecutionLog.confidence_score.is_not(None),  # type: ignore
+            )
+        )
+        avg_conf = avg_conf_result.one()
+
+    if transfer_rate == 0.0:
+        transfer_count_result = await session.exec(
+            select(func.count()).where(
+                GraphExecutionLog.created_at >= since,
+                GraphExecutionLog.needs_human_transfer.is_(True),  # type: ignore
+            )
+        )
+        transfer_count = transfer_count_result.one() or 0
+        transfer_rate = transfer_count / total if total > 0 else 0.0
+
+    if avg_latency is None:
+        avg_latency_result = await session.exec(
+            select(func.avg(GraphExecutionLog.total_latency_ms)).where(
+                GraphExecutionLog.created_at >= since,
+                GraphExecutionLog.total_latency_ms.is_not(None),  # type: ignore
+            )
+        )
+        avg_latency = avg_latency_result.one()
+
+    if containment_rate == 0.0:
+        contained_count_result = await session.exec(
+            select(func.count()).where(
+                GraphExecutionLog.created_at >= since,
+                GraphExecutionLog.needs_human_transfer.is_(False),  # type: ignore
+            )
+        )
+        contained_count = contained_count_result.one() or 0
+        containment_rate = contained_count / total if total > 0 else 0.0
+
+    if token_eff is None:
+        token_eff_result = await session.exec(
+            select(func.avg(GraphExecutionLog.context_utilization)).where(
+                GraphExecutionLog.created_at >= since,
+                GraphExecutionLog.context_utilization.is_not(None),  # type: ignore
+            )
+        )
+        token_eff = token_eff_result.one()
 
     return DashboardSummary(
         total_sessions_24h=total,

@@ -13,6 +13,7 @@ import logging
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from app.observability.metrics import record_injection_attempt, record_safety_block
 from app.retrieval.embeddings import QwenEmbeddings
 from app.safety.embeddings import EmbeddingSimilarityLayer
 from app.safety.llm_judge import LLMJudgeLayer
@@ -93,6 +94,7 @@ class OutputModerator:
         layer_results["rule_based"] = result1
         if not result1.is_safe:
             logger.info("Layer 1 blocked content: %s", result1.reason)
+            record_safety_block("rule_based", result1.reason or "blocked")
             return ModerationResult(
                 is_safe=False,
                 risk_score=result1.risk_score,
@@ -108,6 +110,9 @@ class OutputModerator:
         layer_results["regex_patterns"] = result2
         if not result2.is_safe:
             logger.info("Layer 2 blocked content: %s", result2.reason)
+            record_safety_block("regex_patterns", result2.reason or "blocked")
+            if result2.details and result2.details.get("injection"):
+                record_injection_attempt()
             return ModerationResult(
                 is_safe=False,
                 risk_score=result2.risk_score,
@@ -123,6 +128,7 @@ class OutputModerator:
         layer_results["embedding_similarity"] = result3
         if not result3.is_safe:
             logger.info("Layer 3 blocked content: %s", result3.reason)
+            record_safety_block("embedding_similarity", result3.reason or "blocked")
             return ModerationResult(
                 is_safe=False,
                 risk_score=result3.risk_score,
@@ -142,6 +148,7 @@ class OutputModerator:
             layer_results["llm_judge"] = result4
             if not result4.is_safe:
                 logger.info("Layer 4 blocked content: %s", result4.reason)
+                record_safety_block("llm_judge", result4.reason or "blocked")
                 return ModerationResult(
                     is_safe=False,
                     risk_score=result4.risk_score,

@@ -328,6 +328,8 @@ class Settings(BaseSettings):
 
     KNOWLEDGE_UPLOAD_DIR: str = "uploads/knowledge"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    PROMETHEUS_ENABLED: bool = False
+    PROMETHEUS_URL: str = "http://localhost:9090"
 
     # 置信度评估配置（嵌套模型）
     CONFIDENCE: ConfidenceSettings = Field(default_factory=ConfidenceSettings)

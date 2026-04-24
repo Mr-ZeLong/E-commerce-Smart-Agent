@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.config import settings
+from app.observability.metrics import record_pii_detection
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +331,9 @@ def log_pii_detection(
 ) -> None:
     if not detections:
         return
+    for pii_type, count in detections.items():
+        for _ in range(count):
+            record_pii_detection(pii_type, source)
     detection_summary = ", ".join(f"{k}={v}" for k, v in detections.items())
     logger.warning(
         "PII detected and redacted: user_id=%s thread_id=%s source=%s types=%s",

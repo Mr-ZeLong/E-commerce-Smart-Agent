@@ -17,7 +17,7 @@
       "targets": [
         {
           "expr": "rate(safety_blocks_total[1m])",
-          "legendFormat": "{{block_type}}"
+          "legendFormat": "{{layer}}"
         }
       ],
       "gridPos": {
@@ -51,7 +51,7 @@
       "targets": [
         {
           "expr": "rate(injection_attempts_total[1m])",
-          "legendFormat": "{{injection_type}}"
+          "legendFormat": "injection attempts"
         }
       ],
       "gridPos": {
@@ -68,7 +68,7 @@
       "targets": [
         {
           "expr": "rate(rate_limit_hits_total[1m])",
-          "legendFormat": "{{user_id}}"
+          "legendFormat": "{{limit_type}}"
         }
       ],
       "gridPos": {

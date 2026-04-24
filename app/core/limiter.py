@@ -8,6 +8,7 @@ from fastapi import HTTPException, Request, status
 from slowapi import Limiter
 
 from app.core.config import settings
+from app.observability.metrics import record_rate_limit_hit
 
 
 def get_client_ip(request: Request) -> str:
@@ -56,6 +57,7 @@ async def check_user_rate_limit(
     count = results[0]
 
     if count > max_requests:
+        record_rate_limit_hit("user")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="请求过于频繁，请稍后再试。",

@@ -10,30 +10,52 @@ import pytest
 
 from app.observability.metrics import (
     AGENT_CONTEXT_TOKENS,
+    AGENT_LATENCY_SECONDS,
+    ANSWER_CORRECTNESS,
+    CACHE_HITS_TOTAL,
+    CACHE_MISSES_TOTAL,
     CHAT_ERRORS_TOTAL,
     CHAT_LATENCY_SECONDS,
     CHAT_REQUESTS_TOTAL,
     CONFIDENCE_SCORE,
     CONTEXT_UTILIZATION_RATIO,
     HALLUCINATION_RATE,
+    HIGH_COST_REQUESTS_TOTAL,
     HUMAN_TRANSFERS_TOTAL,
+    INJECTION_ATTEMPTS_TOTAL,
     INTENT_ACCURACY,
     NODE_LATENCY_SECONDS,
+    PII_DETECTIONS_TOTAL,
     RAG_PRECISION,
+    RATE_LIMIT_HITS_TOTAL,
+    SAFETY_BLOCKS_TOTAL,
+    TOKEN_EFFICIENCY,
     TOKEN_USAGE_TOTAL,
+    TOKENS_TOTAL,
     get_metrics_response,
+    observe_agent_latency,
     record_agent_context_tokens,
+    record_answer_correctness,
+    record_cache_hit,
+    record_cache_miss,
     record_chat_error,
     record_chat_latency,
     record_chat_request,
     record_confidence_score,
     record_context_utilization,
+    record_high_cost_request,
     record_human_transfer,
+    record_injection_attempt,
     record_node_latency,
+    record_pii_detection,
+    record_rate_limit_hit,
+    record_safety_block,
     record_token_usage,
+    record_tokens_total,
     set_hallucination_rate,
     set_intent_accuracy,
     set_rag_precision,
+    set_token_efficiency,
 )
 
 
@@ -273,3 +295,242 @@ class TestLatencyTrackerIntegration:
         with patch("app.observability.latency_tracker.record_node_latency") as mock_record:
             await compute_node_latency_stats(db_session)
             mock_record.assert_called_once_with(node_name="test_node", latency_seconds=0.1)
+
+
+class TestRecordAnswerCorrectness:
+    def test_record_answer_correctness(self):
+        record_answer_correctness(agent_type="order_agent", score=0.95)
+        value = ANSWER_CORRECTNESS.labels(agent_type="order_agent")._value.get()
+        assert value == pytest.approx(0.95)
+
+    def test_record_answer_correctness_aggregates(self):
+        record_answer_correctness(agent_type="product_agent", score=0.80)
+        record_answer_correctness(agent_type="product_agent", score=0.85)
+        value = ANSWER_CORRECTNESS.labels(agent_type="product_agent")._value.get()
+        assert value == pytest.approx(0.85)
+
+
+class TestObserveAgentLatency:
+    def test_observe_agent_latency(self):
+        before = AGENT_LATENCY_SECONDS.labels(agent_type="router")._sum.get()
+        observe_agent_latency(agent_type="router", duration=0.15)
+        after = AGENT_LATENCY_SECONDS.labels(agent_type="router")._sum.get()
+        assert after == pytest.approx(before + 0.15)
+
+    def test_observe_agent_latency_multiple_calls(self):
+        before_sum = AGENT_LATENCY_SECONDS.labels(agent_type="supervisor")._sum.get()
+        observe_agent_latency(agent_type="supervisor", duration=0.10)
+        observe_agent_latency(agent_type="supervisor", duration=0.20)
+        after_sum = AGENT_LATENCY_SECONDS.labels(agent_type="supervisor")._sum.get()
+        assert after_sum == pytest.approx(before_sum + 0.30)
+
+
+class TestSetTokenEfficiency:
+    def test_set_token_efficiency(self):
+        set_token_efficiency(agent="order_agent", ratio=0.72)
+        value = TOKEN_EFFICIENCY.labels(agent="order_agent")._value.get()
+        assert value == pytest.approx(0.72)
+
+    def test_set_token_efficiency_updates(self):
+        set_token_efficiency(agent="cart_agent", ratio=0.60)
+        set_token_efficiency(agent="cart_agent", ratio=0.80)
+        value = TOKEN_EFFICIENCY.labels(agent="cart_agent")._value.get()
+        assert value == pytest.approx(0.80)
+
+
+class TestRecordTokensTotal:
+    def test_record_tokens_total(self):
+        before = TOKENS_TOTAL._value.get()
+        record_tokens_total(count=500)
+        after = TOKENS_TOTAL._value.get()
+        assert after == before + 500
+
+    def test_record_tokens_total_multiple_calls(self):
+        before = TOKENS_TOTAL._value.get()
+        record_tokens_total(count=100)
+        record_tokens_total(count=200)
+        record_tokens_total(count=300)
+        after = TOKENS_TOTAL._value.get()
+        assert after == before + 600
+
+
+class TestRecordCacheHit:
+    def test_record_cache_hit(self):
+        before = CACHE_HITS_TOTAL.labels(cache_name="user_profile")._value.get()
+        record_cache_hit(cache_name="user_profile")
+        after = CACHE_HITS_TOTAL.labels(cache_name="user_profile")._value.get()
+        assert after == before + 1
+
+    def test_record_cache_hit_different_caches(self):
+        before_user = CACHE_HITS_TOTAL.labels(cache_name="user_profile")._value.get()
+        before_prod = CACHE_HITS_TOTAL.labels(cache_name="product")._value.get()
+        record_cache_hit(cache_name="user_profile")
+        record_cache_hit(cache_name="product")
+        assert CACHE_HITS_TOTAL.labels(cache_name="user_profile")._value.get() == before_user + 1
+        assert CACHE_HITS_TOTAL.labels(cache_name="product")._value.get() == before_prod + 1
+
+
+class TestRecordCacheMiss:
+    def test_record_cache_miss(self):
+        before = CACHE_MISSES_TOTAL.labels(cache_name="retrieval")._value.get()
+        record_cache_miss(cache_name="retrieval")
+        after = CACHE_MISSES_TOTAL.labels(cache_name="retrieval")._value.get()
+        assert after == before + 1
+
+    def test_record_cache_miss_multiple(self):
+        before = CACHE_MISSES_TOTAL.labels(cache_name="facts")._value.get()
+        record_cache_miss(cache_name="facts")
+        record_cache_miss(cache_name="facts")
+        after = CACHE_MISSES_TOTAL.labels(cache_name="facts")._value.get()
+        assert after == before + 2
+
+
+class TestRecordHighCostRequest:
+    def test_record_high_cost_request(self):
+        before = HIGH_COST_REQUESTS_TOTAL.labels(agent="order_agent")._value.get()
+        record_high_cost_request(agent="order_agent")
+        after = HIGH_COST_REQUESTS_TOTAL.labels(agent="order_agent")._value.get()
+        assert after == before + 1
+
+    def test_record_high_cost_request_multiple_agents(self):
+        before_order = HIGH_COST_REQUESTS_TOTAL.labels(agent="order_agent")._value.get()
+        before_cart = HIGH_COST_REQUESTS_TOTAL.labels(agent="cart_agent")._value.get()
+        record_high_cost_request(agent="order_agent")
+        record_high_cost_request(agent="cart_agent")
+        assert HIGH_COST_REQUESTS_TOTAL.labels(agent="order_agent")._value.get() == before_order + 1
+        assert HIGH_COST_REQUESTS_TOTAL.labels(agent="cart_agent")._value.get() == before_cart + 1
+
+
+class TestRecordSafetyBlock:
+    def test_record_safety_block(self):
+        before = SAFETY_BLOCKS_TOTAL.labels(layer="regex", reason="credit_card")._value.get()
+        record_safety_block(layer="regex", reason="credit_card")
+        after = SAFETY_BLOCKS_TOTAL.labels(layer="regex", reason="credit_card")._value.get()
+        assert after == before + 1
+
+    def test_record_safety_block_multiple_labels(self):
+        record_safety_block(layer="embedding", reason="similarity_high")
+        record_safety_block(layer="llm_judge", reason="toxic_content")
+        val1 = SAFETY_BLOCKS_TOTAL.labels(layer="embedding", reason="similarity_high")._value.get()
+        val2 = SAFETY_BLOCKS_TOTAL.labels(layer="llm_judge", reason="toxic_content")._value.get()
+        assert val1 == 1
+        assert val2 == 1
+
+
+class TestRecordPiiDetection:
+    def test_record_pii_detection(self):
+        before = PII_DETECTIONS_TOTAL.labels(
+            pii_type="phone_number", source="user_input"
+        )._value.get()
+        record_pii_detection(pii_type="phone_number", source="user_input")
+        after = PII_DETECTIONS_TOTAL.labels(
+            pii_type="phone_number", source="user_input"
+        )._value.get()
+        assert after == before + 1
+
+    def test_record_pii_detection_multiple_types(self):
+        before_phone = PII_DETECTIONS_TOTAL.labels(
+            pii_type="phone_number", source="user_input"
+        )._value.get()
+        before_email = PII_DETECTIONS_TOTAL.labels(
+            pii_type="email", source="user_input"
+        )._value.get()
+        record_pii_detection(pii_type="phone_number", source="user_input")
+        record_pii_detection(pii_type="email", source="user_input")
+        assert (
+            PII_DETECTIONS_TOTAL.labels(pii_type="phone_number", source="user_input")._value.get()
+            == before_phone + 1
+        )
+        assert (
+            PII_DETECTIONS_TOTAL.labels(pii_type="email", source="user_input")._value.get()
+            == before_email + 1
+        )
+
+
+class TestRecordInjectionAttempt:
+    def test_record_injection_attempt(self):
+        before = INJECTION_ATTEMPTS_TOTAL._value.get()
+        record_injection_attempt()
+        after = INJECTION_ATTEMPTS_TOTAL._value.get()
+        assert after == before + 1
+
+    def test_record_injection_attempt_multiple(self):
+        before = INJECTION_ATTEMPTS_TOTAL._value.get()
+        record_injection_attempt()
+        record_injection_attempt()
+        record_injection_attempt()
+        after = INJECTION_ATTEMPTS_TOTAL._value.get()
+        assert after == before + 3
+
+
+class TestRecordRateLimitHit:
+    def test_record_rate_limit_hit(self):
+        before = RATE_LIMIT_HITS_TOTAL.labels(limit_type="per_user")._value.get()
+        record_rate_limit_hit(limit_type="per_user")
+        after = RATE_LIMIT_HITS_TOTAL.labels(limit_type="per_user")._value.get()
+        assert after == before + 1
+
+    def test_record_rate_limit_hit_different_types(self):
+        before_user = RATE_LIMIT_HITS_TOTAL.labels(limit_type="per_user")._value.get()
+        before_global = RATE_LIMIT_HITS_TOTAL.labels(limit_type="global")._value.get()
+        record_rate_limit_hit(limit_type="per_user")
+        record_rate_limit_hit(limit_type="global")
+        assert RATE_LIMIT_HITS_TOTAL.labels(limit_type="per_user")._value.get() == before_user + 1
+        assert RATE_LIMIT_HITS_TOTAL.labels(limit_type="global")._value.get() == before_global + 1
+
+
+class TestNewMetricsInResponse:
+    def test_answer_correctness_in_metrics(self):
+        record_answer_correctness(agent_type="test_agent", score=0.90)
+        body, _ = get_metrics_response()
+        assert b"answer_correctness" in body
+
+    def test_agent_latency_in_metrics(self):
+        observe_agent_latency(agent_type="test_agent", duration=0.5)
+        body, _ = get_metrics_response()
+        assert b"agent_latency_seconds" in body
+
+    def test_token_efficiency_in_metrics(self):
+        set_token_efficiency(agent="test_agent", ratio=0.75)
+        body, _ = get_metrics_response()
+        assert b"token_efficiency" in body
+
+    def test_tokens_total_in_metrics(self):
+        record_tokens_total(count=100)
+        body, _ = get_metrics_response()
+        assert b"tokens_total" in body
+
+    def test_cache_hits_total_in_metrics(self):
+        record_cache_hit(cache_name="test_cache")
+        body, _ = get_metrics_response()
+        assert b"cache_hits_total" in body
+
+    def test_cache_misses_total_in_metrics(self):
+        record_cache_miss(cache_name="test_cache")
+        body, _ = get_metrics_response()
+        assert b"cache_misses_total" in body
+
+    def test_high_cost_requests_total_in_metrics(self):
+        record_high_cost_request(agent="test_agent")
+        body, _ = get_metrics_response()
+        assert b"high_cost_requests_total" in body
+
+    def test_safety_blocks_total_in_metrics(self):
+        record_safety_block(layer="test_layer", reason="test_reason")
+        body, _ = get_metrics_response()
+        assert b"safety_blocks_total" in body
+
+    def test_pii_detections_total_in_metrics(self):
+        record_pii_detection(pii_type="phone", source="input")
+        body, _ = get_metrics_response()
+        assert b"pii_detections_total" in body
+
+    def test_injection_attempts_total_in_metrics(self):
+        record_injection_attempt()
+        body, _ = get_metrics_response()
+        assert b"injection_attempts_total" in body
+
+    def test_rate_limit_hits_total_in_metrics(self):
+        record_rate_limit_hit(limit_type="test_limit")
+        body, _ = get_metrics_response()
+        assert b"rate_limit_hits_total" in body

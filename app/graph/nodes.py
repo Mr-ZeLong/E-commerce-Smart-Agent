@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any, Literal
@@ -34,6 +35,7 @@ from app.memory.summarizer import SessionSummarizer
 from app.memory.vector_manager import VectorMemoryManager
 from app.models.observability import SupervisorDecision
 from app.models.state import AgentProcessResult, AgentState
+from app.observability.metrics import observe_agent_latency
 from app.tasks.memory_tasks import extract_and_save_facts
 
 
@@ -426,7 +428,9 @@ def _build_agent_node(
         from app.graph.subgraphs import _filter_state
 
         filtered = _filter_state(state, allowed_keys) if allowed_keys else state
+        start = time.perf_counter()
         result = await agent.process(filtered)
+        observe_agent_latency(agent_name, time.perf_counter() - start)
         return Command(goto="evaluator_node", update=_agent_updates(agent_name, result, state))
 
     return _node

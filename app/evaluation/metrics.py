@@ -14,6 +14,7 @@ from app.core.tracing import build_llm_config
 from app.evaluation.containment import containment_rate
 from app.evaluation.token_efficiency import token_efficiency
 from app.evaluation.tone_consistency import tone_consistency
+from app.observability.metrics import record_answer_correctness
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +217,9 @@ async def answer_correctness(
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)
         score = float(content.strip())
-        return max(0.0, min(1.0, score))
+        score = max(0.0, min(1.0, score))
+        record_answer_correctness("answer_correctness_evaluator", score)
+        return score
     except (ValueError, TypeError):
         logger.warning("Failed to parse answer correctness score from LLM response.")
         return 0.0

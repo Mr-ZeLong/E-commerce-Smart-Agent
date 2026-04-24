@@ -9,3 +9,4 @@
 - [技术栈分层](./tech-stack.md) — 六层技术架构
 - [启动流程](./startup-flow.md) — 服务启动依赖
 - [CI 与代码质量](./ci-quality.md) — 工具链与流水线
+- [统一监控改造方案](../monitoring-unification-plan.md) — 可观测性平台统一规划与分阶段迁移
