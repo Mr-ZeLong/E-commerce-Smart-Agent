@@ -32,7 +32,7 @@ Backend test suite using pytest + pytest-asyncio with a flat directory structure
 | Graph module tests | `@tests/graph/test_checkpointer.py`, `@tests/graph/test_memory_integration.py`, `@tests/graph/test_parallel.py`, `@tests/graph/test_subgraphs.py`, `@tests/graph/test_workflow.py` | Checkpointer, memory integration, parallel dispatch, subgraph, and workflow compiler tests |
 | Context module tests | `@tests/context/test_pii_filter.py`, `@tests/context/test_token_budget.py` | PII filtering and token budget tests |
 | Core module tests | `@tests/core/test_cache.py`, `@tests/core/test_limiter.py`, `@tests/core/test_redis.py`, `@tests/core/test_structured_logging.py` | Cache manager, rate limiter, Redis pool, and structured logging tests |
-| Observability module tests | `@tests/observability/test_alert_rules.py`, `@tests/observability/test_alerting.py`, `@tests/observability/test_latency_tracker.py`, `@tests/observability/test_metrics.py` | Alert rules, alerting, latency tracker, and metrics tests |
+| Observability module tests | `@tests/observability/test_latency_tracker.py`, `@tests/observability/test_metrics.py`, `@tests/observability/test_prometheus_client.py` | Latency tracker, metrics, and Prometheus client tests |
 | Safety tests | `@tests/safety/test_output_moderator.py`, `@tests/safety/conftest.py` | 4-layer output moderation pipeline tests |
 | Admin API tests | `@tests/admin/`, `@tests/api/admin/test_metrics_dashboard.py`, `@tests/api/admin/test_review_queue.py`, `@tests/api/admin/test_token_usage.py` | Admin endpoint tests including metrics, review queue, and token usage |
 | Service tests | `@tests/services/test_continuous_improvement.py`, `@tests/services/test_alert_service.py` | Business service validation |

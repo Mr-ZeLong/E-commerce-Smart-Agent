@@ -66,9 +66,9 @@ For any other area, this root file applies.
   - `@app/retrieval/`: Hybrid RAG retrieval (dense + sparse embeddings, reranker, query rewriter, Qdrant client).
     - `@app/retrieval/sparse_embedder.py` - Sparse embedding support (BM25).
   - `@app/evaluation/`: Offline evaluation framework (pipeline, adversarial, shadow, metrics, hallucination, containment).
-  - `@app/observability/`: OpenTelemetry tracing, execution logging, latency tracking.
-    - `@app/observability/alert_rules.py` - Prometheus alert rule definitions.
-    - `@app/observability/alerting.py` - Alert management (AlertManager, AlertSeverity).
+  - `@app/observability/`: OpenTelemetry tracing, execution logging, latency tracking, Prometheus metrics.
+    - `@app/observability/metrics.py` - Prometheus custom metrics (counters, histograms, gauges).
+    - `@app/observability/prometheus_client.py` - Async Prometheus HTTP API client.
     - `@app/observability/token_tracker.py` - Per-user/per-agent cost monitoring.
   - `@app/confidence/`: Confidence signal calculation for response quality.
   - `@app/context/`: Context engineering (observation masking, token budget management).

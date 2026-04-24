@@ -20,11 +20,10 @@ Observability layer providing OpenTelemetry tracing, execution logging, and late
 
 | Role | File | Notes |
 |------|------|-------|
-| Alert rules | `@app/observability/alert_rules.py` | Prometheus alert rule definitions with severity levels (P0/P1/P2) |
-| Alerting | `@app/observability/alerting.py` | Alert management (AlertManager, AlertSeverity, alert lifecycle) |
+| Prometheus metrics | `@app/observability/metrics.py` | Custom counters, histograms, gauges for chat latency, token usage, intent accuracy, hallucination rate, and 11 new dashboard metrics |
+| Prometheus client | `@app/observability/prometheus_client.py` | Async Prometheus HTTP API client for querying metrics from dashboards |
 | Execution logger | `@app/observability/execution_logger.py` | Graph execution logging with structured events |
 | Latency tracker | `@app/observability/latency_tracker.py` | Per-node latency measurement and reporting |
-| Prometheus metrics | `@app/observability/metrics.py` | Custom counters, histograms, and gauges for chat latency, token usage, intent accuracy, hallucination rate |
 | OpenTelemetry setup | `@app/observability/otel_setup.py` | OTel tracer provider and exporter configuration |
 | Token tracker | `@app/observability/token_tracker.py` | Per-user/per-agent cost monitoring with TokenTracker class |
 
