@@ -1,5 +1,6 @@
 {
   "id": null,
+  "uid": "cost-optimization",
   "title": "Cost Optimization",
   "tags": [
     "ecommerce",
@@ -9,6 +10,43 @@
   "timezone": "utc",
   "schemaVersion": 36,
   "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "trace_id",
+        "type": "textbox",
+        "current": {
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Trace ID"
+      },
+      {
+        "name": "span_id",
+        "type": "textbox",
+        "current": {
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Span ID"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Trace Events",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "expr": "{app=\"ecommerce-agent\"} |= \"trace_id=\"",
+        "iconColor": "blue",
+        "tags": ["trace"],
+        "type": "tags"
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,

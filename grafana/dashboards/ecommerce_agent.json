@@ -1,5 +1,6 @@
 {
   "id": null,
+  "uid": "ecommerce-agent",
   "title": "E-commerce Smart Agent",
   "tags": [
     "ecommerce",
@@ -9,6 +10,43 @@
   "timezone": "utc",
   "schemaVersion": 36,
   "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "trace_id",
+        "type": "textbox",
+        "current": {
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Trace ID"
+      },
+      {
+        "name": "span_id",
+        "type": "textbox",
+        "current": {
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Span ID"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Trace Events",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "expr": "{app=\"ecommerce-agent\"} |= \"trace_id=\"",
+        "iconColor": "blue",
+        "tags": ["trace"],
+        "type": "tags"
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
@@ -20,6 +58,23 @@
           "legendFormat": "{{intent_category}} / {{final_agent}}"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "links": [
+            {
+              "title": "View Trace in Tempo",
+              "url": "/explore?left=${__url_encode_explore_dict:{\"datasource\":\"Tempo\",\"queries\":[{\"refId\":\"A\",\"queryType\":\"traceId\",\"query\":\"${trace_id}\"}]}}",
+              "targetBlank": true
+            },
+            {
+              "title": "View Logs in Loki",
+              "url": "/explore?left=${__url_encode_explore_dict:{\"datasource\":\"Loki\",\"queries\":[{\"refId\":\"A\",\"expr\":\"{app=\\\"ecommerce-agent\\\"} |= \\\"trace_id=${trace_id}\\\"\"}]}}",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 6,
