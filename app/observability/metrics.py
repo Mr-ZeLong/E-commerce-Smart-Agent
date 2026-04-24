@@ -225,10 +225,62 @@ INJECTION_ATTEMPTS_TOTAL = _get_or_create_counter(
     "Total prompt injection attempts detected.",
 )
 
+PII_BREACHES_TOTAL = _get_or_create_counter(
+    "pii_breaches_total",
+    "Total PII breaches (detections that bypassed filters).",
+    ["pii_type"],
+)
+
+INJECTION_BYPASSED_TOTAL = _get_or_create_counter(
+    "injection_bypassed_total",
+    "Total prompt injection attempts that bypassed detection.",
+)
+
+SAFETY_CHECKS_TOTAL = _get_or_create_counter(
+    "safety_checks_total",
+    "Total content safety checks performed.",
+    ["layer"],
+)
+
 RATE_LIMIT_HITS_TOTAL = _get_or_create_counter(
     "rate_limit_hits_total",
     "Total rate limit hits by user.",
     ["limit_type"],
+)
+
+WEB_VITALS_LCP = _get_or_create_histogram(
+    "web_vitals_lcp_seconds",
+    "Largest Contentful Paint in seconds.",
+    ["rating"],
+    buckets=(0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0),
+)
+
+WEB_VITALS_CLS = _get_or_create_histogram(
+    "web_vitals_cls_score",
+    "Cumulative Layout Shift score.",
+    ["rating"],
+    buckets=(0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 1.0),
+)
+
+WEB_VITALS_FID = _get_or_create_histogram(
+    "web_vitals_fid_seconds",
+    "First Input Delay in seconds.",
+    ["rating"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
+)
+
+WEB_VITALS_FCP = _get_or_create_histogram(
+    "web_vitals_fcp_seconds",
+    "First Contentful Paint in seconds.",
+    ["rating"],
+    buckets=(0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0),
+)
+
+WEB_VITALS_TTFB = _get_or_create_histogram(
+    "web_vitals_ttfb_seconds",
+    "Time to First Byte in seconds.",
+    ["rating"],
+    buckets=(0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0),
 )
 
 
@@ -382,13 +434,37 @@ def record_pii_detection(pii_type: str, source: str) -> None:
 
 
 def record_injection_attempt() -> None:
-    """Increment the injection attempts counter."""
     INJECTION_ATTEMPTS_TOTAL.inc()
+
+
+def record_pii_breach(pii_type: str) -> None:
+    PII_BREACHES_TOTAL.labels(pii_type=pii_type).inc()
+
+
+def record_injection_bypassed() -> None:
+    INJECTION_BYPASSED_TOTAL.inc()
+
+
+def record_safety_check(layer: str) -> None:
+    SAFETY_CHECKS_TOTAL.labels(layer=layer).inc()
 
 
 def record_rate_limit_hit(limit_type: str) -> None:
     """Increment the rate limit hits counter by limit type."""
     RATE_LIMIT_HITS_TOTAL.labels(limit_type=limit_type).inc()
+
+
+def record_web_vital(metric: str, value: float, rating: str) -> None:
+    if metric == "LCP":
+        WEB_VITALS_LCP.labels(rating=rating).observe(value)
+    elif metric == "CLS":
+        WEB_VITALS_CLS.labels(rating=rating).observe(value)
+    elif metric == "FID":
+        WEB_VITALS_FID.labels(rating=rating).observe(value)
+    elif metric == "FCP":
+        WEB_VITALS_FCP.labels(rating=rating).observe(value)
+    elif metric == "TTFB":
+        WEB_VITALS_TTFB.labels(rating=rating).observe(value)
 
 
 def get_metrics_response() -> tuple[bytes, str]:

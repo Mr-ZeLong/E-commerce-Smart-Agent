@@ -19,6 +19,7 @@ from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.status import router as status_router
+from app.api.v1.web_vitals import router as web_vitals_router
 from app.api.v1.websocket import router as websocket_router
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -282,6 +283,7 @@ app.add_middleware(SlowAPIMiddleware)
 app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["Auth"])  # v4.0 新增
 app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["Chat"])
 app.include_router(status_router, prefix=settings.API_V1_STR, tags=["Status"])
+app.include_router(web_vitals_router, prefix=settings.API_V1_STR, tags=["Metrics"])
 app.include_router(admin_router, prefix=settings.API_V1_STR, tags=["Admin"])
 app.include_router(websocket_router, prefix=settings.API_V1_STR, tags=["WebSocket"])
 

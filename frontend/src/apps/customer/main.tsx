@@ -5,6 +5,9 @@ import App from './App'
 import '../../globals.css'
 import { queryClient } from '@/lib/query-client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { initWebVitals } from '@/utils/webVitalsReporter'
+
+initWebVitals({ samplingRate: 0.1 })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
