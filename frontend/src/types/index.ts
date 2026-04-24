@@ -91,6 +91,7 @@ export interface MessageMetadata {
   transfer_reason?: string
   audit_level?: string
   current_agent?: string
+  trace_id?: string
 }
 
 export interface ConversationThread {

@@ -33,6 +33,7 @@ interface StreamMetadata {
   transfer_reason?: string
   audit_level?: string
   current_agent?: string
+  trace_id?: string
 }
 
 interface UseChatReturn {
@@ -136,12 +137,14 @@ export function useChat(): UseChatReturn {
                   } else if ('type' in parsed && parsed.type === 'metadata') {
                     const meta = parsed as StreamMetadata
                     metadata = {
-                      confidence_score: meta.confidence_score,
-                      confidence_signals: meta.confidence_signals,
-                      needs_human_transfer: meta.needs_human_transfer,
-                      transfer_reason: meta.transfer_reason,
-                      audit_level: meta.audit_level,
-                      current_agent: meta.current_agent,
+                      ...metadata,
+                      confidence_score: meta.confidence_score ?? metadata?.confidence_score,
+                      confidence_signals: meta.confidence_signals ?? metadata?.confidence_signals,
+                      needs_human_transfer: meta.needs_human_transfer ?? metadata?.needs_human_transfer,
+                      transfer_reason: meta.transfer_reason ?? metadata?.transfer_reason,
+                      audit_level: meta.audit_level ?? metadata?.audit_level,
+                      current_agent: meta.current_agent ?? metadata?.current_agent,
+                      trace_id: meta.trace_id ?? metadata?.trace_id,
                     }
                   }
                 } catch {

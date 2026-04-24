@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertTriangle, TrendingUp, TrendingDown, Activity, Clock, Shield, Zap, Calendar } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { AlertTriangle, TrendingUp, TrendingDown, Activity, Clock, Shield, Zap, Calendar, BarChart3, LayoutDashboard } from 'lucide-react'
 
 import {
   useDashboardSummary,
@@ -14,13 +15,15 @@ import {
   useRAGPrecision,
   useHallucinationRate,
 } from '@/hooks/useMetricsDashboard'
+import { GrafanaPanelGrid } from '../components/GrafanaPanelGrid'
 
 type TimeRange = '24h' | '7d' | '30d'
+type ViewMode = 'grafana' | 'legacy'
 
-const timeRangeConfig: Record<TimeRange, { hours: number; days: number; label: string }> = {
-  '24h': { hours: 24, days: 1, label: '最近24小时' },
-  '7d': { hours: 168, days: 7, label: '最近7天' },
-  '30d': { hours: 720, days: 30, label: '最近30天' },
+const timeRangeConfig: Record<TimeRange, { hours: number; days: number; label: string; grafanaFrom: string }> = {
+  '24h': { hours: 24, days: 1, label: '最近24小时', grafanaFrom: 'now-24h' },
+  '7d': { hours: 168, days: 7, label: '最近7天', grafanaFrom: 'now-7d' },
+  '30d': { hours: 720, days: 30, label: '最近30天', grafanaFrom: 'now-30d' },
 }
 
 function SummaryCard({
@@ -410,8 +413,11 @@ function HallucinationRateCard({ items, isLoading, error }: {
   )
 }
 
-export function MetricsPage() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h')
+function LegacyMetricsView({
+  timeRange,
+}: {
+  timeRange: TimeRange
+}) {
   const config = timeRangeConfig[timeRange]
 
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary(config.hours)
@@ -424,26 +430,7 @@ export function MetricsPage() {
   const { data: alerts, isLoading: alertsLoading, error: alertsError } = useDashboardAlerts(config.hours)
 
   return (
-    <div className="space-y-6 p-4 overflow-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">生产监控看板</h1>
-          <p className="text-muted-foreground">实时监控系统核心指标和性能趋势</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as TimeRange)}
-            className="h-9 w-[160px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="24h">最近24小时</option>
-            <option value="7d">最近7天</option>
-            <option value="30d">最近30天</option>
-          </select>
-        </div>
-      </div>
-
+    <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {summaryLoading ? (
           <>
@@ -539,6 +526,79 @@ export function MetricsPage() {
       </div>
 
       <LatencyTrendCard trends={latencyTrend} isLoading={latencyLoading} error={latencyError} />
+    </>
+  )
+}
+
+export function MetricsPage() {
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h')
+  const [viewMode, setViewMode] = useState<ViewMode>('grafana')
+  const config = timeRangeConfig[timeRange]
+
+  const { data: alerts, isLoading: alertsLoading, error: alertsError } = useDashboardAlerts(config.hours)
+
+  return (
+    <div className="space-y-6 p-4 overflow-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">生产监控看板</h1>
+          <p className="text-muted-foreground">实时监控系统核心指标和性能趋势</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as TimeRange)}
+              className="h-9 w-[160px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="24h">最近24小时</option>
+              <option value="7d">最近7天</option>
+              <option value="30d">最近30天</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-full">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="grafana" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Grafana 仪表板
+          </TabsTrigger>
+          <TabsTrigger value="legacy" className="gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            传统指标
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="grafana" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AlertsPanel alerts={alerts} isLoading={alertsLoading} error={alertsError} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Grafana 嵌入说明</CardTitle>
+                <CardDescription>
+                  使用 Grafana kiosk 模式嵌入仪表板。生产环境需要配置 Grafana 身份验证。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                <p>开发模式: 启用 Grafana 匿名访问</p>
+                <p>环境变量: VITE_GRAFANA_URL (默认: http://localhost:3000)</p>
+              </CardContent>
+            </Card>
+          </div>
+          <GrafanaPanelGrid
+            timeRangeFrom={config.grafanaFrom}
+            timeRangeTo="now"
+            theme="light"
+          />
+        </TabsContent>
+
+        <TabsContent value="legacy">
+          <LegacyMetricsView timeRange={timeRange} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
