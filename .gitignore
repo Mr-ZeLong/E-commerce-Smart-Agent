@@ -96,7 +96,8 @@ temp/
 
 # Claude Code
 .remember/
-.claude/
+.claude/*
+!.claude/CLAUDE.md
 
 # uv
 uv.lock

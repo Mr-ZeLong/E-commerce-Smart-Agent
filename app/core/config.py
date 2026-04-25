@@ -131,6 +131,7 @@ class Settings(BaseSettings):
     CACHE_TTL_INTENT: int = 3600  # 1 hour
     CACHE_TTL_PROFILE: int = 300  # 5 minutes
     CACHE_TTL_RETRIEVAL: int = 600  # 10 minutes
+    CACHE_TTL_DB_CONFIG: int = 300  # 5 minutes
 
     # Shadow testing
     SHADOW_TESTING_ENABLED: bool = False

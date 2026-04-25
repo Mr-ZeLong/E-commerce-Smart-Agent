@@ -47,6 +47,7 @@ class CacheManager:
             "preferences": {"hits": 0, "misses": 0},
             "summaries": {"hits": 0, "misses": 0},
             "vector_search": {"hits": 0, "misses": 0},
+            "db_config": {"hits": 0, "misses": 0},
         }
 
     # ------------------------------------------------------------------ #
@@ -360,6 +361,39 @@ class CacheManager:
         await self._redis_delete_pattern(f"vsearch:{user_id}:*")
 
     # ------------------------------------------------------------------ #
+    # Database configuration cache
+    # ------------------------------------------------------------------ #
+
+    async def get_db_config(self, config_key: str) -> dict[str, Any] | None:
+        """Fetch a cached database configuration value for *config_key*."""
+        key = f"db_config:{config_key}"
+        data = await self._redis_get(key)
+        if data is not None:
+            try:
+                self._record_hit("db_config")
+                return json.loads(data)
+            except json.JSONDecodeError:
+                logger.warning("Corrupted db_config cache for key %s", key)
+        self._record_miss("db_config")
+        return None
+
+    async def set_db_config(self, config_key: str, config: dict[str, Any]) -> None:
+        """Cache a database configuration value for *config_key*."""
+        key = f"db_config:{config_key}"
+        await self._redis_set(
+            key, json.dumps(config, ensure_ascii=False), settings.CACHE_TTL_DB_CONFIG
+        )
+
+    async def invalidate_db_config(self, config_key: str) -> None:
+        """Remove a specific database configuration cache entry."""
+        key = f"db_config:{config_key}"
+        await self._redis_delete(key)
+
+    async def invalidate_all_db_configs(self) -> None:
+        """Remove all database configuration cache entries."""
+        await self._redis_delete_pattern("db_config:*")
+
+    # ------------------------------------------------------------------ #
     # Bulk invalidation helpers
     # ------------------------------------------------------------------ #
 
@@ -372,3 +406,4 @@ class CacheManager:
         await self._redis_delete_pattern("preferences:*")
         await self._redis_delete_pattern("summaries:*")
         await self._redis_delete_pattern("vsearch:*")
+        await self._redis_delete_pattern("db_config:*")

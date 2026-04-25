@@ -141,6 +141,48 @@ class TestCacheManagerRetrieval:
         mock_redis.delete.assert_called_once_with("retrieval:abc", "retrieval:def")
 
 
+class TestCacheManagerDbConfig:
+    @pytest.mark.asyncio
+    async def test_get_db_config_cache_hit(self, cache_manager, mock_redis):
+        config = {"pool_size": 20, "max_overflow": 10}
+        mock_redis.get = AsyncMock(return_value=json.dumps(config))
+        result = await cache_manager.get_db_config("connection_pool")
+        assert result == config
+        assert cache_manager._stats["db_config"]["hits"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_db_config_cache_miss(self, cache_manager, mock_redis):
+        mock_redis.get = AsyncMock(return_value=None)
+        result = await cache_manager.get_db_config("connection_pool")
+        assert result is None
+        assert cache_manager._stats["db_config"]["misses"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_db_config_corrupted_cache(self, cache_manager, mock_redis):
+        mock_redis.get = AsyncMock(return_value="not-json")
+        result = await cache_manager.get_db_config("connection_pool")
+        assert result is None
+        assert cache_manager._stats["db_config"]["misses"] == 1
+
+    @pytest.mark.asyncio
+    async def test_set_db_config(self, cache_manager, mock_redis):
+        config = {"pool_size": 20, "max_overflow": 10}
+        await cache_manager.set_db_config("connection_pool", config)
+        mock_redis.setex.assert_called_once()
+        assert mock_redis.setex.call_args[0][0] == "db_config:connection_pool"
+
+    @pytest.mark.asyncio
+    async def test_invalidate_db_config(self, cache_manager, mock_redis):
+        await cache_manager.invalidate_db_config("connection_pool")
+        mock_redis.delete.assert_called_once_with("db_config:connection_pool")
+
+    @pytest.mark.asyncio
+    async def test_invalidate_all_db_configs(self, cache_manager, mock_redis):
+        mock_redis.scan_iter = _make_async_iter(["db_config:a", "db_config:b"])
+        await cache_manager.invalidate_all_db_configs()
+        mock_redis.delete.assert_called_once_with("db_config:a", "db_config:b")
+
+
 class TestCacheManagerBulkInvalidation:
     @pytest.mark.asyncio
     async def test_invalidate_all(self, cache_manager, mock_redis):
@@ -151,11 +193,13 @@ class TestCacheManagerBulkInvalidation:
                 yield "profile:b"
             elif match == "retrieval:*":
                 yield "retrieval:c"
+            elif match == "db_config:*":
+                yield "db_config:d"
 
         mock_redis.scan_iter = _scan_iter
-        mock_redis.delete = AsyncMock(return_value=3)
+        mock_redis.delete = AsyncMock(return_value=4)
         await cache_manager.invalidate_all()
-        assert mock_redis.delete.call_count == 3
+        assert mock_redis.delete.call_count == 4
 
 
 class TestCacheManagerRedisErrorHandling:
