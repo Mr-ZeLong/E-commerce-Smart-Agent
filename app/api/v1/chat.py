@@ -333,8 +333,6 @@ async def chat(
                         {"primary_intent": intent_category},
                     )
 
-            record_chat_request(intent_category=intent_category)
-
             config: RunnableConfig = build_llm_config(
                 user_id=current_user_id,
                 thread_id=thread_id,
@@ -565,6 +563,10 @@ async def chat(
                     )
 
                 # Record Prometheus metrics synchronously (very fast, no I/O).
+                record_chat_request(
+                    intent_category=intent_category,
+                    final_agent=final_agent_name,
+                )
                 record_chat_latency(
                     latency_seconds=total_latency_ms / 1000.0,
                     final_agent=final_agent_name,

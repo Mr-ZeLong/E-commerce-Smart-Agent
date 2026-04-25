@@ -8,10 +8,9 @@ import json
 import logging
 import time
 import zlib
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from typing import Any, cast, override
 
-from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver, Checkpoint, CheckpointTuple
 from langgraph.checkpoint.redis import AsyncRedisSaver
 

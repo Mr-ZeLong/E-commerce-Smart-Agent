@@ -23,13 +23,13 @@ def test_render_prompt_preserves_unknown_placeholders():
     assert result == "Hello {{unknown_var}}"
 
 
-def test_create_messages_avoids_double_rendering():
+def test_create_messages_keeps_system_prompt_static():
     mock_llm = MagicMock()
     agent = DummyAgent(name="test", llm=mock_llm, system_prompt="Welcome to {{company_name}}")
     agent._dynamic_system_prompt = None
     messages = agent._create_messages("Hello", user_context={"company_name": "TestCorp"})
     assert len(messages) == 2
-    assert messages[0].content == "Welcome to TestCorp"
+    assert messages[0].content == "Welcome to {{company_name}}"
 
 
 def test_create_messages_renders_override():

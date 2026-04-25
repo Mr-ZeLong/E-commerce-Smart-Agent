@@ -34,7 +34,7 @@ def mask_observation(
                 "original_length": len(text),
             }
         else:
-            result[key] = text
+            result[key] = value
     return result
 
 

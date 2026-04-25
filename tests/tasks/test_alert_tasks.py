@@ -440,9 +440,12 @@ class TestCheckServiceHealth:
 
         mock_session = _make_mock_session(rules=[mock_rule])
 
-        with patch(
-            "app.tasks.alert_tasks._get_metric_value", return_value=(0.0, {"error": "timeout"})
-        ), patch("app.tasks.alert_tasks.sync_session_maker", return_value=mock_session):
+        with (
+            patch(
+                "app.tasks.alert_tasks._get_metric_value", return_value=(0.0, {"error": "timeout"})
+            ),
+            patch("app.tasks.alert_tasks.sync_session_maker", return_value=mock_session),
+        ):
             with patch("app.tasks.alert_tasks.AlertService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service_class.return_value = mock_service
@@ -455,9 +458,12 @@ class TestCheckServiceHealth:
     def test_unhealthy_no_rule_configured(self):
         mock_session = _make_mock_session(rules=[])
 
-        with patch(
-            "app.tasks.alert_tasks._get_metric_value", return_value=(0.0, {"error": "timeout"})
-        ), patch("app.tasks.alert_tasks.sync_session_maker", return_value=mock_session):
+        with (
+            patch(
+                "app.tasks.alert_tasks._get_metric_value", return_value=(0.0, {"error": "timeout"})
+            ),
+            patch("app.tasks.alert_tasks.sync_session_maker", return_value=mock_session),
+        ):
             with patch("app.tasks.alert_tasks.AlertService") as mock_service_class:
                 mock_service = MagicMock()
                 mock_service_class.return_value = mock_service

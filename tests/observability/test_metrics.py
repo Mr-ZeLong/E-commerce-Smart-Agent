@@ -220,7 +220,11 @@ class TestMetricsEndpointIntegration:
         response = await client.get("/metrics", follow_redirects=True)
         assert response.status_code == 200
         content = response.content.decode()
-        assert 'chat_requests_total{intent_category="POLICY",final_agent="policy_agent"}' in content
+        assert (
+            "chat_requests_total{" in content
+            and 'intent_category="POLICY"' in content
+            and 'final_agent="policy_agent"' in content
+        )
         assert 'chat_latency_seconds_sum{final_agent="policy_agent"}' in content
 
 
@@ -230,7 +234,19 @@ class TestExecutionLoggerIntegration:
         self,
         db_session,
     ):
+        from app.models.user import User
         from app.observability.execution_logger import log_graph_execution
+
+        user = User(
+            username="metrics_test_user",
+            password_hash=User.hash_password("testpass"),
+            email="metrics_test@example.com",
+            full_name="Metrics Test User",
+        )
+        db_session.add(user)
+        await db_session.flush()
+        await db_session.refresh(user)
+        assert user.id is not None
 
         with (
             patch("app.observability.execution_logger.record_chat_request") as mock_req,
@@ -242,7 +258,7 @@ class TestExecutionLoggerIntegration:
             await log_graph_execution(
                 session=db_session,
                 thread_id="t-metrics",
-                user_id=1,
+                user_id=user.id,
                 intent_category="ORDER",
                 final_agent="order_agent",
                 confidence_score=0.85,

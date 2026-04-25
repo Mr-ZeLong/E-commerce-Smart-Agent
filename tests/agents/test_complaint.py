@@ -65,7 +65,7 @@ async def test_complaint_agent_parses_markdown_json(agent):
         '"empathetic_response": "工单 {ticket_id} 已创建"}'
         "\n```"
     )
-    agent.llm = DeterministicChatModel(responses=[(["物流"], llm_response)])
+    agent.llm = DeterministicChatModel(responses=[(["海外"], llm_response)])
 
     with (
         patch(
@@ -73,7 +73,7 @@ async def test_complaint_agent_parses_markdown_json(agent):
         ),
         patch.object(agent._tool, "create_ticket", new=AsyncMock(return_value={"ticket_id": 7})),
     ):
-        state = make_agent_state(question="物流太慢了")
+        state = make_agent_state(question="海外订单无法追踪")
         result = await agent.process(state)
 
     assert "7" in result["response"]
@@ -82,7 +82,7 @@ async def test_complaint_agent_parses_markdown_json(agent):
 
 @pytest.mark.asyncio
 async def test_complaint_agent_parse_fallback(agent):
-    agent.llm = DeterministicChatModel(responses=[(["坏"], "不是有效JSON")])
+    agent.llm = DeterministicChatModel(responses=[(["无法"], "不是有效JSON")])
 
     with (
         patch(
@@ -90,7 +90,7 @@ async def test_complaint_agent_parse_fallback(agent):
         ),
         patch.object(agent._tool, "create_ticket", new=AsyncMock(return_value={"ticket_id": 1})),
     ):
-        state = make_agent_state(question="东西坏了")
+        state = make_agent_state(question="无法使用购买的优惠券")
         result = await agent.process(state)
 
     assert result["response"] == "不是有效JSON"

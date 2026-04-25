@@ -74,7 +74,7 @@ async def llm_hallucination_score(
     except (ValueError, TypeError):
         logger.warning("Failed to parse hallucination score from LLM response.")
         return 0.0
-    except OSError as e:
+    except Exception as e:
         logger.warning("LLM call failed during hallucination evaluation: %s", e)
         return 0.0
 

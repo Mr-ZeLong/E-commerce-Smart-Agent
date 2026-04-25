@@ -108,7 +108,7 @@ class EvaluationPipeline:
             config = {**config, "configurable": {"thread_id": session_id}}
             try:
                 final_state = await self.graph.ainvoke(initial_state, config=config)
-            except (SQLAlchemyError, RuntimeError):
+            except Exception:
                 logger.exception("Graph invocation failed for query: %s", query)
                 final_state = {}
 

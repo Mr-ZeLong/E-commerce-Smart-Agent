@@ -28,6 +28,6 @@ async def send_email(to_emails: list[str], subject: str, body: str) -> dict:
             server.sendmail(msg["From"], to_emails, msg.as_string())
         logger.info("邮件已发送至 %s", to_emails)
         return {"sent": True, "recipients": to_emails}
-    except (smtplib.SMTPException, OSError, ConnectionError):
+    except (smtplib.SMTPException, OSError, ConnectionError, Exception):
         logger.exception("邮件发送失败")
         return {"sent": False, "reason": "smtp_error"}

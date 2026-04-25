@@ -65,9 +65,6 @@ def maybe_add_cache_control(messages: list) -> list:
         elif isinstance(msg, HumanMessage):
             last_human_idx = idx
 
-    if first_system_idx == -1:
-        return messages
-
     result: list = []
     for idx, msg in enumerate(messages):
         if isinstance(msg, SystemMessage) and idx == first_system_idx:

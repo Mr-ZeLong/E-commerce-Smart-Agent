@@ -1,6 +1,7 @@
 import pytest
 
 from app.models.experiment import Experiment, ExperimentStatus, ExperimentVariant
+from app.models.user import User
 from app.services.experiment_assigner import (
     ExperimentAssigner,
     VariantConfig,
@@ -117,6 +118,17 @@ async def test_assign_with_config_returns_none_when_experiment_not_found(db_sess
 
 @pytest.mark.asyncio
 async def test_assign_with_config_returns_full_variant_config(db_session):
+    user = User(
+        username="exp_test_user1",
+        password_hash=User.hash_password("testpass"),
+        email="exp1@test.com",
+        full_name="Exp Test User 1",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
+
     assigner = ExperimentAssigner()
     exp = Experiment(name="exp_config", status=ExperimentStatus.RUNNING.value)
     db_session.add(exp)
@@ -140,7 +152,7 @@ async def test_assign_with_config_returns_full_variant_config(db_session):
     await db_session.refresh(v1)
     assert v1.id is not None
 
-    result = await assigner.assign_with_config("123", "exp_config", db_session)
+    result = await assigner.assign_with_config(str(user.id), "exp_config", db_session)
     assert isinstance(result, VariantConfig)
     assert result.variant_id == v1.id
     assert result.system_prompt == "test prompt"
@@ -153,6 +165,17 @@ async def test_assign_with_config_returns_full_variant_config(db_session):
 
 @pytest.mark.asyncio
 async def test_variant_config_defaults_none(db_session):
+    user = User(
+        username="exp_test_user2",
+        password_hash=User.hash_password("testpass"),
+        email="exp2@test.com",
+        full_name="Exp Test User 2",
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    assert user.id is not None
+
     assigner = ExperimentAssigner()
     exp = Experiment(name="exp_defaults", status=ExperimentStatus.RUNNING.value)
     db_session.add(exp)
@@ -166,7 +189,7 @@ async def test_variant_config_defaults_none(db_session):
     await db_session.refresh(v1)
     assert v1.id is not None
 
-    result = await assigner.assign_with_config("123", "exp_defaults", db_session)
+    result = await assigner.assign_with_config(str(user.id), "exp_defaults", db_session)
     assert isinstance(result, VariantConfig)
     assert result.variant_id == v1.id
     assert result.system_prompt is None

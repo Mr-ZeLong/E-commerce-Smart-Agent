@@ -210,7 +210,7 @@ class MultiIntentProcessor:
             if isinstance(result, dict):
                 return IndependenceCheck(**result)
             return IndependenceCheck(are_independent=False, reason="Unexpected output type")
-        except (LangChainException, ConnectionError, OSError) as exc:
+        except (LangChainException, ConnectionError, OSError, Exception) as exc:
             logger.warning("LLM independence check failed: %s", exc)
             return IndependenceCheck(are_independent=False, reason="LLM check failed")
 

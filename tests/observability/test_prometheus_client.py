@@ -39,9 +39,12 @@ class TestQueryPrometheus:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -67,9 +70,12 @@ class TestQueryPrometheus:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=httpx.HTTPError("connection refused"))
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -96,9 +102,12 @@ class TestQueryPrometheus:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -121,9 +130,12 @@ class TestQueryPrometheus:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -146,9 +158,12 @@ class TestQueryPrometheus:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -189,9 +204,12 @@ class TestQueryPrometheusRange:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -227,9 +245,12 @@ class TestQueryPrometheusRange:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=httpx.HTTPError("connection refused"))
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -261,9 +282,12 @@ class TestQueryPrometheusRange:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 
@@ -291,9 +315,12 @@ class TestQueryPrometheusRange:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
-        ), patch("app.observability.prometheus_client.settings") as mock_settings:
+        with (
+            patch(
+                "app.observability.prometheus_client.httpx.AsyncClient", return_value=mock_client
+            ),
+            patch("app.observability.prometheus_client.settings") as mock_settings,
+        ):
             mock_settings.PROMETHEUS_ENABLED = True
             mock_settings.PROMETHEUS_URL = "http://prometheus:9090"
 

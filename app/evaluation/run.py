@@ -240,7 +240,7 @@ def main() -> None:
     except FileNotFoundError as e:
         logger.error("File not found: %s", e)
         sys.exit(1)
-    except OSError:
+    except Exception:
         logger.exception("Evaluation failed")
         sys.exit(1)
 

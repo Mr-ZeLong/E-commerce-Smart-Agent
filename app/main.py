@@ -79,11 +79,6 @@ async def lifespan(app: FastAPI):
     )
     from app.tools.registry import ToolRegistry
 
-    redis_client = None
-    retriever = None
-    vector_manager = None
-    bridge = None
-    listener_task = None
     try:
         redis_client = create_redis_client()
         checkpointer = OptimizedRedisCheckpoint(redis_client=redis_client)
@@ -179,18 +174,23 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("Shutting down...")
-        if listener_task is not None:
-            listener_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await listener_task
-        if bridge is not None:
-            await bridge.close()
-        if redis_client is not None:
-            await redis_client.close()
-        if retriever is not None:
-            await retriever.qdrant_client.aclose()
-        if vector_manager is not None:
-            await vector_manager.aclose()
+        with contextlib.suppress(NameError):
+            if listener_task is not None:
+                listener_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await listener_task
+        with contextlib.suppress(NameError):
+            if bridge is not None:
+                await bridge.close()
+        with contextlib.suppress(NameError):
+            if redis_client is not None:
+                await redis_client.close()
+        with contextlib.suppress(NameError):
+            if retriever is not None:
+                await retriever.qdrant_client.aclose()
+        with contextlib.suppress(NameError):
+            if vector_manager is not None:
+                await vector_manager.aclose()
         await async_engine.dispose()
 
 
@@ -350,17 +350,54 @@ if os.path.exists(frontend_dist_path):
 
 @app.get("/health")
 async def health_check():
-    return {
+    from sqlalchemy import text
+
+    from app.core.database import async_engine
+    from app.core.redis import RedisHealthCheck, create_redis_client
+
+    health_status = {
         "status": "healthy",
         "version": "v4.1",
-        "features": [
-            "用户登录认证",
-            "多租户数据隔离",
-            "订单查询",
-            "政策咨询",
-            "退货申请",
-            "人工审核",
-            "实时状态同步",
-            "管理员工作台",
-        ],
+        "dependencies": {},
     }
+
+    try:
+        async with async_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            await conn.commit()
+        health_status["dependencies"]["database"] = "connected"
+    except Exception as exc:
+        health_status["dependencies"]["database"] = f"unavailable: {exc}"
+        health_status["status"] = "degraded"
+
+    try:
+        redis_client = create_redis_client()
+        health_check = RedisHealthCheck(redis_client)
+        redis_healthy = await health_check.check()
+        if redis_healthy:
+            health_status["dependencies"]["redis"] = "connected"
+        else:
+            health_status["dependencies"]["redis"] = "unavailable"
+            health_status["status"] = "degraded"
+    except Exception as exc:
+        health_status["dependencies"]["redis"] = f"unavailable: {exc}"
+        health_status["status"] = "degraded"
+
+    try:
+        from qdrant_client import AsyncQdrantClient
+
+        from app.core.config import settings
+
+        qdrant = AsyncQdrantClient(
+            url=settings.QDRANT_URL,
+            api_key=settings.QDRANT_API_KEY.get_secret_value() if settings.QDRANT_API_KEY else None,
+            timeout=settings.QDRANT_TIMEOUT,
+        )
+        await qdrant.get_collections()
+        await qdrant.close()
+        health_status["dependencies"]["qdrant"] = "connected"
+    except Exception as exc:
+        health_status["dependencies"]["qdrant"] = f"unavailable: {exc}"
+        health_status["status"] = "degraded"
+
+    return health_status

@@ -7,9 +7,8 @@ contactPoints:
       - uid: email-default-uid
         type: email
         settings:
-          addresses: ${ALERT_ADMIN_EMAILS:-oncall@example.com}
+          addresses: "admin@example.com"
           singleEmail: false
-          subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
         disableResolveMessage: false
 
   - orgId: 1
@@ -18,13 +17,8 @@ contactPoints:
       - uid: pagerduty-critical-uid
         type: pagerduty
         settings:
-          integrationKey: ${PAGERDUTY_SERVICE_KEY}
+          integrationKey: "${PAGERDUTY_INTEGRATION_KEY}"
           severity: critical
-          class: '{{ .CommonLabels.severity }}'
-          component: '{{ .CommonLabels.service }}'
-          group: '{{ .CommonLabels.team }}'
-          summary: '{{ .CommonAnnotations.summary }}'
-          description: '{{ .CommonAnnotations.description }}'
         disableResolveMessage: false
 
   - orgId: 1
@@ -33,7 +27,7 @@ contactPoints:
       - uid: webhook-default-uid
         type: webhook
         settings:
-          url: ${ALERT_WEBHOOK_URL:-http://localhost:8000/api/v1/admin/alerts/webhook}
+          url: http://localhost:8000/api/v1/admin/alerts/webhook
           httpMethod: POST
           maxAlerts: 0
           title: '{{ .Status | toUpper }}: {{ .GroupLabels.alertname }}'
@@ -46,11 +40,9 @@ contactPoints:
       - uid: slack-alerts-uid
         type: slack
         settings:
+          url: "${SLACK_WEBHOOK_URL}"
           title: '{{ .Status | toUpper }}: {{ .GroupLabels.alertname }}'
           text: '{{ .CommonAnnotations.description }}'
-          username: E-commerce Smart Agent Alerts
-          icon_emoji: ":warning:"
-          url: ${SLACK_WEBHOOK_URL:-}
         disableResolveMessage: false
 
 deleteContactPoints: []

@@ -110,7 +110,7 @@ class LLMJudgeLayer:
                 },
             )
 
-        except (LangChainException, ConnectionError) as e:
+        except (LangChainException, ConnectionError, Exception) as e:
             logger.error("LLM judge evaluation failed: %s", e)
             # Fail-safe: if the LLM judge errors, conservatively allow the content
             # but log the failure. This prevents blocking all output on LLM issues.

@@ -61,6 +61,24 @@ class ComplaintAgent(BaseAgent):
         # Fast-path: skip LLM for common complaint patterns to ensure <2s response
         classification = self._classify_with_rules(question)
 
+        if classification.category == "other":
+            try:
+                messages = [
+                    {
+                        "role": "system",
+                        "content": self._dynamic_system_prompt or self.system_prompt,
+                    },
+                    {"role": "user", "content": question},
+                ]
+                response = await self.llm.ainvoke(messages)
+                if hasattr(response, "content") and isinstance(response.content, str):
+                    raw_output = response.content
+                else:
+                    raw_output = str(response)
+                classification = self._parse_classification(raw_output)
+            except (ConnectionError, OSError, RuntimeError):
+                logger.exception("LLM classification failed, using defaults")
+
         try:
             ticket = await self._tool.create_ticket(
                 user_id=user_id,
@@ -74,7 +92,7 @@ class ComplaintAgent(BaseAgent):
             response_text = classification.empathetic_response.replace(
                 "{ticket_id}", str(ticket_id)
             )
-        except (SQLAlchemyError, ConnectionError, OSError):
+        except (SQLAlchemyError, ConnectionError, OSError, RuntimeError):
             logger.exception("Failed to create complaint ticket")
             response_text = (
                 "非常抱歉给您带来不好的体验，我们已经记录了您的问题，客服团队会尽快与您联系处理。"

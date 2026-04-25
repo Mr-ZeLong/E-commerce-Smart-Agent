@@ -138,6 +138,10 @@ class TestConnectionPool:
             assert kwargs["decode_responses"] is True
 
     def test_get_pool_singleton(self):
+        import app.core.redis as redis_module
+
+        # Reset global pool instance to ensure test isolation
+        redis_module._pool_instance = None
         with patch("app.core.redis._create_connection_pool") as mock_create:
             mock_pool = MagicMock()
             mock_create.return_value = mock_pool
@@ -145,6 +149,8 @@ class TestConnectionPool:
             p2 = _get_pool()
             assert p1 is p2
             mock_create.assert_called_once()
+        # Clean up after test
+        redis_module._pool_instance = None
 
     def test_create_redis_client_uses_pool(self):
         with patch("app.core.redis._get_pool") as mock_get_pool:

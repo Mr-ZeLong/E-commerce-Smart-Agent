@@ -8,6 +8,7 @@ from app.core.database import async_session_maker
 from app.models.memory import AgentConfig
 from app.models.observability import GraphExecutionLog
 from app.models.prompt_effect_report import PromptEffectReport
+from app.models.user import User
 from app.tasks.prompt_effect_tasks import _generate_monthly_report, _generate_single_report
 
 
@@ -15,6 +16,17 @@ from app.tasks.prompt_effect_tasks import _generate_monthly_report, _generate_si
 async def test_generate_single_report():
     agent_name = f"effect_agent_{uuid.uuid4().hex[:8]}"
     async with async_session_maker() as session:
+        user = User(
+            username=f"effect_user_{uuid.uuid4().hex[:8]}",
+            password_hash=User.hash_password("test"),
+            email="effect@test.com",
+            full_name="Effect User",
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        assert user.id is not None
+
         config = AgentConfig(
             agent_name=agent_name,
             system_prompt="prompt",
@@ -28,7 +40,7 @@ async def test_generate_single_report():
 
         log = GraphExecutionLog(
             thread_id="t1",
-            user_id=1,
+            user_id=user.id,
             final_agent=agent_name,
             confidence_score=0.88,
             needs_human_transfer=False,
